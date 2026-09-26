@@ -351,13 +351,13 @@
         <div class="card-head">
             <div>
                 <div class="card-title"><i class="fa-solid fa-snowplow text-red-600"></i> Plan para Salir de Deudas (Paso 2)</div>
-                <div class="card-sub">Registra tus deudas de consumo (la hipoteca va en <a href="#" class="link" data-goto="patrimonio">Patrimonio</a>) y compara estrategias.</div>
+                <div class="card-sub">Registra tus deudas de consumo (la hipoteca va en <a href="#" class="link" data-goto="patrimonio">Patrimonio</a>). Cada deuda entra automáticamente a tu <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a>, y el plan solo usa el dinero que ahí le asignas.</div>
             </div>
             <button class="btn btn-danger" data-action="debt.add"><i class="fa-solid fa-plus"></i> Agregar Deuda</button>
         </div>
         <div class="table-wrap mb-4">
             <table class="table">
-                <thead><tr><th style="min-width:11rem">Deuda</th><th>Tipo</th><th style="width:8rem">Saldo ($)</th><th style="width:6.5rem">Tasa (%)</th><th style="width:8rem">Pago mínimo ($)</th><th class="text-center">Orden</th><th class="text-center">Se paga en</th><th></th></tr></thead>
+                <thead><tr><th style="min-width:11rem">Deuda</th><th>Tipo</th><th style="width:8rem">Saldo ($)</th><th style="width:6.5rem">Tasa (%)</th><th style="width:8rem">Pago mínimo ($)</th><th style="width:8.5rem">En tu presupuesto ($/mes)</th><th class="text-center">Orden</th><th class="text-center">Se paga en</th><th></th></tr></thead>
                 <tbody id="debt-body"></tbody>
             </table>
         </div>
@@ -370,19 +370,21 @@
                 </select>
                 <span class="help">Bola de Nieve: menor saldo primero. Avalancha: mayor tasa primero.</span>
             </label>
-            <label class="field field-box">
-                <span class="field-label">Pago extra mensual ($)</span>
-                <input type="number" class="input" step="10" min="0" data-bind="debtPlan.extraPayment">
-                <span class="help">Además de los mínimos de todas tus deudas.</span>
-            </label>
+            <div class="kpi tone-slate" id="debt-funding">
+                <span class="kpi-label">Tu presupuesto para deudas</span>
+                <span class="kpi-value" id="debt-pool">$0/mes</span>
+                <span class="kpi-note" id="debt-pool-note"></span>
+            </div>
             <div class="kpi tone-red"><span class="kpi-label">Libre de deudas</span><span class="kpi-value" id="debt-free-date">—</span><span class="kpi-note">Deuda total: <strong id="debt-total">$0</strong></span></div>
             <div class="kpi tone-emerald"><span class="kpi-label">Ahorro vs. solo mínimos</span><span class="kpi-value" id="debt-saved">$0</span><span class="kpi-note">Interés con tu plan: <strong id="debt-interest">$0</strong></span></div>
         </div>
+        <div id="debt-warning" class="panel mb-4 hidden"></div>
         <details class="explain">
-            <summary>¿Bola de Nieve o Avalancha?</summary>
+            <summary>¿Bola de Nieve o Avalancha? ¿De dónde sale el dinero?</summary>
             <div>
                 <p><strong>Bola de Nieve (recomendada por Dave Ramsey):</strong> paga primero el saldo MÁS PEQUEÑO manteniendo los mínimos en las demás. Al eliminar una deuda, su pago se suma a la siguiente. Las victorias rápidas mantienen la motivación.</p>
                 <p><strong>Avalancha:</strong> paga primero la TASA más alta. Ahorra más interés total, pero las primeras victorias tardan más.</p>
+                <p><strong>El dinero:</strong> el plan usa todo lo que tu presupuesto base de <span class="active-year"></span> asigna a "Pagos de deudas". Primero cubre el pago mínimo de cada deuda; lo que sobra va completo a la deuda que toca según la estrategia. Al terminar una deuda, su dinero pasa a la siguiente. Para salir antes, sube el monto de una deuda aquí o en el presupuesto (y bájalo en otro rubro para que te alcance).</p>
             </div>
         </details>
     </div>
@@ -391,16 +393,17 @@
         <div class="card-head">
             <div>
                 <div class="card-title"><i class="fa-solid fa-bullseye text-purple-600"></i> Metas de Ahorro Sin Deuda</div>
-                <div class="card-sub">Cuánto tiempo necesitas para comprar algo 100% en efectivo ahorrando en DPF. Las metas nuevas usan la tasa DPF de <span class="active-year"></span>.</div>
+                <div class="card-sub">Cuánto tiempo necesitas para comprar algo 100% en efectivo ahorrando en DPF. Cada meta entra automáticamente a la sección de Ahorro de tu <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a>: si no le asignas dinero, nunca llega.</div>
             </div>
             <button class="btn btn-secondary" data-action="goal.add"><i class="fa-solid fa-plus"></i> Nueva Meta</button>
         </div>
         <div class="table-wrap mb-4">
             <table class="table">
-                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo ($)</th><th style="width:8rem">Ahorrado ($)</th><th style="width:8rem">Aporte mensual ($)</th><th style="width:6.5rem">Tasa DPF (%)</th><th class="text-center">Tiempo estimado</th><th></th></tr></thead>
+                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo ($)</th><th style="width:8rem">Ahorrado ($)</th><th style="width:8.5rem">En tu presupuesto ($/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th class="text-center">Tiempo estimado</th><th></th></tr></thead>
                 <tbody id="goal-body"></tbody>
             </table>
         </div>
+        <div id="goal-warning" class="panel tone-amber mb-4 text-xs text-amber-900 hidden"></div>
         <details class="explain">
             <summary>¿Cómo se calcula el tiempo? (NPER)</summary>
             <div>
@@ -566,7 +569,11 @@
                 <div class="input input-readonly" id="ret-ahorro"></div>
                 <span class="linked">🔗 Automático: el capital de tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas registradas</a>.</span>
             </div>
-            <label class="field field-box tone-emerald"><span class="field-label">Aporte mensual para el retiro ($)</span><input type="number" class="input" step="10" min="0" data-bind="retirement.aporteMensual"><span class="help">Lo que planeas ahorrar cada mes de aquí en adelante. Para explorar "¿y si aporto más?" usa el simulador de abajo.</span></label>
+            <div class="field-box tone-emerald">
+                <span class="field-label">Aporte mensual para el retiro ($)</span>
+                <div class="input input-readonly" id="ret-aporte"></div>
+                <span class="linked">🔗 Automático: tus rubros de Ahorro del <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a> (sin contar metas)<span id="ret-aporte-sweep"></span>. Para aportar más, súbelo ahí. Para solo explorar, usa el simulador de abajo.</span>
+            </div>
             <div class="field-box tone-emerald">
                 <span class="field-label"><span>Retorno anual esperado (%)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="tasaRetorno" title="Volver a enlazar con la Tasa DPF">↻ enlazar</button></span>
                 <input type="number" class="input" step="0.1" min="0" id="ret-tasa" data-input="ret.override" data-field="tasaRetorno">

@@ -78,18 +78,24 @@
         const ctx = { state: s, ui: Store.ui, today: new Date() };
         const lazy = (name, fn) => Object.defineProperty(ctx, name, { get() { const v = fn(); Object.defineProperty(ctx, name, { value: v }); return v; }, configurable: true });
 
-        ctx.year = Store.active();
-        lazy('pay', () => Engine.payroll(ctx.year));
-        lazy('monthBudget', () => Engine.monthBudget(ctx.year, Store.ui.month, ctx.pay));
-        lazy('baseBudget', () => Engine.monthBudget(ctx.year, 'base', ctx.pay));
-        lazy('annual', () => Engine.annualBudget(ctx.year));
+        ctx.year = Store.active();                       // stored data, for editing
+        ctx.budgetYear = Store.effective(s.activeYear);  // + debt/goal lines, for every calculation
+        lazy('pay', () => Engine.payroll(ctx.budgetYear));
+        lazy('monthBudget', () => Engine.monthBudget(ctx.budgetYear, Store.ui.month, ctx.pay));
+        lazy('baseBudget', () => Engine.monthBudget(ctx.budgetYear, 'base', ctx.pay));
+        lazy('annual', () => Engine.annualBudget(ctx.budgetYear));
         lazy('polizasCapital', () => Engine.polizasCapital(s.polizas));
         lazy('projectionStart', () => Math.min(s.configEndYear, Math.max(s.configStartYear, ctx.today.getFullYear())));
-        lazy('projection', () => Engine.projectDPF({ polizas: s.polizas, startYear: ctx.projectionStart, endYear: s.configEndYear, getYear: y => Store.peekYear(y) }));
+        lazy('projection', () => Engine.projectDPF({ polizas: s.polizas, startYear: ctx.projectionStart, endYear: s.configEndYear, getYear: y => Store.effective(y) }));
         lazy('netWorth', () => Engine.netWorth(s.years, s.assets, s.activeYear));
         lazy('ef', () => Engine.emergencyFund({ liquid: ctx.polizasCapital + ctx.netWorth.fields.savings, budgetBase: ctx.year.budgetBase }));
-        lazy('debts', () => Engine.debtPayoff(s.debts, s.debtPlan.extraPayment, s.debtPlan.strategy));
-        lazy('savingsRate', () => ctx.pay.sueldoAnual > 0 ? ctx.annual.savingsReal / ctx.pay.sueldoAnual : 0);
+        // The payoff plan spends only what the budget assigns: each debt's own line, plus any
+        // other "Pago deuda" rubro (which goes to the snowball target).
+        lazy('debtExtraRubros', () => ctx.year.budgetBase.filter(i => i.type === 'Deuda').reduce((t, i) => t + (Number(i.real) || 0), 0));
+        lazy('debts', () => Engine.debtPayoff(s.debts, s.debtPlan.strategy, ctx.debtExtraRubros));
+        // Retirement savings = the budget's own savings rubros (not goal lines) + auto-sweep.
+        lazy('retirementMonthly', () => ctx.year.budgetBase.filter(i => Engine.isSavingsItem(i)).reduce((t, i) => t + (Number(i.real) || 0), 0) + ctx.baseBudget.sweep);
+        lazy('savingsRate', () => ctx.pay.sueldoAnual > 0 ? ctx.retirementMonthly * 12 / ctx.pay.sueldoAnual : 0);
         lazy('steps', () => Engine.babySteps({
             liquid: ctx.ef.liquid, consumerDebt: ctx.debts.totalBalance, monthsCovered: ctx.ef.monthsCovered,
             savingsRate: ctx.savingsRate, mortgageBalance: ctx.netWorth.fields.mortgage
@@ -99,6 +105,7 @@
             return {
                 ...r,
                 ahorroActual: ctx.polizasCapital,
+                aporteMensual: ctx.retirementMonthly,
                 tasaRetorno: r.tasaRetorno === null || r.tasaRetorno === undefined ? ctx.year.tasa : r.tasaRetorno,
                 sueldoPromedio: r.sueldoPromedio === null || r.sueldoPromedio === undefined ? ctx.year.sueldo : r.sueldoPromedio
             };

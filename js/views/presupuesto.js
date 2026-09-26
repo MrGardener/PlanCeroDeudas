@@ -16,7 +16,8 @@
     };
 
     const month = () => Store.ui.month;
-    const items = (ctx) => Engine.monthItems(ctx.year, month());
+    // Includes the lines generated from your debts and goals (see Store.linkedRows).
+    const items = (ctx) => Engine.monthItems(ctx.budgetYear, month());
 
     // Editing a specific month for the first time gives it its own copy of the base budget.
     function editableItems() {
@@ -26,7 +27,27 @@
         return Engine.monthItems(yd, m);
     }
 
+    // Debt and goal lines: their amount is the debt's/goal's monthly budget (same number in
+    // every month); name, type and deletion are managed from Deudas y Metas.
+    function linkedRowHTML(item) {
+        const isDebt = item.link === 'debt';
+        const input = (field) => `<input type="number" class="cell-input num money" step="10" min="0" value="${Number(item[field]) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" data-field="${field}" aria-label="${field === 'prep' ? 'Presupuestado' : 'Real'}" title="Monto mensual para todo el año. También se edita en Deudas y Metas.">`;
+        return `
+            <tr data-row="${item.id}" class="bg-slate-50/60">
+                <td><div class="flex items-center gap-2 px-1"><span class="font-semibold text-slate-800 truncate">${esc(item.name)}</span><a href="#" class="badge ${isDebt ? 'badge-bad' : 'badge-purple'} shrink-0" data-goto="metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Se gestiona en Deudas y Metas"><i class="fa-solid fa-link"></i> ${isDebt ? 'Deuda' : 'Meta'}</a></div></td>
+                <td class="text-xs text-slate-500 px-3">${isDebt ? 'Pago Deuda' : 'Ahorro (meta)'}</td>
+                <td class="text-center text-slate-300">—</td>
+                <td>${input('prep')}</td>
+                <td>${input('real')}</td>
+                <td class="num font-bold" data-cell="diff"></td>
+                <td class="text-xs text-slate-500 px-3">${esc(item.linkedCategory)}</td>
+                <td data-cell="spend"></td>
+                <td class="text-center"><a href="#" class="row-del" data-goto="metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Editar o eliminar en Deudas y Metas"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
+            </tr>`;
+    }
+
     function rowHTML(item, taxonomy) {
+        if (item.link) return linkedRowHTML(item);
         const cats = [{ value: 'none', label: 'Sin vincular' }].concat(Object.keys(taxonomy).map(c => ({ value: c, label: c })));
         const linked = item.linkedCategory || 'none';
         if (linked !== 'none' && !taxonomy[linked]) cats.push({ value: linked, label: linked + ' (eliminada)' });
@@ -107,6 +128,23 @@
             const dc = row.querySelector('[data-cell="diff"]');
             dc.textContent = money(diff);
             dc.className = `num font-bold ${diff >= 0 ? 'text-emerald-600' : 'text-red-600'}`;
+            if (it.link) {
+                // Keep the twin input (Presupuestado/Real of the same line) in step.
+                row.querySelectorAll('[data-input="budget.setLinked"]').forEach(inp => { if (inp !== document.activeElement) inp.value = Number(it.prep) || 0; });
+                const cell = row.querySelector('[data-cell="spend"]');
+                if (it.link === 'debt') {
+                    cell.innerHTML = it.real + 0.005 >= it.minPayment
+                        ? `<span class="badge badge-ok" title="Pago mínimo del banco">Cubre el mínimo (${money0(it.minPayment)})</span>`
+                        : `<span class="badge badge-bad" title="Pago mínimo del banco">Mínimo: ${money0(it.minPayment)}</span>`;
+                } else {
+                    const g = ctx.state.goals.find(x => x.id === it.refId) || {};
+                    const r = Engine.goalMonths(g);
+                    cell.innerHTML = r.status === 'reached' ? '<span class="badge badge-ok">¡Meta alcanzada!</span>'
+                        : r.status === 'never' ? '<span class="badge badge-bad">Sin aporte: nunca llega</span>'
+                        : `<span class="badge badge-purple">Lista en ${Fmt.monthYear(Engine.addMonths(today, r.months))}</span>`;
+                }
+                return;
+            }
             const spent = Engine.categorySpend(ctx.state.transactions, it.linkedCategory, ctx.state.activeYear, period);
             const target = Engine.categoryTarget(it, ctx.state.activeYear, period, today);
             row.querySelector('[data-cell="spend"]').innerHTML = Views.spendBadge(Engine.spendStatus(spent, target));
@@ -122,7 +160,14 @@
             gr.querySelector('[data-gcell="prep"]').textContent = money(prep);
             gr.querySelector('[data-gcell="real"]').textContent = money(real);
             gr.querySelector('[data-gcell="diff"]').textContent = money(prep - real);
-            gr.querySelector('[data-gcell="note"]').textContent = g === 'Ahorro' && mb.sweep > 0 ? ` + ${money(mb.sweep)} barrido` : '';
+            const noteCell = gr.querySelector('[data-gcell="note"]');
+            if (g === 'Ahorro') noteCell.textContent = mb.sweep > 0 ? ` + ${money(mb.sweep)} barrido` : '';
+            if (g === 'Deuda') {
+                const plan = ctx.debts;
+                noteCell.innerHTML = plan.totalBalance <= 0 ? ''
+                    : plan.shortfall > 0 ? ` <span class="text-red-600">· faltan ${money0(plan.shortfall)} para los mínimos</span>`
+                    : ` · libre de deudas en ${Fmt.monthYear(Engine.addMonths(today, plan.months))}${plan.extra > 0 ? ` (${money0(plan.extra)} extra a la bola de nieve)` : ''}`;
+            }
         });
 
         // Footer
@@ -149,8 +194,8 @@
         }
 
         // Budget vs actual trend
-        const trend = Engine.budgetVsActualByMonth(yd, ctx.state.transactions, ctx.state.activeYear);
-        const anyLinked = Engine.MONTHS.some(mm => Engine.monthItems(yd, mm).some(i => i.linkedCategory && i.linkedCategory !== 'none'));
+        const trend = Engine.budgetVsActualByMonth(ctx.budgetYear, ctx.state.transactions, ctx.state.activeYear);
+        const anyLinked = Engine.MONTHS.some(mm => Engine.monthItems(ctx.budgetYear, mm).some(i => i.linkedCategory && i.linkedCategory !== 'none'));
         UI.show('bud-trend-empty', !anyLinked);
         UI.show(document.getElementById('bud-trend-chart').parentElement, anyLinked);
         if (anyLinked) {
@@ -179,6 +224,13 @@
             // Changing the type moves the row to another group; everything else only
             // refreshes numbers, so the field being typed in keeps its focus.
             App.changed({ structural: field === 'type' });
+        },
+        'budget.setLinked': (el) => {
+            const list = el.dataset.kind === 'debt' ? Store.state.debts : Store.state.goals;
+            const obj = list.find(x => x.id === Number(el.dataset.ref));
+            if (!obj) return;
+            obj.monthly = Math.max(0, parseNum(el.value, 0));
+            App.changed();
         },
         'budget.addRow': () => {
             const list = editableItems();

@@ -25,6 +25,8 @@
     function update(ctx) {
         const r = ctx.retirement, inp = ctx.retirementInputs, s = ctx.state, yd = ctx.year;
         UI.text('ret-ahorro', money(inp.ahorroActual));
+        UI.text('ret-aporte', money(inp.aporteMensual));
+        UI.text('ret-aporte-sweep', ctx.baseBudget.sweep > 0 ? `, incluido el barrido de ${money0(ctx.baseBudget.sweep)}` : '');
         linkedField('ret-tasa', 'ret-tasa-note', 'tasaRetorno', yd.tasa, s.retirement.tasaRetorno,
             `la Tasa DPF de <a href="#" class="link" data-goto="ahorro/proyeccion">${s.activeYear}</a> es ${Number(yd.tasa).toFixed(2)}%. Tu retorno en 20-30 años puede ser distinto a la tasa de hoy.`);
         linkedField('ret-sueldo', 'ret-sueldo-note', 'sueldoPromedio', yd.sueldo, s.retirement.sueldoPromedio,

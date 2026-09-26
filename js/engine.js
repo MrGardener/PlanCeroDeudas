@@ -302,23 +302,32 @@
         return 'otra';
     }
 
-    // Month-by-month payoff simulation. Snowball orders by smallest balance, avalanche by
-    // highest rate; the extra payment plus every freed-up minimum rolls into the next debt.
-    // A second, minimums-only run gives the time/interest saved by the extra payment.
-    function debtPayoff(debts, extraMonthly, strategy) {
+    // Month-by-month payoff funded only by the budget. Each debt receives its own budget line
+    // (`monthly`), which pays its minimum first — a minimum is only paid if that debt's line
+    // covers it. Whatever a line has above its minimum, plus `extraPool` (other "Pago deuda"
+    // rubros), plus the whole line of any debt already paid off, rolls to the debt the strategy
+    // targets (snowball: smallest balance; avalanche: highest rate). No money is assumed that
+    // the budget doesn't assign. A minimums-only run gives the time/interest the plan saves.
+    function debtPayoff(debts, strategy, extraPool) {
         const MAX = 600;
-        function run(extra) {
+        const line = (d) => Math.max(0, num(d.monthly === undefined || d.monthly === null ? d.minPayment : d.monthly));
+        const extra0 = Math.max(0, num(extraPool));
+        const open = (debts || []).filter(d => num(d.balance) > 0.01);
+        const totalMin = sum(open, d => Math.max(0, num(d.minPayment)));
+        const underfunded = open.filter(d => line(d) + 0.005 < Math.max(0, num(d.minPayment))).map(d => ({ id: d.id, missing: Math.max(0, num(d.minPayment)) - line(d) }));
+        function run(mode) {
             const items = (debts || []).map(d => ({
                 id: d.id,
                 balance: Math.max(0, num(d.balance)),
                 rate: Math.max(0, num(d.rate)),
                 minPayment: Math.max(0, num(d.minPayment)),
+                line: mode === 'minimums' ? Math.max(0, num(d.minPayment)) : line(d),
                 payoffMonth: null
             }));
-            if (strategy === 'avalanche') items.sort((a, b) => b.rate - a.rate);
+            if (strategy === 'avalanche') items.sort((a, b) => b.rate - a.rate || a.balance - b.balance);
             else items.sort((a, b) => a.balance - b.balance);
 
-            let month = 0, totalInterest = 0, freed = 0;
+            let month = 0, totalInterest = 0;
             while (items.some(d => d.balance > 0.01) && month < MAX) {
                 month++;
                 items.forEach(d => {
@@ -326,38 +335,48 @@
                     const interest = d.balance * d.rate / 1200;
                     d.balance += interest;
                     totalInterest += interest;
-                    d.balance -= Math.min(d.minPayment, d.balance);
                 });
-                let available = Math.max(0, num(extra)) + freed;
-                for (const d of items) {
-                    if (available <= 0) break;
-                    if (d.balance <= 0) continue;
-                    const pay = Math.min(available, d.balance);
+                let pool = mode === 'minimums' ? 0 : extra0;
+                items.forEach(d => {
+                    if (d.balance <= 0) { if (mode !== 'minimums') pool += d.line; return; }
+                    const own = Math.min(d.line, d.minPayment);
+                    const pay = Math.min(own, d.balance);
                     d.balance -= pay;
-                    available -= pay;
+                    if (mode !== 'minimums') pool += (d.line - own) + (own - pay);
+                });
+                for (const d of items) {
+                    if (pool <= 0) break;
+                    const pay = Math.min(pool, d.balance);
+                    d.balance -= pay;
+                    pool -= pay;
                 }
-                freed = 0;
                 items.forEach(d => {
                     if (d.balance <= 0.01) {
                         d.balance = 0;
                         if (d.payoffMonth === null) d.payoffMonth = month;
-                        freed += d.minPayment;
                     }
                 });
             }
             items.forEach((d, idx) => { d.order = idx + 1; });
             return { items, months: month, totalInterest, never: month >= MAX && items.some(d => d.balance > 0.01) };
         }
-        const plan = run(extraMonthly);
-        const minimums = run(0);
+        const plan = run('plan');
+        const minimums = run('minimums');
+        const pool = extra0 + sum(open, line);
         return {
             items: plan.items,
             months: plan.months,
             never: plan.never,
             totalInterest: plan.totalInterest,
             totalBalance: sum(debts || [], d => Math.max(0, num(d.balance))),
-            monthsSaved: Math.max(0, minimums.months - plan.months),
-            interestSaved: Math.max(0, minimums.totalInterest - plan.totalInterest)
+            pool,
+            totalMin,
+            underfunded,
+            shortfall: sum(underfunded, u => u.missing),
+            extra: Math.max(0, pool - (totalMin - sum(underfunded, u => u.missing))),
+            minimumsNever: minimums.never,
+            monthsSaved: minimums.never ? 0 : Math.max(0, minimums.months - plan.months),
+            interestSaved: minimums.never ? 0 : Math.max(0, minimums.totalInterest - plan.totalInterest)
         };
     }
 

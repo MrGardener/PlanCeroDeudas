@@ -75,7 +75,29 @@
 
         Object.keys(s.years).forEach(y => normalizeYear(s.years[y]));
         s.baselines.forEach(b => { if (b.data && b.data.years) Object.keys(b.data.years).forEach(y => normalizeYear(b.data.years[y])); });
-        s.debts.forEach(d => { if (!d.kind) d.kind = Engine.guessDebtKind(d.name); });
+        const thisYear = new Date(today || Date.now()).getFullYear();
+        // Debts and goals are budget lines: their monthly amount lives on the object and shows
+        // up in every budget from the year they were created. Older saves get the minimum
+        // payment (debts) as that amount.
+        s.debts.forEach(d => {
+            if (!d.kind) d.kind = Engine.guessDebtKind(d.name);
+            if (d.monthly === undefined || d.monthly === null) d.monthly = Math.max(0, Number(d.minPayment) || 0);
+            if (!d.createdYear) d.createdYear = thisYear;
+        });
+        s.goals.forEach(g => {
+            if (g.monthly === undefined || g.monthly === null) g.monthly = 0;
+            if (!g.createdYear) g.createdYear = thisYear;
+        });
+        // The old free-floating "pago extra" wasn't backed by the budget; move it into the budget
+        // line of the first debt the strategy attacks so the plan keeps the same outcome.
+        if (s.debtPlan && Number(s.debtPlan.extraPayment) > 0) {
+            const open = s.debts.filter(d => Number(d.balance) > 0.01);
+            const target = s.debtPlan.strategy === 'avalanche'
+                ? open.sort((a, b) => b.rate - a.rate)[0]
+                : open.sort((a, b) => a.balance - b.balance)[0];
+            if (target) target.monthly += Number(s.debtPlan.extraPayment);
+            s.debtPlan.extraPayment = 0;
+        }
         s.assets.forEach(a => { if (!a.valuesByYear) a.valuesByYear = {}; });
         s.configStartYear = Number(s.configStartYear); s.configEndYear = Number(s.configEndYear);
         s.activeYear = Math.min(s.configEndYear, Math.max(s.configStartYear, Number(s.activeYear)));
@@ -122,6 +144,38 @@
         },
 
         active() { return this.year(this.state.activeYear); },
+
+        // Budget lines generated from debts and goals. They are not stored in the year's
+        // budget; they are derived on every read, so creating, renaming, paying off or deleting
+        // a debt/goal is reflected in every budget immediately and can never fall out of sync.
+        linkedRows(y) {
+            const rows = [];
+            this.state.debts.forEach(d => {
+                if (Number(d.balance) > 0.01 && (d.createdYear || 0) <= y) {
+                    const m = Math.max(0, Number(d.monthly) || 0);
+                    rows.push({ id: 'debt-' + d.id, link: 'debt', refId: d.id, name: d.name, type: 'Deuda', isDeductible: false, prep: m, real: m, linkedCategory: 'Deudas', minPayment: Math.max(0, Number(d.minPayment) || 0) });
+                }
+            });
+            this.state.goals.forEach(g => {
+                if ((g.createdYear || 0) <= y) {
+                    const m = Math.max(0, Number(g.monthly) || 0);
+                    rows.push({ id: 'goal-' + g.id, link: 'goal', refId: g.id, name: g.name, type: 'Ahorro', isDeductible: false, prep: m, real: m, linkedCategory: 'Ahorro e Inversión' });
+                }
+            });
+            return rows;
+        },
+
+        // A year's budget as the math sees it: its own rubros plus the linked debt/goal lines
+        // (in the base budget and in every month that has its own budget).
+        effective(y) {
+            y = Number(y);
+            const yd = this.peekYear(y);
+            const rows = this.linkedRows(y);
+            if (!rows.length) return yd;
+            const overrides = {};
+            Object.keys(yd.monthOverrides || {}).forEach(m => { overrides[m] = yd.monthOverrides[m].concat(rows); });
+            return Object.assign({}, yd, { budgetBase: (yd.budgetBase || []).concat(rows), monthOverrides: overrides });
+        },
 
         nextId(list) { return list.length ? Math.max(...list.map(x => Number(x.id) || 0)) + 1 : 1; },
 

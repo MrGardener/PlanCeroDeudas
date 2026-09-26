@@ -19,9 +19,8 @@
         { id: 9, name: 'Turismo Nacional Facturado', type: 'Gasto Variable', isDeductible: true, prep: 40, real: 40, linkedCategory: 'Viajes y Vacaciones' },
         { id: 10, name: 'Pensiones Alimenticias', type: 'Gasto Variable', isDeductible: true, prep: 0, real: 0, linkedCategory: 'Familia e Hijos' },
         { id: 11, name: 'Transporte / Gasolina', type: 'Gasto Variable', isDeductible: false, prep: 70, real: 70, linkedCategory: 'Transporte' },
-        { id: 12, name: 'Entretenimiento', type: 'Gasto Variable', isDeductible: false, prep: 50, real: 50, linkedCategory: 'Entretenimiento y Ocio' },
-        { id: 13, name: 'Bola de Nieve Deudas', type: 'Deuda', isDeductible: false, prep: 75, real: 75, linkedCategory: 'Deudas' },
-        { id: 14, name: 'Ahorro Recurrente Póliza DPF', type: 'Ahorro', isDeductible: false, prep: 100, real: 100, linkedCategory: 'Ahorro e Inversión' },
+        { id: 12, name: 'Entretenimiento', type: 'Gasto Variable', isDeductible: false, prep: 30, real: 30, linkedCategory: 'Entretenimiento y Ocio' },
+        { id: 14, name: 'Ahorro Recurrente Póliza DPF', type: 'Ahorro', isDeductible: false, prep: 50, real: 50, linkedCategory: 'Ahorro e Inversión' },
         { id: 15, name: 'Seguro Vehicular', type: 'Gasto Fijo', isDeductible: false, prep: 0, real: 0, linkedCategory: 'Transporte' },
         { id: 16, name: 'Mantenimiento del Hogar', type: 'Gasto Variable', isDeductible: false, prep: 0, real: 0, linkedCategory: 'Vivienda' },
         { id: 17, name: 'Suscripciones Digitales (Streaming, etc.)', type: 'Gasto Variable', isDeductible: false, prep: 0, real: 0, linkedCategory: 'Suscripciones y Entretenimiento Digital' },
@@ -129,12 +128,12 @@
                 { id: 2, coopName: 'Jardín Azuayo', number: 'DPF-10294', amount: 3000, rate: 8.5, days: 180, modality: 'Mensual (Compuesto)', maturityDate: `${thisYear + 1}-03-30` }
             ],
             goals: [
-                { id: 1, name: 'Fondo de Reserva Pleno', target: 5000, current: 1000, monthly: 300, rate: 8.5 },
-                { id: 2, name: 'Terreno / Lote', target: 20000, current: 0, monthly: 250, rate: 8.5 }
+                { id: 1, name: 'Fondo de Reserva Pleno', target: 5000, current: 1000, monthly: 0, rate: 8.5, createdYear: thisYear },
+                { id: 2, name: 'Terreno / Lote', target: 20000, current: 0, monthly: 0, rate: 8.5, createdYear: thisYear }
             ],
             debts: [
-                { id: 1, name: 'Tarjeta de Crédito', kind: 'tarjeta', balance: 1500, rate: 42, minPayment: 75 },
-                { id: 2, name: 'Préstamo Vehicular', kind: 'vehicular', balance: 6000, rate: 11, minPayment: 220 }
+                { id: 1, name: 'Tarjeta de Crédito', kind: 'tarjeta', balance: 1500, rate: 42, minPayment: 60, monthly: 83.25, createdYear: thisYear },
+                { id: 2, name: 'Préstamo Vehicular', kind: 'vehicular', balance: 6000, rate: 11, minPayment: 180, monthly: 180, createdYear: thisYear }
             ],
             assets: [
                 { id: 1, name: 'Casa Principal', category: 'Bienes Raíces', purchaseYear: 2022, purchaseValue: 120000, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} }

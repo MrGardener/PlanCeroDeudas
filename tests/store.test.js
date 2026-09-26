@@ -106,3 +106,52 @@ test('peekYear never adds unconfigured years and refuses writes', () => {
     assert.equal(Object.keys(Store.state.years).length, before);
     assert.throws(() => { 'use strict'; d.sueldo = 1; });
 });
+
+test('every debt and goal appears in the budget as its own line, from its creation year', () => {
+    Store.init(memoryStorage());
+    const y = new Date().getFullYear();
+    Store.state.debts = [{ id: 7, name: 'Tarjeta', balance: 900, minPayment: 40, monthly: 55, createdYear: y }];
+    Store.state.goals = [{ id: 3, name: 'Carro', target: 8000, current: 0, monthly: 120, rate: 8, createdYear: y }];
+    const eff = Store.effective(y);
+    const debtRow = eff.budgetBase.find(i => i.link === 'debt');
+    const goalRow = eff.budgetBase.find(i => i.link === 'goal');
+    assert.equal(debtRow.type, 'Deuda');
+    assert.equal(debtRow.real, 55);
+    assert.equal(goalRow.type, 'Ahorro');
+    assert.equal(goalRow.real, 120);
+    // Not stored in the year itself (derived on read), and absent before creation.
+    assert.ok(!Store.year(y).budgetBase.some(i => i.link));
+    assert.ok(!Store.effective(y - 1).budgetBase.some(i => i.link));
+    // Month overrides get them too; a paid-off debt drops out.
+    Store.year(y).monthOverrides['4'] = Defaults.clone(Store.year(y).budgetBase);
+    assert.ok(Store.effective(y).monthOverrides['4'].some(i => i.link === 'debt'));
+    Store.state.debts[0].balance = 0;
+    assert.ok(!Store.effective(y).budgetBase.some(i => i.link === 'debt'));
+    // Linked lines count in the budget totals.
+    const withGoal = Engine.monthBudget(Store.effective(y), 'base');
+    const without = Engine.monthBudget(Store.year(y), 'base');
+    assert.equal(withGoal.expReal - without.expReal, 120);
+});
+
+test('older saves: debts budget their minimum, and the old "pago extra" moves into the budget', () => {
+    const raw = JSON.parse(JSON.stringify(legacy));
+    const s = Store.migrate(raw);
+    assert.equal(s.debts.find(d => d.id === 1).monthly, s.debts.find(d => d.id === 1).minPayment);
+    const v8 = Defaults.newState();
+    v8.debts = [{ id: 1, name: 'A', balance: 5000, rate: 10, minPayment: 100 }, { id: 2, name: 'B', balance: 500, rate: 30, minPayment: 50 }];
+    v8.debtPlan = { strategy: 'snowball', extraPayment: 80 };
+    const m = Store.migrate(JSON.parse(JSON.stringify(v8)));
+    assert.equal(m.debts.find(d => d.id === 2).monthly, 130);  // smallest balance gets the extra
+    assert.equal(m.debts.find(d => d.id === 1).monthly, 100);
+    assert.equal(m.debtPlan.extraPayment, 0);
+});
+
+test('a new user starts with a balanced budget that funds the debt plan', () => {
+    Store.init(memoryStorage());
+    const eff = Store.effective(Store.state.activeYear);
+    const mb = Engine.monthBudget(eff, 'base');
+    assert.ok(Math.abs(mb.balanceReal) < 0.005, `balance ${mb.balanceReal}`);
+    const plan = Engine.debtPayoff(Store.state.debts, 'snowball', 0);
+    assert.equal(plan.shortfall, 0);
+    assert.equal(plan.never, false);
+});

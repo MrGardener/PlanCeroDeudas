@@ -37,7 +37,7 @@
             }
         });
 
-        const series = Engine.incomeExpenseSeries({ startYear: s.configStartYear, endYear: s.configEndYear, getYear: y => Store.peekYear(y) });
+        const series = Engine.incomeExpenseSeries({ startYear: s.configStartYear, endYear: s.configEndYear, getYear: y => Store.effective(y) });
         UI.chart('proj-ie-chart', {
             type: 'line',
             data: {

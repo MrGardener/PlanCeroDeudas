@@ -542,13 +542,13 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         <div class="card-head">
             <div>
                 <div class="card-title"><i class="fa-solid fa-snowplow text-red-600"></i> Plan para Salir de Deudas (Paso 2)</div>
-                <div class="card-sub">Registra tus deudas de consumo (la hipoteca va en <a href="#" class="link" data-goto="patrimonio">Patrimonio</a>) y compara estrategias.</div>
+                <div class="card-sub">Registra tus deudas de consumo (la hipoteca va en <a href="#" class="link" data-goto="patrimonio">Patrimonio</a>). Cada deuda entra automáticamente a tu <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a>, y el plan solo usa el dinero que ahí le asignas.</div>
             </div>
             <button class="btn btn-danger" data-action="debt.add"><i class="fa-solid fa-plus"></i> Agregar Deuda</button>
         </div>
         <div class="table-wrap mb-4">
             <table class="table">
-                <thead><tr><th style="min-width:11rem">Deuda</th><th>Tipo</th><th style="width:8rem">Saldo ($)</th><th style="width:6.5rem">Tasa (%)</th><th style="width:8rem">Pago mínimo ($)</th><th class="text-center">Orden</th><th class="text-center">Se paga en</th><th></th></tr></thead>
+                <thead><tr><th style="min-width:11rem">Deuda</th><th>Tipo</th><th style="width:8rem">Saldo ($)</th><th style="width:6.5rem">Tasa (%)</th><th style="width:8rem">Pago mínimo ($)</th><th style="width:8.5rem">En tu presupuesto ($/mes)</th><th class="text-center">Orden</th><th class="text-center">Se paga en</th><th></th></tr></thead>
                 <tbody id="debt-body"></tbody>
             </table>
         </div>
@@ -561,19 +561,21 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 </select>
                 <span class="help">Bola de Nieve: menor saldo primero. Avalancha: mayor tasa primero.</span>
             </label>
-            <label class="field field-box">
-                <span class="field-label">Pago extra mensual ($)</span>
-                <input type="number" class="input" step="10" min="0" data-bind="debtPlan.extraPayment">
-                <span class="help">Además de los mínimos de todas tus deudas.</span>
-            </label>
+            <div class="kpi tone-slate" id="debt-funding">
+                <span class="kpi-label">Tu presupuesto para deudas</span>
+                <span class="kpi-value" id="debt-pool">$0/mes</span>
+                <span class="kpi-note" id="debt-pool-note"></span>
+            </div>
             <div class="kpi tone-red"><span class="kpi-label">Libre de deudas</span><span class="kpi-value" id="debt-free-date">—</span><span class="kpi-note">Deuda total: <strong id="debt-total">$0</strong></span></div>
             <div class="kpi tone-emerald"><span class="kpi-label">Ahorro vs. solo mínimos</span><span class="kpi-value" id="debt-saved">$0</span><span class="kpi-note">Interés con tu plan: <strong id="debt-interest">$0</strong></span></div>
         </div>
+        <div id="debt-warning" class="panel mb-4 hidden"></div>
         <details class="explain">
-            <summary>¿Bola de Nieve o Avalancha?</summary>
+            <summary>¿Bola de Nieve o Avalancha? ¿De dónde sale el dinero?</summary>
             <div>
                 <p><strong>Bola de Nieve (recomendada por Dave Ramsey):</strong> paga primero el saldo MÁS PEQUEÑO manteniendo los mínimos en las demás. Al eliminar una deuda, su pago se suma a la siguiente. Las victorias rápidas mantienen la motivación.</p>
                 <p><strong>Avalancha:</strong> paga primero la TASA más alta. Ahorra más interés total, pero las primeras victorias tardan más.</p>
+                <p><strong>El dinero:</strong> el plan usa todo lo que tu presupuesto base de <span class="active-year"></span> asigna a "Pagos de deudas". Primero cubre el pago mínimo de cada deuda; lo que sobra va completo a la deuda que toca según la estrategia. Al terminar una deuda, su dinero pasa a la siguiente. Para salir antes, sube el monto de una deuda aquí o en el presupuesto (y bájalo en otro rubro para que te alcance).</p>
             </div>
         </details>
     </div>
@@ -582,16 +584,17 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         <div class="card-head">
             <div>
                 <div class="card-title"><i class="fa-solid fa-bullseye text-purple-600"></i> Metas de Ahorro Sin Deuda</div>
-                <div class="card-sub">Cuánto tiempo necesitas para comprar algo 100% en efectivo ahorrando en DPF. Las metas nuevas usan la tasa DPF de <span class="active-year"></span>.</div>
+                <div class="card-sub">Cuánto tiempo necesitas para comprar algo 100% en efectivo ahorrando en DPF. Cada meta entra automáticamente a la sección de Ahorro de tu <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a>: si no le asignas dinero, nunca llega.</div>
             </div>
             <button class="btn btn-secondary" data-action="goal.add"><i class="fa-solid fa-plus"></i> Nueva Meta</button>
         </div>
         <div class="table-wrap mb-4">
             <table class="table">
-                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo ($)</th><th style="width:8rem">Ahorrado ($)</th><th style="width:8rem">Aporte mensual ($)</th><th style="width:6.5rem">Tasa DPF (%)</th><th class="text-center">Tiempo estimado</th><th></th></tr></thead>
+                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo ($)</th><th style="width:8rem">Ahorrado ($)</th><th style="width:8.5rem">En tu presupuesto ($/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th class="text-center">Tiempo estimado</th><th></th></tr></thead>
                 <tbody id="goal-body"></tbody>
             </table>
         </div>
+        <div id="goal-warning" class="panel tone-amber mb-4 text-xs text-amber-900 hidden"></div>
         <details class="explain">
             <summary>¿Cómo se calcula el tiempo? (NPER)</summary>
             <div>
@@ -757,7 +760,11 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 <div class="input input-readonly" id="ret-ahorro"></div>
                 <span class="linked">🔗 Automático: el capital de tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas registradas</a>.</span>
             </div>
-            <label class="field field-box tone-emerald"><span class="field-label">Aporte mensual para el retiro ($)</span><input type="number" class="input" step="10" min="0" data-bind="retirement.aporteMensual"><span class="help">Lo que planeas ahorrar cada mes de aquí en adelante. Para explorar "¿y si aporto más?" usa el simulador de abajo.</span></label>
+            <div class="field-box tone-emerald">
+                <span class="field-label">Aporte mensual para el retiro ($)</span>
+                <div class="input input-readonly" id="ret-aporte"></div>
+                <span class="linked">🔗 Automático: tus rubros de Ahorro del <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a> (sin contar metas)<span id="ret-aporte-sweep"></span>. Para aportar más, súbelo ahí. Para solo explorar, usa el simulador de abajo.</span>
+            </div>
             <div class="field-box tone-emerald">
                 <span class="field-label"><span>Retorno anual esperado (%)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="tasaRetorno" title="Volver a enlazar con la Tasa DPF">↻ enlazar</button></span>
                 <input type="number" class="input" step="0.1" min="0" id="ret-tasa" data-input="ret.override" data-field="tasaRetorno">
@@ -1071,9 +1078,8 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         { id: 9, name: 'Turismo Nacional Facturado', type: 'Gasto Variable', isDeductible: true, prep: 40, real: 40, linkedCategory: 'Viajes y Vacaciones' },
         { id: 10, name: 'Pensiones Alimenticias', type: 'Gasto Variable', isDeductible: true, prep: 0, real: 0, linkedCategory: 'Familia e Hijos' },
         { id: 11, name: 'Transporte / Gasolina', type: 'Gasto Variable', isDeductible: false, prep: 70, real: 70, linkedCategory: 'Transporte' },
-        { id: 12, name: 'Entretenimiento', type: 'Gasto Variable', isDeductible: false, prep: 50, real: 50, linkedCategory: 'Entretenimiento y Ocio' },
-        { id: 13, name: 'Bola de Nieve Deudas', type: 'Deuda', isDeductible: false, prep: 75, real: 75, linkedCategory: 'Deudas' },
-        { id: 14, name: 'Ahorro Recurrente Póliza DPF', type: 'Ahorro', isDeductible: false, prep: 100, real: 100, linkedCategory: 'Ahorro e Inversión' },
+        { id: 12, name: 'Entretenimiento', type: 'Gasto Variable', isDeductible: false, prep: 30, real: 30, linkedCategory: 'Entretenimiento y Ocio' },
+        { id: 14, name: 'Ahorro Recurrente Póliza DPF', type: 'Ahorro', isDeductible: false, prep: 50, real: 50, linkedCategory: 'Ahorro e Inversión' },
         { id: 15, name: 'Seguro Vehicular', type: 'Gasto Fijo', isDeductible: false, prep: 0, real: 0, linkedCategory: 'Transporte' },
         { id: 16, name: 'Mantenimiento del Hogar', type: 'Gasto Variable', isDeductible: false, prep: 0, real: 0, linkedCategory: 'Vivienda' },
         { id: 17, name: 'Suscripciones Digitales (Streaming, etc.)', type: 'Gasto Variable', isDeductible: false, prep: 0, real: 0, linkedCategory: 'Suscripciones y Entretenimiento Digital' },
@@ -1181,12 +1187,12 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 { id: 2, coopName: 'Jardín Azuayo', number: 'DPF-10294', amount: 3000, rate: 8.5, days: 180, modality: 'Mensual (Compuesto)', maturityDate: `${thisYear + 1}-03-30` }
             ],
             goals: [
-                { id: 1, name: 'Fondo de Reserva Pleno', target: 5000, current: 1000, monthly: 300, rate: 8.5 },
-                { id: 2, name: 'Terreno / Lote', target: 20000, current: 0, monthly: 250, rate: 8.5 }
+                { id: 1, name: 'Fondo de Reserva Pleno', target: 5000, current: 1000, monthly: 0, rate: 8.5, createdYear: thisYear },
+                { id: 2, name: 'Terreno / Lote', target: 20000, current: 0, monthly: 0, rate: 8.5, createdYear: thisYear }
             ],
             debts: [
-                { id: 1, name: 'Tarjeta de Crédito', kind: 'tarjeta', balance: 1500, rate: 42, minPayment: 75 },
-                { id: 2, name: 'Préstamo Vehicular', kind: 'vehicular', balance: 6000, rate: 11, minPayment: 220 }
+                { id: 1, name: 'Tarjeta de Crédito', kind: 'tarjeta', balance: 1500, rate: 42, minPayment: 60, monthly: 83.25, createdYear: thisYear },
+                { id: 2, name: 'Préstamo Vehicular', kind: 'vehicular', balance: 6000, rate: 11, minPayment: 180, monthly: 180, createdYear: thisYear }
             ],
             assets: [
                 { id: 1, name: 'Casa Principal', category: 'Bienes Raíces', purchaseYear: 2022, purchaseValue: 120000, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} }
@@ -1525,23 +1531,32 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         return 'otra';
     }
 
-    // Month-by-month payoff simulation. Snowball orders by smallest balance, avalanche by
-    // highest rate; the extra payment plus every freed-up minimum rolls into the next debt.
-    // A second, minimums-only run gives the time/interest saved by the extra payment.
-    function debtPayoff(debts, extraMonthly, strategy) {
+    // Month-by-month payoff funded only by the budget. Each debt receives its own budget line
+    // (`monthly`), which pays its minimum first — a minimum is only paid if that debt's line
+    // covers it. Whatever a line has above its minimum, plus `extraPool` (other "Pago deuda"
+    // rubros), plus the whole line of any debt already paid off, rolls to the debt the strategy
+    // targets (snowball: smallest balance; avalanche: highest rate). No money is assumed that
+    // the budget doesn't assign. A minimums-only run gives the time/interest the plan saves.
+    function debtPayoff(debts, strategy, extraPool) {
         const MAX = 600;
-        function run(extra) {
+        const line = (d) => Math.max(0, num(d.monthly === undefined || d.monthly === null ? d.minPayment : d.monthly));
+        const extra0 = Math.max(0, num(extraPool));
+        const open = (debts || []).filter(d => num(d.balance) > 0.01);
+        const totalMin = sum(open, d => Math.max(0, num(d.minPayment)));
+        const underfunded = open.filter(d => line(d) + 0.005 < Math.max(0, num(d.minPayment))).map(d => ({ id: d.id, missing: Math.max(0, num(d.minPayment)) - line(d) }));
+        function run(mode) {
             const items = (debts || []).map(d => ({
                 id: d.id,
                 balance: Math.max(0, num(d.balance)),
                 rate: Math.max(0, num(d.rate)),
                 minPayment: Math.max(0, num(d.minPayment)),
+                line: mode === 'minimums' ? Math.max(0, num(d.minPayment)) : line(d),
                 payoffMonth: null
             }));
-            if (strategy === 'avalanche') items.sort((a, b) => b.rate - a.rate);
+            if (strategy === 'avalanche') items.sort((a, b) => b.rate - a.rate || a.balance - b.balance);
             else items.sort((a, b) => a.balance - b.balance);
 
-            let month = 0, totalInterest = 0, freed = 0;
+            let month = 0, totalInterest = 0;
             while (items.some(d => d.balance > 0.01) && month < MAX) {
                 month++;
                 items.forEach(d => {
@@ -1549,38 +1564,48 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                     const interest = d.balance * d.rate / 1200;
                     d.balance += interest;
                     totalInterest += interest;
-                    d.balance -= Math.min(d.minPayment, d.balance);
                 });
-                let available = Math.max(0, num(extra)) + freed;
-                for (const d of items) {
-                    if (available <= 0) break;
-                    if (d.balance <= 0) continue;
-                    const pay = Math.min(available, d.balance);
+                let pool = mode === 'minimums' ? 0 : extra0;
+                items.forEach(d => {
+                    if (d.balance <= 0) { if (mode !== 'minimums') pool += d.line; return; }
+                    const own = Math.min(d.line, d.minPayment);
+                    const pay = Math.min(own, d.balance);
                     d.balance -= pay;
-                    available -= pay;
+                    if (mode !== 'minimums') pool += (d.line - own) + (own - pay);
+                });
+                for (const d of items) {
+                    if (pool <= 0) break;
+                    const pay = Math.min(pool, d.balance);
+                    d.balance -= pay;
+                    pool -= pay;
                 }
-                freed = 0;
                 items.forEach(d => {
                     if (d.balance <= 0.01) {
                         d.balance = 0;
                         if (d.payoffMonth === null) d.payoffMonth = month;
-                        freed += d.minPayment;
                     }
                 });
             }
             items.forEach((d, idx) => { d.order = idx + 1; });
             return { items, months: month, totalInterest, never: month >= MAX && items.some(d => d.balance > 0.01) };
         }
-        const plan = run(extraMonthly);
-        const minimums = run(0);
+        const plan = run('plan');
+        const minimums = run('minimums');
+        const pool = extra0 + sum(open, line);
         return {
             items: plan.items,
             months: plan.months,
             never: plan.never,
             totalInterest: plan.totalInterest,
             totalBalance: sum(debts || [], d => Math.max(0, num(d.balance))),
-            monthsSaved: Math.max(0, minimums.months - plan.months),
-            interestSaved: Math.max(0, minimums.totalInterest - plan.totalInterest)
+            pool,
+            totalMin,
+            underfunded,
+            shortfall: sum(underfunded, u => u.missing),
+            extra: Math.max(0, pool - (totalMin - sum(underfunded, u => u.missing))),
+            minimumsNever: minimums.never,
+            monthsSaved: minimums.never ? 0 : Math.max(0, minimums.months - plan.months),
+            interestSaved: minimums.never ? 0 : Math.max(0, minimums.totalInterest - plan.totalInterest)
         };
     }
 
@@ -1906,7 +1931,29 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 
         Object.keys(s.years).forEach(y => normalizeYear(s.years[y]));
         s.baselines.forEach(b => { if (b.data && b.data.years) Object.keys(b.data.years).forEach(y => normalizeYear(b.data.years[y])); });
-        s.debts.forEach(d => { if (!d.kind) d.kind = Engine.guessDebtKind(d.name); });
+        const thisYear = new Date(today || Date.now()).getFullYear();
+        // Debts and goals are budget lines: their monthly amount lives on the object and shows
+        // up in every budget from the year they were created. Older saves get the minimum
+        // payment (debts) as that amount.
+        s.debts.forEach(d => {
+            if (!d.kind) d.kind = Engine.guessDebtKind(d.name);
+            if (d.monthly === undefined || d.monthly === null) d.monthly = Math.max(0, Number(d.minPayment) || 0);
+            if (!d.createdYear) d.createdYear = thisYear;
+        });
+        s.goals.forEach(g => {
+            if (g.monthly === undefined || g.monthly === null) g.monthly = 0;
+            if (!g.createdYear) g.createdYear = thisYear;
+        });
+        // The old free-floating "pago extra" wasn't backed by the budget; move it into the budget
+        // line of the first debt the strategy attacks so the plan keeps the same outcome.
+        if (s.debtPlan && Number(s.debtPlan.extraPayment) > 0) {
+            const open = s.debts.filter(d => Number(d.balance) > 0.01);
+            const target = s.debtPlan.strategy === 'avalanche'
+                ? open.sort((a, b) => b.rate - a.rate)[0]
+                : open.sort((a, b) => a.balance - b.balance)[0];
+            if (target) target.monthly += Number(s.debtPlan.extraPayment);
+            s.debtPlan.extraPayment = 0;
+        }
         s.assets.forEach(a => { if (!a.valuesByYear) a.valuesByYear = {}; });
         s.configStartYear = Number(s.configStartYear); s.configEndYear = Number(s.configEndYear);
         s.activeYear = Math.min(s.configEndYear, Math.max(s.configStartYear, Number(s.activeYear)));
@@ -1953,6 +2000,38 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         },
 
         active() { return this.year(this.state.activeYear); },
+
+        // Budget lines generated from debts and goals. They are not stored in the year's
+        // budget; they are derived on every read, so creating, renaming, paying off or deleting
+        // a debt/goal is reflected in every budget immediately and can never fall out of sync.
+        linkedRows(y) {
+            const rows = [];
+            this.state.debts.forEach(d => {
+                if (Number(d.balance) > 0.01 && (d.createdYear || 0) <= y) {
+                    const m = Math.max(0, Number(d.monthly) || 0);
+                    rows.push({ id: 'debt-' + d.id, link: 'debt', refId: d.id, name: d.name, type: 'Deuda', isDeductible: false, prep: m, real: m, linkedCategory: 'Deudas', minPayment: Math.max(0, Number(d.minPayment) || 0) });
+                }
+            });
+            this.state.goals.forEach(g => {
+                if ((g.createdYear || 0) <= y) {
+                    const m = Math.max(0, Number(g.monthly) || 0);
+                    rows.push({ id: 'goal-' + g.id, link: 'goal', refId: g.id, name: g.name, type: 'Ahorro', isDeductible: false, prep: m, real: m, linkedCategory: 'Ahorro e Inversión' });
+                }
+            });
+            return rows;
+        },
+
+        // A year's budget as the math sees it: its own rubros plus the linked debt/goal lines
+        // (in the base budget and in every month that has its own budget).
+        effective(y) {
+            y = Number(y);
+            const yd = this.peekYear(y);
+            const rows = this.linkedRows(y);
+            if (!rows.length) return yd;
+            const overrides = {};
+            Object.keys(yd.monthOverrides || {}).forEach(m => { overrides[m] = yd.monthOverrides[m].concat(rows); });
+            return Object.assign({}, yd, { budgetBase: (yd.budgetBase || []).concat(rows), monthOverrides: overrides });
+        },
 
         nextId(list) { return list.length ? Math.max(...list.map(x => Number(x.id) || 0)) + 1 : 1; },
 
@@ -2315,18 +2394,24 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         const ctx = { state: s, ui: Store.ui, today: new Date() };
         const lazy = (name, fn) => Object.defineProperty(ctx, name, { get() { const v = fn(); Object.defineProperty(ctx, name, { value: v }); return v; }, configurable: true });
 
-        ctx.year = Store.active();
-        lazy('pay', () => Engine.payroll(ctx.year));
-        lazy('monthBudget', () => Engine.monthBudget(ctx.year, Store.ui.month, ctx.pay));
-        lazy('baseBudget', () => Engine.monthBudget(ctx.year, 'base', ctx.pay));
-        lazy('annual', () => Engine.annualBudget(ctx.year));
+        ctx.year = Store.active();                       // stored data, for editing
+        ctx.budgetYear = Store.effective(s.activeYear);  // + debt/goal lines, for every calculation
+        lazy('pay', () => Engine.payroll(ctx.budgetYear));
+        lazy('monthBudget', () => Engine.monthBudget(ctx.budgetYear, Store.ui.month, ctx.pay));
+        lazy('baseBudget', () => Engine.monthBudget(ctx.budgetYear, 'base', ctx.pay));
+        lazy('annual', () => Engine.annualBudget(ctx.budgetYear));
         lazy('polizasCapital', () => Engine.polizasCapital(s.polizas));
         lazy('projectionStart', () => Math.min(s.configEndYear, Math.max(s.configStartYear, ctx.today.getFullYear())));
-        lazy('projection', () => Engine.projectDPF({ polizas: s.polizas, startYear: ctx.projectionStart, endYear: s.configEndYear, getYear: y => Store.peekYear(y) }));
+        lazy('projection', () => Engine.projectDPF({ polizas: s.polizas, startYear: ctx.projectionStart, endYear: s.configEndYear, getYear: y => Store.effective(y) }));
         lazy('netWorth', () => Engine.netWorth(s.years, s.assets, s.activeYear));
         lazy('ef', () => Engine.emergencyFund({ liquid: ctx.polizasCapital + ctx.netWorth.fields.savings, budgetBase: ctx.year.budgetBase }));
-        lazy('debts', () => Engine.debtPayoff(s.debts, s.debtPlan.extraPayment, s.debtPlan.strategy));
-        lazy('savingsRate', () => ctx.pay.sueldoAnual > 0 ? ctx.annual.savingsReal / ctx.pay.sueldoAnual : 0);
+        // The payoff plan spends only what the budget assigns: each debt's own line, plus any
+        // other "Pago deuda" rubro (which goes to the snowball target).
+        lazy('debtExtraRubros', () => ctx.year.budgetBase.filter(i => i.type === 'Deuda').reduce((t, i) => t + (Number(i.real) || 0), 0));
+        lazy('debts', () => Engine.debtPayoff(s.debts, s.debtPlan.strategy, ctx.debtExtraRubros));
+        // Retirement savings = the budget's own savings rubros (not goal lines) + auto-sweep.
+        lazy('retirementMonthly', () => ctx.year.budgetBase.filter(i => Engine.isSavingsItem(i)).reduce((t, i) => t + (Number(i.real) || 0), 0) + ctx.baseBudget.sweep);
+        lazy('savingsRate', () => ctx.pay.sueldoAnual > 0 ? ctx.retirementMonthly * 12 / ctx.pay.sueldoAnual : 0);
         lazy('steps', () => Engine.babySteps({
             liquid: ctx.ef.liquid, consumerDebt: ctx.debts.totalBalance, monthsCovered: ctx.ef.monthsCovered,
             savingsRate: ctx.savingsRate, mortgageBalance: ctx.netWorth.fields.mortgage
@@ -2336,6 +2421,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             return {
                 ...r,
                 ahorroActual: ctx.polizasCapital,
+                aporteMensual: ctx.retirementMonthly,
                 tasaRetorno: r.tasaRetorno === null || r.tasaRetorno === undefined ? ctx.year.tasa : r.tasaRetorno,
                 sueldoPromedio: r.sueldoPromedio === null || r.sueldoPromedio === undefined ? ctx.year.sueldo : r.sueldoPromedio
             };
@@ -2660,9 +2746,11 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 cta = 'Ver mi fondo de emergencia'; goto = 'metas'; focus = 'metas-ef'; break;
             case 2:
                 title = 'Paso 2: Sal de deudas con la Bola de Nieve';
-                text = debts.never
-                    ? `Debes ${money0(debts.totalBalance)} y con los pagos actuales nunca terminarías. Sube tu pago extra.`
-                    : `Debes ${money0(debts.totalBalance)} en ${s.debts.filter(d => Number(d.balance) > 0).length} deuda(s). Con tu plan quedas libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}.`;
+                text = debts.shortfall > 0
+                    ? `Debes ${money0(debts.totalBalance)}, pero tu presupuesto solo asigna ${money0(debts.pool)}/mes a deudas y los mínimos suman ${money0(debts.totalMin)}. Asigna más dinero a tus deudas.`
+                    : debts.never
+                    ? `Debes ${money0(debts.totalBalance)} y con lo que tu presupuesto asigna nunca terminarías. Asigna más dinero a tus deudas.`
+                    : `Debes ${money0(debts.totalBalance)}. Tu presupuesto les envía ${money0(debts.pool)}/mes${debts.extra > 0 ? ` (${money0(debts.extra)} extra a la bola de nieve)` : ''}: quedas libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}.`;
                 cta = 'Ir a mi plan de deudas'; goto = 'metas'; focus = 'metas-debts'; break;
             case 3:
                 title = 'Paso 3: Completa tu fondo de emergencia';
@@ -2700,7 +2788,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         // Over-budget categories this calendar month (only meaningful for the current year).
         if (s.activeYear === ctx.today.getFullYear()) {
             const m = String(ctx.today.getMonth() + 1);
-            const over = Engine.monthItems(ctx.year, m).filter(it => {
+            const over = Engine.monthItems(ctx.budgetYear, m).filter(it => {
                 const spent = Engine.categorySpend(s.transactions, it.linkedCategory, s.activeYear, m);
                 return spent !== null && Engine.spendStatus(spent, Number(it.prep) || 0).kind === 'over';
             });
@@ -2711,7 +2799,12 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
         const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
         if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no descargas una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
-        if (ctx.debts.never && ctx.debts.totalBalance > 0) add('tone-red', 'fa-snowplow text-red-600', 'Con tus pagos actuales una deuda nunca termina de pagarse.', 'metas');
+        if (ctx.debts.totalBalance > 0 && ctx.debts.shortfall > 0) add('tone-red', 'fa-snowplow text-red-600', `Tu presupuesto no cubre los pagos mínimos de tus deudas: faltan <strong>${money0(ctx.debts.shortfall)}</strong> al mes.`, 'metas');
+        else if (ctx.debts.never && ctx.debts.totalBalance > 0) add('tone-red', 'fa-snowplow text-red-600', 'Con lo que tu presupuesto asigna, una deuda nunca termina de pagarse.', 'metas');
+        if (ctx.steps.current >= 3) {
+            const unfunded = s.goals.filter(g => Engine.goalMonths(g).status === 'never');
+            if (unfunded.length) add('tone-amber', 'fa-bullseye text-purple-600', `${unfunded.map(g => `<strong>${esc(g.name)}</strong>`).join(', ')} sin dinero asignado en tu presupuesto.`, 'metas');
+        }
         const p = ctx.pay;
         if (p.sriCap > 0 && p.deductibles.real < p.sriCap * 0.8) add('tone-blue', 'fa-file-invoice-dollar text-blue-600', `Podrías deducir <strong>${money0(p.sriCap - p.deductibles.real)}</strong> más en gastos personales y pagar menos impuesto.`, 'presupuesto/ingresos');
 
@@ -2739,7 +2832,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         const balNote = Math.abs(bb.balanceReal) < 0.005 ? '✓ Base cero: cada dólar asignado' : bb.balanceReal > 0 ? `${money(bb.balanceReal)} sin asignar` : `${money(-bb.balanceReal)} de más`;
         UI.html('dash-kpis', [
             Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-wallet', label: 'Ingreso neto mensual', value: money(bb.income), note: `Asignado: ${money(bb.expReal + bb.sweep)} · ${balNote}`, goto: 'presupuesto/plan' }),
-            Views.kpiCard({ tone: 'text-red-600', icon: 'fa-snowplow', label: 'Deudas de consumo', value: money0(debts.totalBalance), note: debts.totalBalance <= 0 ? '¡Sin deudas!' : debts.never ? 'Nunca terminas: sube el pago' : `Libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}`, goto: 'metas', focus: 'metas-debts' }),
+            Views.kpiCard({ tone: 'text-red-600', icon: 'fa-snowplow', label: 'Deudas de consumo', value: money0(debts.totalBalance), note: debts.totalBalance <= 0 ? '¡Sin deudas!' : debts.shortfall > 0 ? `Presupuesto no cubre mínimos (faltan ${money0(debts.shortfall)})` : debts.never ? 'Nunca terminas con este presupuesto' : `${money0(debts.pool)}/mes · libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}`, goto: 'metas', focus: 'metas-debts' }),
             Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-shield-heart', label: 'Fondo de emergencia', value: money0(ef.liquid), note: `${ef.monthsCovered.toFixed(1)} meses de gastos esenciales cubiertos`, goto: 'metas', focus: 'metas-ef' }),
             Views.kpiCard({ tone: 'text-amber-500', icon: 'fa-piggy-bank', label: 'Ahorro DPF', value: money0(ctx.polizasCapital), note: `Proyección a ${s.configEndYear}: ${money0(ctx.projection.finalBalance)}`, goto: 'ahorro/proyeccion' }),
             Views.kpiCard({ tone: 'text-teal-600', icon: 'fa-scale-balanced', label: `Patrimonio neto ${s.activeYear}`, value: money0(ctx.netWorth.value), note: `Activos ${money0(ctx.netWorth.assets)} · Pasivos ${money0(ctx.netWorth.liabilities)}`, goto: 'patrimonio' }),
@@ -2787,7 +2880,8 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
     };
 
     const month = () => Store.ui.month;
-    const items = (ctx) => Engine.monthItems(ctx.year, month());
+    // Includes the lines generated from your debts and goals (see Store.linkedRows).
+    const items = (ctx) => Engine.monthItems(ctx.budgetYear, month());
 
     // Editing a specific month for the first time gives it its own copy of the base budget.
     function editableItems() {
@@ -2797,7 +2891,27 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         return Engine.monthItems(yd, m);
     }
 
+    // Debt and goal lines: their amount is the debt's/goal's monthly budget (same number in
+    // every month); name, type and deletion are managed from Deudas y Metas.
+    function linkedRowHTML(item) {
+        const isDebt = item.link === 'debt';
+        const input = (field) => `<input type="number" class="cell-input num money" step="10" min="0" value="${Number(item[field]) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" data-field="${field}" aria-label="${field === 'prep' ? 'Presupuestado' : 'Real'}" title="Monto mensual para todo el año. También se edita en Deudas y Metas.">`;
+        return `
+            <tr data-row="${item.id}" class="bg-slate-50/60">
+                <td><div class="flex items-center gap-2 px-1"><span class="font-semibold text-slate-800 truncate">${esc(item.name)}</span><a href="#" class="badge ${isDebt ? 'badge-bad' : 'badge-purple'} shrink-0" data-goto="metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Se gestiona en Deudas y Metas"><i class="fa-solid fa-link"></i> ${isDebt ? 'Deuda' : 'Meta'}</a></div></td>
+                <td class="text-xs text-slate-500 px-3">${isDebt ? 'Pago Deuda' : 'Ahorro (meta)'}</td>
+                <td class="text-center text-slate-300">—</td>
+                <td>${input('prep')}</td>
+                <td>${input('real')}</td>
+                <td class="num font-bold" data-cell="diff"></td>
+                <td class="text-xs text-slate-500 px-3">${esc(item.linkedCategory)}</td>
+                <td data-cell="spend"></td>
+                <td class="text-center"><a href="#" class="row-del" data-goto="metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Editar o eliminar en Deudas y Metas"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
+            </tr>`;
+    }
+
     function rowHTML(item, taxonomy) {
+        if (item.link) return linkedRowHTML(item);
         const cats = [{ value: 'none', label: 'Sin vincular' }].concat(Object.keys(taxonomy).map(c => ({ value: c, label: c })));
         const linked = item.linkedCategory || 'none';
         if (linked !== 'none' && !taxonomy[linked]) cats.push({ value: linked, label: linked + ' (eliminada)' });
@@ -2878,6 +2992,23 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             const dc = row.querySelector('[data-cell="diff"]');
             dc.textContent = money(diff);
             dc.className = `num font-bold ${diff >= 0 ? 'text-emerald-600' : 'text-red-600'}`;
+            if (it.link) {
+                // Keep the twin input (Presupuestado/Real of the same line) in step.
+                row.querySelectorAll('[data-input="budget.setLinked"]').forEach(inp => { if (inp !== document.activeElement) inp.value = Number(it.prep) || 0; });
+                const cell = row.querySelector('[data-cell="spend"]');
+                if (it.link === 'debt') {
+                    cell.innerHTML = it.real + 0.005 >= it.minPayment
+                        ? `<span class="badge badge-ok" title="Pago mínimo del banco">Cubre el mínimo (${money0(it.minPayment)})</span>`
+                        : `<span class="badge badge-bad" title="Pago mínimo del banco">Mínimo: ${money0(it.minPayment)}</span>`;
+                } else {
+                    const g = ctx.state.goals.find(x => x.id === it.refId) || {};
+                    const r = Engine.goalMonths(g);
+                    cell.innerHTML = r.status === 'reached' ? '<span class="badge badge-ok">¡Meta alcanzada!</span>'
+                        : r.status === 'never' ? '<span class="badge badge-bad">Sin aporte: nunca llega</span>'
+                        : `<span class="badge badge-purple">Lista en ${Fmt.monthYear(Engine.addMonths(today, r.months))}</span>`;
+                }
+                return;
+            }
             const spent = Engine.categorySpend(ctx.state.transactions, it.linkedCategory, ctx.state.activeYear, period);
             const target = Engine.categoryTarget(it, ctx.state.activeYear, period, today);
             row.querySelector('[data-cell="spend"]').innerHTML = Views.spendBadge(Engine.spendStatus(spent, target));
@@ -2893,7 +3024,14 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             gr.querySelector('[data-gcell="prep"]').textContent = money(prep);
             gr.querySelector('[data-gcell="real"]').textContent = money(real);
             gr.querySelector('[data-gcell="diff"]').textContent = money(prep - real);
-            gr.querySelector('[data-gcell="note"]').textContent = g === 'Ahorro' && mb.sweep > 0 ? ` + ${money(mb.sweep)} barrido` : '';
+            const noteCell = gr.querySelector('[data-gcell="note"]');
+            if (g === 'Ahorro') noteCell.textContent = mb.sweep > 0 ? ` + ${money(mb.sweep)} barrido` : '';
+            if (g === 'Deuda') {
+                const plan = ctx.debts;
+                noteCell.innerHTML = plan.totalBalance <= 0 ? ''
+                    : plan.shortfall > 0 ? ` <span class="text-red-600">· faltan ${money0(plan.shortfall)} para los mínimos</span>`
+                    : ` · libre de deudas en ${Fmt.monthYear(Engine.addMonths(today, plan.months))}${plan.extra > 0 ? ` (${money0(plan.extra)} extra a la bola de nieve)` : ''}`;
+            }
         });
 
         // Footer
@@ -2920,8 +3058,8 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         }
 
         // Budget vs actual trend
-        const trend = Engine.budgetVsActualByMonth(yd, ctx.state.transactions, ctx.state.activeYear);
-        const anyLinked = Engine.MONTHS.some(mm => Engine.monthItems(yd, mm).some(i => i.linkedCategory && i.linkedCategory !== 'none'));
+        const trend = Engine.budgetVsActualByMonth(ctx.budgetYear, ctx.state.transactions, ctx.state.activeYear);
+        const anyLinked = Engine.MONTHS.some(mm => Engine.monthItems(ctx.budgetYear, mm).some(i => i.linkedCategory && i.linkedCategory !== 'none'));
         UI.show('bud-trend-empty', !anyLinked);
         UI.show(document.getElementById('bud-trend-chart').parentElement, anyLinked);
         if (anyLinked) {
@@ -2950,6 +3088,13 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             // Changing the type moves the row to another group; everything else only
             // refreshes numbers, so the field being typed in keeps its focus.
             App.changed({ structural: field === 'type' });
+        },
+        'budget.setLinked': (el) => {
+            const list = el.dataset.kind === 'debt' ? Store.state.debts : Store.state.goals;
+            const obj = list.find(x => x.id === Number(el.dataset.ref));
+            if (!obj) return;
+            obj.monthly = Math.max(0, parseNum(el.value, 0));
+            App.changed();
         },
         'budget.addRow': () => {
             const list = editableItems();
@@ -3226,6 +3371,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             <td><input type="number" class="cell-input num" min="0" step="50" value="${Number(d.balance) || 0}" data-input="debt.set" data-id="${d.id}" data-field="balance" aria-label="Saldo"></td>
             <td><input type="number" class="cell-input num" min="0" step="0.1" value="${Number(d.rate) || 0}" data-input="debt.set" data-id="${d.id}" data-field="rate" aria-label="Tasa"></td>
             <td><input type="number" class="cell-input num" min="0" step="5" value="${Number(d.minPayment) || 0}" data-input="debt.set" data-id="${d.id}" data-field="minPayment" aria-label="Pago mínimo"></td>
+            <td><input type="number" class="cell-input num money" min="0" step="10" value="${Number(d.monthly) || 0}" data-input="debt.set" data-id="${d.id}" data-field="monthly" aria-label="Monto en tu presupuesto" title="Lo que tu presupuesto le paga cada mes"></td>
             <td class="text-center" data-cell="order"></td>
             <td class="text-center whitespace-nowrap font-bold text-slate-700" data-cell="payoff"></td>
             <td class="text-center"><button class="row-del" data-action="debt.delete" data-id="${d.id}" title="Eliminar deuda"><i class="fa-solid fa-trash-can"></i></button></td>
@@ -3236,7 +3382,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         const cell = (field, step) => `<td><input type="number" class="cell-input num" min="0" step="${step}" value="${Number(g[field]) || 0}" data-input="goal.set" data-id="${g.id}" data-field="${field}"></td>`;
         return `<tr data-row="${g.id}">
             <td><input class="cell-input" value="${esc(g.name)}" data-change="goal.set" data-id="${g.id}" data-field="name" aria-label="Nombre de la meta"></td>
-            ${cell('target', 100)}${cell('current', 100)}${cell('monthly', 10)}${cell('rate', 0.1)}
+            ${cell('target', 100)}${cell('current', 100)}${cell('monthly', 10).replace('cell-input num', 'cell-input num money')}${cell('rate', 0.1)}
             <td class="text-center" data-cell="time"></td>
             <td class="text-center"><button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
@@ -3244,7 +3390,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 
     function render(ctx) {
         const s = ctx.state;
-        UI.html('debt-body', s.debts.length ? s.debts.map(debtRow).join('') : '<tr class="empty-row"><td colspan="8">¡Sin deudas registradas! Si tienes alguna, agrégala para armar tu plan.</td></tr>');
+        UI.html('debt-body', s.debts.length ? s.debts.map(debtRow).join('') : '<tr class="empty-row"><td colspan="9">¡Sin deudas registradas! Si tienes alguna, agrégala para armar tu plan.</td></tr>');
         UI.html('goal-body', s.goals.length ? s.goals.map(goalRow).join('') : '<tr class="empty-row"><td colspan="7">Agrega una meta: un carro, un terreno, la universidad…</td></tr>');
         update(ctx);
     }
@@ -3269,22 +3415,43 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             if (!row) return;
             const info = plan.items.find(i => i.id === d.id);
             row.querySelector('[data-cell="order"]').innerHTML = info ? `<span class="badge badge-bad">${info.order}°</span>` : '—';
-            row.querySelector('[data-cell="payoff"]').textContent = info && info.payoffMonth ? `Mes ${info.payoffMonth} · ${Fmt.monthYear(Engine.addMonths(ctx.today, info.payoffMonth))}` : (Number(d.balance) > 0 ? 'Nunca' : '—');
+            const under = plan.underfunded.some(u => u.id === d.id);
+            row.querySelector('[data-cell="payoff"]').innerHTML = (info && info.payoffMonth ? `Mes ${info.payoffMonth} · ${Fmt.monthYear(Engine.addMonths(ctx.today, info.payoffMonth))}` : (Number(d.balance) > 0 ? 'Nunca' : '—'))
+                + (under ? '<span class="block"><span class="badge badge-bad">Bajo el mínimo</span></span>' : '');
         });
         UI.text('debt-total', money0(plan.totalBalance));
         UI.text('debt-interest', money0(plan.totalInterest));
-        UI.text('debt-saved', `${money0(plan.interestSaved)} · ${plan.monthsSaved} meses`);
+        UI.text('debt-saved', plan.minimumsNever ? 'Solo con mínimos: nunca' : `${money0(plan.interestSaved)} · ${plan.monthsSaved} meses`);
         UI.text('debt-free-date', plan.totalBalance <= 0 ? '¡Sin deudas!'
-            : plan.never ? 'Nunca: sube el pago'
+            : plan.never ? 'Nunca con este presupuesto'
             : `${Fmt.monthYear(Engine.addMonths(ctx.today, plan.months))} (${plan.months}m)`);
 
+        // Where the money comes from, and whether the budget can actually pay it.
+        UI.text('debt-pool', `${money0(plan.pool)}/mes`);
+        UI.html('debt-pool-note', `Mínimos ${money0(plan.totalMin)}${plan.extra > 0 ? ` · ${money0(plan.extra)} extra a la bola de nieve` : ''}${ctx.debtExtraRubros > 0 ? ` (incluye ${money0(ctx.debtExtraRubros)} de otros rubros de deuda)` : ''} · <a href="#" class="link" data-goto="presupuesto/plan">ver presupuesto</a>`);
+        document.getElementById('debt-funding').className = `kpi ${plan.totalBalance <= 0 ? 'tone-slate' : plan.shortfall > 0 ? 'tone-red' : 'tone-emerald'}`;
+        const warn = document.getElementById('debt-warning');
+        const deficit = -ctx.baseBudget.balanceReal;
+        let msg = '';
+        if (plan.totalBalance > 0 && plan.shortfall > 0) {
+            const names = plan.underfunded.map(u => { const d = s.debts.find(x => x.id === u.id); return `<strong>${esc(d.name)}</strong> (le asignas ${money0(d.monthly)}, el mínimo es ${money0(d.minPayment)})`; }).join(', ');
+            msg = `<strong>Tu presupuesto no cubre el pago mínimo de:</strong> ${names}. Sin el mínimo el banco te cobra mora y la deuda crece. Sube su monto en "En tu presupuesto" y recorta otros rubros para que te alcance.`;
+        } else if (plan.totalBalance > 0 && deficit > 0.005) {
+            msg = `<strong>Este plan aún no está financiado:</strong> tu presupuesto gasta ${money0(deficit)} al mes más de lo que ganas. Recorta rubros en tu <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a> hasta que el balance sea $0 para que estas fechas sean reales.`;
+        }
+        warn.className = `panel mb-4 text-xs ${msg ? 'tone-red text-red-900' : 'hidden'}`;
+        warn.innerHTML = msg ? `<i class="fa-solid fa-triangle-exclamation text-red-600"></i> ${msg}` : '';
+
         // Goals
+        const unfunded = s.goals.filter(g => Engine.goalMonths(g).status === 'never');
+        UI.show('goal-warning', unfunded.length > 0);
+        if (unfunded.length) UI.html('goal-warning', `<i class="fa-solid fa-circle-info"></i> ${unfunded.map(g => `<strong>${esc(g.name)}</strong>`).join(', ')} no ${unfunded.length > 1 ? 'tienen' : 'tiene'} dinero asignado en tu presupuesto. ${ctx.steps.current <= 2 ? 'Mientras estés en los Pasos 1–2 es normal: primero el fondo de emergencia y las deudas.' : 'Asígnale un monto mensual para que avance.'}`);
         s.goals.forEach(g => {
             const cell = document.querySelector(`#goal-body tr[data-row="${g.id}"] [data-cell="time"]`);
             if (!cell) return;
             const r = Engine.goalMonths(g);
             cell.innerHTML = r.status === 'reached' ? '<span class="badge badge-ok">¡Meta alcanzada!</span>'
-                : r.status === 'never' ? '<span class="badge badge-bad">Nunca: agrega un aporte</span>'
+                : r.status === 'never' ? '<span class="badge badge-bad">Sin aporte en tu presupuesto</span>'
                 : `<span class="badge badge-purple">${r.months} meses (${(r.months / 12).toFixed(1)} años)</span><span class="block text-[10px] text-slate-500 mt-0.5">${Fmt.monthYear(Engine.addMonths(ctx.today, r.months))}</span>`;
         });
     }
@@ -3296,20 +3463,28 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             const d = find(Store.state.debts, el);
             if (!d) return;
             const f = el.dataset.field;
-            d[f] = (f === 'name' || f === 'kind') ? el.value : Math.max(0, parseNum(el.value, 0));
+            const v = (f === 'name' || f === 'kind') ? el.value : Math.max(0, parseNum(el.value, 0));
+            // If the budgeted amount was just the minimum, keep it following the minimum.
+            if (f === 'minPayment' && Math.abs((Number(d.monthly) || 0) - (Number(d.minPayment) || 0)) < 0.005) {
+                d.monthly = v;
+                const twin = document.querySelector(`#debt-body tr[data-row="${d.id}"] [data-field="monthly"]`);
+                if (twin) twin.value = v;
+            }
+            d[f] = v;
             App.changed();
         },
         'debt.add': () => {
             const debts = Store.state.debts;
             const id = Store.nextId(debts);
-            debts.push({ id, name: 'Nueva deuda', kind: 'personal', balance: 1000, rate: 15, minPayment: 50 });
+            debts.push({ id, name: 'Nueva deuda', kind: 'personal', balance: 1000, rate: 15, minPayment: 50, monthly: 50, createdYear: new Date().getFullYear() });
             App.changed({ structural: true });
+            UI.toast('Deuda agregada a tu presupuesto con su pago mínimo ($50). Ajusta los montos.');
             const input = document.querySelector(`#debt-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
         },
         'debt.delete': (el) => {
             const d = find(Store.state.debts, el);
-            App.undoable(`Deuda "${d.name}" eliminada`, () => { Store.state.debts = Store.state.debts.filter(x => x !== d); });
+            App.undoable(`Deuda "${d.name}" eliminada (y quitada de tu presupuesto)`, () => { Store.state.debts = Store.state.debts.filter(x => x !== d); });
         },
         'goal.set': (el) => {
             const g = find(Store.state.goals, el);
@@ -3321,14 +3496,15 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         'goal.add': () => {
             const goals = Store.state.goals;
             const id = Store.nextId(goals);
-            goals.push({ id, name: 'Nueva meta', target: 10000, current: 0, monthly: 150, rate: Number(Store.active().tasa) || 0 });
+            goals.push({ id, name: 'Nueva meta', target: 10000, current: 0, monthly: 0, rate: Number(Store.active().tasa) || 0, createdYear: new Date().getFullYear() });
             App.changed({ structural: true });
+            UI.toast('Meta agregada al Ahorro de tu presupuesto. Asígnale un monto mensual.');
             const input = document.querySelector(`#goal-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
         },
         'goal.delete': (el) => {
             const g = find(Store.state.goals, el);
-            App.undoable(`Meta "${g.name}" eliminada`, () => { Store.state.goals = Store.state.goals.filter(x => x !== g); });
+            App.undoable(`Meta "${g.name}" eliminada (y quitada de tu presupuesto)`, () => { Store.state.goals = Store.state.goals.filter(x => x !== g); });
         }
     });
 
@@ -3375,7 +3551,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             }
         });
 
-        const series = Engine.incomeExpenseSeries({ startYear: s.configStartYear, endYear: s.configEndYear, getYear: y => Store.peekYear(y) });
+        const series = Engine.incomeExpenseSeries({ startYear: s.configStartYear, endYear: s.configEndYear, getYear: y => Store.effective(y) });
         UI.chart('proj-ie-chart', {
             type: 'line',
             data: {
@@ -3583,6 +3759,8 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
     function update(ctx) {
         const r = ctx.retirement, inp = ctx.retirementInputs, s = ctx.state, yd = ctx.year;
         UI.text('ret-ahorro', money(inp.ahorroActual));
+        UI.text('ret-aporte', money(inp.aporteMensual));
+        UI.text('ret-aporte-sweep', ctx.baseBudget.sweep > 0 ? `, incluido el barrido de ${money0(ctx.baseBudget.sweep)}` : '');
         linkedField('ret-tasa', 'ret-tasa-note', 'tasaRetorno', yd.tasa, s.retirement.tasaRetorno,
             `la Tasa DPF de <a href="#" class="link" data-goto="ahorro/proyeccion">${s.activeYear}</a> es ${Number(yd.tasa).toFixed(2)}%. Tu retorno en 20-30 años puede ser distinto a la tasa de hoy.`);
         linkedField('ret-sueldo', 'ret-sueldo-note', 'sueldoPromedio', yd.sueldo, s.retirement.sueldoPromedio,

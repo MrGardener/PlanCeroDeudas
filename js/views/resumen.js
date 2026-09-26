@@ -14,9 +14,11 @@
                 cta = 'Ver mi fondo de emergencia'; goto = 'metas'; focus = 'metas-ef'; break;
             case 2:
                 title = 'Paso 2: Sal de deudas con la Bola de Nieve';
-                text = debts.never
-                    ? `Debes ${money0(debts.totalBalance)} y con los pagos actuales nunca terminarías. Sube tu pago extra.`
-                    : `Debes ${money0(debts.totalBalance)} en ${s.debts.filter(d => Number(d.balance) > 0).length} deuda(s). Con tu plan quedas libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}.`;
+                text = debts.shortfall > 0
+                    ? `Debes ${money0(debts.totalBalance)}, pero tu presupuesto solo asigna ${money0(debts.pool)}/mes a deudas y los mínimos suman ${money0(debts.totalMin)}. Asigna más dinero a tus deudas.`
+                    : debts.never
+                    ? `Debes ${money0(debts.totalBalance)} y con lo que tu presupuesto asigna nunca terminarías. Asigna más dinero a tus deudas.`
+                    : `Debes ${money0(debts.totalBalance)}. Tu presupuesto les envía ${money0(debts.pool)}/mes${debts.extra > 0 ? ` (${money0(debts.extra)} extra a la bola de nieve)` : ''}: quedas libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}.`;
                 cta = 'Ir a mi plan de deudas'; goto = 'metas'; focus = 'metas-debts'; break;
             case 3:
                 title = 'Paso 3: Completa tu fondo de emergencia';
@@ -54,7 +56,7 @@
         // Over-budget categories this calendar month (only meaningful for the current year).
         if (s.activeYear === ctx.today.getFullYear()) {
             const m = String(ctx.today.getMonth() + 1);
-            const over = Engine.monthItems(ctx.year, m).filter(it => {
+            const over = Engine.monthItems(ctx.budgetYear, m).filter(it => {
                 const spent = Engine.categorySpend(s.transactions, it.linkedCategory, s.activeYear, m);
                 return spent !== null && Engine.spendStatus(spent, Number(it.prep) || 0).kind === 'over';
             });
@@ -65,7 +67,12 @@
         const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
         const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
         if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no descargas una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
-        if (ctx.debts.never && ctx.debts.totalBalance > 0) add('tone-red', 'fa-snowplow text-red-600', 'Con tus pagos actuales una deuda nunca termina de pagarse.', 'metas');
+        if (ctx.debts.totalBalance > 0 && ctx.debts.shortfall > 0) add('tone-red', 'fa-snowplow text-red-600', `Tu presupuesto no cubre los pagos mínimos de tus deudas: faltan <strong>${money0(ctx.debts.shortfall)}</strong> al mes.`, 'metas');
+        else if (ctx.debts.never && ctx.debts.totalBalance > 0) add('tone-red', 'fa-snowplow text-red-600', 'Con lo que tu presupuesto asigna, una deuda nunca termina de pagarse.', 'metas');
+        if (ctx.steps.current >= 3) {
+            const unfunded = s.goals.filter(g => Engine.goalMonths(g).status === 'never');
+            if (unfunded.length) add('tone-amber', 'fa-bullseye text-purple-600', `${unfunded.map(g => `<strong>${esc(g.name)}</strong>`).join(', ')} sin dinero asignado en tu presupuesto.`, 'metas');
+        }
         const p = ctx.pay;
         if (p.sriCap > 0 && p.deductibles.real < p.sriCap * 0.8) add('tone-blue', 'fa-file-invoice-dollar text-blue-600', `Podrías deducir <strong>${money0(p.sriCap - p.deductibles.real)}</strong> más en gastos personales y pagar menos impuesto.`, 'presupuesto/ingresos');
 
@@ -93,7 +100,7 @@
         const balNote = Math.abs(bb.balanceReal) < 0.005 ? '✓ Base cero: cada dólar asignado' : bb.balanceReal > 0 ? `${money(bb.balanceReal)} sin asignar` : `${money(-bb.balanceReal)} de más`;
         UI.html('dash-kpis', [
             Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-wallet', label: 'Ingreso neto mensual', value: money(bb.income), note: `Asignado: ${money(bb.expReal + bb.sweep)} · ${balNote}`, goto: 'presupuesto/plan' }),
-            Views.kpiCard({ tone: 'text-red-600', icon: 'fa-snowplow', label: 'Deudas de consumo', value: money0(debts.totalBalance), note: debts.totalBalance <= 0 ? '¡Sin deudas!' : debts.never ? 'Nunca terminas: sube el pago' : `Libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}`, goto: 'metas', focus: 'metas-debts' }),
+            Views.kpiCard({ tone: 'text-red-600', icon: 'fa-snowplow', label: 'Deudas de consumo', value: money0(debts.totalBalance), note: debts.totalBalance <= 0 ? '¡Sin deudas!' : debts.shortfall > 0 ? `Presupuesto no cubre mínimos (faltan ${money0(debts.shortfall)})` : debts.never ? 'Nunca terminas con este presupuesto' : `${money0(debts.pool)}/mes · libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}`, goto: 'metas', focus: 'metas-debts' }),
             Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-shield-heart', label: 'Fondo de emergencia', value: money0(ef.liquid), note: `${ef.monthsCovered.toFixed(1)} meses de gastos esenciales cubiertos`, goto: 'metas', focus: 'metas-ef' }),
             Views.kpiCard({ tone: 'text-amber-500', icon: 'fa-piggy-bank', label: 'Ahorro DPF', value: money0(ctx.polizasCapital), note: `Proyección a ${s.configEndYear}: ${money0(ctx.projection.finalBalance)}`, goto: 'ahorro/proyeccion' }),
             Views.kpiCard({ tone: 'text-teal-600', icon: 'fa-scale-balanced', label: `Patrimonio neto ${s.activeYear}`, value: money0(ctx.netWorth.value), note: `Activos ${money0(ctx.netWorth.assets)} · Pasivos ${money0(ctx.netWorth.liabilities)}`, goto: 'patrimonio' }),

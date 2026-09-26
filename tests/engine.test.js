@@ -128,15 +128,25 @@ test('transaction trend switches to yearly buckets past 24 months', () => {
     assert.equal(monthly.keys.length, 3);
 });
 
-test('debt snowball pays smallest first and extra shortens payoff', () => {
-    const debts = [{ id: 1, balance: 5000, rate: 10, minPayment: 100 }, { id: 2, balance: 500, rate: 30, minPayment: 50 }];
-    const snow = E.debtPayoff(debts, 200, 'snowball');
+test('debt plan: each debt gets its own budget line; only money above minimums rolls', () => {
+    const debts = [{ id: 1, balance: 5000, rate: 10, minPayment: 100, monthly: 100 }, { id: 2, balance: 500, rate: 30, minPayment: 50, monthly: 250 }];
+    const snow = E.debtPayoff(debts, 'snowball', 0);
     assert.equal(snow.items[0].id, 2);
-    const aval = E.debtPayoff(debts, 200, 'avalanche');
-    assert.equal(aval.items[0].id, 2);
+    assert.equal(snow.pool, 350);
+    assert.equal(snow.totalMin, 150);
+    assert.equal(snow.extra, 200);
+    assert.equal(snow.shortfall, 0);
     assert.ok(snow.monthsSaved > 0 && snow.interestSaved > 0);
-    const never = E.debtPayoff([{ id: 1, balance: 10000, rate: 36, minPayment: 10 }], 0, 'snowball');
-    assert.equal(never.never, true);
+    // Other "Pago deuda" rubros add to the snowball.
+    assert.ok(E.debtPayoff(debts, 'snowball', 100).months < snow.months);
+    // A line below its own minimum is flagged even if another line has surplus.
+    const short = E.debtPayoff([{ ...debts[0], monthly: 60 }, { ...debts[1], monthly: 400 }], 'snowball', 0);
+    assert.equal(short.shortfall, 40);
+    assert.deepEqual(short.underfunded.map(u => u.id), [1]);
+    // Nothing budgeted: never paid.
+    assert.equal(E.debtPayoff([{ id: 1, balance: 1000, rate: 20, minPayment: 50, monthly: 0 }], 'snowball', 0).never, true);
+    // Missing `monthly` (old data) falls back to the minimum.
+    assert.equal(E.debtPayoff([{ id: 1, balance: 1000, rate: 20, minPayment: 50 }], 'snowball', 0).pool, 50);
 });
 
 test('debt kinds map names to net worth liabilities', () => {
