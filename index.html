@@ -24,6 +24,15 @@
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        @media print {
+            header nav, .no-print, button, input[type="file"] { display: none !important; }
+            body { background: white !important; }
+            main { max-width: 100% !important; padding: 0 !important; }
+            .tab-content.hidden { display: none !important; }
+            .overflow-x-auto, .max-h-96 { overflow: visible !important; max-height: none !important; }
+            input, select { border: none !important; background: transparent !important; }
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -56,6 +65,9 @@
 
                     <button onclick="saveToLocalStorage()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg border border-emerald-400/50 flex items-center gap-1.5 shadow-sm transition">
                         <i class="fa-solid fa-floppy-disk"></i> <span>Guardar</span>
+                    </button>
+                    <button onclick="window.print()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-3 py-1.5 rounded-lg border border-slate-600 flex items-center gap-1.5 shadow-sm transition">
+                        <i class="fa-solid fa-print"></i> <span>Imprimir</span>
                     </button>
                 </div>
             </div>
@@ -345,6 +357,59 @@
 
             </div>
 
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-person-cane text-indigo-600"></i> Estimador de Pensión IESS (Educativo, Paso 4)
+                    </h2>
+                    <span class="text-[10px] font-bold bg-amber-50 text-amber-700 px-2.5 py-1 rounded">Estimación simplificada, no oficial</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Edad Actual</label>
+                        <input type="number" id="pension-edad-actual" value="30" min="18" max="80" oninput="calculatePension()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Edad de Jubilación</label>
+                        <input type="number" id="pension-edad-jubilacion" value="65" min="50" max="80" oninput="calculatePension()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Años Ya Aportados</label>
+                        <input type="number" id="pension-anios-aportados" value="5" min="0" max="60" oninput="calculatePension()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Sueldo Promedio ($)</label>
+                        <input type="number" id="pension-sueldo-promedio" value="1500" step="50" oninput="calculatePension()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
+                        <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Tasa de Reemplazo Estimada (%)</label>
+                        <input type="number" id="pension-tasa-reemplazo" value="60" step="1" min="0" max="100" oninput="calculatePension()" class="w-full bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 text-xs">
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <span class="text-slate-500 block font-medium">Años Totales Aportados al Jubilarte:</span>
+                        <span id="pension-anios-totales" class="text-base font-bold text-slate-900 mt-0.5 block">0</span>
+                    </div>
+                    <div class="bg-indigo-50 p-3.5 rounded-xl border border-indigo-200">
+                        <span class="text-indigo-800 block font-medium">Pensión Mensual Estimada:</span>
+                        <span id="pension-mensual" class="text-base font-bold text-indigo-900 mt-0.5 block">$0.00</span>
+                    </div>
+                    <div class="bg-indigo-50 p-3.5 rounded-xl border border-indigo-200">
+                        <span class="text-indigo-800 block font-medium">Pensión Anual Estimada:</span>
+                        <span id="pension-anual" class="text-base font-bold text-indigo-900 mt-0.5 block">$0.00</span>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-600 mr-1"></i>
+                    <strong>Esto es una estimación educativa simplificada, no un cálculo oficial.</strong> La fórmula real de IESS (Jubilación Ordinaria de Vejez) depende de tu historial completo de aportes, el número mínimo de años exigido y tablas que cambian con reformas legales. Ajusta la "Tasa de Reemplazo" a lo que investigues como realista para tu caso, y verifica siempre tu situación específica en
+                    <a href="https://www.iess.gob.ec" target="_blank" rel="noopener" class="underline font-bold">iess.gob.ec</a>.
+                </div>
+            </div>
+
             <details class="bg-amber-50/60 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 leading-relaxed">
                 <summary class="font-bold cursor-pointer">¿Cómo se calcula tu Sueldo Neto? (Fórmulas explicadas)</summary>
                 <div class="mt-3 space-y-2">
@@ -434,6 +499,81 @@
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 mb-4 gap-3">
                     <div>
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-snowplow text-red-600"></i> Bola de Nieve / Avalancha de Deudas (Paso 2)
+                        </h2>
+                        <p class="text-xs text-slate-500">Registra tus deudas y compara cuánto tiempo e interés te toma eliminarlas con cada estrategia.</p>
+                    </div>
+                    <button onclick="addDebtRow()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-plus"></i> Agregar Deuda
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto mb-4">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-900 text-slate-300 uppercase tracking-wider sticky top-0">
+                            <tr>
+                                <th class="py-3 px-3">Nombre de la Deuda</th>
+                                <th class="py-3 px-3 w-32">Saldo Actual ($)</th>
+                                <th class="py-3 px-3 w-28">Tasa Anual (%)</th>
+                                <th class="py-3 px-3 w-32">Pago Mínimo Mensual ($)</th>
+                                <th class="py-3 px-3 text-center w-28">Orden de Pago</th>
+                                <th class="py-3 px-3 text-center w-28">Mes de Pago Total</th>
+                                <th class="py-3 px-3 text-center w-12">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debts-table-body" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Estrategia</label>
+                        <select id="debt-strategy" onchange="calculateDebtPayoff()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500 shadow-sm">
+                            <option value="snowball">Bola de Nieve (Menor Saldo Primero)</option>
+                            <option value="avalanche">Avalancha (Mayor Tasa de Interés Primero)</option>
+                        </select>
+                    </div>
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pago Extra Mensual ($)</label>
+                        <input type="number" id="debt-extra-payment" value="0" step="10" min="0" oninput="calculateDebtPayoff()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500 shadow-sm">
+                        <p class="text-[10px] text-slate-500 mt-1">Además de los pagos mínimos de todas tus deudas.</p>
+                    </div>
+                    <div class="bg-red-50 p-3.5 rounded-xl border border-red-200 flex flex-col justify-center">
+                        <span class="text-[10px] font-bold text-red-700 uppercase tracking-wider">Fecha Libre de Deudas</span>
+                        <span id="debt-payoff-time" class="text-xl font-black text-red-800">—</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 text-xs">
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <span class="text-slate-500 block font-medium">Deuda Total Actual:</span>
+                        <span id="debt-kpi-total" class="text-base font-bold text-slate-900 mt-0.5 block">$0.00</span>
+                    </div>
+                    <div class="bg-amber-50 p-3.5 rounded-xl border border-amber-200">
+                        <span class="text-amber-800 block font-medium">Interés Total a Pagar (con tu plan):</span>
+                        <span id="debt-kpi-interest" class="text-base font-bold text-amber-900 mt-0.5 block">$0.00</span>
+                    </div>
+                    <div class="bg-emerald-50 p-3.5 rounded-xl border border-emerald-200">
+                        <span class="text-emerald-800 block font-medium">Ahorro vs. Solo Pagos Mínimos:</span>
+                        <span id="debt-kpi-savings" class="text-base font-bold text-emerald-900 mt-0.5 block">$0.00 / 0 meses</span>
+                    </div>
+                </div>
+
+                <details class="mb-2 bg-amber-50/60 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 leading-relaxed">
+                    <summary class="font-bold cursor-pointer">¿Cómo funciona la Bola de Nieve vs. la Avalancha?</summary>
+                    <div class="mt-3 space-y-2">
+                        <p><strong>Bola de Nieve (recomendada por Dave Ramsey):</strong> paga primero la deuda con el saldo MÁS PEQUEÑO, manteniendo pagos mínimos en las demás. Al eliminar una deuda, su pago mínimo se suma al pago extra de la siguiente. Genera victorias rápidas que mantienen la motivación.</p>
+                        <p><strong>Avalancha:</strong> paga primero la deuda con la TASA DE INTERÉS más alta. Matemáticamente ahorra más interés total, pero las primeras victorias pueden tardar más en llegar.</p>
+                    </div>
+                </details>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 mb-4 gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-bullseye text-purple-600"></i> Planificador de Metas Sin Deuda (Matemática NPER)
                         </h2>
                         <p class="text-xs text-slate-500">Calcula el tiempo necesario para adquirir bienes 100% en efectivo invirtiendo en DPF.</p>
@@ -469,6 +609,34 @@
                         <p>Esta fórmula toma en cuenta que tu dinero ya ahorrado también gana interés compuesto mientras sigues aportando cada mes — por eso el tiempo real suele ser más corto que dividir simplemente "lo que falta" entre tu aporte mensual.</p>
                     </div>
                 </details>
+
+                <!-- Emergency Fund Live Tracker (Baby Steps 1 & 3) -->
+                <div class="border-t border-slate-200 pt-6 mb-6">
+                    <h3 class="text-base font-bold text-slate-900 mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-shield-heart text-emerald-600"></i> Tu Fondo de Emergencia Hoy
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-4">Calculado con el capital de tus Pólizas DPF (Tab 5) frente a tus gastos esenciales reales del presupuesto base (Tab 1).</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="text-xs font-bold text-emerald-900">Paso 1: Fondo Inicial ($1,000)</span>
+                                <span id="ef-step1-label" class="text-xs font-bold text-emerald-700">$0 / $1,000</span>
+                            </div>
+                            <div class="w-full bg-emerald-100 rounded-full h-2.5">
+                                <div id="ef-step1-bar" class="bg-emerald-600 h-2.5 rounded-full transition-all" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="p-4 bg-blue-50/60 rounded-xl border border-blue-200">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="text-xs font-bold text-blue-900">Paso 3: Fondo Pleno (3-6 meses de gastos)</span>
+                                <span id="ef-step3-label" class="text-xs font-bold text-blue-700">0.0 meses</span>
+                            </div>
+                            <div class="w-full bg-blue-100 rounded-full h-2.5">
+                                <div id="ef-step3-bar" class="bg-blue-600 h-2.5 rounded-full transition-all" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Dave Ramsey 7 Baby Steps Cards Restored -->
                 <div class="border-t border-slate-200 pt-6">
@@ -602,6 +770,23 @@
                         <i class="fa-solid fa-gears text-amber-600"></i> Configuración Legal, Motor de Baselines y Duplicación (<span class="active-year-display">2026</span>)
                     </h2>
                     <p class="text-xs text-slate-500">Duplica presupuestos completos entre años, gestiona baselines inmutables y edita parámetros legales.</p>
+                </div>
+
+                <!-- Backup / Restore Panel -->
+                <div class="bg-indigo-50/70 p-4 rounded-xl border border-indigo-200 space-y-3">
+                    <h3 class="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-file-shield text-indigo-600"></i> Copia de Respaldo (Backup)
+                    </h3>
+                    <p class="text-xs text-indigo-800">Tus datos viven solo en este navegador (localStorage). Descarga una copia de respaldo para no perderlos si se borra el caché, o para moverlos a otro computador.</p>
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="downloadBackupJSON()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-download"></i> Descargar Copia de Respaldo (.json)
+                        </button>
+                        <button onclick="triggerBackupUpload()" class="px-3 py-2 bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-upload"></i> Cargar Copia de Respaldo
+                        </button>
+                        <input type="file" id="backup-file-input" accept="application/json" class="hidden" onchange="handleBackupUpload(this)">
+                    </div>
                 </div>
 
                 <!-- Official Sources Reference Panel -->
@@ -801,6 +986,27 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Glossary of Terms -->
+                <details class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <summary class="text-xs font-bold text-slate-800 uppercase tracking-wider cursor-pointer flex items-center gap-2">
+                        <i class="fa-solid fa-book text-blue-600"></i> Glosario de Términos
+                    </summary>
+                    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs text-slate-700">
+                        <p><strong class="text-slate-900">DPF (Depósito a Plazo Fijo):</strong> certificado de ahorro que inmoviliza tu capital por un plazo fijo a cambio de una tasa de interés pactada.</p>
+                        <p><strong class="text-slate-900">IESS:</strong> Instituto Ecuatoriano de Seguridad Social; administra el aporte obligatorio de tu rol de pagos y tu futura pensión.</p>
+                        <p><strong class="text-slate-900">SRI:</strong> Servicio de Rentas Internas; administra el Impuesto a la Renta y sus tablas progresivas.</p>
+                        <p><strong class="text-slate-900">SBU:</strong> Salario Básico Unificado; el sueldo mínimo legal en Ecuador, usado como referencia para el Décimo Cuarto.</p>
+                        <p><strong class="text-slate-900">Décimo Tercero:</strong> beneficio laboral equivalente a un sueldo completo adicional, pagado en diciembre.</p>
+                        <p><strong class="text-slate-900">Décimo Cuarto:</strong> beneficio laboral equivalente a un SBU, pagado en marzo (Costa) o agosto (Sierra).</p>
+                        <p><strong class="text-slate-900">COSEDE:</strong> Corporación del Seguro de Depósitos; asegura tus depósitos en cooperativas hasta un límite legal ($32,000 en Segmento 1).</p>
+                        <p><strong class="text-slate-900">Segmento 1:</strong> categoría de cooperativas de ahorro más grandes y reguladas por la SEPS.</p>
+                        <p><strong class="text-slate-900">NPER:</strong> fórmula financiera que calcula el número de períodos (meses) necesarios para alcanzar una meta de ahorro.</p>
+                        <p><strong class="text-slate-900">Sistema Francés:</strong> amortización de préstamo con cuota mensual fija.</p>
+                        <p><strong class="text-slate-900">Sistema Alemán:</strong> amortización de préstamo con abono a capital fijo y cuota decreciente.</p>
+                        <p><strong class="text-slate-900">Bola de Nieve / Avalancha:</strong> estrategias para pagar deudas múltiples, ordenando por menor saldo o por mayor tasa de interés respectivamente.</p>
+                    </div>
+                </details>
 
                 <!-- Danger Zone Relocated to Tab 6 -->
                 <div class="bg-red-50 p-4 rounded-xl border border-red-200 space-y-2">
@@ -1062,6 +1268,11 @@
             { id: 2, name: "Terreno / Lote", target: 20000, current: 0, monthly: 250, rate: 8.5 }
         ];
 
+        let debtItems = [
+            { id: 1, name: "Tarjeta de Crédito", balance: 1500, rate: 42, minPayment: 75 },
+            { id: 2, name: "Préstamo Vehicular", balance: 6000, rate: 11, minPayment: 220 }
+        ];
+
         let chartInstance = null;
 
         function initYearSelector() {
@@ -1317,16 +1528,29 @@
         }
 
         function updatePolizaField(idx, field, value) {
+            const isContinuousField = field === 'amount' || field === 'rate' || field === 'days';
             polizasStore[idx][field] = field === 'amount' || field === 'rate' ? (parseFloat(value) || 0) : (field === 'days' ? (parseInt(value) || 360) : value);
 
             const row = document.querySelector(`#polizas-table-body tr[data-idx="${idx}"]`);
             const interestCell = row ? row.querySelector('.poliza-interest-cell') : null;
-            if (interestCell) {
+            if (isContinuousField && interestCell) {
                 interestCell.innerText = '+' + formatCurrency(calculatePolizaInterest(polizasStore[idx]));
             } else {
                 renderPolizasTable();
             }
             recalculateAll();
+        }
+
+        function getMaturityBadge(dateStr) {
+            if (!dateStr) return '';
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const maturity = new Date(dateStr + 'T00:00:00');
+            if (isNaN(maturity.getTime())) return '';
+            const diffDays = Math.round((maturity - today) / 86400000);
+            if (diffDays < 0) return `<span class="ml-1 px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[9px] font-bold whitespace-nowrap">Vencida</span>`;
+            if (diffDays <= 30) return `<span class="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[9px] font-bold whitespace-nowrap">Vence en ${diffDays}d</span>`;
+            return '';
         }
 
         function renderPolizasTable() {
@@ -1343,7 +1567,7 @@
                     <td class="py-2 px-3"><input type="number" value="${p.rate}" step="0.1" oninput="updatePolizaField(${idx}, 'rate', this.value)" class="w-16 bg-transparent border rounded px-1 text-emerald-700 font-bold"></td>
                     <td class="py-2 px-3"><input type="number" value="${p.days}" oninput="updatePolizaField(${idx}, 'days', this.value)" class="w-16 bg-transparent border rounded px-1"></td>
                     <td class="py-2 px-3">${buildModalitySelectHTML(p.modality, `updatePolizaField(${idx}, 'modality', this.value)`)}</td>
-                    <td class="py-2 px-3"><input type="date" value="${p.maturityDate}" onchange="updatePolizaField(${idx}, 'maturityDate', this.value)" class="bg-transparent border rounded px-1"></td>
+                    <td class="py-2 px-3 whitespace-nowrap"><input type="date" value="${p.maturityDate}" onchange="updatePolizaField(${idx}, 'maturityDate', this.value)" class="bg-transparent border rounded px-1">${getMaturityBadge(p.maturityDate)}</td>
                     <td class="py-2 px-3 text-right font-bold text-emerald-600 poliza-interest-cell">+${formatCurrency(earnedInterest)}</td>
                     <td class="py-2 px-3 text-center"><button onclick="polizasStore.splice(${idx},1);renderPolizasTable();recalculateAll();" class="text-red-600 hover:text-red-800"><i class="fa-solid fa-trash"></i></button></td>
                 `;
@@ -1373,6 +1597,7 @@
             document.getElementById('nav-' + tabId).classList.add('active');
 
             if (tabId === 'tab3') renderChart();
+            if (tabId === 'tab4') { renderDebtsTable(); updateEmergencyFundTracker(); }
             if (tabId === 'tab5') { renderCooperativasTable(); renderPolizasTable(); }
             if (tabId === 'tab6') { renderBaselinesTable(); }
             if (tabId === 'tab7') { calculateMortgage(); }
@@ -1509,9 +1734,26 @@
             document.getElementById('dpf-poliza-interest-sum').innerText = '+' + formatCurrency(totalPolizasInterestSum);
             document.getElementById('dpf-total-val-real').innerText = formatCurrency(annualRealSavings + totalPolizasInterestSum);
             updateCosedeBanner();
+            updateEmergencyFundTracker();
 
             updateMultiYearProjections();
             renderGoalsTable();
+        }
+
+        function calculatePension() {
+            const edadActual = Math.max(0, parseInt(document.getElementById('pension-edad-actual').value) || 0);
+            const edadJubilacion = Math.max(edadActual, parseInt(document.getElementById('pension-edad-jubilacion').value) || 65);
+            const aniosAportados = Math.max(0, parseFloat(document.getElementById('pension-anios-aportados').value) || 0);
+            const sueldoPromedio = Math.max(0, parseFloat(document.getElementById('pension-sueldo-promedio').value) || 0);
+            const tasaReemplazo = Math.max(0, Math.min(100, parseFloat(document.getElementById('pension-tasa-reemplazo').value) || 0));
+
+            const aniosRestantes = Math.max(0, edadJubilacion - edadActual);
+            const aniosTotales = aniosAportados + aniosRestantes;
+            const pensionMensual = sueldoPromedio * (tasaReemplazo / 100);
+
+            document.getElementById('pension-anios-totales').innerText = aniosTotales.toFixed(0);
+            document.getElementById('pension-mensual').innerText = formatCurrency(pensionMensual);
+            document.getElementById('pension-anual').innerText = formatCurrency(pensionMensual * 12);
         }
 
         function updateDeductibleStatusCard(deductiblesAnualReal, sriMaxCap) {
@@ -1835,6 +2077,166 @@
             renderGoalsTable();
         }
 
+        // --- DEBT SNOWBALL / AVALANCHE CALCULATOR (BABY STEP 2) ---
+        function renderDebtsTable() {
+            const tbody = document.getElementById('debts-table-body');
+            tbody.innerHTML = '';
+            const payoffInfo = simulateDebtPayoff(debtItems, parseFloat(document.getElementById('debt-extra-payment').value) || 0, document.getElementById('debt-strategy').value);
+
+            debtItems.forEach((debt) => {
+                const info = payoffInfo.items.find(i => i.id === debt.id);
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-colors';
+                tr.innerHTML = `
+                    <td class="py-2 px-3"><input type="text" value="${debt.name}" onchange="updateDebtItem(${debt.id}, 'name', this.value)" class="w-full bg-transparent font-medium border rounded px-1.5"></td>
+                    <td class="py-2 px-3"><input type="number" value="${debt.balance}" oninput="updateDebtItem(${debt.id}, 'balance', this.value)" class="w-full border rounded px-2 py-1 text-xs font-bold"></td>
+                    <td class="py-2 px-3"><input type="number" value="${debt.rate}" step="0.1" oninput="updateDebtItem(${debt.id}, 'rate', this.value)" class="w-full border rounded px-2 py-1 text-xs font-bold"></td>
+                    <td class="py-2 px-3"><input type="number" value="${debt.minPayment}" oninput="updateDebtItem(${debt.id}, 'minPayment', this.value)" class="w-full border rounded px-2 py-1 text-xs font-bold"></td>
+                    <td class="py-2 px-3 text-center"><span class="px-2 py-1 bg-red-100 text-red-900 rounded font-bold text-xs">${info ? info.order : '—'}</span></td>
+                    <td class="py-2 px-3 text-center font-bold text-slate-700">${info && info.payoffMonth ? 'Mes ' + info.payoffMonth : '—'}</td>
+                    <td class="py-2 px-3 text-center"><button onclick="deleteDebtRow(${debt.id})" class="text-slate-400 hover:text-red-600 p-1"><i class="fa-solid fa-trash-can"></i></button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateDebtKPIs(payoffInfo);
+        }
+
+        function updateDebtItem(id, field, value) {
+            const debt = debtItems.find(d => d.id === id);
+            if (debt) {
+                if (field === 'name') debt.name = value;
+                else debt[field] = parseFloat(value) || 0;
+                renderDebtsTable();
+            }
+        }
+
+        function addDebtRow() {
+            const newId = debtItems.length > 0 ? Math.max(...debtItems.map(d => d.id)) + 1 : 1;
+            debtItems.push({ id: newId, name: "Nueva Deuda", balance: 1000, rate: 15, minPayment: 50 });
+            renderDebtsTable();
+        }
+
+        function deleteDebtRow(id) {
+            debtItems = debtItems.filter(d => d.id !== id);
+            renderDebtsTable();
+        }
+
+        // Simulates monthly payoff of a debt list under a given strategy, returning per-debt
+        // payoff order/month plus aggregate totals. Runs a second, minimums-only pass to
+        // compute the interest/time saved by the extra payment for the KPI comparison.
+        function simulateDebtPayoff(debts, extraMonthly, strategy) {
+            const maxMonths = 600;
+
+            function runSimulation(extra) {
+                let items = debts.map(d => ({
+                    id: d.id,
+                    balance: Math.max(0, Number(d.balance) || 0),
+                    rate: Math.max(0, Number(d.rate) || 0),
+                    minPayment: Math.max(0, Number(d.minPayment) || 0),
+                    payoffMonth: null
+                }));
+
+                if (strategy === 'avalanche') items.sort((a, b) => b.rate - a.rate);
+                else items.sort((a, b) => a.balance - b.balance);
+
+                let month = 0;
+                let totalInterestAll = 0;
+                let freedMinimums = 0;
+
+                while (items.some(d => d.balance > 0.01) && month < maxMonths) {
+                    month++;
+                    items.forEach(d => {
+                        if (d.balance <= 0) return;
+                        const interest = d.balance * (d.rate / 100 / 12);
+                        d.balance += interest;
+                        totalInterestAll += interest;
+                        const pay = Math.min(d.minPayment, d.balance);
+                        d.balance -= pay;
+                    });
+
+                    let availableExtra = extra + freedMinimums;
+                    for (const d of items) {
+                        if (availableExtra <= 0) break;
+                        if (d.balance <= 0) continue;
+                        const pay = Math.min(availableExtra, d.balance);
+                        d.balance -= pay;
+                        availableExtra -= pay;
+                    }
+
+                    freedMinimums = 0;
+                    items.forEach(d => {
+                        if (d.balance <= 0.01) {
+                            if (d.payoffMonth === null) d.payoffMonth = month;
+                            freedMinimums += d.minPayment;
+                        }
+                    });
+                }
+
+                items.forEach((d, idx) => { d.order = idx + 1; });
+                return { items, totalMonths: month, totalInterestAll };
+            }
+
+            const withExtra = runSimulation(extraMonthly);
+            const minimumsOnly = runSimulation(0);
+
+            return {
+                items: withExtra.items,
+                totalMonths: withExtra.totalMonths,
+                totalInterestAll: withExtra.totalInterestAll,
+                minimumsOnlyMonths: minimumsOnly.totalMonths,
+                minimumsOnlyInterest: minimumsOnly.totalInterestAll
+            };
+        }
+
+        function updateDebtKPIs(payoffInfo) {
+            const totalBalance = debtItems.reduce((s, d) => s + (Number(d.balance) || 0), 0);
+            document.getElementById('debt-kpi-total').innerText = formatCurrency(totalBalance);
+            document.getElementById('debt-kpi-interest').innerText = formatCurrency(payoffInfo.totalInterestAll);
+
+            const monthsSaved = Math.max(0, payoffInfo.minimumsOnlyMonths - payoffInfo.totalMonths);
+            const interestSaved = Math.max(0, payoffInfo.minimumsOnlyInterest - payoffInfo.totalInterestAll);
+            document.getElementById('debt-kpi-savings').innerText = `${formatCurrency(interestSaved)} / ${monthsSaved} meses`;
+
+            const payoffLabel = document.getElementById('debt-payoff-time');
+            if (totalBalance <= 0) {
+                payoffLabel.innerText = '¡Sin Deudas!';
+            } else if (payoffInfo.totalMonths >= 600) {
+                payoffLabel.innerText = 'Nunca (aumenta el pago)';
+            } else {
+                const today = new Date();
+                const payoffDate = new Date(today.getFullYear(), today.getMonth() + payoffInfo.totalMonths, 1);
+                const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+                payoffLabel.innerText = `${monthNames[payoffDate.getMonth()]} ${payoffDate.getFullYear()} (${payoffInfo.totalMonths}m)`;
+            }
+        }
+
+        function calculateDebtPayoff() {
+            renderDebtsTable();
+        }
+
+        // --- EMERGENCY FUND TRACKER (BABY STEPS 1 & 3) ---
+        function updateEmergencyFundTracker() {
+            const yd = getYearData(activeYear);
+            let monthlyEssentialExpenses = 0;
+            yd.budgetBase.forEach(item => {
+                if (item.type === 'Gasto Fijo' || item.type === 'Gasto Variable') {
+                    monthlyEssentialExpenses += Number(item.real) || 0;
+                }
+            });
+
+            const liquidReserve = polizasStore.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+            const monthsCovered = monthlyEssentialExpenses > 0 ? liquidReserve / monthlyEssentialExpenses : 0;
+
+            const step1Progress = Math.min(100, (liquidReserve / 1000) * 100);
+            document.getElementById('ef-step1-label').innerText = `${formatCurrency(Math.min(liquidReserve, 1000))} / $1,000`;
+            document.getElementById('ef-step1-bar').style.width = step1Progress.toFixed(0) + '%';
+
+            const step3Progress = Math.min(100, (monthsCovered / 6) * 100);
+            document.getElementById('ef-step3-label').innerText = `${monthsCovered.toFixed(1)} meses`;
+            document.getElementById('ef-step3-bar').style.width = step3Progress.toFixed(0) + '%';
+        }
+
         // --- MORTGAGE CALCULATOR (SISTEMA FRANCES VS ALEMAN) ---
         let mortgageChartInstance = null;
         let mortgageInterestChartInstance = null;
@@ -2009,8 +2411,8 @@
         }
 
         // --- PERSISTENCE & SYSTEM RESET ---
-        function saveToLocalStorage() {
-            const state = {
+        function buildStateObject() {
+            return {
                 configStartYear: configStartYear,
                 configEndYear: configEndYear,
                 activeYear: activeYear,
@@ -2019,13 +2421,49 @@
                 cooperativasStore: cooperativasStore,
                 polizasStore: polizasStore,
                 goalItems: goalItems,
+                debtItems: debtItems,
                 mortgageConfig: {
                     amount: parseFloat(document.getElementById('mort-amount').value) || 0,
                     rate: parseFloat(document.getElementById('mort-rate').value) || 0,
                     years: parseInt(document.getElementById('mort-years').value) || 20
                 }
             };
-            localStorage.setItem('plan_financiero_ec_v7_store', JSON.stringify(state));
+        }
+
+        function applyLoadedState(data) {
+            if (data.configStartYear) configStartYear = data.configStartYear;
+            if (data.configEndYear) configEndYear = data.configEndYear;
+            if (data.activeYear) activeYear = data.activeYear;
+            if (data.multiYearStore) multiYearStore = data.multiYearStore;
+            if (data.baselinesStore) baselinesStore = data.baselinesStore;
+            if (data.cooperativasStore) cooperativasStore = data.cooperativasStore;
+            if (data.polizasStore) polizasStore = data.polizasStore;
+            if (data.goalItems) goalItems = data.goalItems;
+            if (data.debtItems) debtItems = data.debtItems;
+            if (data.mortgageConfig) {
+                document.getElementById('mort-amount').value = data.mortgageConfig.amount;
+                document.getElementById('mort-rate').value = data.mortgageConfig.rate;
+                document.getElementById('mort-years').value = data.mortgageConfig.years;
+            }
+        }
+
+        function refreshAllUI() {
+            document.getElementById('config-start-year').value = configStartYear;
+            document.getElementById('config-end-year').value = configEndYear;
+            initYearSelector();
+            loadYearToInputs();
+            renderBudgetTable();
+            renderBaselinesTable();
+            renderCooperativasTable();
+            renderPolizasTable();
+            renderDebtsTable();
+            recalculateAll();
+            calculateMortgage();
+            calculatePension();
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('plan_financiero_ec_v7_store', JSON.stringify(buildStateObject()));
             alert('¡Todos los presupuestos, baselines y pólizas han sido guardados!');
         }
 
@@ -2033,20 +2471,7 @@
             const saved = localStorage.getItem('plan_financiero_ec_v7_store');
             if (saved) {
                 try {
-                    const data = JSON.parse(saved);
-                    if (data.configStartYear) configStartYear = data.configStartYear;
-                    if (data.configEndYear) configEndYear = data.configEndYear;
-                    if (data.activeYear) activeYear = data.activeYear;
-                    if (data.multiYearStore) multiYearStore = data.multiYearStore;
-                    if (data.baselinesStore) baselinesStore = data.baselinesStore;
-                    if (data.cooperativasStore) cooperativasStore = data.cooperativasStore;
-                    if (data.polizasStore) polizasStore = data.polizasStore;
-                    if (data.goalItems) goalItems = data.goalItems;
-                    if (data.mortgageConfig) {
-                        document.getElementById('mort-amount').value = data.mortgageConfig.amount;
-                        document.getElementById('mort-rate').value = data.mortgageConfig.rate;
-                        document.getElementById('mort-years').value = data.mortgageConfig.years;
-                    }
+                    applyLoadedState(JSON.parse(saved));
                 } catch(e) {
                     console.error("Error al cargar localStorage", e);
                 }
@@ -2056,6 +2481,44 @@
             initYearSelector();
             loadYearToInputs();
             renderBaselinesTable();
+        }
+
+        function downloadBackupJSON() {
+            const blob = new Blob([JSON.stringify(buildStateObject(), null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `plan_financiero_ecuador_backup_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function triggerBackupUpload() {
+            document.getElementById('backup-file-input').click();
+        }
+
+        function handleBackupUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!confirm('¿Reemplazar TODOS los datos actuales con esta copia de respaldo? Esta acción no se puede deshacer.')) {
+                        input.value = '';
+                        return;
+                    }
+                    applyLoadedState(data);
+                    refreshAllUI();
+                    alert('¡Copia de respaldo restaurada exitosamente!');
+                } catch (err) {
+                    alert('El archivo seleccionado no es una copia de respaldo válida (.json).');
+                }
+                input.value = '';
+            };
+            reader.readAsText(file);
         }
 
         function openRedResetModal1() {
@@ -2084,6 +2547,7 @@
                 baselinesStore = [];
                 cooperativasStore = [];
                 polizasStore = [];
+                debtItems = [];
                 configStartYear = 2020;
                 configEndYear = 2050;
                 activeYear = 2026;
@@ -2096,6 +2560,7 @@
                 renderBaselinesTable();
                 renderCooperativasTable();
                 renderPolizasTable();
+                renderDebtsTable();
                 recalculateAll();
                 alert('El sistema ha sido purgado por completo.');
             } else {
@@ -2108,8 +2573,11 @@
             renderBudgetTable();
             renderCooperativasTable();
             renderPolizasTable();
+            renderDebtsTable();
+            updateEmergencyFundTracker();
             recalculateAll();
             calculateMortgage();
+            calculatePension();
         };
     </script>
 </body>
