@@ -73,7 +73,7 @@
             </div>
 
             <!-- Tab Buttons Navigation -->
-            <nav class="grid grid-cols-2 sm:grid-cols-4 gap-1 text-sm font-medium border-t border-slate-800/80 pt-1 pb-1">
+            <nav class="grid grid-cols-2 sm:grid-cols-5 gap-1 text-sm font-medium border-t border-slate-800/80 pt-1 pb-1">
                 <button onclick="switchTab('tab1')" id="nav-tab1" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2 active">
                     <i class="fa-solid fa-sliders text-emerald-500"></i> 1. Presupuesto Mensual
                 </button>
@@ -94,6 +94,12 @@
                 </button>
                 <button onclick="switchTab('tab7')" id="nav-tab7" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-house-chimney text-rose-500"></i> 7. Calculadora Hipotecaria
+                </button>
+                <button onclick="switchTab('tab8')" id="nav-tab8" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-person-cane text-indigo-500"></i> 8. Calculadora de Jubilación
+                </button>
+                <button onclick="switchTab('tab9')" id="nav-tab9" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-scale-unbalanced text-teal-500"></i> 9. Patrimonio Neto
                 </button>
             </nav>
         </div>
@@ -355,59 +361,6 @@
                     </div>
                 </div>
 
-            </div>
-
-            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-person-cane text-indigo-600"></i> Estimador de Pensión IESS (Educativo, Paso 4)
-                    </h2>
-                    <span class="text-[10px] font-bold bg-amber-50 text-amber-700 px-2.5 py-1 rounded">Estimación simplificada, no oficial</span>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
-                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Edad Actual</label>
-                        <input type="number" id="pension-edad-actual" value="30" min="18" max="80" oninput="calculatePension()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Edad de Jubilación</label>
-                        <input type="number" id="pension-edad-jubilacion" value="65" min="50" max="80" oninput="calculatePension()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Años Ya Aportados</label>
-                        <input type="number" id="pension-anios-aportados" value="5" min="0" max="60" oninput="calculatePension()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Sueldo Promedio ($)</label>
-                        <input type="number" id="pension-sueldo-promedio" value="1500" step="50" oninput="calculatePension()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
-                        <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Tasa de Reemplazo Estimada (%)</label>
-                        <input type="number" id="pension-tasa-reemplazo" value="60" step="1" min="0" max="100" oninput="calculatePension()" class="w-full bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 text-xs">
-                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                        <span class="text-slate-500 block font-medium">Años Totales Aportados al Jubilarte:</span>
-                        <span id="pension-anios-totales" class="text-base font-bold text-slate-900 mt-0.5 block">0</span>
-                    </div>
-                    <div class="bg-indigo-50 p-3.5 rounded-xl border border-indigo-200">
-                        <span class="text-indigo-800 block font-medium">Pensión Mensual Estimada:</span>
-                        <span id="pension-mensual" class="text-base font-bold text-indigo-900 mt-0.5 block">$0.00</span>
-                    </div>
-                    <div class="bg-indigo-50 p-3.5 rounded-xl border border-indigo-200">
-                        <span class="text-indigo-800 block font-medium">Pensión Anual Estimada:</span>
-                        <span id="pension-anual" class="text-base font-bold text-indigo-900 mt-0.5 block">$0.00</span>
-                    </div>
-                </div>
-
-                <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
-                    <i class="fa-solid fa-triangle-exclamation text-amber-600 mr-1"></i>
-                    <strong>Esto es una estimación educativa simplificada, no un cálculo oficial.</strong> La fórmula real de IESS (Jubilación Ordinaria de Vejez) depende de tu historial completo de aportes, el número mínimo de años exigido y tablas que cambian con reformas legales. Ajusta la "Tasa de Reemplazo" a lo que investigues como realista para tu caso, y verifica siempre tu situación específica en
-                    <a href="https://www.iess.gob.ec" target="_blank" rel="noopener" class="underline font-bold">iess.gob.ec</a>.
-                </div>
             </div>
 
             <details class="bg-amber-50/60 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 leading-relaxed">
@@ -1122,6 +1075,218 @@
             </div>
         </section>
 
+        <!-- TAB 8: CALCULADORA DE JUBILACION (DPF + PENSION IESS) -->
+        <section id="tab8" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-person-cane text-indigo-600"></i> Calculadora de Jubilación (Baby Step 4)
+                    </h2>
+                    <span class="text-[10px] font-bold bg-amber-50 text-amber-700 px-2.5 py-1 rounded">Estimación educativa, no oficial</span>
+                </div>
+                <p class="text-xs text-slate-500 mb-4">Combina el valor futuro de tu ahorro DPF con tu pensión IESS estimada, para responder: ¿cuánto tendré y cuánto ingreso mensual podría generar cuando me jubile?</p>
+
+                <h3 class="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-piggy-bank text-emerald-600"></i> Tu Ahorro DPF Proyectado
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Edad Actual</label>
+                        <input type="number" id="retire-edad-actual" value="30" min="18" max="80" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Edad de Jubilación Deseada</label>
+                        <input type="number" id="retire-edad-jubilacion" value="65" min="50" max="80" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Ahorro DPF Actual para Retiro ($)</label>
+                        <input type="number" id="retire-ahorro-actual" value="0" step="100" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <p class="text-[10px] text-emerald-700 mt-1">Referencia: revisa el Balance Portfolio en Tab 3.</p>
+                    </div>
+                    <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Aporte Mensual Adicional ($)</label>
+                        <input type="number" id="retire-aporte-mensual" value="100" step="10" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Tasa de Retorno Anual Esperada (%)</label>
+                        <input type="number" id="retire-tasa-retorno" value="8.5" step="0.1" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <h3 class="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-building-columns text-indigo-600"></i> Tu Pensión IESS Estimada
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Años Ya Aportados a IESS</label>
+                        <input type="number" id="retire-anios-aportados" value="5" min="0" max="60" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Sueldo Promedio Mensual ($)</label>
+                        <input type="number" id="retire-sueldo-promedio" value="1500" step="50" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
+                        <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Tasa de Reemplazo Estimada (%)</label>
+                        <input type="number" id="retire-tasa-reemplazo" value="60" step="1" min="0" max="100" oninput="calculateRetirement()" class="w-full bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
+                        <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Tasa de Retiro Segura Anual (%)</label>
+                        <input type="number" id="retire-tasa-retiro-segura" value="4" step="0.5" min="0" max="20" oninput="calculateRetirement()" class="w-full bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-[10px] text-indigo-700 mt-1">% anual del ahorro que retiras cada año sin agotarlo (regla del 4%).</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 text-xs">
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <span class="text-slate-500 block font-medium">Años Hasta la Jubilación:</span>
+                        <span id="retire-anios-restantes" class="text-base font-bold text-slate-900 mt-0.5 block">0</span>
+                    </div>
+                    <div class="bg-emerald-50 p-3.5 rounded-xl border border-emerald-200">
+                        <span class="text-emerald-800 block font-medium">Valor Futuro del Ahorro DPF:</span>
+                        <span id="retire-valor-futuro" class="text-base font-bold text-emerald-900 mt-0.5 block">$0.00</span>
+                    </div>
+                    <div class="bg-emerald-50 p-3.5 rounded-xl border border-emerald-200">
+                        <span class="text-emerald-800 block font-medium">Ingreso Mensual Sostenible del Ahorro:</span>
+                        <span id="retire-ingreso-ahorro" class="text-base font-bold text-emerald-900 mt-0.5 block">$0.00</span>
+                    </div>
+                    <div class="bg-indigo-50 p-3.5 rounded-xl border border-indigo-200">
+                        <span class="text-indigo-800 block font-medium">Pensión IESS Mensual Estimada:</span>
+                        <span id="retire-pension-mensual" class="text-base font-bold text-indigo-900 mt-0.5 block">$0.00</span>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-gradient-to-r from-emerald-50 to-indigo-50 rounded-xl border border-emerald-200 flex justify-between items-center mb-4">
+                    <div>
+                        <span class="text-xs font-bold text-slate-700 uppercase tracking-wide block">Ingreso Mensual Total Estimado en la Jubilación</span>
+                        <span class="text-[10px] text-slate-500">Ahorro DPF (retiro sostenible) + Pensión IESS</span>
+                    </div>
+                    <span id="retire-ingreso-total" class="text-2xl font-black text-emerald-700">$0.00</span>
+                </div>
+
+                <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-600 mr-1"></i>
+                    <strong>Esto es una estimación educativa simplificada, no un cálculo oficial.</strong> La fórmula real de pensión de IESS (Jubilación Ordinaria de Vejez) depende de tu historial completo de aportes, el número mínimo de años exigido y tablas que cambian con reformas legales. Ajusta la "Tasa de Reemplazo" a lo que investigues como realista para tu caso, y verifica siempre tu situación específica en
+                    <a href="https://www.iess.gob.ec" target="_blank" rel="noopener" class="underline font-bold">iess.gob.ec</a>.
+                </div>
+            </div>
+
+            <details class="bg-amber-50/60 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 leading-relaxed">
+                <summary class="font-bold cursor-pointer">¿Cómo se calcula? (Fórmulas explicadas)</summary>
+                <div class="mt-3 space-y-2">
+                    <p><strong>Valor Futuro del Ahorro:</strong> VF = Ahorro Actual × (1+i)ⁿ + Aporte Mensual × [((1+i)ⁿ − 1) / i], donde i es la tasa mensual y n los meses hasta la jubilación. Es la misma matemática de interés compuesto de la Tab 3, aplicada hacia adelante hasta tu edad de jubilación.</p>
+                    <p><strong>Ingreso Sostenible:</strong> Ingreso Mensual = (Valor Futuro × Tasa de Retiro Segura Anual) / 12. La idea es retirar solo una fracción pequeña cada año para que el ahorro no se agote.</p>
+                    <p><strong>Pensión IESS:</strong> Pensión Mensual = Sueldo Promedio × Tasa de Reemplazo Estimada. Ver disclaimer arriba.</p>
+                </div>
+            </details>
+        </section>
+
+        <!-- TAB 9: PATRIMONIO NETO (NET WORTH, ESTILO RAMSEY) -->
+        <section id="tab9" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-3 mb-4 gap-2">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-scale-unbalanced text-teal-600"></i> Calculadora de Patrimonio Neto (<span class="active-year-display">2026</span>)
+                        </h2>
+                        <p class="text-xs text-slate-500">Patrimonio Neto = Activos Totales − Pasivos Totales. Es el número más importante a seguir a lo largo del tiempo, más que tu ingreso.</p>
+                    </div>
+                    <button onclick="prefillNetWorthFromApp()" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm whitespace-nowrap">
+                        <i class="fa-solid fa-arrows-rotate"></i> Usar mis Pólizas y Deudas Registradas
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-arrow-trend-up text-emerald-600"></i> Activos
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Efectivo y Cuentas de Ahorro ($)</label>
+                                <input type="number" id="nw-cash" value="0" step="50" oninput="updateNetWorth('cash', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Inversiones y Pólizas DPF ($)</label>
+                                <input type="number" id="nw-investments" value="0" step="50" oninput="updateNetWorth('investments', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Valor de Vivienda / Bienes Raíces ($)</label>
+                                <input type="number" id="nw-realestate" value="0" step="100" oninput="updateNetWorth('realEstate', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Vehículos (Valor de Reventa) ($)</label>
+                                <input type="number" id="nw-vehicles" value="0" step="50" oninput="updateNetWorth('vehicles', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Otros Bienes de Valor ($)</label>
+                                <input type="number" id="nw-personal" value="0" step="50" oninput="updateNetWorth('personalProperty', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xs font-bold text-red-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-arrow-trend-down text-red-600"></i> Pasivos
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Saldo de Hipoteca ($)</label>
+                                <input type="number" id="nw-mortgage" value="0" step="100" oninput="updateNetWorth('mortgage', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
+                            </div>
+                            <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Préstamos Vehiculares ($)</label>
+                                <input type="number" id="nw-autoloans" value="0" step="50" oninput="updateNetWorth('autoLoans', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
+                            </div>
+                            <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Tarjetas de Crédito y Préstamos Personales ($)</label>
+                                <input type="number" id="nw-creditcards" value="0" step="50" oninput="updateNetWorth('creditCards', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
+                            </div>
+                            <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Préstamos Estudiantiles ($)</label>
+                                <input type="number" id="nw-studentloans" value="0" step="50" oninput="updateNetWorth('studentLoans', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
+                            </div>
+                            <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Otras Deudas ($)</label>
+                                <input type="number" id="nw-otherdebts" value="0" step="50" oninput="updateNetWorth('otherDebts', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 text-xs">
+                    <div class="bg-emerald-50 p-3.5 rounded-xl border border-emerald-200">
+                        <span class="text-emerald-800 block font-medium">Total Activos:</span>
+                        <span id="nw-total-assets" class="text-base font-bold text-emerald-900 mt-0.5 block">$0.00</span>
+                    </div>
+                    <div class="bg-red-50 p-3.5 rounded-xl border border-red-200">
+                        <span class="text-red-800 block font-medium">Total Pasivos:</span>
+                        <span id="nw-total-liabilities" class="text-base font-bold text-red-900 mt-0.5 block">$0.00</span>
+                    </div>
+                    <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-700 flex flex-col justify-center">
+                        <span class="text-slate-300 block font-medium text-[10px] uppercase tracking-wider">Patrimonio Neto (Este Año)</span>
+                        <span id="nw-net-worth" class="text-xl font-black text-emerald-400 mt-0.5 block">$0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+                    <i class="fa-solid fa-chart-line text-teal-500"></i> Evolución del Patrimonio Neto por Año (<span class="timeline-range-display">2020 - 2050</span>)
+                </h3>
+                <div class="relative h-64 w-full">
+                    <canvas id="netWorthChart"></canvas>
+                </div>
+            </div>
+
+            <details class="bg-amber-50/60 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 leading-relaxed">
+                <summary class="font-bold cursor-pointer">¿Por qué el Patrimonio Neto importa más que el Ingreso?</summary>
+                <div class="mt-3 space-y-2">
+                    <p>Adaptado del principio de Ramsey Solutions sobre patrimonio neto: tu ingreso mensual es solo un flujo; tu <strong>patrimonio neto</strong> (Activos − Pasivos) es una fotografía real de tu riqueza. Alguien con un sueldo alto pero mucha deuda de consumo puede tener un patrimonio neto más bajo que alguien con un sueldo modesto y cero deudas.</p>
+                    <p>Por eso esta calculadora es <strong>por año</strong>: lo importante no es el número de un solo mes, sino la tendencia — que tu patrimonio neto crezca año tras año a medida que pagas deudas (Tab 4) y acumulas ahorro DPF (Tab 3 y 5).</p>
+                </div>
+            </details>
+        </section>
+
     </main>
 
     <!-- Modal Warning 1 (Deletion Safety) -->
@@ -1247,6 +1412,10 @@
                     canasta: 764.70,
                     cosede: 32000,
                     sriCapMultiplier: 7,
+                    netWorth: {
+                        cash: 0, investments: 0, realEstate: 0, vehicles: 0, personalProperty: 0,
+                        mortgage: 0, autoLoans: 0, creditCards: 0, studentLoans: 0, otherDebts: 0
+                    },
                     budgetBase: JSON.parse(JSON.stringify(defaultBudgetTemplate)),
                     monthOverrides: {},
                     sriBrackets: [
@@ -1337,6 +1506,7 @@
             document.getElementById('config-sri-cap-multiplier').value = yd.sriCapMultiplier || 7;
 
             renderSRIBracketsTable();
+            loadNetWorthInputsForActiveYear();
         }
 
         function saveLegalConfig() {
@@ -1601,6 +1771,8 @@
             if (tabId === 'tab5') { renderCooperativasTable(); renderPolizasTable(); }
             if (tabId === 'tab6') { renderBaselinesTable(); }
             if (tabId === 'tab7') { calculateMortgage(); }
+            if (tabId === 'tab8') { calculateRetirement(); }
+            if (tabId === 'tab9') { renderNetWorthChart(); }
         }
 
         function formatCurrency(amount) {
@@ -1740,20 +1912,136 @@
             renderGoalsTable();
         }
 
-        function calculatePension() {
-            const edadActual = Math.max(0, parseInt(document.getElementById('pension-edad-actual').value) || 0);
-            const edadJubilacion = Math.max(edadActual, parseInt(document.getElementById('pension-edad-jubilacion').value) || 65);
-            const aniosAportados = Math.max(0, parseFloat(document.getElementById('pension-anios-aportados').value) || 0);
-            const sueldoPromedio = Math.max(0, parseFloat(document.getElementById('pension-sueldo-promedio').value) || 0);
-            const tasaReemplazo = Math.max(0, Math.min(100, parseFloat(document.getElementById('pension-tasa-reemplazo').value) || 0));
+        // --- NET WORTH TRACKER (PER YEAR, RAMSEY-STYLE ASSETS - LIABILITIES) ---
+        let netWorthChartInstance = null;
+
+        function ensureNetWorthDefaults(yd) {
+            if (!yd.netWorth) {
+                yd.netWorth = {
+                    cash: 0, investments: 0, realEstate: 0, vehicles: 0, personalProperty: 0,
+                    mortgage: 0, autoLoans: 0, creditCards: 0, studentLoans: 0, otherDebts: 0
+                };
+            }
+            return yd.netWorth;
+        }
+
+        function loadNetWorthInputsForActiveYear() {
+            const nw = ensureNetWorthDefaults(getYearData(activeYear));
+            document.getElementById('nw-cash').value = nw.cash;
+            document.getElementById('nw-investments').value = nw.investments;
+            document.getElementById('nw-realestate').value = nw.realEstate;
+            document.getElementById('nw-vehicles').value = nw.vehicles;
+            document.getElementById('nw-personal').value = nw.personalProperty;
+            document.getElementById('nw-mortgage').value = nw.mortgage;
+            document.getElementById('nw-autoloans').value = nw.autoLoans;
+            document.getElementById('nw-creditcards').value = nw.creditCards;
+            document.getElementById('nw-studentloans').value = nw.studentLoans;
+            document.getElementById('nw-otherdebts').value = nw.otherDebts;
+            updateNetWorthDisplay();
+        }
+
+        function updateNetWorth(field, value) {
+            ensureNetWorthDefaults(getYearData(activeYear))[field] = parseFloat(value) || 0;
+            updateNetWorthDisplay();
+        }
+
+        function updateNetWorthDisplay() {
+            const nw = ensureNetWorthDefaults(getYearData(activeYear));
+            const totalAssets = nw.cash + nw.investments + nw.realEstate + nw.vehicles + nw.personalProperty;
+            const totalLiabilities = nw.mortgage + nw.autoLoans + nw.creditCards + nw.studentLoans + nw.otherDebts;
+            const netWorthVal = totalAssets - totalLiabilities;
+
+            document.getElementById('nw-total-assets').innerText = formatCurrency(totalAssets);
+            document.getElementById('nw-total-liabilities').innerText = formatCurrency(totalLiabilities);
+            const nwEl = document.getElementById('nw-net-worth');
+            nwEl.innerText = formatCurrency(netWorthVal);
+            nwEl.className = netWorthVal >= 0 ? 'text-xl font-black text-emerald-400 mt-0.5 block' : 'text-xl font-black text-red-400 mt-0.5 block';
+
+            if (!document.getElementById('tab9').classList.contains('hidden')) {
+                renderNetWorthChart();
+            }
+        }
+
+        function prefillNetWorthFromApp() {
+            const nw = ensureNetWorthDefaults(getYearData(activeYear));
+            nw.investments = polizasStore.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+            nw.creditCards = debtItems.reduce((s, d) => s + (Number(d.balance) || 0), 0);
+            loadNetWorthInputsForActiveYear();
+        }
+
+        function renderNetWorthChart() {
+            const canvas = document.getElementById('netWorthChart');
+            const ctx = canvas.getContext('2d');
+            if (netWorthChartInstance) netWorthChartInstance.destroy();
+
+            const labels = [];
+            const data = [];
+            for (let y = configStartYear; y <= configEndYear; y++) {
+                const nw = ensureNetWorthDefaults(getYearData(y));
+                const totalAssets = nw.cash + nw.investments + nw.realEstate + nw.vehicles + nw.personalProperty;
+                const totalLiabilities = nw.mortgage + nw.autoLoans + nw.creditCards + nw.studentLoans + nw.otherDebts;
+                labels.push(y.toString());
+                data.push((totalAssets - totalLiabilities).toFixed(2));
+            }
+
+            netWorthChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Patrimonio Neto ($)',
+                        data,
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { font: { family: 'Inter', size: 11 } } } },
+                    scales: {
+                        x: { ticks: { font: { size: 10 } } },
+                        y: { ticks: { font: { size: 10 }, callback: function(val) { return '$' + Number(val).toLocaleString(); } } }
+                    }
+                }
+            });
+        }
+
+        function calculateFutureValue(present, monthlyContribution, annualRatePct, months) {
+            const r = (annualRatePct / 100) / 12;
+            if (r === 0) return present + monthlyContribution * months;
+            const fvPresent = present * Math.pow(1 + r, months);
+            const fvContrib = monthlyContribution * ((Math.pow(1 + r, months) - 1) / r);
+            return fvPresent + fvContrib;
+        }
+
+        function calculateRetirement() {
+            const edadActual = Math.max(0, parseInt(document.getElementById('retire-edad-actual').value) || 0);
+            const edadJubilacion = Math.max(edadActual, parseInt(document.getElementById('retire-edad-jubilacion').value) || 65);
+            const ahorroActual = Math.max(0, parseFloat(document.getElementById('retire-ahorro-actual').value) || 0);
+            const aporteMensual = Math.max(0, parseFloat(document.getElementById('retire-aporte-mensual').value) || 0);
+            const tasaRetorno = Math.max(0, parseFloat(document.getElementById('retire-tasa-retorno').value) || 0);
+
+            const aniosAportadosIESS = Math.max(0, parseFloat(document.getElementById('retire-anios-aportados').value) || 0);
+            const sueldoPromedio = Math.max(0, parseFloat(document.getElementById('retire-sueldo-promedio').value) || 0);
+            const tasaReemplazo = Math.max(0, Math.min(100, parseFloat(document.getElementById('retire-tasa-reemplazo').value) || 0));
+            const tasaRetiroSegura = Math.max(0, parseFloat(document.getElementById('retire-tasa-retiro-segura').value) || 0);
 
             const aniosRestantes = Math.max(0, edadJubilacion - edadActual);
-            const aniosTotales = aniosAportados + aniosRestantes;
-            const pensionMensual = sueldoPromedio * (tasaReemplazo / 100);
+            const mesesRestantes = aniosRestantes * 12;
 
-            document.getElementById('pension-anios-totales').innerText = aniosTotales.toFixed(0);
-            document.getElementById('pension-mensual').innerText = formatCurrency(pensionMensual);
-            document.getElementById('pension-anual').innerText = formatCurrency(pensionMensual * 12);
+            const valorFuturo = calculateFutureValue(ahorroActual, aporteMensual, tasaRetorno, mesesRestantes);
+            const ingresoAhorro = (valorFuturo * (tasaRetiroSegura / 100)) / 12;
+            const pensionMensual = sueldoPromedio * (tasaReemplazo / 100);
+            const ingresoTotal = ingresoAhorro + pensionMensual;
+
+            document.getElementById('retire-anios-restantes').innerText = aniosRestantes.toFixed(0) + ` (aportados a IESS: ${(aniosAportadosIESS + aniosRestantes).toFixed(0)})`;
+            document.getElementById('retire-valor-futuro').innerText = formatCurrency(valorFuturo);
+            document.getElementById('retire-ingreso-ahorro').innerText = formatCurrency(ingresoAhorro);
+            document.getElementById('retire-pension-mensual').innerText = formatCurrency(pensionMensual);
+            document.getElementById('retire-ingreso-total').innerText = formatCurrency(ingresoTotal);
         }
 
         function updateDeductibleStatusCard(deductiblesAnualReal, sriMaxCap) {
@@ -2087,13 +2375,14 @@
                 const info = payoffInfo.items.find(i => i.id === debt.id);
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-slate-50 transition-colors';
+                tr.setAttribute('data-idx', debt.id);
                 tr.innerHTML = `
                     <td class="py-2 px-3"><input type="text" value="${debt.name}" onchange="updateDebtItem(${debt.id}, 'name', this.value)" class="w-full bg-transparent font-medium border rounded px-1.5"></td>
                     <td class="py-2 px-3"><input type="number" value="${debt.balance}" oninput="updateDebtItem(${debt.id}, 'balance', this.value)" class="w-full border rounded px-2 py-1 text-xs font-bold"></td>
                     <td class="py-2 px-3"><input type="number" value="${debt.rate}" step="0.1" oninput="updateDebtItem(${debt.id}, 'rate', this.value)" class="w-full border rounded px-2 py-1 text-xs font-bold"></td>
                     <td class="py-2 px-3"><input type="number" value="${debt.minPayment}" oninput="updateDebtItem(${debt.id}, 'minPayment', this.value)" class="w-full border rounded px-2 py-1 text-xs font-bold"></td>
-                    <td class="py-2 px-3 text-center"><span class="px-2 py-1 bg-red-100 text-red-900 rounded font-bold text-xs">${info ? info.order : '—'}</span></td>
-                    <td class="py-2 px-3 text-center font-bold text-slate-700">${info && info.payoffMonth ? 'Mes ' + info.payoffMonth : '—'}</td>
+                    <td class="py-2 px-3 text-center debt-order-cell"><span class="px-2 py-1 bg-red-100 text-red-900 rounded font-bold text-xs">${info ? info.order : '—'}</span></td>
+                    <td class="py-2 px-3 text-center font-bold text-slate-700 debt-payoff-cell">${info && info.payoffMonth ? 'Mes ' + info.payoffMonth : '—'}</td>
                     <td class="py-2 px-3 text-center"><button onclick="deleteDebtRow(${debt.id})" class="text-slate-400 hover:text-red-600 p-1"><i class="fa-solid fa-trash-can"></i></button></td>
                 `;
                 tbody.appendChild(tr);
@@ -2102,12 +2391,33 @@
             updateDebtKPIs(payoffInfo);
         }
 
+        // Recomputes only the order badge, payoff-month cell, and KPI totals without
+        // rebuilding the table body, so typing in balance/rate/minPayment doesn't
+        // destroy and recreate the input the user is actively focused on.
+        function refreshDebtComputedCells() {
+            const payoffInfo = simulateDebtPayoff(debtItems, parseFloat(document.getElementById('debt-extra-payment').value) || 0, document.getElementById('debt-strategy').value);
+            debtItems.forEach((debt) => {
+                const info = payoffInfo.items.find(i => i.id === debt.id);
+                const row = document.querySelector(`#debts-table-body tr[data-idx="${debt.id}"]`);
+                if (row) {
+                    const orderCell = row.querySelector('.debt-order-cell');
+                    const payoffCell = row.querySelector('.debt-payoff-cell');
+                    if (orderCell) orderCell.innerHTML = `<span class="px-2 py-1 bg-red-100 text-red-900 rounded font-bold text-xs">${info ? info.order : '—'}</span>`;
+                    if (payoffCell) payoffCell.innerText = info && info.payoffMonth ? 'Mes ' + info.payoffMonth : '—';
+                }
+            });
+            updateDebtKPIs(payoffInfo);
+        }
+
         function updateDebtItem(id, field, value) {
             const debt = debtItems.find(d => d.id === id);
-            if (debt) {
-                if (field === 'name') debt.name = value;
-                else debt[field] = parseFloat(value) || 0;
+            if (!debt) return;
+            if (field === 'name') {
+                debt.name = value;
                 renderDebtsTable();
+            } else {
+                debt[field] = parseFloat(value) || 0;
+                refreshDebtComputedCells();
             }
         }
 
@@ -2212,7 +2522,7 @@
         }
 
         function calculateDebtPayoff() {
-            renderDebtsTable();
+            refreshDebtComputedCells();
         }
 
         // --- EMERGENCY FUND TRACKER (BABY STEPS 1 & 3) ---
@@ -2459,7 +2769,7 @@
             renderDebtsTable();
             recalculateAll();
             calculateMortgage();
-            calculatePension();
+            calculateRetirement();
         }
 
         function saveToLocalStorage() {
@@ -2577,7 +2887,7 @@
             updateEmergencyFundTracker();
             recalculateAll();
             calculateMortgage();
-            calculatePension();
+            calculateRetirement();
         };
     </script>
 </body>
