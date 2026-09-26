@@ -116,7 +116,7 @@
             else if (src.sharedWith) cell.innerHTML = `<span class="text-[11px] text-slate-500">Lo registrado en esta categoría ya cuenta en «${esc(src.sharedWith)}»</span>`;
             else cell.innerHTML = (src.received + 0.005 >= src.planned
                 ? `<span class="badge badge-ok">Recibido ${money0(src.received)}</span>`
-                : `<span class="badge badge-warn">Recibido ${money0(src.received)} de ${money0(src.planned)}</span>`)
+                : `<span class="badge badge-warn">Recibido ${money0(src.received)} de ${money0(src.planned)}</span> <button type="button" class="mini-btn" data-action="income.markReceived" data-id="${src.id}" title="Registra una transacción de ingreso por lo que falta (${money(src.planned - src.received)})">Ya lo recibí</button>`)
                 + (src.txns.length ? `<span class="block text-[10px] text-slate-500 mt-0.5">${esc(src.txns.map(t => t.description).join(', '))}</span>` : '');
         });
         other.unplanned.forEach(u => set(document.querySelector(`#bud-body tr[data-income="cat:${CSS.escape(u.category)}"]`), 0, u.amount));
@@ -384,6 +384,27 @@
             list.push({ id: Store.nextId(list), name: el.dataset.category, amount: Math.round(Number(el.dataset.amount) * 100) / 100, category: el.dataset.category });
             App.changed({ structural: true });
             UI.toast(`"${el.dataset.category}" ahora cuenta como ingreso de todos los meses.`);
+        },
+        // Logs the missing part of a planned income as a transaction in its category, so the
+        // month shows it as received (same as registering it in Transacciones by hand).
+        'income.markReceived': (el) => {
+            const m = month();
+            const src = (Store.active().otherIncomes || []).find(x => x.id === Number(el.dataset.id));
+            if (!src || m === 'base' || !src.category || src.category === 'none') return;
+            const info = Engine.otherIncome(App.buildContext().budgetYear, m).sources.find(x => x.id === src.id);
+            const amount = Math.round((info.planned - info.received) * 100) / 100;
+            if (amount <= 0) return;
+            const y = Store.state.activeYear, today = new Date();
+            const date = today.getFullYear() === y && String(today.getMonth() + 1) === m
+                ? today.toISOString().slice(0, 10)
+                : `${y}-${String(m).padStart(2, '0')}-01`;
+            const subs = Store.state.taxonomy.income[src.category] || [];
+            const sub = subs.find(x => !Engine.PAYROLL_SUBCATEGORIES.includes(x)) || subs[0] || '';
+            const txns = Store.state.transactions;
+            txns.push({ id: Store.nextId(txns), type: 'Ingreso', description: src.name, store: '', parentCategory: src.category, category: sub,
+                amount, date, paymentType: 'Transferencia', countAsExtra: Engine.PAYROLL_SUBCATEGORIES.includes(sub) || undefined });
+            App.changed({ structural: true, step: true });
+            UI.toast(`Registrado: ${money(amount)} de "${src.name}" (${date}). Lo verás en Transacciones.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         },
         'income.countExtra': (el) => {
             const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
