@@ -81,28 +81,22 @@
                     <i class="fa-solid fa-calculator text-blue-500"></i> 2. Impuestos SRI & IESS
                 </button>
                 <button onclick="switchTab('tab3')" id="nav-tab3" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-chart-area text-amber-500"></i> 3. Proyección DPF Multi-Año
+                    <i class="fa-solid fa-chart-area text-amber-500"></i> 3. Proyección DPF & Pólizas
                 </button>
                 <button onclick="switchTab('tab4')" id="nav-tab4" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-bullseye text-purple-500"></i> 4. Metas Dave Ramsey
                 </button>
-                <button onclick="switchTab('tab5')" id="nav-tab5" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-building-columns text-emerald-400"></i> 5. Cooperativas & Pólizas DPF
-                </button>
                 <button onclick="switchTab('tab6')" id="nav-tab6" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-gears text-amber-600"></i> 6. Configuración & Baselines
+                    <i class="fa-solid fa-gears text-amber-600"></i> 5. Configuración & Baselines
                 </button>
                 <button onclick="switchTab('tab7')" id="nav-tab7" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-house-chimney text-rose-500"></i> 7. Calculadora Hipotecaria
+                    <i class="fa-solid fa-house-chimney text-rose-500"></i> 6. Calculadora Hipotecaria
                 </button>
                 <button onclick="switchTab('tab8')" id="nav-tab8" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-person-cane text-indigo-500"></i> 8. Calculadora de Jubilación
+                    <i class="fa-solid fa-person-cane text-indigo-500"></i> 7. Calculadora de Jubilación
                 </button>
                 <button onclick="switchTab('tab9')" id="nav-tab9" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-scale-unbalanced text-teal-500"></i> 9. Patrimonio Neto
-                </button>
-                <button onclick="switchTab('tab10')" id="nav-tab10" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-house-chimney-window text-teal-600"></i> 10. Registro de Activos
+                    <i class="fa-solid fa-scale-unbalanced text-teal-500"></i> 8. Patrimonio Neto & Activos
                 </button>
             </nav>
         </div>
@@ -471,7 +465,7 @@
                             <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                                 <i class="fa-solid fa-building-columns text-emerald-600"></i> Rendimiento DPF Real Integrado
                             </h2>
-                            <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded">Ejecutado Real + Pólizas Tab 5</span>
+                            <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded">Ejecutado Real + Pólizas Tab 3</span>
                         </div>
 
                         <div class="space-y-2.5 text-xs">
@@ -484,7 +478,7 @@
                                 <span id="dpf-tasa-val" class="font-bold text-emerald-700">0.00%</span>
                             </div>
                             <div class="flex justify-between items-center py-1.5 border-b border-slate-100 bg-emerald-50/50 p-2 rounded-lg">
-                                <span class="text-slate-800 font-bold">Interés de Pólizas Activas (Tab 5):</span>
+                                <span class="text-slate-800 font-bold">Interés de Pólizas Activas (Tab 3):</span>
                                 <span id="dpf-poliza-interest-sum" class="font-extrabold text-emerald-600 text-sm">+$0.00</span>
                             </div>
                             <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
@@ -495,7 +489,7 @@
 
                         <div class="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-200 text-[11px] text-blue-900 leading-relaxed">
                             <i class="fa-solid fa-circle-check text-blue-600 mr-1"></i>
-                            <strong>Integración de Pólizas:</strong> Los rendimientos de tus Pólizas DPF configuradas individualmente en Tab 5 alimentan la proyección patrimonial multi-año.
+                            <strong>Integración de Pólizas:</strong> Los rendimientos de tus Pólizas DPF configuradas individualmente en Tab 3 alimentan la proyección patrimonial multi-año.
                         </div>
                     </div>
 
@@ -577,6 +571,80 @@
                             </tr>
                         </thead>
                         <tbody id="proj-table-body" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Cooperativas Registry (merged from former Tab 5: these registrations feed the projection above) -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-3 gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-building-columns text-emerald-600"></i> Cooperativas Configurables (Pre-cargadas Segmento 1)
+                        </h2>
+                        <p class="text-xs text-slate-500">Configura instituciones, modalidades de pago de interés y montos COSEDE.</p>
+                        <div class="text-[10px] text-slate-500 mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                            <span class="font-bold text-slate-600">Verificar oficialmente:</span>
+                            <a href="https://www.seps.gob.ec" target="_blank" rel="noopener" class="text-blue-600 hover:underline"><i class="fa-solid fa-arrow-up-right-from-square mr-0.5"></i>SEPS (Segmento de la Cooperativa)</a>
+                            <a href="https://www.cosede.gob.ec" target="_blank" rel="noopener" class="text-blue-600 hover:underline"><i class="fa-solid fa-arrow-up-right-from-square mr-0.5"></i>COSEDE (Seguro de Depósitos)</a>
+                        </div>
+                    </div>
+                    <button onclick="addCooperativaRow()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-plus"></i> Nueva Cooperativa
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-800 text-slate-200 uppercase">
+                            <tr>
+                                <th class="py-2.5 px-3">Nombre de la Institución</th>
+                                <th class="py-2.5 px-3">Segmento Legal</th>
+                                <th class="py-2.5 px-3">Tasa Referencial (%)</th>
+                                <th class="py-2.5 px-3">Modalidad Pago Interés</th>
+                                <th class="py-2.5 px-3">Cobertura COSEDE ($)</th>
+                                <th class="py-2.5 px-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cooperativas-table-body" class="divide-y divide-slate-100 bg-white text-slate-700">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Individual Pólizas Tracker (merged from former Tab 5) -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-3 gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-file-contract text-blue-600"></i> Control y Registro de Pólizas DPF Activas
+                        </h2>
+                        <p class="text-xs text-slate-500">Registra tus certificado de depósito a plazo para monitorear renovaciones e interés exacto. Estas pólizas se suman automáticamente al interés anual de la proyección de arriba.</p>
+                    </div>
+                    <button onclick="addPolizaRow()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-plus"></i> Registrar Póliza
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-900 text-slate-200 uppercase">
+                            <tr>
+                                <th class="py-2.5 px-3">Cooperativa</th>
+                                <th class="py-2.5 px-3">N° Póliza</th>
+                                <th class="py-2.5 px-3">Capital ($)</th>
+                                <th class="py-2.5 px-3">Tasa Anual (%)</th>
+                                <th class="py-2.5 px-3">Plazo (Días)</th>
+                                <th class="py-2.5 px-3">Modalidad Interés</th>
+                                <th class="py-2.5 px-3">Vencimiento</th>
+                                <th class="py-2.5 px-3 text-right">Interés Ganado ($)</th>
+                                <th class="py-2.5 px-3 text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="polizas-table-body" class="divide-y divide-slate-100 bg-white text-slate-700">
                             <!-- Populated dynamically -->
                         </tbody>
                     </table>
@@ -715,7 +783,7 @@
                     <h3 class="text-base font-bold text-slate-900 mb-1 flex items-center gap-2">
                         <i class="fa-solid fa-shield-heart text-emerald-600"></i> Tu Fondo de Emergencia Hoy
                     </h3>
-                    <p class="text-xs text-slate-500 mb-4">Calculado con el capital de tus Pólizas DPF (Tab 5) frente a tus gastos esenciales reales del presupuesto base (Tab 1).</p>
+                    <p class="text-xs text-slate-500 mb-4">Calculado con el capital de tus Pólizas DPF (Tab 3) frente a tus gastos esenciales reales del presupuesto base (Tab 1).</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200">
                             <div class="flex justify-between items-center mb-1.5">
@@ -781,83 +849,6 @@
                             <p class="text-xs text-slate-600 mt-1">Abonos extraordinarios a préstamos BIESS/bancarios. Construye libertad financiera y da generosamente.</p>
                         </div>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 5: COOPERATIVAS & REGISTRO DE POLIZAS DPF -->
-        <section id="tab5" class="tab-content hidden space-y-6">
-            <!-- Cooperativas Registry -->
-            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-3 gap-3">
-                    <div>
-                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-building-columns text-emerald-600"></i> Cooperativas Configurables (Pre-cargadas Segmento 1)
-                        </h2>
-                        <p class="text-xs text-slate-500">Configura instituciones, modalidades de pago de interés y montos COSEDE.</p>
-                        <div class="text-[10px] text-slate-500 mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
-                            <span class="font-bold text-slate-600">Verificar oficialmente:</span>
-                            <a href="https://www.seps.gob.ec" target="_blank" rel="noopener" class="text-blue-600 hover:underline"><i class="fa-solid fa-arrow-up-right-from-square mr-0.5"></i>SEPS (Segmento de la Cooperativa)</a>
-                            <a href="https://www.cosede.gob.ec" target="_blank" rel="noopener" class="text-blue-600 hover:underline"><i class="fa-solid fa-arrow-up-right-from-square mr-0.5"></i>COSEDE (Seguro de Depósitos)</a>
-                        </div>
-                    </div>
-                    <button onclick="addCooperativaRow()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
-                        <i class="fa-solid fa-plus"></i> Nueva Cooperativa
-                    </button>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-slate-800 text-slate-200 uppercase">
-                            <tr>
-                                <th class="py-2.5 px-3">Nombre de la Institución</th>
-                                <th class="py-2.5 px-3">Segmento Legal</th>
-                                <th class="py-2.5 px-3">Tasa Referencial (%)</th>
-                                <th class="py-2.5 px-3">Modalidad Pago Interés</th>
-                                <th class="py-2.5 px-3">Cobertura COSEDE ($)</th>
-                                <th class="py-2.5 px-3 text-center">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cooperativas-table-body" class="divide-y divide-slate-100 bg-white text-slate-700">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Individual Pólizas Tracker -->
-            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-3 gap-3">
-                    <div>
-                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-file-contract text-blue-600"></i> Control y Registro de Pólizas DPF Activas
-                        </h2>
-                        <p class="text-xs text-slate-500">Registra tus certificado de depósito a plazo para monitorear renovaciones e interés exacto.</p>
-                    </div>
-                    <button onclick="addPolizaRow()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
-                        <i class="fa-solid fa-plus"></i> Registrar Póliza
-                    </button>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-slate-900 text-slate-200 uppercase">
-                            <tr>
-                                <th class="py-2.5 px-3">Cooperativa</th>
-                                <th class="py-2.5 px-3">N° Póliza</th>
-                                <th class="py-2.5 px-3">Capital ($)</th>
-                                <th class="py-2.5 px-3">Tasa Anual (%)</th>
-                                <th class="py-2.5 px-3">Plazo (Días)</th>
-                                <th class="py-2.5 px-3">Modalidad Interés</th>
-                                <th class="py-2.5 px-3">Vencimiento</th>
-                                <th class="py-2.5 px-3 text-right">Interés Ganado ($)</th>
-                                <th class="py-2.5 px-3 text-center">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="polizas-table-body" class="divide-y divide-slate-100 bg-white text-slate-700">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
                 </div>
             </div>
         </section>
@@ -1298,14 +1289,20 @@
                         <p class="text-[10px] text-slate-500 mt-1">A qué edad quieres dejar de trabajar. Ejemplo: 65 años.</p>
                     </div>
                     <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
-                        <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Tasa de Retorno Anual Esperada (%)</label>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-bold text-emerald-900 uppercase">Tasa de Retorno Anual Esperada (%)</label>
+                            <button type="button" onclick="syncRetirementInputsFromApp()" title="Volver a sincronizar con Tab 1" class="text-emerald-600 hover:text-emerald-800"><i class="fa-solid fa-arrows-rotate text-[11px]"></i></button>
+                        </div>
                         <input type="number" id="retire-tasa-retorno" value="8.5" placeholder="Ej: 8.5" step="0.1" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        <p class="text-[10px] text-emerald-700 mt-1">La tasa DPF que usas en la Tab 3. Ejemplo: 8.5%.</p>
+                        <p class="text-[10px] text-emerald-700 mt-1">🔗 Se llena automáticamente con la Tasa DPF de Tab 1 para el año activo. Puedes editarla para simular otro escenario.</p>
                     </div>
                     <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
-                        <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Ahorro DPF Actual para Retiro ($)</label>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-bold text-emerald-900 uppercase">Ahorro DPF Actual para Retiro ($)</label>
+                            <button type="button" onclick="syncRetirementInputsFromApp()" title="Volver a sincronizar con Tab 3" class="text-emerald-600 hover:text-emerald-800"><i class="fa-solid fa-arrows-rotate text-[11px]"></i></button>
+                        </div>
                         <input type="number" id="retire-ahorro-actual" value="0" placeholder="Ej: 5000" step="100" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        <p class="text-[10px] text-emerald-700 mt-1">Lo que ya tienes ahorrado hoy. Mira el "Balance Portfolio Cierre" en la Tab 3.</p>
+                        <p class="text-[10px] text-emerald-700 mt-1">🔗 Se llena automáticamente con el "Balance Portfolio Cierre" de Tab 3 para el año activo. Puedes editarlo para simular otro escenario.</p>
                     </div>
                     <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
                         <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Aporte Mensual Adicional ($)</label>
@@ -1350,9 +1347,12 @@
                         <p class="text-[11px] text-indigo-700 mt-1">Años que ya llevas afiliado y aportando. Ejemplo: 5. Afecta la Pensión IESS de abajo (más años = pensión más alta, hasta un tope de carrera completa de 30 años).</p>
                     </div>
                     <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
-                        <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Sueldo Promedio Mensual ($)</label>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-bold text-indigo-900 uppercase">Sueldo Promedio Mensual ($)</label>
+                            <button type="button" onclick="syncRetirementInputsFromApp()" title="Volver a sincronizar con Tab 1" class="text-indigo-600 hover:text-indigo-800"><i class="fa-solid fa-arrows-rotate text-[11px]"></i></button>
+                        </div>
                         <input type="number" id="retire-sueldo-promedio" value="1500" placeholder="Ej: 1500" step="50" oninput="calculateRetirement()" class="w-full bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <p class="text-[11px] text-indigo-700 mt-1">Tu sueldo bruto promedio esperado (Tab 1). Afecta la Pensión IESS de abajo.</p>
+                        <p class="text-[11px] text-indigo-700 mt-1">🔗 Se llena automáticamente con tu Sueldo Bruto de Tab 1 para el año activo. Afecta la Pensión IESS de abajo.</p>
                     </div>
                     <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
                         <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Tasa de Reemplazo Estimada (%)</label>
@@ -1439,9 +1439,9 @@
                     <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
                         <div class="flex items-center justify-between mb-0.5">
                             <label class="block text-xs font-bold text-slate-800">Bienes Raíces</label>
-                            <button onclick="switchTab('tab10')" class="text-[10px] font-bold text-blue-600 hover:text-blue-800">Editar en Tab 10 →</button>
+                            <button onclick="document.getElementById('assets-table-body').scrollIntoView({behavior:'smooth', block:'center'})" class="text-[10px] font-bold text-blue-600 hover:text-blue-800">Editar en Registro de Activos ↓</button>
                         </div>
-                        <p class="text-[10px] text-slate-500 mb-1.5">Suma automática de tu Registro de Activos (Tab 10) para este año.</p>
+                        <p class="text-[10px] text-slate-500 mb-1.5">🔗 Suma automática de tu Registro de Activos (más abajo en esta pestaña) para este año.</p>
                         <div id="nw-realestate-display" class="w-full bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-700">$0.00</div>
                     </div>
                     <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
@@ -1477,7 +1477,7 @@
                     <!-- Row 4: Investments/DPF (Retirement equivalent) | Student Loans -->
                     <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
                         <label class="block text-xs font-bold text-slate-800 mb-0.5">Inversiones y Pólizas DPF</label>
-                        <p class="text-[10px] text-slate-500 mb-1.5">Tu ahorro de retiro/inversión (Tab 5 y 8).</p>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Tu ahorro de retiro/inversión (Tab 3 y 7).</p>
                         <input type="number" id="nw-investments" value="0" step="50" placeholder="Ej: 8000" oninput="updateNetWorth('investments', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     </div>
                     <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
@@ -1490,9 +1490,9 @@
                     <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
                         <div class="flex items-center justify-between mb-0.5">
                             <label class="block text-xs font-bold text-slate-800">Vehículos</label>
-                            <button onclick="switchTab('tab10')" class="text-[10px] font-bold text-blue-600 hover:text-blue-800">Editar en Tab 10 →</button>
+                            <button onclick="document.getElementById('assets-table-body').scrollIntoView({behavior:'smooth', block:'center'})" class="text-[10px] font-bold text-blue-600 hover:text-blue-800">Editar en Registro de Activos ↓</button>
                         </div>
-                        <p class="text-[10px] text-slate-500 mb-1.5">Suma automática de tu Registro de Activos (Tab 10) para este año.</p>
+                        <p class="text-[10px] text-slate-500 mb-1.5">🔗 Suma automática de tu Registro de Activos (más abajo en esta pestaña) para este año.</p>
                         <div id="nw-vehicles-display" class="w-full bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-700">$0.00</div>
                     </div>
                     <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
@@ -1505,9 +1505,9 @@
                     <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
                         <div class="flex items-center justify-between mb-0.5">
                             <label class="block text-xs font-bold text-slate-800">Otros Bienes de Valor</label>
-                            <button onclick="switchTab('tab10')" class="text-[10px] font-bold text-blue-600 hover:text-blue-800">Editar en Tab 10 →</button>
+                            <button onclick="document.getElementById('assets-table-body').scrollIntoView({behavior:'smooth', block:'center'})" class="text-[10px] font-bold text-blue-600 hover:text-blue-800">Editar en Registro de Activos ↓</button>
                         </div>
-                        <p class="text-[10px] text-slate-500 mb-1.5">Joyas, electrónica, muebles, negocios, etc. — desde el Registro de Activos (Tab 10).</p>
+                        <p class="text-[10px] text-slate-500 mb-1.5">🔗 Joyas, electrónica, muebles, negocios, etc. — desde el Registro de Activos, más abajo en esta pestaña.</p>
                         <div id="nw-personal-display" class="w-full bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-700">$0.00</div>
                     </div>
                     <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
@@ -1537,20 +1537,18 @@
                 <summary class="font-bold cursor-pointer">¿Por qué el Patrimonio Neto importa más que el Ingreso?</summary>
                 <div class="mt-3 space-y-2">
                     <p>Adaptado del principio de Ramsey Solutions sobre patrimonio neto: tu ingreso mensual es solo un flujo; tu <strong>patrimonio neto</strong> (Activos − Pasivos) es una fotografía real de tu riqueza. Alguien con un sueldo alto pero mucha deuda de consumo puede tener un patrimonio neto más bajo que alguien con un sueldo modesto y cero deudas.</p>
-                    <p>Por eso esta calculadora es <strong>por año</strong>: lo importante no es el número de un solo mes, sino la tendencia — que tu patrimonio neto crezca año tras año a medida que pagas deudas (Tab 4) y acumulas ahorro DPF (Tab 3 y 5).</p>
+                    <p>Por eso esta calculadora es <strong>por año</strong>: lo importante no es el número de un solo mes, sino la tendencia — que tu patrimonio neto crezca año tras año a medida que pagas deudas (Tab 4) y acumulas ahorro DPF (Tab 3).</p>
                 </div>
             </details>
-        </section>
 
-        <!-- TAB 10: REGISTRO DE ACTIVOS (FEEDS PATRIMONIO NETO) -->
-        <section id="tab10" class="tab-content hidden space-y-6">
+            <!-- Registro de Activos (merged from former Tab 10: feeds Bienes Raíces, Vehículos y Otros Bienes de Valor above) -->
             <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-3 mb-4 gap-2">
                     <div>
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-house-chimney-window text-teal-600"></i> Registro de Activos
                         </h2>
-                        <p class="text-xs text-slate-500">Lista aquí lo que posees: vivienda, vehículos u otros bienes de valor. El valor de cada activo se mantiene igual año a año automáticamente hasta que lo actualices o lo marques como vendido — y alimenta directamente Bienes Raíces, Vehículos y Otros Bienes de Valor en Tab 9 (Patrimonio Neto).</p>
+                        <p class="text-xs text-slate-500">Lista aquí lo que posees: vivienda, vehículos u otros bienes de valor. El valor de cada activo se mantiene igual año a año automáticamente hasta que lo actualices o lo marques como vendido — y alimenta directamente Bienes Raíces, Vehículos y Otros Bienes de Valor arriba en esta misma pestaña.</p>
                     </div>
                     <button onclick="addAssetRow()" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm whitespace-nowrap">
                         <i class="fa-solid fa-plus"></i> Agregar Activo
@@ -1876,6 +1874,7 @@
             renderBudgetTable();
             renderAssetsTable();
             recalculateAll();
+            syncRetirementInputsFromApp();
         }
 
         function loadYearToInputs() {
@@ -2155,14 +2154,12 @@
             document.getElementById(tabId).classList.remove('hidden');
             document.getElementById('nav-' + tabId).classList.add('active');
 
-            if (tabId === 'tab3') renderChart();
+            if (tabId === 'tab3') { renderChart(); renderCooperativasTable(); renderPolizasTable(); }
             if (tabId === 'tab4') { renderDebtsTable(); updateEmergencyFundTracker(); }
-            if (tabId === 'tab5') { renderCooperativasTable(); renderPolizasTable(); }
             if (tabId === 'tab6') { renderBaselinesTable(); }
             if (tabId === 'tab7') { calculateMortgage(); }
             if (tabId === 'tab8') { calculateRetirement(); }
-            if (tabId === 'tab9') { renderNetWorthChart(); }
-            if (tabId === 'tab10') { renderAssetsTable(); }
+            if (tabId === 'tab9') { renderNetWorthChart(); renderAssetsTable(); }
         }
 
         function formatCurrency(amount) {
@@ -2285,7 +2282,7 @@
                 });
             }
 
-            // Sum interest from Pólizas registered in Tab 5
+            // Sum interest from Pólizas registered in Tab 3
             let totalPolizasInterestSum = 0;
             polizasStore.forEach(p => {
                 totalPolizasInterestSum += calculatePolizaInterest(p);
@@ -2598,6 +2595,19 @@
                 tasaRetiroSegura: Math.max(0, parseFloat(document.getElementById('retire-tasa-retiro-segura').value) || 0),
                 aniosRestantes: Math.max(0, edadJubilacion - edadActual)
             };
+        }
+
+        // Links the retirement calculator's starting point to numbers the app already knows
+        // for the active year, instead of asking the user to re-type them: DPF rate and sueldo
+        // from Tab 1, and current DPF balance from Tab 3's projection. Runs whenever Tab 8 is
+        // opened or the active year changes — free to edit afterward for a "what if" scenario,
+        // it just won't re-sync until the year changes again or you click the refresh icon.
+        function syncRetirementInputsFromApp() {
+            const yd = getYearData(activeYear);
+            document.getElementById('retire-tasa-retorno').value = yd.tasa;
+            document.getElementById('retire-sueldo-promedio').value = yd.sueldo;
+            document.getElementById('retire-ahorro-actual').value = (portfolioBalanceByYear[activeYear] || 0).toFixed(2);
+            calculateRetirement();
         }
 
         function calculatePensionMensual(inp) {
@@ -3238,6 +3248,11 @@
         let projContributedData = [];
         let projBalanceData = [];
 
+        // Balance Portfolio Cierre per year, exposed so other tabs (e.g. the retirement
+        // calculator's "Ahorro DPF Actual") can link to it instead of asking the user to
+        // re-type a number this tab already computed.
+        let portfolioBalanceByYear = {};
+
         function updateMultiYearProjections() {
             const tbody = document.getElementById('proj-table-body');
             tbody.innerHTML = '';
@@ -3249,6 +3264,7 @@
             projLabels = [];
             projContributedData = [];
             projBalanceData = [];
+            portfolioBalanceByYear = {};
 
             for (let y = configStartYear; y <= configEndYear; y++) {
                 const yd = getYearData(y);
@@ -3272,6 +3288,7 @@
 
                 totalInterestAllYears += yearInterest;
                 accumBalance += annualRealSavings + yearInterest;
+                portfolioBalanceByYear[y] = accumBalance;
 
                 projLabels.push(y.toString());
                 projContributedData.push(accumContributed.toFixed(2));
@@ -3959,7 +3976,7 @@
             renderAssetsTable();
             recalculateAll();
             calculateMortgage();
-            calculateRetirement();
+            syncRetirementInputsFromApp();
             initTransactionLog();
         }
 
@@ -4085,7 +4102,7 @@
             updateEmergencyFundTracker();
             recalculateAll();
             calculateMortgage();
-            calculateRetirement();
+            syncRetirementInputsFromApp();
             initTransactionLog();
         };
     </script>
