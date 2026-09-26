@@ -1416,7 +1416,7 @@
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-scale-unbalanced text-teal-600"></i> Calculadora de Patrimonio Neto (<span class="active-year-display">2026</span>)
                         </h2>
-                        <p class="text-xs text-slate-500">Patrimonio Neto = Activos Totales − Pasivos Totales. Es el número más importante a seguir a lo largo del tiempo, más que tu ingreso.</p>
+                        <p class="text-xs text-slate-500">Patrimonio Neto = Activos Totales − Pasivos Totales. Es el número más importante a seguir a lo largo del tiempo, más que tu ingreso. Cada saldo se mantiene igual año a año hasta que lo edites para ese año — así el gráfico de abajo refleja tus compras, ventas y pagos de deuda de forma gradual, no saltos artificiales.</p>
                     </div>
                     <button onclick="prefillNetWorthFromApp()" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm whitespace-nowrap">
                         <i class="fa-solid fa-arrows-rotate"></i> Usar mis Pólizas y Deudas Registradas
@@ -2302,12 +2302,17 @@
         // --- NET WORTH TRACKER (PER YEAR, RAMSEY-STYLE ASSETS - LIABILITIES) ---
         let netWorthChartInstance = null;
 
+        // Net worth fields the user can manually edit per year (excludes the dead realEstate/
+        // vehicles/personalProperty keys, which are pre-Asset-Registry leftovers no longer read).
+        const NET_WORTH_EDITABLE_FIELDS = ['checking', 'savings', 'investments', 'mortgage', 'autoLoans', 'creditCards', 'personalLoans', 'studentLoans', 'otherDebts'];
+
         function ensureNetWorthDefaults(yd) {
             if (!yd.netWorth) {
                 yd.netWorth = {
                     checking: 0, savings: 0, investments: 0, realEstate: 0, vehicles: 0, personalProperty: 0,
                     mortgage: 0, autoLoans: 0, creditCards: 0, personalLoans: 0, studentLoans: 0, otherDebts: 0
                 };
+                yd.netWorthTouched = {};
             } else {
                 // Migrate data saved before checking/savings were split out and personalLoans existed.
                 if (yd.netWorth.cash !== undefined && yd.netWorth.checking === undefined) {
@@ -2318,8 +2323,35 @@
                 if (yd.netWorth.checking === undefined) yd.netWorth.checking = 0;
                 if (yd.netWorth.savings === undefined) yd.netWorth.savings = 0;
                 if (yd.netWorth.personalLoans === undefined) yd.netWorth.personalLoans = 0;
+                // Migrate data saved before per-field touched-tracking existed: treat any
+                // already-nonzero field as an explicit entry to preserve it exactly, and leave
+                // zero fields untouched so they properly carry forward instead of flatlining.
+                if (!yd.netWorthTouched) {
+                    yd.netWorthTouched = {};
+                    NET_WORTH_EDITABLE_FIELDS.forEach(f => {
+                        if (yd.netWorth[f]) yd.netWorthTouched[f] = true;
+                    });
+                }
             }
             return yd.netWorth;
+        }
+
+        // Carries a net worth field forward from the closest year (<= target) where it was
+        // explicitly touched, exactly like assets' getAssetValueForYear — so an untouched year
+        // (never visited/edited) inherits the last real value instead of silently reading zero.
+        function getNetWorthFieldForYear(year, field) {
+            const years = Object.keys(multiYearStore)
+                .map(Number)
+                .filter(y => y <= year && multiYearStore[y].netWorth && multiYearStore[y].netWorthTouched && multiYearStore[y].netWorthTouched[field]);
+            if (years.length === 0) return 0;
+            const closestYear = Math.max(...years);
+            return multiYearStore[closestYear].netWorth[field];
+        }
+
+        function getNetWorthSnapshotForYear(year) {
+            const nw = {};
+            NET_WORTH_EDITABLE_FIELDS.forEach(f => { nw[f] = getNetWorthFieldForYear(year, f); });
+            return nw;
         }
 
         function getAssetValueForYear(asset, year) {
@@ -2330,6 +2362,7 @@
         }
 
         function isAssetOwnedInYear(asset, year) {
+            if (year < asset.purchaseYear) return false;
             if (asset.status !== 'Vendido') return true;
             return asset.saleYear === null || asset.saleYear === undefined || year < asset.saleYear;
         }
@@ -2411,8 +2444,13 @@
         function addSaleProceedsToChecking(id) {
             const asset = assetItems.find(a => a.id === id);
             if (!asset || asset.status !== 'Vendido' || asset.proceedsAdded) return;
-            const nw = ensureNetWorthDefaults(getYearData(asset.saleYear));
-            nw.checking += asset.saleValue;
+            const yd = getYearData(asset.saleYear);
+            const nw = ensureNetWorthDefaults(yd);
+            // Add proceeds on top of the carried-forward checking balance for that year, not the
+            // raw (possibly still-zero/untouched) stored value, so this doesn't wipe out whatever
+            // balance would otherwise have carried in from an earlier explicitly-edited year.
+            nw.checking = getNetWorthFieldForYear(asset.saleYear, 'checking') + asset.saleValue;
+            yd.netWorthTouched.checking = true;
             asset.proceedsAdded = true;
             alert(`Se agregaron ${formatCurrency(asset.saleValue)} a Cuentas Corrientes del año ${asset.saleYear}.`);
             if (activeYear === asset.saleYear) loadNetWorthInputsForActiveYear();
@@ -2480,7 +2518,8 @@
         }
 
         function loadNetWorthInputsForActiveYear() {
-            const nw = ensureNetWorthDefaults(getYearData(activeYear));
+            ensureNetWorthDefaults(getYearData(activeYear));
+            const nw = getNetWorthSnapshotForYear(activeYear);
             document.getElementById('nw-checking').value = nw.checking;
             document.getElementById('nw-savings').value = nw.savings;
             document.getElementById('nw-investments').value = nw.investments;
@@ -2494,12 +2533,15 @@
         }
 
         function updateNetWorth(field, value) {
-            ensureNetWorthDefaults(getYearData(activeYear))[field] = parseFloat(value) || 0;
+            const yd = getYearData(activeYear);
+            const nw = ensureNetWorthDefaults(yd);
+            nw[field] = parseFloat(value) || 0;
+            yd.netWorthTouched[field] = true;
             updateNetWorthDisplay();
         }
 
         function updateNetWorthDisplay() {
-            const nw = ensureNetWorthDefaults(getYearData(activeYear));
+            const nw = getNetWorthSnapshotForYear(activeYear);
             const totalAssets = sumNetWorthAssets(nw, activeYear);
             const totalLiabilities = sumNetWorthLiabilities(nw);
             const netWorthVal = totalAssets - totalLiabilities;
@@ -2528,9 +2570,12 @@
         }
 
         function prefillNetWorthFromApp() {
-            const nw = ensureNetWorthDefaults(getYearData(activeYear));
+            const yd = getYearData(activeYear);
+            const nw = ensureNetWorthDefaults(yd);
             nw.investments = polizasStore.reduce((s, p) => s + (Number(p.amount) || 0), 0);
             nw.creditCards = debtItems.reduce((s, d) => s + (Number(d.balance) || 0), 0);
+            yd.netWorthTouched.investments = true;
+            yd.netWorthTouched.creditCards = true;
             loadNetWorthInputsForActiveYear();
         }
 
@@ -2542,7 +2587,7 @@
             const labels = [];
             const data = [];
             for (let y = configStartYear; y <= configEndYear; y++) {
-                const nw = ensureNetWorthDefaults(getYearData(y));
+                const nw = getNetWorthSnapshotForYear(y);
                 labels.push(y.toString());
                 data.push((sumNetWorthAssets(nw, y) - sumNetWorthLiabilities(nw)).toFixed(2));
             }
