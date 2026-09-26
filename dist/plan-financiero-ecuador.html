@@ -295,7 +295,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             </div>
 
             <div class="panel tone-emerald mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <label class="check"><input type="checkbox" data-bind="year.sweepSavings"><span>Barrer el sobrante a Ahorro DPF automáticamente <span class="block text-[11px] font-normal text-emerald-800">El dinero sin asignar de cada mes se suma a tu rubro de Ahorro — también en la proyección de Ahorro DPF.</span></span></label>
+                <label class="check"><input type="checkbox" data-bind="year.sweepSavings" data-structural="true"><span>Barrer el sobrante a Ahorro DPF automáticamente <span class="block text-[11px] font-normal text-emerald-800">Lo que sobra cada mes se asigna a la línea <strong>«Sobrante del mes»</strong> en Ahorro e inversión y cuenta en tu proyección de Ahorro DPF. El dinero no se mueve solo: pásalo tú a tu cuenta de ahorro o póliza.</span><span id="bud-sweep-tip" class="block text-[11px] font-normal text-amber-800 mt-1 hidden"></span></span></label>
                 <span id="bud-sweep" class="badge badge-ok hidden"></span>
             </div>
 
@@ -3152,7 +3152,23 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         return other;
     }
 
+    function sweepRowHTML() {
+        return `
+            <tr data-row="sweep" class="bg-emerald-50/60">
+                <td><div class="flex items-center gap-2 px-1"><span class="font-semibold text-slate-800">Sobrante del mes</span><span class="badge badge-ok shrink-0" title="Se calcula solo: ingreso menos todo lo asignado"><i class="fa-solid fa-wand-magic-sparkles"></i> Automático</span></div></td>
+                <td class="text-xs text-slate-500 px-3">Barrido a ahorro</td>
+                <td class="text-center text-slate-300">—</td>
+                <td class="num font-bold text-slate-400">$0.00</td>
+                <td class="num font-bold" data-cell="real"></td>
+                <td class="num font-bold" data-cell="diff"></td>
+                <td class="text-xs text-slate-500 px-3">Ahorro e Inversión</td>
+                <td class="text-[11px] text-slate-600" data-cell="spend"></td>
+                <td></td>
+            </tr>`;
+    }
+
     function rowHTML(item, taxonomy) {
+        if (item.sweep) return sweepRowHTML();
         if (item.link) return linkedRowHTML(item);
         const cats = [{ value: 'none', label: 'Sin vincular' }].concat(Object.keys(taxonomy).map(c => ({ value: c, label: c })));
         const linked = item.linkedCategory || 'none';
@@ -3181,6 +3197,8 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         const tax = ctx.state.taxonomy.expense;
         const byGroup = {};
         list.forEach(it => { (byGroup[groupOf(it)] = byGroup[groupOf(it)] || []).push(it); });
+        // The auto-sweep is shown as its own savings line, so you can see where the leftover goes.
+        if (yd.sweepSavings) (byGroup.Ahorro = byGroup.Ahorro || []).push({ id: 'sweep', sweep: true });
         const order = GROUPS.map(g => g.type).concat(Object.keys(byGroup).filter(k => !GROUPS.some(g => g.type === k)));
         const body = order.filter(g => byGroup[g]).map(g => {
             const label = (GROUPS.find(x => x.type === g) || { label: g }).label;
@@ -3244,6 +3262,21 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         UI.show(sweepEl, yd.sweepSavings && (mb.sweep > 0 || shortfall));
         sweepEl.textContent = shortfall ? `Nada que barrer: te faltan ${money(-bal)}` : `+${money(mb.sweep)} barrido a ahorro`;
 
+        // The sweep line: whatever is left after every rubro, and the Paso 2 reminder.
+        const sweepRow = document.querySelector('#bud-body tr[data-row="sweep"]');
+        if (sweepRow) {
+            sweepRow.querySelector('[data-cell="real"]').textContent = money(mb.sweep);
+            const dc = sweepRow.querySelector('[data-cell="diff"]');
+            dc.textContent = money(-mb.sweep);
+            dc.className = `num font-bold ${mb.sweep > 0 ? 'text-red-600' : 'text-emerald-600'}`;
+            sweepRow.querySelector('[data-cell="spend"]').textContent = mb.sweep > 0
+                ? `Pasa ${money(mb.sweep)} a tu cuenta de ahorro o póliza este mes.`
+                : 'No sobra nada este mes: todo está asignado.';
+        }
+        const tip = yd.sweepSavings && mb.sweep > 0 && ctx.debts.totalBalance > 0;
+        UI.show('bud-sweep-tip', tip);
+        if (tip) UI.html('bud-sweep-tip', `<i class="fa-solid fa-lightbulb"></i> Tienes deudas (Paso 2): el método recomienda enviar el dinero extra a la bola de nieve, no al ahorro. Para eso, súbelo en la línea de tu deuda en <a href="#" class="link" data-goto="metas" data-focus="metas-debts">Deudas y Metas</a>, o en su línea de este presupuesto.`);
+
         // Rows: diff and spend-vs-budget cells
         const period = m === 'base' ? 'base' : m;
         list.forEach(it => {
@@ -3282,12 +3315,12 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             if (g === 'income') return;
             const gi = list.filter(it => groupOf(it) === g);
             const prep = gi.reduce((s, i) => s + (Number(i.prep) || 0), 0);
-            const real = gi.reduce((s, i) => s + (Number(i.real) || 0), 0);
+            const real = gi.reduce((s, i) => s + (Number(i.real) || 0), 0) + (g === 'Ahorro' ? mb.sweep : 0);
             gr.querySelector('[data-gcell="prep"]').textContent = money(prep);
             gr.querySelector('[data-gcell="real"]').textContent = money(real);
             gr.querySelector('[data-gcell="diff"]').textContent = money(prep - real);
             const noteCell = gr.querySelector('[data-gcell="note"]');
-            if (g === 'Ahorro') noteCell.textContent = mb.sweep > 0 ? ` + ${money(mb.sweep)} barrido` : '';
+            if (g === 'Ahorro') noteCell.textContent = mb.sweep > 0 ? ` · incluye ${money(mb.sweep)} del sobrante` : '';
             if (g === 'Deuda') {
                 const plan = ctx.debts;
                 noteCell.innerHTML = plan.totalBalance <= 0 ? ''
