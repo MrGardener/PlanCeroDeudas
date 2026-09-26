@@ -1291,18 +1291,16 @@
                     <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
                         <div class="flex items-center justify-between mb-1">
                             <label class="block text-xs font-bold text-emerald-900 uppercase">Tasa de Retorno Anual Esperada (%)</label>
-                            <button type="button" onclick="syncRetirementInputsFromApp()" title="Volver a sincronizar con Tab 1" class="text-emerald-600 hover:text-emerald-800"><i class="fa-solid fa-arrows-rotate text-[11px]"></i></button>
+                            <button type="button" onclick="syncRetirementInputsFromApp()" title="Volver a usar la Tasa DPF de Tab 1" class="text-emerald-600 hover:text-emerald-800"><i class="fa-solid fa-arrows-rotate text-[11px]"></i></button>
                         </div>
                         <input type="number" id="retire-tasa-retorno" value="8.5" placeholder="Ej: 8.5" step="0.1" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        <p class="text-[10px] text-emerald-700 mt-1">🔗 Se llena automáticamente con la Tasa DPF de Tab 1 para el año activo. Puedes editarla para simular otro escenario.</p>
+                        <p class="text-[10px] text-emerald-700 mt-1">🔗 Parte de la Tasa DPF de Tab 1. A propósito editable: tu retorno esperado en 20-30 años puede diferir de tu tasa actual — cámbialo para simular otro escenario, o pulsa ↻ para volver a igualarlo a Tab 1.</p>
                     </div>
                     <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
-                        <div class="flex items-center justify-between mb-1">
-                            <label class="block text-xs font-bold text-emerald-900 uppercase">Ahorro DPF Actual para Retiro ($)</label>
-                            <button type="button" onclick="syncRetirementInputsFromApp()" title="Volver a sincronizar con Tab 3" class="text-emerald-600 hover:text-emerald-800"><i class="fa-solid fa-arrows-rotate text-[11px]"></i></button>
-                        </div>
-                        <input type="number" id="retire-ahorro-actual" value="0" placeholder="Ej: 5000" step="100" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        <p class="text-[10px] text-emerald-700 mt-1">🔗 Se llena automáticamente con el "Balance Portfolio Cierre" de Tab 3 para el año activo. Puedes editarlo para simular otro escenario.</p>
+                        <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Ahorro DPF Actual para Retiro ($)</label>
+                        <div id="retire-ahorro-actual-display" class="w-full bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-700">$0.00</div>
+                        <input type="hidden" id="retire-ahorro-actual" value="0">
+                        <p class="text-[10px] text-emerald-700 mt-1">🔗 Automático: es el "Balance Portfolio Cierre" de Tab 3 para el año activo. Para cambiarlo, edita tus pólizas o tu ahorro en Tab 3.</p>
                     </div>
                     <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
                         <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Aporte Mensual Adicional ($)</label>
@@ -1328,10 +1326,10 @@
                     <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
                         <div class="flex items-center justify-between mb-1">
                             <label class="block text-xs font-bold text-indigo-900 uppercase">Sueldo Promedio Mensual ($)</label>
-                            <button type="button" onclick="syncRetirementInputsFromApp()" title="Volver a sincronizar con Tab 1" class="text-indigo-600 hover:text-indigo-800"><i class="fa-solid fa-arrows-rotate text-[11px]"></i></button>
+                            <button type="button" onclick="syncRetirementInputsFromApp()" title="Volver a usar el Sueldo Bruto de Tab 1" class="text-indigo-600 hover:text-indigo-800"><i class="fa-solid fa-arrows-rotate text-[11px]"></i></button>
                         </div>
                         <input type="number" id="retire-sueldo-promedio" value="1500" placeholder="Ej: 1500" step="50" oninput="calculateRetirement()" class="w-full bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <p class="text-[11px] text-indigo-700 mt-1">🔗 Se llena automáticamente con tu Sueldo Bruto de Tab 1 para el año activo. Afecta la Pensión IESS de abajo.</p>
+                        <p class="text-[11px] text-indigo-700 mt-1">🔗 Parte de tu Sueldo Bruto de Tab 1. A propósito editable: el IESS calcula tu pensión sobre tu sueldo promedio cerca de la jubilación, que suele ser mayor al de hoy — súbelo para modelar ascensos futuros, o pulsa ↻ para volver a igualarlo a Tab 1. Afecta la Pensión IESS de abajo.</p>
                     </div>
                     <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
                         <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Tasa de Reemplazo Estimada (%)</label>
@@ -2296,6 +2294,7 @@
             updateEmergencyFundTracker();
 
             updateMultiYearProjections();
+            syncRetirementAhorroDisplay();
             renderGoalsTable();
         }
 
@@ -2647,11 +2646,22 @@
         // from Tab 1, and current DPF balance from Tab 3's projection. Runs whenever Tab 8 is
         // opened or the active year changes — free to edit afterward for a "what if" scenario,
         // it just won't re-sync until the year changes again or you click the refresh icon.
+        // Ahorro DPF Actual is a read-only, fully-derived field (no manual override), so it's safe
+        // to refresh unconditionally on every recalculation — unlike Tasa/Sueldo below, there's no
+        // in-progress "what if" edit here that a silent refresh could clobber.
+        function syncRetirementAhorroDisplay() {
+            const display = document.getElementById('retire-ahorro-actual-display');
+            if (!display) return;
+            const ahorroActual = portfolioBalanceByYear[activeYear] || 0;
+            document.getElementById('retire-ahorro-actual').value = ahorroActual.toFixed(2);
+            display.innerText = formatCurrency(ahorroActual);
+        }
+
         function syncRetirementInputsFromApp() {
             const yd = getYearData(activeYear);
             document.getElementById('retire-tasa-retorno').value = yd.tasa;
             document.getElementById('retire-sueldo-promedio').value = yd.sueldo;
-            document.getElementById('retire-ahorro-actual').value = (portfolioBalanceByYear[activeYear] || 0).toFixed(2);
+            syncRetirementAhorroDisplay();
             calculateRetirement();
         }
 
