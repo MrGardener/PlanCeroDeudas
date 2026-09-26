@@ -5,6 +5,7 @@
 
     function render(ctx) {
         const s = ctx.state, yd = ctx.year;
+        UI.html('cfg-guide-body', Views.guideHTML());
         UI.html('cfg-brackets', yd.sriBrackets.map((b, i) => `<tr>
             <td><input type="number" class="cell-input num" value="${b.min}" data-change="cfg.bracket" data-idx="${i}" data-field="min"></td>
             <td><input type="number" class="cell-input num" value="${b.max}" data-change="cfg.bracket" data-idx="${i}" data-field="max"></td>
@@ -47,7 +48,9 @@
             a.click();
             a.remove();
             URL.revokeObjectURL(url);
-            UI.toast('Copia de respaldo descargada');
+            Store.state.settings.lastBackupAt = new Date().toISOString();
+            Store.scheduleSave();
+            UI.toast('Copia de respaldo descargada. Guárdala en un lugar seguro (por ejemplo Google Drive o un USB).');
         },
         'cfg.upload': () => document.getElementById('cfg-file').click(),
         'cfg.fileChosen': (el) => {

@@ -145,7 +145,7 @@
                 { id: 3, type: 'Ingreso', description: 'Remesa mensual de mi hermano', store: 'Western Union', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: iso, paymentType: 'Tarjeta de Débito' }
             ],
             taxonomy: { expense: clone(EXPENSE_TAXONOMY), income: clone(INCOME_TAXONOMY) },
-            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances' },
+            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null },
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.

@@ -230,7 +230,12 @@
             Store.year(Store.state.activeYear);
             changed({ structural: true });
         },
-        'app.print': () => window.print()
+        'app.print': () => window.print(),
+        'app.help': () => {
+            go('config', { focus: 'cfg-guide' });
+            const g = document.getElementById('cfg-guide');
+            if (g) g.open = true;
+        }
     });
 
     function init() {
@@ -248,6 +253,8 @@
             go(g.dataset.goto, { focus: g.dataset.focus });
         });
         buildNav();
+        // Styles and charts come from the internet; say so plainly if they didn't load.
+        UI.show('offline-banner', typeof Chart === 'undefined' || typeof tailwind === 'undefined');
         Store.onChange(renderSaveStatus);
         window.addEventListener('beforeunload', () => Store.saveNow());
         document.addEventListener('visibilitychange', () => { if (document.hidden) Store.saveNow(); });

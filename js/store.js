@@ -153,7 +153,14 @@
         },
 
         replaceState(raw) {
+            // Loading a backup replaces the data, not what this person already knows about
+            // the app: keep "welcome seen" and the most recent backup date.
+            const prev = this.state && this.state.settings;
             this.state = migrate(raw);
+            if (prev) {
+                if (prev.welcomeDismissed) this.state.settings.welcomeDismissed = true;
+                if (prev.lastBackupAt && (!this.state.settings.lastBackupAt || prev.lastBackupAt > this.state.settings.lastBackupAt)) this.state.settings.lastBackupAt = prev.lastBackupAt;
+            }
             this.year(this.state.activeYear);
             this.saveNow();
         },

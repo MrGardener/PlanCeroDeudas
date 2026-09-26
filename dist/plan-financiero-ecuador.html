@@ -219,6 +219,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 <select id="global-year-select" data-change="app.setYear" aria-label="Año activo"></select>
             </label>
             <span id="save-status" class="save-status" role="status"><i class="fa-solid fa-circle-check"></i><span class="hidden sm:inline">Guardado</span></span>
+            <button class="icon-btn" data-action="app.help" title="Cómo usar la app" aria-label="Ayuda"><i class="fa-solid fa-circle-question"></i></button>
             <button class="icon-btn" data-action="app.print" title="Imprimir esta pestaña" aria-label="Imprimir"><i class="fa-solid fa-print"></i></button>
         </div>
     </div>
@@ -226,9 +227,11 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 </header>
 
 <main class="wrap flex-grow w-full py-6">
+<div id="offline-banner" class="panel tone-amber mb-5 text-xs text-amber-900 hidden"><i class="fa-solid fa-wifi"></i> <strong>Sin conexión a internet:</strong> los estilos y gráficos no se pudieron cargar. Tus datos están a salvo; conéctate y vuelve a abrir la app para verla completa.</div>
 
 <!-- ============================================================ RESUMEN -->
 <section data-tab="resumen" class="space-y-5">
+    <div id="dash-welcome" class="card hidden" style="border-color:#a7f3d0"></div>
     <div id="dash-hero" class="hero"></div>
     <div id="dash-steps" class="steps steps-compact"></div>
     <div id="dash-kpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
@@ -869,6 +872,14 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 
 <!-- ======================================================= CONFIGURACION -->
 <section data-tab="config" class="hidden space-y-4">
+    <details class="card group-card" id="cfg-guide">
+        <summary class="flex items-center justify-between gap-3">
+            <div><div class="card-title"><i class="fa-solid fa-circle-question text-emerald-600"></i> Cómo Usar la App</div><div class="card-sub">Dónde se guardan tus datos, cómo respaldarlos y por dónde empezar.</div></div>
+            <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+        </summary>
+        <div class="mt-5" id="cfg-guide-body"></div>
+    </details>
+
     <details class="card group-card" id="cfg-legal" open>
         <summary class="flex items-center justify-between gap-3">
             <div><div class="card-title"><i class="fa-solid fa-scale-balanced text-amber-600"></i> Parámetros Legales · <span class="active-year"></span></div><div class="card-sub">Tasas y topes oficiales que usa el cálculo de tu sueldo neto. Cambian por año; verifica los vigentes en las fuentes oficiales.</div></div>
@@ -992,7 +1003,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 
 </main>
 
-<footer class="wrap py-6 text-center text-[11px] text-slate-400 no-print">Estimaciones educativas. Tus datos se guardan solo en este navegador.</footer>
+<footer class="wrap py-6 text-center text-[11px] text-slate-400 no-print">Estimaciones educativas. Tus datos se guardan solo en este navegador. · <a href="#" class="link" data-action="app.help">Cómo usar la app</a></footer>
 
 <script>/* js/format.js */
 /* Fmt — formatting and escaping helpers shared by every view. */
@@ -1186,7 +1197,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 { id: 3, type: 'Ingreso', description: 'Remesa mensual de mi hermano', store: 'Western Union', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: iso, paymentType: 'Tarjeta de Débito' }
             ],
             taxonomy: { expense: clone(EXPENSE_TAXONOMY), income: clone(INCOME_TAXONOMY) },
-            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances' },
+            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null },
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -1973,7 +1984,14 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         },
 
         replaceState(raw) {
+            // Loading a backup replaces the data, not what this person already knows about
+            // the app: keep "welcome seen" and the most recent backup date.
+            const prev = this.state && this.state.settings;
             this.state = migrate(raw);
+            if (prev) {
+                if (prev.welcomeDismissed) this.state.settings.welcomeDismissed = true;
+                if (prev.lastBackupAt && (!this.state.settings.lastBackupAt || prev.lastBackupAt > this.state.settings.lastBackupAt)) this.state.settings.lastBackupAt = prev.lastBackupAt;
+            }
             this.year(this.state.activeYear);
             this.saveNow();
         },
@@ -2449,7 +2467,12 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             Store.year(Store.state.activeYear);
             changed({ structural: true });
         },
-        'app.print': () => window.print()
+        'app.print': () => window.print(),
+        'app.help': () => {
+            go('config', { focus: 'cfg-guide' });
+            const g = document.getElementById('cfg-guide');
+            if (g) g.open = true;
+        }
     });
 
     function init() {
@@ -2467,6 +2490,8 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             go(g.dataset.goto, { focus: g.dataset.focus });
         });
         buildNav();
+        // Styles and charts come from the internet; say so plainly if they didn't load.
+        UI.show('offline-banner', typeof Chart === 'undefined' || typeof tailwind === 'undefined');
         Store.onChange(renderSaveStatus);
         window.addEventListener('beforeunload', () => Store.saveNow());
         document.addEventListener('visibilitychange', () => { if (document.hidden) Store.saveNow(); });
@@ -2580,7 +2605,42 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         return off.length ? { polizas: ctx.polizasCapital, debts: debtTotal } : null;
     }
 
-    root.Views = { STEP_INFO, stepsHTML, spendBadge, kpiCard, selectOptions, monthOptions, netWorthSync };
+    // The "how this works" guide: shown as a welcome on first use and kept in Configuración.
+    function guideHTML() {
+        const item = (icon, html) => `<li class="flex gap-2.5"><i class="fa-solid ${icon} text-emerald-600 mt-0.5 w-4 text-center"></i><span>${html}</span></li>`;
+        const step = (n, goto, label, text) => `<li class="flex gap-2.5"><span class="step-num" style="width:1.4rem;height:1.4rem;font-size:.7rem">${n}</span><span><a href="#" class="link" data-goto="${goto}">${label}</a>: ${text}</span></li>`;
+        return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 text-xs text-slate-700 leading-relaxed">
+            <div>
+                <div class="section-label"><i class="fa-solid fa-folder-open text-emerald-600"></i> Abrir la app</div>
+                <ul class="space-y-2">
+                    ${item('fa-file-code', 'Guarda este archivo en una carpeta fácil de encontrar (por ejemplo <strong>Documentos</strong>) y ábrelo con <strong>doble clic</strong>. Se abre en tu navegador; no hay que instalar nada.')}
+                    ${item('fa-laptop', 'Funciona mejor en un <strong>computador</strong> con Chrome, Edge o Firefox. En el celular muchos teléfonos no abren bien archivos descargados.')}
+                    ${item('fa-wifi', 'Necesitas <strong>internet</strong> al abrirla para ver los estilos y gráficos.')}
+                </ul>
+            </div>
+            <div>
+                <div class="section-label"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Tus datos</div>
+                <ul class="space-y-2">
+                    ${item('fa-floppy-disk', 'Todo se <strong>guarda solo</strong>, en este navegador y este computador. Tus datos nunca salen de tu equipo.')}
+                    ${item('fa-triangle-exclamation', 'Si abres la app en <strong>otro navegador u otro computador</strong>, empezará vacía. Si borras el historial o los datos de navegación, <strong>se borra tu plan</strong>.')}
+                    ${item('fa-download', 'Descarga una <strong>copia de respaldo</strong> cada cierto tiempo en <a href="#" class="link" data-goto="config" data-focus="cfg-data">Configuración → Tus Datos</a>. Para pasar a otro equipo, abre la app allí y usa <strong>Cargar copia</strong>.')}
+                </ul>
+            </div>
+            <div>
+                <div class="section-label"><i class="fa-solid fa-flag-checkered text-emerald-600"></i> Primeros pasos</div>
+                <ol class="space-y-2">
+                    ${step(1, 'presupuesto/ingresos', 'Ingresos e Impuestos', 'tu sueldo y décimos.')}
+                    ${step(2, 'presupuesto/plan', 'Presupuesto del Mes', 'asigna cada dólar a un rubro.')}
+                    ${step(3, 'metas', 'Deudas y Metas', 'registra tus deudas y metas.')}
+                    ${step(4, 'ahorro/polizas', 'Pólizas', 'registra tus DPF.')}
+                    ${step(5, 'patrimonio', 'Patrimonio', 'lo que tienes y lo que debes.')}
+                    ${step(6, 'resumen', 'Resumen', 'te dice cuál es tu siguiente paso.')}
+                </ol>
+            </div>
+        </div>`;
+    }
+
+    root.Views = { guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, selectOptions, monthOptions, netWorthSync };
 })(this);
 </script>
 <script>/* js/views/resumen.js */
@@ -2648,6 +2708,9 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         }
         const sync = Views.netWorthSync(ctx);
         if (sync) add('tone-blue', 'fa-scale-balanced text-teal-600', `Tu patrimonio ${s.activeYear} no refleja tus pólizas (${money0(sync.polizas)}) y deudas (${money0(sync.debts)}) registradas.`, 'patrimonio');
+        const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
+        const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
+        if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no descargas una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
         if (ctx.debts.never && ctx.debts.totalBalance > 0) add('tone-red', 'fa-snowplow text-red-600', 'Con tus pagos actuales una deuda nunca termina de pagarse.', 'metas');
         const p = ctx.pay;
         if (p.sriCap > 0 && p.deductibles.real < p.sriCap * 0.8) add('tone-blue', 'fa-file-invoice-dollar text-blue-600', `Podrías deducir <strong>${money0(p.sriCap - p.deductibles.real)}</strong> más en gastos personales y pagar menos impuesto.`, 'presupuesto/ingresos');
@@ -2657,6 +2720,18 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 
     function update(ctx) {
         const s = ctx.state;
+        const welcome = document.getElementById('dash-welcome');
+        UI.show(welcome, !s.settings.welcomeDismissed);
+        if (!s.settings.welcomeDismissed) {
+            welcome.innerHTML = `<div class="card-head">
+                    <div><div class="card-title"><i class="fa-solid fa-hand text-emerald-600"></i> Bienvenido a tu Plan Financiero</div><div class="card-sub">Lee esto una vez: así funciona la app y así cuidas tus datos. Siempre puedes volver a verlo con el botón <i class="fa-solid fa-circle-question"></i> de arriba.</div></div>
+                </div>
+                ${Views.guideHTML()}
+                <div class="flex flex-wrap justify-end gap-2 mt-5">
+                    <button class="btn btn-secondary" data-action="app.dismissWelcome">Entendido</button>
+                    <button class="btn btn-primary" data-action="app.dismissWelcome" data-then="presupuesto/ingresos">Empezar con mi sueldo <i class="fa-solid fa-arrow-right"></i></button>
+                </div>`;
+        }
         UI.html('dash-hero', hero(ctx));
         UI.html('dash-steps', Views.stepsHTML(ctx, { compact: true }));
 
@@ -2681,6 +2756,14 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             options: { scales: { y: { beginAtZero: false } } }
         });
     }
+
+    UI.register({
+        'app.dismissWelcome': (el) => {
+            Store.state.settings.welcomeDismissed = true;
+            Store.scheduleSave();
+            if (el.dataset.then) App.go(el.dataset.then); else App.render();
+        }
+    });
 
     App.defineView('resumen', { update });
 })();
@@ -3752,6 +3835,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 
     function render(ctx) {
         const s = ctx.state, yd = ctx.year;
+        UI.html('cfg-guide-body', Views.guideHTML());
         UI.html('cfg-brackets', yd.sriBrackets.map((b, i) => `<tr>
             <td><input type="number" class="cell-input num" value="${b.min}" data-change="cfg.bracket" data-idx="${i}" data-field="min"></td>
             <td><input type="number" class="cell-input num" value="${b.max}" data-change="cfg.bracket" data-idx="${i}" data-field="max"></td>
@@ -3794,7 +3878,9 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             a.click();
             a.remove();
             URL.revokeObjectURL(url);
-            UI.toast('Copia de respaldo descargada');
+            Store.state.settings.lastBackupAt = new Date().toISOString();
+            Store.scheduleSave();
+            UI.toast('Copia de respaldo descargada. Guárdala en un lugar seguro (por ejemplo Google Drive o un USB).');
         },
         'cfg.upload': () => document.getElementById('cfg-file').click(),
         'cfg.fileChosen': (el) => {

@@ -62,6 +62,9 @@
         }
         const sync = Views.netWorthSync(ctx);
         if (sync) add('tone-blue', 'fa-scale-balanced text-teal-600', `Tu patrimonio ${s.activeYear} no refleja tus pólizas (${money0(sync.polizas)}) y deudas (${money0(sync.debts)}) registradas.`, 'patrimonio');
+        const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
+        const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
+        if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no descargas una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
         if (ctx.debts.never && ctx.debts.totalBalance > 0) add('tone-red', 'fa-snowplow text-red-600', 'Con tus pagos actuales una deuda nunca termina de pagarse.', 'metas');
         const p = ctx.pay;
         if (p.sriCap > 0 && p.deductibles.real < p.sriCap * 0.8) add('tone-blue', 'fa-file-invoice-dollar text-blue-600', `Podrías deducir <strong>${money0(p.sriCap - p.deductibles.real)}</strong> más en gastos personales y pagar menos impuesto.`, 'presupuesto/ingresos');
@@ -71,6 +74,18 @@
 
     function update(ctx) {
         const s = ctx.state;
+        const welcome = document.getElementById('dash-welcome');
+        UI.show(welcome, !s.settings.welcomeDismissed);
+        if (!s.settings.welcomeDismissed) {
+            welcome.innerHTML = `<div class="card-head">
+                    <div><div class="card-title"><i class="fa-solid fa-hand text-emerald-600"></i> Bienvenido a tu Plan Financiero</div><div class="card-sub">Lee esto una vez: así funciona la app y así cuidas tus datos. Siempre puedes volver a verlo con el botón <i class="fa-solid fa-circle-question"></i> de arriba.</div></div>
+                </div>
+                ${Views.guideHTML()}
+                <div class="flex flex-wrap justify-end gap-2 mt-5">
+                    <button class="btn btn-secondary" data-action="app.dismissWelcome">Entendido</button>
+                    <button class="btn btn-primary" data-action="app.dismissWelcome" data-then="presupuesto/ingresos">Empezar con mi sueldo <i class="fa-solid fa-arrow-right"></i></button>
+                </div>`;
+        }
         UI.html('dash-hero', hero(ctx));
         UI.html('dash-steps', Views.stepsHTML(ctx, { compact: true }));
 
@@ -95,6 +110,14 @@
             options: { scales: { y: { beginAtZero: false } } }
         });
     }
+
+    UI.register({
+        'app.dismissWelcome': (el) => {
+            Store.state.settings.welcomeDismissed = true;
+            Store.scheduleSave();
+            if (el.dataset.then) App.go(el.dataset.then); else App.render();
+        }
+    });
 
     App.defineView('resumen', { update });
 })();
