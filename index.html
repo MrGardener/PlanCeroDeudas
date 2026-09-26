@@ -950,6 +950,25 @@
                     </div>
                 </div>
 
+                <!-- Calculator Slider Limits -->
+                <div class="bg-purple-50/70 p-4 rounded-xl border border-purple-200">
+                    <h3 class="text-xs font-bold text-purple-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-purple-600"></i> Límites de los Simuladores (Sliders)
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Tope del Simulador de Jubilación ($/mes):</label>
+                            <input type="number" id="config-retire-whatif-max" value="500" step="50" min="50" onchange="updateWhatIfMaxConfig()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <p class="text-[10px] text-slate-500 mt-1">Máximo aporte extra que puedes simular en Tab 8 (Calculadora de Jubilación).</p>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Tope del Simulador Hipotecario ($/mes):</label>
+                            <input type="number" id="config-mortgage-whatif-max" value="2000" step="100" min="50" onchange="updateWhatIfMaxConfig()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <p class="text-[10px] text-slate-500 mt-1">Máximo pago extra que puedes simular en Tab 7 (Calculadora Hipotecaria).</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Auto-Sweep & Decimos Checkboxes -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-emerald-50/70 p-4 rounded-xl border border-emerald-200">
@@ -1104,7 +1123,8 @@
                 <div class="bg-amber-50/60 p-4 rounded-xl border border-amber-200 mb-6">
                     <label class="block text-xs font-bold text-amber-900 uppercase mb-1">Pago Extra Mensual Hacia el Capital ($)</label>
                     <input type="number" id="mort-extra-payment" value="0" step="10" min="0" oninput="calculateMortgage()" class="w-full sm:w-64 bg-white border border-amber-300 rounded-lg px-3 py-1.5 text-base font-bold text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm">
-                    <p class="text-[10px] text-amber-700 mt-1">Un abono adicional que aplicas cada mes directamente al capital, por encima de la cuota normal. Reduce el plazo y el interés total.</p>
+                    <input type="range" id="mort-extra-payment-slider" min="0" max="2000" step="10" value="0" oninput="syncMortgageExtraFromSlider(this.value)" class="w-full accent-amber-600 mt-2">
+                    <p class="text-[10px] text-amber-700 mt-1">Un abono adicional que aplicas cada mes directamente al capital, por encima de la cuota normal. Reduce el plazo y el interés total — mira las líneas punteadas en las gráficas de abajo.</p>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -1300,7 +1320,10 @@
                         <span class="text-xs font-bold text-slate-700 uppercase tracking-wide block">Ingreso Mensual Total Estimado en la Jubilación</span>
                         <span class="text-[11px] text-slate-500"><span class="text-emerald-700 font-bold">Ahorro DPF</span> (retiro sostenible) + <span class="text-indigo-700 font-bold">Pensión IESS</span></span>
                     </div>
-                    <span id="retire-ingreso-total" class="text-2xl font-black text-slate-900">$0.00</span>
+                    <div class="text-right">
+                        <span id="retire-ingreso-total" class="text-2xl font-black text-slate-900 block">$0.00</span>
+                        <span id="retire-whatif-total-delta" class="hidden text-xs font-bold text-purple-700"></span>
+                    </div>
                 </div>
 
                 <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
@@ -1503,6 +1526,8 @@
         // --- MULTI-YEAR ENGINE STATE ---
         let configStartYear = 2020;
         let configEndYear = 2050;
+        let retireWhatIfMax = 500;
+        let mortgageWhatIfMax = 2000;
         let activeYear = 2026;
         let currentMonth = "base"; 
 
@@ -1668,6 +1693,24 @@
                 initYearSelector();
                 recalculateAll();
             }
+        }
+
+        function applyWhatIfMaxToInputs() {
+            const retireSlider = document.getElementById('retire-whatif-slider');
+            retireSlider.max = retireWhatIfMax;
+            if (parseFloat(retireSlider.value) > retireWhatIfMax) retireSlider.value = retireWhatIfMax;
+
+            const mortSlider = document.getElementById('mort-extra-payment-slider');
+            mortSlider.max = mortgageWhatIfMax;
+            if (parseFloat(mortSlider.value) > mortgageWhatIfMax) mortSlider.value = mortgageWhatIfMax;
+        }
+
+        function updateWhatIfMaxConfig() {
+            retireWhatIfMax = Math.max(50, parseFloat(document.getElementById('config-retire-whatif-max').value) || 500);
+            mortgageWhatIfMax = Math.max(50, parseFloat(document.getElementById('config-mortgage-whatif-max').value) || 2000);
+            applyWhatIfMaxToInputs();
+            updateRetirementWhatIf();
+            calculateMortgage();
         }
 
         function changeActiveYear(newYr) {
@@ -2261,18 +2304,21 @@
             };
         }
 
+        function calculatePensionMensual(inp) {
+            // Full-career reference of 30 years: fewer total years contributed scales the
+            // pension down proportionally, so "Años Ya Aportados" actually affects the result.
+            const aniosTotalesIESS = inp.aniosAportadosIESS + inp.aniosRestantes;
+            const factorCarrera = Math.min(1, aniosTotalesIESS / 30);
+            return inp.sueldoPromedio * (inp.tasaReemplazo / 100) * factorCarrera;
+        }
+
         function calculateRetirement() {
             const inp = getRetirementInputs();
             const mesesRestantes = inp.aniosRestantes * 12;
 
             const valorFuturo = calculateFutureValue(inp.ahorroActual, inp.aporteMensual, inp.tasaRetorno, mesesRestantes);
             const ingresoAhorro = (valorFuturo * (inp.tasaRetiroSegura / 100)) / 12;
-
-            // Full-career reference of 30 years: fewer total years contributed scales the
-            // pension down proportionally, so "Años Ya Aportados" actually affects the result.
-            const aniosTotalesIESS = inp.aniosAportadosIESS + inp.aniosRestantes;
-            const factorCarrera = Math.min(1, aniosTotalesIESS / 30);
-            const pensionMensual = inp.sueldoPromedio * (inp.tasaReemplazo / 100) * factorCarrera;
+            const pensionMensual = calculatePensionMensual(inp);
             const ingresoTotal = ingresoAhorro + pensionMensual;
 
             document.getElementById('retire-anios-restantes').innerText = inp.aniosRestantes.toFixed(0);
@@ -2310,13 +2356,29 @@
                 : null;
 
             const resultEl = document.getElementById('retire-whatif-result');
+            const totalDeltaEl = document.getElementById('retire-whatif-total-delta');
             if (extra > 0 && whatIfSchedule) {
                 const baseFinal = baseSchedule[baseSchedule.length - 1];
                 const whatIfFinal = whatIfSchedule[whatIfSchedule.length - 1];
                 const diff = whatIfFinal - baseFinal;
-                resultEl.innerText = `Aportando $${extra} más al mes, tendrías ${formatCurrency(diff)} adicionales al jubilarte (total ${formatCurrency(whatIfFinal)} en vez de ${formatCurrency(baseFinal)}).`;
+
+                // The slider only changes the DPF contribution, so the IESS pension side of
+                // "Ingreso Mensual Total" is unaffected — only the sustainable-withdrawal
+                // portion moves. Recompute the total under the what-if scenario so the effect
+                // is visible on the headline number, not just the chart.
+                const pensionMensual = calculatePensionMensual(inp);
+                const ingresoAhorroBase = (baseFinal * (inp.tasaRetiroSegura / 100)) / 12;
+                const ingresoAhorroWhatIf = (whatIfFinal * (inp.tasaRetiroSegura / 100)) / 12;
+                const ingresoTotalBase = ingresoAhorroBase + pensionMensual;
+                const ingresoTotalWhatIf = ingresoAhorroWhatIf + pensionMensual;
+                const ingresoTotalDelta = ingresoTotalWhatIf - ingresoTotalBase;
+
+                resultEl.innerText = `Aportando $${extra} más al mes, tendrías ${formatCurrency(diff)} adicionales al jubilarte (total ${formatCurrency(whatIfFinal)} en vez de ${formatCurrency(baseFinal)}). Tu Ingreso Mensual Total Estimado subiría a ${formatCurrency(ingresoTotalWhatIf)} (en vez de ${formatCurrency(ingresoTotalBase)}).`;
+                totalDeltaEl.innerText = `+${formatCurrency(ingresoTotalDelta)}/mes con el simulador`;
+                totalDeltaEl.classList.remove('hidden');
             } else {
                 resultEl.innerText = 'Mueve el control para ver cuánto más tendrías al jubilarte con un aporte mensual mayor.';
+                totalDeltaEl.classList.add('hidden');
             }
 
             renderRetirementChart(inp, baseSchedule, whatIfSchedule);
@@ -3012,13 +3074,15 @@
 
         // Simulates a French (fixed-payment) amortization with an extra amount applied to
         // principal every month, on top of the normal payment. Terminates early once the
-        // balance is paid off instead of running the full contracted term.
+        // balance is paid off instead of running the full contracted term. Returns the full
+        // period-by-period schedule so it can be charted, not just summary totals.
         function calculateFrenchPayoffWithExtra(principal, annualRatePct, months, extraMonthly) {
             const i = (annualRatePct / 100) / 12;
             const payment = i === 0 ? principal / months : principal * i / (1 - Math.pow(1 + i, -months));
             let balance = principal;
             let totalInterest = 0;
             let period = 0;
+            const schedule = [];
             while (balance > 0.01 && period < months) {
                 period++;
                 const interest = balance * i;
@@ -3026,8 +3090,9 @@
                 let principalPortion = (payment - interest) + extraMonthly;
                 if (principalPortion > balance) principalPortion = balance;
                 balance -= principalPortion;
+                schedule.push({ period, payment: principalPortion + interest, interest, principal: principalPortion, balance: Math.max(0, balance) });
             }
-            return { months: period, totalInterest, totalPaid: principal + totalInterest };
+            return { schedule, months: period, totalInterest, totalPaid: principal + totalInterest };
         }
 
         // Same idea for the German (fixed-principal) system.
@@ -3037,6 +3102,7 @@
             let balance = principal;
             let totalInterest = 0;
             let period = 0;
+            const schedule = [];
             while (balance > 0.01 && period < months) {
                 period++;
                 const interest = balance * i;
@@ -3044,8 +3110,9 @@
                 let principalPortion = basePrincipalPortion + extraMonthly;
                 if (principalPortion > balance) principalPortion = balance;
                 balance -= principalPortion;
+                schedule.push({ period, payment: principalPortion + interest, interest, principal: principalPortion, balance: Math.max(0, balance) });
             }
-            return { months: period, totalInterest, totalPaid: principal + totalInterest };
+            return { schedule, months: period, totalInterest, totalPaid: principal + totalInterest };
         }
 
         function formatMonthsAsYearsMonths(totalMonths) {
@@ -3056,12 +3123,23 @@
             return `${years}a ${months}m`;
         }
 
+        let frenchScheduleWithExtra = null;
+        let germanScheduleWithExtra = null;
+
+        function syncMortgageExtraFromSlider(value) {
+            document.getElementById('mort-extra-payment').value = value;
+            calculateMortgage();
+        }
+
         function calculateMortgage() {
             const amount = Math.max(0, parseFloat(document.getElementById('mort-amount').value) || 0);
             const rate = Math.max(0, parseFloat(document.getElementById('mort-rate').value) || 0);
             const years = Math.max(1, parseInt(document.getElementById('mort-years').value) || 1);
             const extraPayment = Math.max(0, parseFloat(document.getElementById('mort-extra-payment').value) || 0);
             const months = years * 12;
+
+            const sliderMax = parseFloat(document.getElementById('mort-extra-payment-slider').max) || mortgageWhatIfMax;
+            document.getElementById('mort-extra-payment-slider').value = Math.min(extraPayment, sliderMax);
 
             const fr = calculateFrenchAmortization(amount, rate, months);
             const al = calculateGermanAmortization(amount, rate, months);
@@ -3082,6 +3160,8 @@
             if (extraPayment > 0) {
                 const frExtra = calculateFrenchPayoffWithExtra(amount, rate, months, extraPayment);
                 const alExtra = calculateGermanPayoffWithExtra(amount, rate, months, extraPayment);
+                frenchScheduleWithExtra = frExtra.schedule;
+                germanScheduleWithExtra = alExtra.schedule;
 
                 document.getElementById('fr-extra-months').innerText = formatMonthsAsYearsMonths(frExtra.months) + ` (antes ${formatMonthsAsYearsMonths(months)})`;
                 document.getElementById('fr-extra-interest-saved').innerText = formatCurrency(fr.totalInterest - frExtra.totalInterest);
@@ -3090,6 +3170,8 @@
                 frExtraBox.classList.remove('hidden');
                 alExtraBox.classList.remove('hidden');
             } else {
+                frenchScheduleWithExtra = null;
+                germanScheduleWithExtra = null;
                 frExtraBox.classList.add('hidden');
                 alExtraBox.classList.add('hidden');
             }
@@ -3106,30 +3188,55 @@
             const ctx = canvas.getContext('2d');
             if (mortgageChartInstance) mortgageChartInstance.destroy();
 
+            const datasets = [
+                {
+                    label: 'Saldo Sistema Francés ($)',
+                    data: frenchSchedule.map(s => s.balance.toFixed(2)),
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                    fill: true,
+                    tension: 0.2,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Saldo Sistema Alemán ($)',
+                    data: germanSchedule.map(s => s.balance.toFixed(2)),
+                    borderColor: '#059669',
+                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                    fill: true,
+                    tension: 0.2,
+                    pointRadius: 0
+                }
+            ];
+
+            if (frenchScheduleWithExtra && germanScheduleWithExtra) {
+                datasets.push({
+                    label: 'Saldo Francés con Pago Extra ($)',
+                    data: frenchScheduleWithExtra.map(s => s.balance.toFixed(2)),
+                    borderColor: '#1e3a8a',
+                    borderDash: [6, 4],
+                    backgroundColor: 'rgba(30, 58, 138, 0.05)',
+                    fill: false,
+                    tension: 0.2,
+                    pointRadius: 0
+                });
+                datasets.push({
+                    label: 'Saldo Alemán con Pago Extra ($)',
+                    data: germanScheduleWithExtra.map(s => s.balance.toFixed(2)),
+                    borderColor: '#065f46',
+                    borderDash: [6, 4],
+                    backgroundColor: 'rgba(6, 95, 70, 0.05)',
+                    fill: false,
+                    tension: 0.2,
+                    pointRadius: 0
+                });
+            }
+
             mortgageChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: frenchSchedule.map(s => s.period),
-                    datasets: [
-                        {
-                            label: 'Saldo Sistema Francés ($)',
-                            data: frenchSchedule.map(s => s.balance.toFixed(2)),
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                            fill: true,
-                            tension: 0.2,
-                            pointRadius: 0
-                        },
-                        {
-                            label: 'Saldo Sistema Alemán ($)',
-                            data: germanSchedule.map(s => s.balance.toFixed(2)),
-                            borderColor: '#059669',
-                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                            fill: true,
-                            tension: 0.2,
-                            pointRadius: 0
-                        }
-                    ]
+                    datasets
                 },
                 options: {
                     responsive: true,
@@ -3151,30 +3258,57 @@
             const frCumulative = accumulate(frenchSchedule, 'interest');
             const alCumulative = accumulate(germanSchedule, 'interest');
 
+            const datasets = [
+                {
+                    label: 'Interés Acumulado Francés ($)',
+                    data: frCumulative.map(v => v.toFixed(2)),
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                    fill: true,
+                    tension: 0.2,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Interés Acumulado Alemán ($)',
+                    data: alCumulative.map(v => v.toFixed(2)),
+                    borderColor: '#dc2626',
+                    backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                    fill: true,
+                    tension: 0.2,
+                    pointRadius: 0
+                }
+            ];
+
+            if (frenchScheduleWithExtra && germanScheduleWithExtra) {
+                const frCumulativeExtra = accumulate(frenchScheduleWithExtra, 'interest');
+                const alCumulativeExtra = accumulate(germanScheduleWithExtra, 'interest');
+                datasets.push({
+                    label: 'Interés Francés con Pago Extra ($)',
+                    data: frCumulativeExtra.map(v => v.toFixed(2)),
+                    borderColor: '#1e3a8a',
+                    borderDash: [6, 4],
+                    backgroundColor: 'rgba(30, 58, 138, 0.05)',
+                    fill: false,
+                    tension: 0.2,
+                    pointRadius: 0
+                });
+                datasets.push({
+                    label: 'Interés Alemán con Pago Extra ($)',
+                    data: alCumulativeExtra.map(v => v.toFixed(2)),
+                    borderColor: '#7f1d1d',
+                    borderDash: [6, 4],
+                    backgroundColor: 'rgba(127, 29, 29, 0.05)',
+                    fill: false,
+                    tension: 0.2,
+                    pointRadius: 0
+                });
+            }
+
             mortgageInterestChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: frenchSchedule.map(s => s.period),
-                    datasets: [
-                        {
-                            label: 'Interés Acumulado Francés ($)',
-                            data: frCumulative.map(v => v.toFixed(2)),
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                            fill: true,
-                            tension: 0.2,
-                            pointRadius: 0
-                        },
-                        {
-                            label: 'Interés Acumulado Alemán ($)',
-                            data: alCumulative.map(v => v.toFixed(2)),
-                            borderColor: '#dc2626',
-                            backgroundColor: 'rgba(220, 38, 38, 0.08)',
-                            fill: true,
-                            tension: 0.2,
-                            pointRadius: 0
-                        }
-                    ]
+                    datasets
                 },
                 options: {
                     responsive: true,
@@ -3216,6 +3350,8 @@
                 goalItems: goalItems,
                 debtItems: debtItems,
                 transactionItems: transactionItems,
+                retireWhatIfMax: retireWhatIfMax,
+                mortgageWhatIfMax: mortgageWhatIfMax,
                 mortgageConfig: {
                     amount: parseFloat(document.getElementById('mort-amount').value) || 0,
                     rate: parseFloat(document.getElementById('mort-rate').value) || 0,
@@ -3236,6 +3372,8 @@
             if (data.goalItems) goalItems = data.goalItems;
             if (data.debtItems) debtItems = data.debtItems;
             if (data.transactionItems) transactionItems = data.transactionItems;
+            if (data.retireWhatIfMax) retireWhatIfMax = data.retireWhatIfMax;
+            if (data.mortgageWhatIfMax) mortgageWhatIfMax = data.mortgageWhatIfMax;
             if (data.mortgageConfig) {
                 document.getElementById('mort-amount').value = data.mortgageConfig.amount;
                 document.getElementById('mort-rate').value = data.mortgageConfig.rate;
@@ -3247,6 +3385,9 @@
         function refreshAllUI() {
             document.getElementById('config-start-year').value = configStartYear;
             document.getElementById('config-end-year').value = configEndYear;
+            document.getElementById('config-retire-whatif-max').value = retireWhatIfMax;
+            document.getElementById('config-mortgage-whatif-max').value = mortgageWhatIfMax;
+            applyWhatIfMaxToInputs();
             initYearSelector();
             loadYearToInputs();
             renderBudgetTable();
@@ -3368,6 +3509,9 @@
 
         window.onload = function() {
             loadFromLocalStorage();
+            document.getElementById('config-retire-whatif-max').value = retireWhatIfMax;
+            document.getElementById('config-mortgage-whatif-max').value = mortgageWhatIfMax;
+            applyWhatIfMaxToInputs();
             renderBudgetTable();
             renderCooperativasTable();
             renderPolizasTable();
