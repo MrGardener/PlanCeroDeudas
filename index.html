@@ -261,6 +261,9 @@
                 <label class="field"><span class="field-label"><span>Subcategoría</span><button type="button" class="mini-btn" data-action="txn.addSub">+ Nueva</button></span>
                     <select id="txn-sub" class="input" data-change="txn.subChanged"></select>
                     <span id="txn-payroll-hint" class="help text-amber-700 hidden">Tu sueldo ya se cuenta desde "Tu Sueldo", así que esto no se suma a tu presupuesto. Si es un ingreso extra (ventas, trabajos), elige otra categoría.</span></label>
+                <label class="field hidden" id="txn-income-field"><span class="field-label">¿Es de un ingreso de tu presupuesto?</span>
+                    <select id="txn-income" class="input"></select>
+                    <span class="help">Elígelo si este dinero es lo que esperabas de un ingreso mensual (así se marca como recibido). Si no, cuenta como ingreso extra del mes.</span></label>
                 <label class="field"><span class="field-label">Forma de pago</span>
                     <select id="txn-payment" class="input">
                         <option>Efectivo</option><option>Tarjeta de Débito</option><option>Tarjeta de Crédito</option><option>Transferencia</option>

@@ -68,7 +68,7 @@
                 <td class="text-xs text-slate-500 px-3">Otro ingreso</td><td class="text-center text-slate-300">—</td>
                 <td><input type="number" class="cell-input num money" step="10" min="0" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Monto mensual" title="Lo que recibes cada mes (neto). Aplica a todos los meses del año."></td>
                 <td class="num font-bold" data-cell="real"></td><td class="num font-bold" data-cell="diff"></td>
-                <td><select class="cell-input" data-change="income.set" data-id="${src.id}" data-field="category" title="Categoría de ingreso de tus transacciones">${catOptions(src.category)}</select></td>
+                <td><select class="cell-input" data-change="income.set" data-id="${src.id}" data-field="category" title="Categoría con la que se registra este ingreso en Transacciones (al usar «Ya lo recibí»). No junta otras transacciones de esa categoría.">${catOptions(src.category)}</select></td>
                 <td data-cell="spend"></td>
                 <td class="text-center"><button class="row-del" data-action="income.delete" data-id="${src.id}" title="Eliminar ingreso"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`;
@@ -78,7 +78,9 @@
                 <td><div class="px-1"><span class="font-semibold text-slate-800">${esc(u.category)}</span><span class="block text-[10px] text-slate-500">Registrado este mes: ${esc(u.txns.map(t => t.description).join(', '))}</span></div></td>
                 <td class="text-xs text-slate-500 px-3">Transacciones</td><td class="text-center text-slate-300">—</td>${cells}
                 <td class="text-xs text-slate-500 px-3">${esc(u.category)}</td>
-                <td><button type="button" class="mini-btn" data-action="income.fromCategory" data-category="${esc(u.category)}" data-amount="${u.amount}" title="Lo recibes todos los meses: agrégalo como ingreso mensual">Es mensual</button></td>
+                <td>${(ctx.year.otherIncomes || []).length ? `<select class="cell-input text-[11px] mb-1" data-change="income.linkTxns" data-category="${esc(u.category)}" title="Si este dinero es lo que recibiste de uno de tus ingresos mensuales, elígelo">
+                        <option value="">¿Es de un ingreso de arriba?</option>${(ctx.year.otherIncomes || []).map(x => `<option value="${x.id}">Es «${esc(x.name)}»</option>`).join('')}</select>` : ''}
+                    <button type="button" class="mini-btn" data-action="income.fromCategory" data-category="${esc(u.category)}" data-amount="${u.amount}" title="Lo recibes todos los meses: agrégalo como ingreso mensual">Es mensual</button></td>
                 <td class="text-center"><a href="#" class="row-del" data-goto="presupuesto/transacciones" title="Ver transacciones"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
             </tr>`;
         });
@@ -112,8 +114,6 @@
             set(row, src.planned, src.amount);
             const cell = row.querySelector('[data-cell="spend"]');
             if (m === 'base') cell.innerHTML = '<span class="text-xs text-slate-500">Todos los meses</span>';
-            else if (!src.category) cell.innerHTML = '<span class="text-[11px] text-slate-500">Vincúlalo a una categoría para comparar con lo registrado</span>';
-            else if (src.sharedWith) cell.innerHTML = `<span class="text-[11px] text-slate-500">Lo registrado en esta categoría ya cuenta en «${esc(src.sharedWith)}»</span>`;
             else cell.innerHTML = (src.received + 0.005 >= src.planned
                 ? `<span class="badge badge-ok">Recibido ${money0(src.received)}</span>`
                 : `<span class="badge badge-warn">Recibido ${money0(src.received)} de ${money0(src.planned)}</span> <button type="button" class="mini-btn" data-action="income.markReceived" data-id="${src.id}" title="Registra una transacción de ingreso por lo que falta (${money(src.planned - src.received)})">Ya lo recibí</button>`)
@@ -349,13 +349,28 @@
         }
     }
 
+    const yearTxns = () => Store.state.transactions.filter(t => Number((t.date || '').slice(0, 4)) === Store.state.activeYear);
+    // Never reuse the number of a deleted line: old transactions may still point at it.
+    function newIncomeId() {
+        const used = (Store.active().otherIncomes || []).map(x => x.id).concat(yearTxns().map(t => Number(t.incomeId) || 0));
+        return used.length ? Math.max(...used) + 1 : 1;
+    }
+
+    // This month's logged income in a category that isn't linked to any income line yet.
+    function looseTxns(category) {
+        const m = month(), y = Store.state.activeYear;
+        const ids = new Set((Store.active().otherIncomes || []).map(x => x.id));
+        return Store.state.transactions.filter(t => (t.type || 'Gasto') === 'Ingreso' && t.parentCategory === category && !ids.has(t.incomeId)
+            && !Engine.isPayrollTxn(t) && Number(t.date.slice(0, 4)) === y && String(Number(t.date.slice(5, 7))) === m);
+    }
+
     UI.register({
         'budget.setMonth': (el) => { Store.ui.month = el.value; App.render(); },
         'budget.showMonth': (el) => { Store.ui.month = el.dataset.month; App.render(); },
         'income.add': () => {
             const yd = Store.active();
             const list = yd.otherIncomes || (yd.otherIncomes = []);
-            const id = Store.nextId(list);
+            const id = newIncomeId();
             // Starts unlinked: linking it to a category is the person's choice, so it never
             // absorbs income already logged under that category by surprise.
             list.push({ id, name: 'Nuevo ingreso', amount: 0, category: 'none' });
@@ -369,28 +384,43 @@
             if (!src) return;
             const f = el.dataset.field;
             src[f] = f === 'amount' ? Math.max(0, parseNum(el.value, 0)) : el.value;
-            // A new category can absorb (or release) this month's logged income rows.
-            App.changed({ structural: f === 'category' });
+            // The name also appears in the "¿Es de un ingreso?" choices, so re-render on commit.
+            App.changed({ structural: f !== 'amount' });
         },
         'income.delete': (el) => {
             const yd = Store.active();
             const src = (yd.otherIncomes || []).find(x => x.id === Number(el.dataset.id));
             if (!src) return;
-            App.undoable(`Ingreso "${src.name}" eliminado`, () => { Store.active().otherIncomes = Store.active().otherIncomes.filter(x => x.id !== src.id); });
+            // Its logged money stays, as extra income of its month (the links are removed).
+            App.undoable(`Ingreso "${src.name}" eliminado`, () => {
+                Store.active().otherIncomes = Store.active().otherIncomes.filter(x => x.id !== src.id);
+                yearTxns().forEach(t => { if (t.incomeId === src.id) delete t.incomeId; });
+            });
         },
         'income.fromCategory': (el) => {
             const yd = Store.active();
             const list = yd.otherIncomes || (yd.otherIncomes = []);
-            list.push({ id: Store.nextId(list), name: el.dataset.category, amount: Math.round(Number(el.dataset.amount) * 100) / 100, category: el.dataset.category });
-            App.changed({ structural: true });
-            UI.toast(`"${el.dataset.category}" ahora cuenta como ingreso de todos los meses.`);
+            const id = newIncomeId();
+            list.push({ id, name: el.dataset.category, amount: Math.round(Number(el.dataset.amount) * 100) / 100, category: el.dataset.category });
+            looseTxns(el.dataset.category).forEach(t => { t.incomeId = id; });  // this month's money is its first receipt
+            App.changed({ structural: true, step: true });
+            UI.toast(`"${el.dataset.category}" ahora cuenta como ingreso de todos los meses.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        },
+        // "This logged money is what I received from that income line."
+        'income.linkTxns': (el) => {
+            const src = (Store.active().otherIncomes || []).find(x => x.id === Number(el.value));
+            if (!src) return;
+            const list = looseTxns(el.dataset.category);
+            list.forEach(t => { t.incomeId = src.id; });
+            App.changed({ structural: true, step: true });
+            UI.toast(`${money(list.reduce((t, x) => t + (Number(x.amount) || 0), 0))} cuenta ahora como recibido de «${src.name}».`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         },
         // Logs the missing part of a planned income as a transaction in its category, so the
         // month shows it as received (same as registering it in Transacciones by hand).
         'income.markReceived': (el) => {
             const m = month();
             const src = (Store.active().otherIncomes || []).find(x => x.id === Number(el.dataset.id));
-            if (!src || m === 'base' || !src.category || src.category === 'none') return;
+            if (!src || m === 'base') return;
             const info = Engine.otherIncome(App.buildContext().budgetYear, m).sources.find(x => x.id === src.id);
             const amount = Math.round((info.planned - info.received) * 100) / 100;
             if (amount <= 0) return;
@@ -398,10 +428,12 @@
             const date = today.getFullYear() === y && String(today.getMonth() + 1) === m
                 ? today.toISOString().slice(0, 10)
                 : `${y}-${String(m).padStart(2, '0')}-01`;
-            const subs = Store.state.taxonomy.income[src.category] || [];
+            const incTax = Store.state.taxonomy.income;
+            const cat = src.category && src.category !== 'none' ? src.category : (incTax['Otros Ingresos'] ? 'Otros Ingresos' : Object.keys(incTax)[0] || 'Otros Ingresos');
+            const subs = incTax[cat] || [];
             const sub = subs.find(x => !Engine.PAYROLL_SUBCATEGORIES.includes(x)) || subs[0] || '';
             const txns = Store.state.transactions;
-            txns.push({ id: Store.nextId(txns), type: 'Ingreso', description: src.name, store: '', parentCategory: src.category, category: sub,
+            txns.push({ id: Store.nextId(txns), type: 'Ingreso', description: src.name, store: '', parentCategory: cat, category: sub, incomeId: src.id,
                 amount, date, paymentType: 'Transferencia', countAsExtra: Engine.PAYROLL_SUBCATEGORIES.includes(sub) || undefined });
             App.changed({ structural: true, step: true });
             UI.toast(`Registrado: ${money(amount)} de "${src.name}" (${date}). Lo verás en Transacciones.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });

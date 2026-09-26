@@ -454,6 +454,9 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 <label class="field"><span class="field-label"><span>Subcategoría</span><button type="button" class="mini-btn" data-action="txn.addSub">+ Nueva</button></span>
                     <select id="txn-sub" class="input" data-change="txn.subChanged"></select>
                     <span id="txn-payroll-hint" class="help text-amber-700 hidden">Tu sueldo ya se cuenta desde "Tu Sueldo", así que esto no se suma a tu presupuesto. Si es un ingreso extra (ventas, trabajos), elige otra categoría.</span></label>
+                <label class="field hidden" id="txn-income-field"><span class="field-label">¿Es de un ingreso de tu presupuesto?</span>
+                    <select id="txn-income" class="input"></select>
+                    <span class="help">Elígelo si este dinero es lo que esperabas de un ingreso mensual (así se marca como recibido). Si no, cuenta como ingreso extra del mes.</span></label>
                 <label class="field"><span class="field-label">Forma de pago</span>
                     <select id="txn-payment" class="input">
                         <option>Efectivo</option><option>Tarjeta de Débito</option><option>Tarjeta de Crédito</option><option>Transferencia</option>
@@ -1335,51 +1338,42 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
     //  - yd.otherIncomes: recurring monthly income the person plans on (every month);
     //  - income transactions logged in a month (yd.receivedIncome, derived from the
     //    transactions by Store.effective), which count in that month.
-    // A recurring source linked to a category is "received" by the transactions of that
-    // category: the month counts whichever is larger, never both. Transactions labelled as
-    // the salary itself (Sueldo/Salario, décimos) aren't added: the salary already comes from
-    // "Tu Sueldo". The person can mark one as extra income (t.countAsExtra) if it isn't.
+    // A transaction is the receipt of a planned income only when the person links it to that
+    // line (t.incomeId): the month then counts whichever is larger, planned or received,
+    // never both. Categories never link anything by themselves, so changing a line's
+    // category can't swallow unrelated income. Unlinked income is extra income of its month.
+    // Transactions labelled as the salary itself (Sueldo/Salario, décimos) aren't added: the
+    // salary already comes from "Tu Sueldo". The person can mark one as extra (t.countAsExtra).
     const PAYROLL_SUBCATEGORIES = ['Sueldo/Salario', 'Décimo Tercero', 'Décimo Cuarto'];
     const isPayrollTxn = (t) => PAYROLL_SUBCATEGORIES.includes(t.category) && !t.countAsExtra;
 
-    // Income transactions of one year, by month:
-    // { '9': { byCat: {cat: amount}, txns: {cat: [txn]}, payroll: [txn] } }.
+    // Income transactions of one year, by month: { '9': { txns: [txn], payroll: [txn] } }.
     function receivedIncome(transactions, year) {
         const out = {};
         (transactions || []).forEach(t => {
             if ((t.type || 'Gasto') !== 'Ingreso' || !t.date || Number(t.date.slice(0, 4)) !== Number(year)) return;
             const m = String(Number(t.date.slice(5, 7)));
-            const bucket = out[m] || (out[m] = { byCat: {}, txns: {}, payroll: [] });
-            if (isPayrollTxn(t)) { bucket.payroll.push(t); return; }
-            bucket.byCat[t.parentCategory] = (bucket.byCat[t.parentCategory] || 0) + Math.max(0, num(t.amount));
-            (bucket.txns[t.parentCategory] = bucket.txns[t.parentCategory] || []).push(t);
+            const bucket = out[m] || (out[m] = { txns: [], payroll: [] });
+            (isPayrollTxn(t) ? bucket.payroll : bucket.txns).push(t);
         });
         return out;
     }
 
     function otherIncome(yd, month) {
         const rec = month === 'base' ? null : (yd.receivedIncome || {})[month];
-        const byCat = rec ? rec.byCat : {};
-        const txnsOf = (cat) => (rec && rec.txns && rec.txns[cat]) || [];
-        const plannedByCat = {};
+        const txns = rec ? rec.txns : [];
+        const amountOf = (list) => sum(list, t => Math.max(0, num(t.amount)));
         const sources = (yd.otherIncomes || []).map(src => {
             const planned = Math.max(0, num(src.amount));
-            const cat = src.category && src.category !== 'none' ? src.category : null;
-            if (cat) plannedByCat[cat] = (plannedByCat[cat] || 0) + planned;
-            return { id: src.id, name: src.name, category: cat, planned, received: 0, amount: planned, txns: [], sharedWith: null };
+            const linked = txns.filter(t => t.incomeId === src.id);
+            const received = amountOf(linked);
+            return { id: src.id, name: src.name, category: src.category && src.category !== 'none' ? src.category : null, planned, received, amount: Math.max(planned, received), txns: linked };
         });
-        // What was logged in a category is reported (and anything above the plan is counted)
-        // on the first source of that category; later ones point at it.
-        const first = {};
-        sources.forEach(src => {
-            if (!src.category) return;
-            if (first[src.category]) { src.sharedWith = first[src.category].name; return; }
-            first[src.category] = src;
-            src.received = byCat[src.category] || 0;
-            src.txns = txnsOf(src.category);
-            src.amount += Math.max(0, src.received - plannedByCat[src.category]);
-        });
-        const unplanned = Object.keys(byCat).filter(c => !(c in plannedByCat) && byCat[c] > 0).map(c => ({ category: c, amount: byCat[c], txns: txnsOf(c) }));
+        // Everything not linked to an existing line (including lines since deleted), by category.
+        const ids = new Set(sources.map(x => x.id));
+        const byCat = {};
+        txns.filter(t => !ids.has(t.incomeId)).forEach(t => { (byCat[t.parentCategory] = byCat[t.parentCategory] || []).push(t); });
+        const unplanned = Object.keys(byCat).map(c => ({ category: c, amount: amountOf(byCat[c]), txns: byCat[c] })).filter(u => u.amount > 0);
         const planned = sum(sources, x => x.planned);
         const total = sum(sources, x => x.amount) + sum(unplanned, x => x.amount);
         return { sources, unplanned, planned, total, extraReceived: total - planned, payroll: rec ? rec.payroll : [] };
@@ -3090,7 +3084,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 <td class="text-xs text-slate-500 px-3">Otro ingreso</td><td class="text-center text-slate-300">—</td>
                 <td><input type="number" class="cell-input num money" step="10" min="0" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Monto mensual" title="Lo que recibes cada mes (neto). Aplica a todos los meses del año."></td>
                 <td class="num font-bold" data-cell="real"></td><td class="num font-bold" data-cell="diff"></td>
-                <td><select class="cell-input" data-change="income.set" data-id="${src.id}" data-field="category" title="Categoría de ingreso de tus transacciones">${catOptions(src.category)}</select></td>
+                <td><select class="cell-input" data-change="income.set" data-id="${src.id}" data-field="category" title="Categoría con la que se registra este ingreso en Transacciones (al usar «Ya lo recibí»). No junta otras transacciones de esa categoría.">${catOptions(src.category)}</select></td>
                 <td data-cell="spend"></td>
                 <td class="text-center"><button class="row-del" data-action="income.delete" data-id="${src.id}" title="Eliminar ingreso"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`;
@@ -3100,7 +3094,9 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 <td><div class="px-1"><span class="font-semibold text-slate-800">${esc(u.category)}</span><span class="block text-[10px] text-slate-500">Registrado este mes: ${esc(u.txns.map(t => t.description).join(', '))}</span></div></td>
                 <td class="text-xs text-slate-500 px-3">Transacciones</td><td class="text-center text-slate-300">—</td>${cells}
                 <td class="text-xs text-slate-500 px-3">${esc(u.category)}</td>
-                <td><button type="button" class="mini-btn" data-action="income.fromCategory" data-category="${esc(u.category)}" data-amount="${u.amount}" title="Lo recibes todos los meses: agrégalo como ingreso mensual">Es mensual</button></td>
+                <td>${(ctx.year.otherIncomes || []).length ? `<select class="cell-input text-[11px] mb-1" data-change="income.linkTxns" data-category="${esc(u.category)}" title="Si este dinero es lo que recibiste de uno de tus ingresos mensuales, elígelo">
+                        <option value="">¿Es de un ingreso de arriba?</option>${(ctx.year.otherIncomes || []).map(x => `<option value="${x.id}">Es «${esc(x.name)}»</option>`).join('')}</select>` : ''}
+                    <button type="button" class="mini-btn" data-action="income.fromCategory" data-category="${esc(u.category)}" data-amount="${u.amount}" title="Lo recibes todos los meses: agrégalo como ingreso mensual">Es mensual</button></td>
                 <td class="text-center"><a href="#" class="row-del" data-goto="presupuesto/transacciones" title="Ver transacciones"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
             </tr>`;
         });
@@ -3134,8 +3130,6 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             set(row, src.planned, src.amount);
             const cell = row.querySelector('[data-cell="spend"]');
             if (m === 'base') cell.innerHTML = '<span class="text-xs text-slate-500">Todos los meses</span>';
-            else if (!src.category) cell.innerHTML = '<span class="text-[11px] text-slate-500">Vincúlalo a una categoría para comparar con lo registrado</span>';
-            else if (src.sharedWith) cell.innerHTML = `<span class="text-[11px] text-slate-500">Lo registrado en esta categoría ya cuenta en «${esc(src.sharedWith)}»</span>`;
             else cell.innerHTML = (src.received + 0.005 >= src.planned
                 ? `<span class="badge badge-ok">Recibido ${money0(src.received)}</span>`
                 : `<span class="badge badge-warn">Recibido ${money0(src.received)} de ${money0(src.planned)}</span> <button type="button" class="mini-btn" data-action="income.markReceived" data-id="${src.id}" title="Registra una transacción de ingreso por lo que falta (${money(src.planned - src.received)})">Ya lo recibí</button>`)
@@ -3371,13 +3365,28 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         }
     }
 
+    const yearTxns = () => Store.state.transactions.filter(t => Number((t.date || '').slice(0, 4)) === Store.state.activeYear);
+    // Never reuse the number of a deleted line: old transactions may still point at it.
+    function newIncomeId() {
+        const used = (Store.active().otherIncomes || []).map(x => x.id).concat(yearTxns().map(t => Number(t.incomeId) || 0));
+        return used.length ? Math.max(...used) + 1 : 1;
+    }
+
+    // This month's logged income in a category that isn't linked to any income line yet.
+    function looseTxns(category) {
+        const m = month(), y = Store.state.activeYear;
+        const ids = new Set((Store.active().otherIncomes || []).map(x => x.id));
+        return Store.state.transactions.filter(t => (t.type || 'Gasto') === 'Ingreso' && t.parentCategory === category && !ids.has(t.incomeId)
+            && !Engine.isPayrollTxn(t) && Number(t.date.slice(0, 4)) === y && String(Number(t.date.slice(5, 7))) === m);
+    }
+
     UI.register({
         'budget.setMonth': (el) => { Store.ui.month = el.value; App.render(); },
         'budget.showMonth': (el) => { Store.ui.month = el.dataset.month; App.render(); },
         'income.add': () => {
             const yd = Store.active();
             const list = yd.otherIncomes || (yd.otherIncomes = []);
-            const id = Store.nextId(list);
+            const id = newIncomeId();
             // Starts unlinked: linking it to a category is the person's choice, so it never
             // absorbs income already logged under that category by surprise.
             list.push({ id, name: 'Nuevo ingreso', amount: 0, category: 'none' });
@@ -3391,28 +3400,43 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             if (!src) return;
             const f = el.dataset.field;
             src[f] = f === 'amount' ? Math.max(0, parseNum(el.value, 0)) : el.value;
-            // A new category can absorb (or release) this month's logged income rows.
-            App.changed({ structural: f === 'category' });
+            // The name also appears in the "¿Es de un ingreso?" choices, so re-render on commit.
+            App.changed({ structural: f !== 'amount' });
         },
         'income.delete': (el) => {
             const yd = Store.active();
             const src = (yd.otherIncomes || []).find(x => x.id === Number(el.dataset.id));
             if (!src) return;
-            App.undoable(`Ingreso "${src.name}" eliminado`, () => { Store.active().otherIncomes = Store.active().otherIncomes.filter(x => x.id !== src.id); });
+            // Its logged money stays, as extra income of its month (the links are removed).
+            App.undoable(`Ingreso "${src.name}" eliminado`, () => {
+                Store.active().otherIncomes = Store.active().otherIncomes.filter(x => x.id !== src.id);
+                yearTxns().forEach(t => { if (t.incomeId === src.id) delete t.incomeId; });
+            });
         },
         'income.fromCategory': (el) => {
             const yd = Store.active();
             const list = yd.otherIncomes || (yd.otherIncomes = []);
-            list.push({ id: Store.nextId(list), name: el.dataset.category, amount: Math.round(Number(el.dataset.amount) * 100) / 100, category: el.dataset.category });
-            App.changed({ structural: true });
-            UI.toast(`"${el.dataset.category}" ahora cuenta como ingreso de todos los meses.`);
+            const id = newIncomeId();
+            list.push({ id, name: el.dataset.category, amount: Math.round(Number(el.dataset.amount) * 100) / 100, category: el.dataset.category });
+            looseTxns(el.dataset.category).forEach(t => { t.incomeId = id; });  // this month's money is its first receipt
+            App.changed({ structural: true, step: true });
+            UI.toast(`"${el.dataset.category}" ahora cuenta como ingreso de todos los meses.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        },
+        // "This logged money is what I received from that income line."
+        'income.linkTxns': (el) => {
+            const src = (Store.active().otherIncomes || []).find(x => x.id === Number(el.value));
+            if (!src) return;
+            const list = looseTxns(el.dataset.category);
+            list.forEach(t => { t.incomeId = src.id; });
+            App.changed({ structural: true, step: true });
+            UI.toast(`${money(list.reduce((t, x) => t + (Number(x.amount) || 0), 0))} cuenta ahora como recibido de «${src.name}».`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         },
         // Logs the missing part of a planned income as a transaction in its category, so the
         // month shows it as received (same as registering it in Transacciones by hand).
         'income.markReceived': (el) => {
             const m = month();
             const src = (Store.active().otherIncomes || []).find(x => x.id === Number(el.dataset.id));
-            if (!src || m === 'base' || !src.category || src.category === 'none') return;
+            if (!src || m === 'base') return;
             const info = Engine.otherIncome(App.buildContext().budgetYear, m).sources.find(x => x.id === src.id);
             const amount = Math.round((info.planned - info.received) * 100) / 100;
             if (amount <= 0) return;
@@ -3420,10 +3444,12 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             const date = today.getFullYear() === y && String(today.getMonth() + 1) === m
                 ? today.toISOString().slice(0, 10)
                 : `${y}-${String(m).padStart(2, '0')}-01`;
-            const subs = Store.state.taxonomy.income[src.category] || [];
+            const incTax = Store.state.taxonomy.income;
+            const cat = src.category && src.category !== 'none' ? src.category : (incTax['Otros Ingresos'] ? 'Otros Ingresos' : Object.keys(incTax)[0] || 'Otros Ingresos');
+            const subs = incTax[cat] || [];
             const sub = subs.find(x => !Engine.PAYROLL_SUBCATEGORIES.includes(x)) || subs[0] || '';
             const txns = Store.state.transactions;
-            txns.push({ id: Store.nextId(txns), type: 'Ingreso', description: src.name, store: '', parentCategory: src.category, category: sub,
+            txns.push({ id: Store.nextId(txns), type: 'Ingreso', description: src.name, store: '', parentCategory: cat, category: sub, incomeId: src.id,
                 amount, date, paymentType: 'Transferencia', countAsExtra: Engine.PAYROLL_SUBCATEGORIES.includes(sub) || undefined });
             App.changed({ structural: true, step: true });
             UI.toast(`Registrado: ${money(amount)} de "${src.name}" (${date}). Lo verás en Transacciones.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
@@ -3540,7 +3566,18 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         // don't start new income on the salary category.
         const first = document.getElementById('txn-type').value === 'Ingreso' && parents.includes('Ingresos Independientes') ? 'Ingresos Independientes' : parents[0];
         parentSel.innerHTML = Views.selectOptions(parents, parents.includes(prev) ? prev : first);
+        fillIncomeSelect();
         fillSubSelect();
+    }
+
+    // Income lines of the budget (active year) that a new income can be the receipt of.
+    function fillIncomeSelect() {
+        const isInc = document.getElementById('txn-type').value === 'Ingreso';
+        const lines = Store.active().otherIncomes || [];
+        UI.show('txn-income-field', isInc && lines.length > 0);
+        const sel = document.getElementById('txn-income');
+        const prev = sel.value;
+        sel.innerHTML = Views.selectOptions([{ value: '', label: 'No: es un ingreso extra' }].concat(lines.map(x => ({ value: String(x.id), label: `Sí: ${x.name}` }))), lines.some(x => String(x.id) === prev) ? prev : '');
     }
 
     function fillSubSelect(keepSub) {
@@ -3593,6 +3630,12 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         update(ctx);
     }
 
+    function incomeLabel(t) {
+        const yd = Store.state.years[Number(t.date.slice(0, 4))];
+        const line = yd && (yd.otherIncomes || []).find(x => x.id === t.incomeId);
+        return line ? `<span class="block text-[10px] text-emerald-700"><i class="fa-solid fa-link"></i> Recibido de «${esc(line.name)}»</span>` : '';
+    }
+
     function update(ctx) {
         const f = Store.ui.txnFilters;
         const list = Engine.filterTransactions(ctx.state.transactions, f).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
@@ -3604,7 +3647,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 <td class="font-medium">${esc(t.description)}</td>
                 <td class="text-slate-500">${esc(t.store || '—')}</td>
                 <td>${esc(t.parentCategory)}</td>
-                <td class="text-slate-500">${esc(t.category)}${inc && Engine.isPayrollTxn(t) ? `<span class="block text-[10px] text-amber-700" title="Tu sueldo ya se cuenta desde Tu Sueldo">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>` : ''}${inc && t.countAsExtra ? '<span class="block text-[10px] text-emerald-700">Contado como ingreso extra</span>' : ''}</td>
+                <td class="text-slate-500">${esc(t.category)}${inc && Engine.isPayrollTxn(t) ? `<span class="block text-[10px] text-amber-700" title="Tu sueldo ya se cuenta desde Tu Sueldo">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>` : ''}${inc && t.countAsExtra ? '<span class="block text-[10px] text-emerald-700">Contado como ingreso extra</span>' : ''}${inc && t.incomeId ? incomeLabel(t) : ''}</td>
                 <td class="num font-bold ${inc ? 'text-emerald-700' : 'text-red-700'}">${inc ? '+' : '−'}${money(t.amount)}</td>
                 <td><span class="badge badge-muted">${esc(t.paymentType)}</span></td>
                 <td class="text-center"><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button></td>
@@ -3663,8 +3706,10 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 category: get('txn-sub').value,
                 amount,
                 date: get('txn-date').value || new Date().toISOString().slice(0, 10),
-                paymentType: get('txn-payment').value
+                paymentType: get('txn-payment').value,
+                incomeId: get('txn-type').value === 'Ingreso' && get('txn-income').value ? Number(get('txn-income').value) : undefined
             });
+            get('txn-income').value = '';
             get('txn-description').value = '';
             get('txn-store').value = '';
             get('txn-amount').value = '';

@@ -231,20 +231,20 @@ test('baby steps pick the first unfinished step', () => {
 test('other income: recurring sources, logged income and the salary are each counted once', () => {
     const txns = [
         { type: 'Ingreso', parentCategory: 'Ingresos Independientes', category: 'Ventas de Negocio Propio', amount: 120, date: '2026-09-05' },
-        { type: 'Ingreso', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: '2026-09-10' },
+        { type: 'Ingreso', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: '2026-09-10', incomeId: 1 },
         { type: 'Ingreso', parentCategory: 'Ingresos Laborales', category: 'Sueldo/Salario', amount: 814.95, date: '2026-09-30' },
         { type: 'Gasto', parentCategory: 'Alimentación', category: 'Mercado', amount: 50, date: '2026-09-02' },
         { type: 'Ingreso', parentCategory: 'Ingresos Independientes', category: 'Freelance/Consultoría', amount: 999, date: '2025-09-05' }
     ];
     const received = E.receivedIncome(txns, 2026);
-    assert.deepEqual(received['9'].byCat, { 'Ingresos Independientes': 120, 'Remesas del Exterior': 200 });
+    assert.equal(received['9'].txns.length, 2);
     assert.equal(received['9'].payroll.length, 1);  // the salary itself isn't added again
 
     const yd = year({ sueldo: 900, otherIncomes: [{ id: 1, name: 'Remesa', amount: 150, category: 'Remesas del Exterior' }], receivedIncome: received });
     const neto = E.payroll(yd).netoM;
     // Base budget: salary + planned recurring income.
     close(E.monthBudget(yd, 'base').income, neto + 150);
-    // September: remesa received 200 (> 150 planned, counted once) + unplanned 120.
+    // September: remesa linked to its line, received 200 (> 150 planned, counted once) + unplanned 120.
     const sep = E.monthBudget(yd, '9');
     close(sep.income, neto + 200 + 120);
     close(sep.incomePrep, neto + 150);
@@ -252,12 +252,16 @@ test('other income: recurring sources, logged income and the salary are each cou
     assert.deepEqual(other.unplanned.map(u => [u.category, u.amount, u.txns.length]), [['Ingresos Independientes', 120, 1]]);
     assert.equal(other.sources[0].received, 200);
     close(other.extraReceived, 170);
-    // A second source on the same category doesn't report (or count) the same money again.
-    const twice = Object.assign({}, yd, { otherIncomes: yd.otherIncomes.concat([{ id: 2, name: 'Otra remesa', amount: 0, category: 'Remesas del Exterior' }]) });
-    const o2 = E.otherIncome(twice, '9');
-    assert.equal(o2.sources[1].sharedWith, 'Remesa');
+    // A line never takes income just because it shares the category (the reported bug):
+    // a line on "Ingresos Independientes" leaves the helados sale as its own extra income.
+    const cat = Object.assign({}, yd, { otherIncomes: yd.otherIncomes.concat([{ id: 2, name: 'Horas Extras', amount: 50, category: 'Ingresos Independientes' }]) });
+    const o2 = E.otherIncome(cat, '9');
     assert.equal(o2.sources[1].received, 0);
-    close(o2.total, other.total);
+    assert.equal(o2.unplanned.length, 1);
+    close(o2.total, other.total + 50);
+    // Income linked to a line that was deleted is still counted, as extra income.
+    const orphan = Object.assign({}, yd, { otherIncomes: [] });
+    close(E.otherIncome(orphan, '9').total, 320);
     // A month with nothing logged still counts the planned income.
     close(E.monthBudget(yd, '10').income, neto + 150);
     // Logged extra income is swept to savings when the sweep is on.
