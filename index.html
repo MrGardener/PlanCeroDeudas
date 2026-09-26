@@ -61,26 +61,26 @@
             </div>
 
             <!-- Tab Buttons Navigation -->
-            <nav class="grid grid-cols-2 sm:grid-cols-4 gap-1 text-sm font-medium border-t border-slate-800/80 pt-1 pb-1">
-                <button onclick="switchTab('tab1')" id="nav-tab1" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2 active">
+            <nav class="flex space-x-1 overflow-x-auto text-sm font-medium border-t border-slate-800/80 pt-1 pb-1">
+                <button onclick="switchTab('tab1')" id="nav-tab1" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center gap-2 whitespace-nowrap active">
                     <i class="fa-solid fa-sliders text-emerald-500"></i> 1. Presupuesto Mensual
                 </button>
-                <button onclick="switchTab('tab2')" id="nav-tab2" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
+                <button onclick="switchTab('tab2')" id="nav-tab2" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center gap-2 whitespace-nowrap">
                     <i class="fa-solid fa-calculator text-blue-500"></i> 2. Impuestos SRI & IESS
                 </button>
-                <button onclick="switchTab('tab3')" id="nav-tab3" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
+                <button onclick="switchTab('tab3')" id="nav-tab3" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center gap-2 whitespace-nowrap">
                     <i class="fa-solid fa-chart-area text-amber-500"></i> 3. Proyección DPF Multi-Año
                 </button>
-                <button onclick="switchTab('tab4')" id="nav-tab4" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
+                <button onclick="switchTab('tab4')" id="nav-tab4" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center gap-2 whitespace-nowrap">
                     <i class="fa-solid fa-bullseye text-purple-500"></i> 4. Metas Dave Ramsey
                 </button>
-                <button onclick="switchTab('tab5')" id="nav-tab5" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
+                <button onclick="switchTab('tab5')" id="nav-tab5" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center gap-2 whitespace-nowrap">
                     <i class="fa-solid fa-building-columns text-emerald-400"></i> 5. Cooperativas & Pólizas DPF
                 </button>
-                <button onclick="switchTab('tab6')" id="nav-tab6" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
+                <button onclick="switchTab('tab6')" id="nav-tab6" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center gap-2 whitespace-nowrap">
                     <i class="fa-solid fa-gears text-amber-600"></i> 6. Configuración & Baselines
                 </button>
-                <button onclick="switchTab('tab7')" id="nav-tab7" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
+                <button onclick="switchTab('tab7')" id="nav-tab7" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center gap-2 whitespace-nowrap">
                     <i class="fa-solid fa-house-chimney text-rose-500"></i> 7. Calculadora Hipotecaria
                 </button>
             </nav>
@@ -349,7 +349,7 @@
                 <summary class="font-bold cursor-pointer">¿Cómo se calcula tu Sueldo Neto? (Fórmulas explicadas)</summary>
                 <div class="mt-3 space-y-2">
                     <p><strong>1. Aporte IESS:</strong> IESS Mensual = Sueldo Bruto × 9.45%. Es un descuento obligatorio de tu rol de pagos.</p>
-                    <p><strong>2. Base Imponible SRI:</strong> Base = (Sueldo Anual − IESS Anual) − mín(Gastos Deducibles Reales, Multiplicador × Canasta Básica). El multiplicador (por defecto 7) es editable en Tab 6 por si tu caso particular cambia el tope. Cuantos más gastos deducibles reales declares (vivienda, educación, salud, alimentación, vestimenta, turismo nacional), menor será tu base imponible.</p>
+                    <p><strong>2. Base Imponible SRI:</strong> Base = (Sueldo Anual − IESS Anual) − mín(Gastos Deducibles Reales, 7 × Canasta Básica). Cuantos más gastos deducibles reales declares (vivienda, educación, salud, alimentación, vestimenta, turismo nacional), menor será tu base imponible.</p>
                     <p><strong>3. Impuesto a la Renta:</strong> Se evalúa la Base Imponible contra la tabla progresiva de fracciones del SRI (editable en Tab 6) para obtener el Impuesto Anual Causado, que se divide entre 12 para la retención mensual en rol.</p>
                     <p><strong>4. Sueldo Neto:</strong> Neto Mensual = Sueldo Bruto − IESS Mensual − Retención ISR Mensual, más el Décimo Tercero o Cuarto si el mes activo corresponde.</p>
                 </div>
@@ -752,6 +752,7 @@
                                     <option value="costa">Costa e Insular (Se paga en Marzo)</option>
                                     <option value="sierra">Sierra y Amazonía (Se paga en Agosto)</option>
                                 </select>
+                                <p class="text-[10px] text-blue-700 mt-1">Antes el sistema sumaba el Décimo Cuarto en Marzo Y en Agosto. Ahora se paga una sola vez, en el mes que corresponde a tu región.</p>
                             </div>
                         </div>
                     </div>
@@ -774,11 +775,6 @@
                     <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                         <label class="block font-bold text-slate-700 mb-1">Límite Cobertura COSEDE ($)</label>
                         <input type="number" id="config-cosede" value="32000" step="1000" oninput="saveLegalConfig()" class="w-full bg-white border border-slate-300 rounded px-2.5 py-1 font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    </div>
-                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                        <label class="block font-bold text-slate-700 mb-1">Multiplicador Tope Deducible SRI (× Canasta Básica)</label>
-                        <input type="number" id="config-sri-cap-multiplier" value="7" step="0.1" min="0" oninput="saveLegalConfig()" class="w-full bg-white border border-slate-300 rounded px-2.5 py-1 font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <p class="text-[10px] text-slate-500 mt-1">Ajusta este valor si tu caso (cargas, categoría de gasto, año fiscal) cambia el tope según la normativa SRI vigente.</p>
                     </div>
                 </div>
 
@@ -870,22 +866,12 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                    <div class="bg-slate-50/50 p-4 rounded-xl border border-slate-200">
-                        <h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
-                            <i class="fa-solid fa-chart-line text-rose-500"></i> Saldo Pendiente en el Tiempo
-                        </h3>
-                        <div class="relative h-64 w-full">
-                            <canvas id="mortgageChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="bg-slate-50/50 p-4 rounded-xl border border-slate-200">
-                        <h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
-                            <i class="fa-solid fa-chart-area text-red-500"></i> Interés Acumulado Pagado
-                        </h3>
-                        <div class="relative h-64 w-full">
-                            <canvas id="mortgageInterestChart"></canvas>
-                        </div>
+                <div class="mb-6 bg-slate-50/50 p-4 rounded-xl border border-slate-200">
+                    <h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+                        <i class="fa-solid fa-chart-line text-rose-500"></i> Saldo Pendiente en el Tiempo (Francés vs. Alemán)
+                    </h3>
+                    <div class="relative h-64 w-full">
+                        <canvas id="mortgageChart"></canvas>
                     </div>
                 </div>
 
@@ -1040,7 +1026,6 @@
                     sbu: 470,
                     canasta: 764.70,
                     cosede: 32000,
-                    sriCapMultiplier: 7,
                     budgetBase: JSON.parse(JSON.stringify(defaultBudgetTemplate)),
                     monthOverrides: {},
                     sriBrackets: [
@@ -1123,7 +1108,6 @@
             document.getElementById('config-sbu').value = yd.sbu;
             document.getElementById('config-canasta').value = yd.canasta;
             document.getElementById('config-cosede').value = yd.cosede;
-            document.getElementById('config-sri-cap-multiplier').value = yd.sriCapMultiplier || 7;
 
             renderSRIBracketsTable();
         }
@@ -1134,7 +1118,6 @@
             yd.sbu = parseFloat(document.getElementById('config-sbu').value) || 470;
             yd.canasta = parseFloat(document.getElementById('config-canasta').value) || 764.70;
             yd.cosede = parseFloat(document.getElementById('config-cosede').value) || 32000;
-            yd.sriCapMultiplier = parseFloat(document.getElementById('config-sri-cap-multiplier').value) || 7;
             recalculateAll();
         }
 
@@ -1318,14 +1301,7 @@
 
         function updatePolizaField(idx, field, value) {
             polizasStore[idx][field] = field === 'amount' || field === 'rate' ? (parseFloat(value) || 0) : (field === 'days' ? (parseInt(value) || 360) : value);
-
-            const row = document.querySelector(`#polizas-table-body tr[data-idx="${idx}"]`);
-            const interestCell = row ? row.querySelector('.poliza-interest-cell') : null;
-            if (interestCell) {
-                interestCell.innerText = '+' + formatCurrency(calculatePolizaInterest(polizasStore[idx]));
-            } else {
-                renderPolizasTable();
-            }
+            renderPolizasTable();
             recalculateAll();
         }
 
@@ -1334,7 +1310,6 @@
             tbody.innerHTML = '';
             polizasStore.forEach((p, idx) => {
                 const tr = document.createElement('tr');
-                tr.setAttribute('data-idx', idx);
                 const earnedInterest = calculatePolizaInterest(p);
                 tr.innerHTML = `
                     <td class="py-2 px-3 font-bold text-slate-800"><input type="text" value="${p.coopName}" onchange="updatePolizaField(${idx}, 'coopName', this.value)" class="w-full bg-transparent border rounded px-1"></td>
@@ -1344,7 +1319,7 @@
                     <td class="py-2 px-3"><input type="number" value="${p.days}" oninput="updatePolizaField(${idx}, 'days', this.value)" class="w-16 bg-transparent border rounded px-1"></td>
                     <td class="py-2 px-3">${buildModalitySelectHTML(p.modality, `updatePolizaField(${idx}, 'modality', this.value)`)}</td>
                     <td class="py-2 px-3"><input type="date" value="${p.maturityDate}" onchange="updatePolizaField(${idx}, 'maturityDate', this.value)" class="bg-transparent border rounded px-1"></td>
-                    <td class="py-2 px-3 text-right font-bold text-emerald-600 poliza-interest-cell">+${formatCurrency(earnedInterest)}</td>
+                    <td class="py-2 px-3 text-right font-bold text-emerald-600">+${formatCurrency(earnedInterest)}</td>
                     <td class="py-2 px-3 text-center"><button onclick="polizasStore.splice(${idx},1);renderPolizasTable();recalculateAll();" class="text-red-600 hover:text-red-800"><i class="fa-solid fa-trash"></i></button></td>
                 `;
                 tbody.appendChild(tr);
@@ -1403,7 +1378,7 @@
                 totalExpReal += Number(item.real) || 0;
             });
 
-            const sriMaxCap = yd.canasta * (yd.sriCapMultiplier || 7);
+            const sriMaxCap = yd.canasta * 7;
             document.getElementById('sri-max-cap-display').innerText = formatCurrency(sriMaxCap);
             document.getElementById('iess-rate-display').innerText = yd.iessRate.toFixed(2) + '%';
 
@@ -1837,14 +1812,8 @@
 
         // --- MORTGAGE CALCULATOR (SISTEMA FRANCES VS ALEMAN) ---
         let mortgageChartInstance = null;
-        let mortgageInterestChartInstance = null;
         let frenchSchedule = [];
         let germanSchedule = [];
-
-        function accumulate(schedule, field) {
-            let running = 0;
-            return schedule.map(s => (running += s[field]));
-        }
 
         function calculateFrenchAmortization(principal, annualRatePct, months) {
             const i = (annualRatePct / 100) / 12;
@@ -1901,7 +1870,6 @@
 
             if (!document.getElementById('tab7').classList.contains('hidden')) {
                 renderMortgageChart();
-                renderMortgageInterestChart();
             }
             renderMortgageScheduleTable();
         }
@@ -1930,51 +1898,6 @@
                             data: germanSchedule.map(s => s.balance.toFixed(2)),
                             borderColor: '#059669',
                             backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                            fill: true,
-                            tension: 0.2,
-                            pointRadius: 0
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { labels: { font: { family: 'Inter', size: 11 } } } },
-                    scales: {
-                        x: { ticks: { font: { size: 9 }, maxTicksLimit: 12 }, title: { display: true, text: 'Mes del Préstamo', font: { size: 10 } } },
-                        y: { ticks: { font: { size: 10 }, callback: function(val) { return '$' + Number(val).toLocaleString(); } } }
-                    }
-                }
-            });
-        }
-
-        function renderMortgageInterestChart() {
-            const canvas = document.getElementById('mortgageInterestChart');
-            const ctx = canvas.getContext('2d');
-            if (mortgageInterestChartInstance) mortgageInterestChartInstance.destroy();
-
-            const frCumulative = accumulate(frenchSchedule, 'interest');
-            const alCumulative = accumulate(germanSchedule, 'interest');
-
-            mortgageInterestChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: frenchSchedule.map(s => s.period),
-                    datasets: [
-                        {
-                            label: 'Interés Acumulado Francés ($)',
-                            data: frCumulative.map(v => v.toFixed(2)),
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                            fill: true,
-                            tension: 0.2,
-                            pointRadius: 0
-                        },
-                        {
-                            label: 'Interés Acumulado Alemán ($)',
-                            data: alCumulative.map(v => v.toFixed(2)),
-                            borderColor: '#dc2626',
-                            backgroundColor: 'rgba(220, 38, 38, 0.08)',
                             fill: true,
                             tension: 0.2,
                             pointRadius: 0
