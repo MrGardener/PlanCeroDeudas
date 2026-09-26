@@ -260,6 +260,98 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Transaction Log -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="border-b border-slate-100 pb-3 mb-4">
+                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-receipt text-blue-600"></i> Registro de Transacciones
+                    </h2>
+                    <p class="text-xs text-slate-500">Registra cada compra individual para hacer tu presupuesto más preciso. Con el tiempo, estos datos te muestran a dónde se va tu dinero cada mes.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="lg:col-span-2">
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Descripción (¿Qué compraste?)</label>
+                        <input type="text" id="txn-description" placeholder="Ej: Compras de la semana" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Tienda / Lugar</label>
+                        <input type="text" id="txn-store" placeholder="Ej: Supermaxi" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Tipo de Pago</label>
+                        <select id="txn-payment-type" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
+                            <option value="Débito">Débito</option>
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Categoría Principal</label>
+                        <select id="txn-parent-category" onchange="populateTransactionSubcategories()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Subcategoría</label>
+                        <select id="txn-category" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Monto ($)</label>
+                        <input type="number" id="txn-amount" step="0.01" min="0" placeholder="Ej: 25.50" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Fecha</label>
+                        <input type="date" id="txn-date" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
+                    </div>
+                    <div class="lg:col-span-4 flex justify-end">
+                        <button onclick="addTransaction()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus"></i> Agregar Transacción
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 mb-3 text-xs">
+                    <span class="font-bold text-slate-600">Filtrar:</span>
+                    <select id="txn-filter-year" onchange="renderTransactionsTable()" class="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold"></select>
+                    <select id="txn-filter-month" onchange="renderTransactionsTable()" class="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold">
+                        <option value="all">Todos los Meses</option>
+                        <option value="1">Enero</option>
+                        <option value="2">Febrero</option>
+                        <option value="3">Marzo</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Mayo</option>
+                        <option value="6">Junio</option>
+                        <option value="7">Julio</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Septiembre</option>
+                        <option value="10">Octubre</option>
+                        <option value="11">Noviembre</option>
+                        <option value="12">Diciembre</option>
+                    </select>
+                    <select id="txn-filter-category" onchange="renderTransactionsTable()" class="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold"></select>
+                    <span class="ml-auto font-bold text-slate-700">Total Filtrado: <span id="txn-filtered-total" class="text-blue-700">$0.00</span></span>
+                </div>
+
+                <div class="overflow-x-auto max-h-96">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-900 text-slate-300 uppercase tracking-wider sticky top-0">
+                            <tr>
+                                <th class="py-2 px-3">Fecha</th>
+                                <th class="py-2 px-3">Descripción</th>
+                                <th class="py-2 px-3">Tienda</th>
+                                <th class="py-2 px-3">Categoría</th>
+                                <th class="py-2 px-3">Subcategoría</th>
+                                <th class="py-2 px-3 text-right">Monto</th>
+                                <th class="py-2 px-3">Pago</th>
+                                <th class="py-2 px-3 text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-table-body" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </section>
 
         <!-- TAB 2: INVERSIONES E IMPUESTOS -->
@@ -1009,6 +1101,12 @@
                     </div>
                 </div>
 
+                <div class="bg-amber-50/60 p-4 rounded-xl border border-amber-200 mb-6">
+                    <label class="block text-xs font-bold text-amber-900 uppercase mb-1">Pago Extra Mensual Hacia el Capital ($)</label>
+                    <input type="number" id="mort-extra-payment" value="0" step="10" min="0" oninput="calculateMortgage()" class="w-full sm:w-64 bg-white border border-amber-300 rounded-lg px-3 py-1.5 text-base font-bold text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm">
+                    <p class="text-[10px] text-amber-700 mt-1">Un abono adicional que aplicas cada mes directamente al capital, por encima de la cuota normal. Reduce el plazo y el interés total.</p>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div class="p-4 rounded-xl border border-blue-200 bg-blue-50/60">
                         <h3 class="text-xs font-bold text-blue-900 uppercase mb-2 flex items-center gap-1.5"><i class="fa-solid fa-scale-balanced"></i> Sistema Francés (Cuota Fija)</h3>
@@ -1016,6 +1114,13 @@
                             <div class="flex justify-between items-center py-1 border-b border-blue-100"><span class="text-slate-600">Cuota Mensual:</span><span id="fr-cuota" class="font-bold text-slate-900">$0.00</span></div>
                             <div class="flex justify-between items-center py-1 border-b border-blue-100"><span class="text-slate-600">Total Intereses Pagados:</span><span id="fr-interes-total" class="font-bold text-red-600">$0.00</span></div>
                             <div class="flex justify-between items-center py-1"><span class="text-slate-600">Total Pagado (Capital + Interés):</span><span id="fr-total-pagado" class="font-bold text-slate-900">$0.00</span></div>
+                        </div>
+                        <div id="fr-extra-savings-box" class="hidden mt-3 pt-3 border-t border-blue-200 bg-emerald-50 -mx-4 -mb-4 px-4 pb-4 rounded-b-xl">
+                            <p class="text-[11px] font-bold text-emerald-800 uppercase mb-1"><i class="fa-solid fa-piggy-bank mr-1"></i>Con tu Pago Extra</p>
+                            <div class="space-y-1 text-xs">
+                                <div class="flex justify-between"><span class="text-slate-600">Terminas en:</span><span id="fr-extra-months" class="font-bold text-emerald-800">—</span></div>
+                                <div class="flex justify-between"><span class="text-slate-600">Interés Ahorrado:</span><span id="fr-extra-interest-saved" class="font-bold text-emerald-800">$0.00</span></div>
+                            </div>
                         </div>
                     </div>
                     <div class="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60">
@@ -1025,6 +1130,13 @@
                             <div class="flex justify-between items-center py-1 border-b border-emerald-100"><span class="text-slate-600">Última Cuota:</span><span id="al-cuota-final" class="font-bold text-slate-900">$0.00</span></div>
                             <div class="flex justify-between items-center py-1 border-b border-emerald-100"><span class="text-slate-600">Total Intereses Pagados:</span><span id="al-interes-total" class="font-bold text-red-600">$0.00</span></div>
                             <div class="flex justify-between items-center py-1"><span class="text-slate-600">Total Pagado (Capital + Interés):</span><span id="al-total-pagado" class="font-bold text-slate-900">$0.00</span></div>
+                        </div>
+                        <div id="al-extra-savings-box" class="hidden mt-3 pt-3 border-t border-emerald-200 bg-emerald-100 -mx-4 -mb-4 px-4 pb-4 rounded-b-xl">
+                            <p class="text-[11px] font-bold text-emerald-800 uppercase mb-1"><i class="fa-solid fa-piggy-bank mr-1"></i>Con tu Pago Extra</p>
+                            <div class="space-y-1 text-xs">
+                                <div class="flex justify-between"><span class="text-slate-600">Terminas en:</span><span id="al-extra-months" class="font-bold text-emerald-800">—</span></div>
+                                <div class="flex justify-between"><span class="text-slate-600">Interés Ahorrado:</span><span id="al-extra-interest-saved" class="font-bold text-emerald-800">$0.00</span></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1084,55 +1196,82 @@
                     </h2>
                     <span class="text-[10px] font-bold bg-amber-50 text-amber-700 px-2.5 py-1 rounded">Estimación educativa, no oficial</span>
                 </div>
-                <p class="text-xs text-slate-500 mb-4">Combina el valor futuro de tu ahorro DPF con tu pensión IESS estimada, para responder: ¿cuánto tendré y cuánto ingreso mensual podría generar cuando me jubile?</p>
+                <p class="text-xs text-slate-500 mb-4">Combina el valor futuro de tu ahorro DPF (sección verde) con tu pensión IESS estimada (sección azul), para responder: ¿cuánto tendré y cuánto ingreso mensual podría generar cuando me jubile? Cada resultado abajo tiene el mismo color que la sección de la que proviene.</p>
 
                 <h3 class="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-3 flex items-center gap-2">
                     <i class="fa-solid fa-piggy-bank text-emerald-600"></i> Tu Ahorro DPF Proyectado
                 </h3>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                     <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Edad Actual</label>
-                        <input type="number" id="retire-edad-actual" value="30" min="18" max="80" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="number" id="retire-edad-actual" value="30" placeholder="Ej: 30" min="18" max="80" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-[10px] text-slate-500 mt-1">Tu edad hoy. Ejemplo: 30 años.</p>
                     </div>
                     <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Edad de Jubilación Deseada</label>
-                        <input type="number" id="retire-edad-jubilacion" value="65" min="50" max="80" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
-                        <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Ahorro DPF Actual para Retiro ($)</label>
-                        <input type="number" id="retire-ahorro-actual" value="0" step="100" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        <p class="text-[10px] text-emerald-700 mt-1">Referencia: revisa el Balance Portfolio en Tab 3.</p>
-                    </div>
-                    <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
-                        <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Aporte Mensual Adicional ($)</label>
-                        <input type="number" id="retire-aporte-mensual" value="100" step="10" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <input type="number" id="retire-edad-jubilacion" value="65" placeholder="Ej: 65" min="50" max="80" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-[10px] text-slate-500 mt-1">A qué edad quieres dejar de trabajar. Ejemplo: 65 años.</p>
                     </div>
                     <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
                         <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Tasa de Retorno Anual Esperada (%)</label>
-                        <input type="number" id="retire-tasa-retorno" value="8.5" step="0.1" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <input type="number" id="retire-tasa-retorno" value="8.5" placeholder="Ej: 8.5" step="0.1" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <p class="text-[10px] text-emerald-700 mt-1">La tasa DPF que usas en la Tab 3. Ejemplo: 8.5%.</p>
+                    </div>
+                    <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Ahorro DPF Actual para Retiro ($)</label>
+                        <input type="number" id="retire-ahorro-actual" value="0" placeholder="Ej: 5000" step="100" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <p class="text-[10px] text-emerald-700 mt-1">Lo que ya tienes ahorrado hoy. Mira el "Balance Portfolio Cierre" en la Tab 3.</p>
+                    </div>
+                    <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Aporte Mensual Adicional ($)</label>
+                        <input type="number" id="retire-aporte-mensual" value="100" placeholder="Ej: 100" step="10" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <p class="text-[10px] text-emerald-700 mt-1">Cuánto planeas ahorrar cada mes de aquí en adelante.</p>
+                    </div>
+                    <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Tasa de Retiro Segura Anual (%)</label>
+                        <input type="number" id="retire-tasa-retiro-segura" value="4" placeholder="Ej: 4" step="0.5" min="0" max="20" oninput="calculateRetirement()" class="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <p class="text-[10px] text-emerald-700 mt-1">% de TU AHORRO que retiras cada año sin agotarlo (regla del 4%). Afecta el resultado verde de abajo.</p>
+                    </div>
+                </div>
+
+                <div class="bg-purple-50/60 p-4 rounded-xl border border-purple-200 mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-bold text-purple-900 uppercase flex items-center gap-1.5">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> ¿Qué Pasaría Si Aportaras un Poco Más? (Simulador — no cambia tu aporte real de arriba)
+                        </label>
+                        <span id="retire-whatif-label" class="text-sm font-black text-purple-900">+$0/mes</span>
+                    </div>
+                    <input type="range" id="retire-whatif-slider" min="0" max="500" step="10" value="0" oninput="updateRetirementWhatIf()" class="w-full accent-purple-600">
+                    <p id="retire-whatif-result" class="text-xs text-purple-800 mt-2 font-medium"></p>
+                </div>
+
+                <div class="mb-6 bg-slate-50/50 p-4 rounded-xl border border-slate-200">
+                    <h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+                        <i class="fa-solid fa-chart-line text-emerald-600"></i> Crecimiento del Ahorro DPF Hasta la Jubilación
+                    </h3>
+                    <div class="relative h-64 w-full">
+                        <canvas id="retirementChart"></canvas>
                     </div>
                 </div>
 
                 <h3 class="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-3 flex items-center gap-2">
                     <i class="fa-solid fa-building-columns text-indigo-600"></i> Tu Pensión IESS Estimada
                 </h3>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                     <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Años Ya Aportados a IESS</label>
-                        <input type="number" id="retire-anios-aportados" value="5" min="0" max="60" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="number" id="retire-anios-aportados" value="5" placeholder="Ej: 5" min="0" max="60" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-[10px] text-slate-500 mt-1">Años que ya llevas afiliado y aportando. Ejemplo: 5.</p>
                     </div>
                     <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Sueldo Promedio Mensual ($)</label>
-                        <input type="number" id="retire-sueldo-promedio" value="1500" step="50" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="number" id="retire-sueldo-promedio" value="1500" placeholder="Ej: 1500" step="50" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-[10px] text-slate-500 mt-1">Tu sueldo bruto promedio esperado (Tab 1).</p>
                     </div>
                     <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
                         <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Tasa de Reemplazo Estimada (%)</label>
-                        <input type="number" id="retire-tasa-reemplazo" value="60" step="1" min="0" max="100" oninput="calculateRetirement()" class="w-full bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
-                        <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Tasa de Retiro Segura Anual (%)</label>
-                        <input type="number" id="retire-tasa-retiro-segura" value="4" step="0.5" min="0" max="20" oninput="calculateRetirement()" class="w-full bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <p class="text-[10px] text-indigo-700 mt-1">% anual del ahorro que retiras cada año sin agotarlo (regla del 4%).</p>
+                        <input type="number" id="retire-tasa-reemplazo" value="60" placeholder="Ej: 60" step="1" min="0" max="100" oninput="calculateRetirement()" class="w-full bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-[10px] text-indigo-700 mt-1">% de tu sueldo que estimas recibirás de pensión. Ejemplo: 60%.</p>
                     </div>
                 </div>
 
@@ -1158,14 +1297,14 @@
                 <div class="p-4 bg-gradient-to-r from-emerald-50 to-indigo-50 rounded-xl border border-emerald-200 flex justify-between items-center mb-4">
                     <div>
                         <span class="text-xs font-bold text-slate-700 uppercase tracking-wide block">Ingreso Mensual Total Estimado en la Jubilación</span>
-                        <span class="text-[10px] text-slate-500">Ahorro DPF (retiro sostenible) + Pensión IESS</span>
+                        <span class="text-[10px] text-slate-500"><span class="text-emerald-700 font-bold">Ahorro DPF</span> (retiro sostenible) + <span class="text-indigo-700 font-bold">Pensión IESS</span></span>
                     </div>
                     <span id="retire-ingreso-total" class="text-2xl font-black text-emerald-700">$0.00</span>
                 </div>
 
                 <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
                     <i class="fa-solid fa-triangle-exclamation text-amber-600 mr-1"></i>
-                    <strong>Esto es una estimación educativa simplificada, no un cálculo oficial.</strong> La fórmula real de pensión de IESS (Jubilación Ordinaria de Vejez) depende de tu historial completo de aportes, el número mínimo de años exigido y tablas que cambian con reformas legales. Ajusta la "Tasa de Reemplazo" a lo que investigues como realista para tu caso, y verifica siempre tu situación específica en
+                    <strong>Esto es una estimación educativa simplificada, no un cálculo oficial.</strong> La fórmula real de pensión de IESS (Jubilación Ordinaria de Vejez) depende de tu historial completo de aportes, el número mínimo de años exigido y tablas que cambian con reformas legales. Aquí, la pensión se reduce proporcionalmente si tus años totales aportados son menos de 30 (referencia aproximada de una carrera completa). Ajusta la "Tasa de Reemplazo" a lo que investigues como realista para tu caso, y verifica siempre tu situación específica en
                     <a href="https://www.iess.gob.ec" target="_blank" rel="noopener" class="underline font-bold">iess.gob.ec</a>.
                 </div>
             </div>
@@ -1175,7 +1314,7 @@
                 <div class="mt-3 space-y-2">
                     <p><strong>Valor Futuro del Ahorro:</strong> VF = Ahorro Actual × (1+i)ⁿ + Aporte Mensual × [((1+i)ⁿ − 1) / i], donde i es la tasa mensual y n los meses hasta la jubilación. Es la misma matemática de interés compuesto de la Tab 3, aplicada hacia adelante hasta tu edad de jubilación.</p>
                     <p><strong>Ingreso Sostenible:</strong> Ingreso Mensual = (Valor Futuro × Tasa de Retiro Segura Anual) / 12. La idea es retirar solo una fracción pequeña cada año para que el ahorro no se agote.</p>
-                    <p><strong>Pensión IESS:</strong> Pensión Mensual = Sueldo Promedio × Tasa de Reemplazo Estimada. Ver disclaimer arriba.</p>
+                    <p><strong>Pensión IESS:</strong> Pensión Mensual = Sueldo Promedio × Tasa de Reemplazo Estimada × mín(1, Años Totales Aportados / 30). Ver disclaimer arriba.</p>
                 </div>
             </details>
         </section>
@@ -1195,77 +1334,95 @@
                     </button>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div>
-                        <h3 class="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <i class="fa-solid fa-arrow-trend-up text-emerald-600"></i> Activos
-                        </h3>
-                        <div class="space-y-3">
-                            <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Efectivo y Cuentas de Ahorro ($)</label>
-                                <input type="number" id="nw-cash" value="0" step="50" oninput="updateNetWorth('cash', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            </div>
-                            <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Inversiones y Pólizas DPF ($)</label>
-                                <input type="number" id="nw-investments" value="0" step="50" oninput="updateNetWorth('investments', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            </div>
-                            <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Valor de Vivienda / Bienes Raíces ($)</label>
-                                <input type="number" id="nw-realestate" value="0" step="100" oninput="updateNetWorth('realEstate', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            </div>
-                            <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Vehículos (Valor de Reventa) ($)</label>
-                                <input type="number" id="nw-vehicles" value="0" step="50" oninput="updateNetWorth('vehicles', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            </div>
-                            <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Otros Bienes de Valor ($)</label>
-                                <input type="number" id="nw-personal" value="0" step="50" oninput="updateNetWorth('personalProperty', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            </div>
-                        </div>
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <div class="bg-emerald-50 border-t-4 border-emerald-500 rounded-lg p-3.5 text-center">
+                        <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Activos</span>
+                        <span id="nw-total-assets" class="text-xl font-black text-slate-900">$0.00</span>
                     </div>
-
-                    <div>
-                        <h3 class="text-xs font-bold text-red-800 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <i class="fa-solid fa-arrow-trend-down text-red-600"></i> Pasivos
-                        </h3>
-                        <div class="space-y-3">
-                            <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Saldo de Hipoteca ($)</label>
-                                <input type="number" id="nw-mortgage" value="0" step="100" oninput="updateNetWorth('mortgage', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
-                            </div>
-                            <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Préstamos Vehiculares ($)</label>
-                                <input type="number" id="nw-autoloans" value="0" step="50" oninput="updateNetWorth('autoLoans', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
-                            </div>
-                            <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Tarjetas de Crédito y Préstamos Personales ($)</label>
-                                <input type="number" id="nw-creditcards" value="0" step="50" oninput="updateNetWorth('creditCards', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
-                            </div>
-                            <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Préstamos Estudiantiles ($)</label>
-                                <input type="number" id="nw-studentloans" value="0" step="50" oninput="updateNetWorth('studentLoans', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
-                            </div>
-                            <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Otras Deudas ($)</label>
-                                <input type="number" id="nw-otherdebts" value="0" step="50" oninput="updateNetWorth('otherDebts', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
-                            </div>
-                        </div>
+                    <div class="bg-red-50 border-t-4 border-red-500 rounded-lg p-3.5 text-center">
+                        <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Pasivos</span>
+                        <span id="nw-total-liabilities" class="text-xl font-black text-red-600">$0.00</span>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 text-xs">
-                    <div class="bg-emerald-50 p-3.5 rounded-xl border border-emerald-200">
-                        <span class="text-emerald-800 block font-medium">Total Activos:</span>
-                        <span id="nw-total-assets" class="text-base font-bold text-emerald-900 mt-0.5 block">$0.00</span>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-3">
+                    <!-- Row 1: Real Estate | Real Estate Loans -->
+                    <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Bienes Raíces</label>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Valor actual de tu casa u otras propiedades.</p>
+                        <input type="number" id="nw-realestate" value="0" step="100" placeholder="Ej: 120000" oninput="updateNetWorth('realEstate', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     </div>
-                    <div class="bg-red-50 p-3.5 rounded-xl border border-red-200">
-                        <span class="text-red-800 block font-medium">Total Pasivos:</span>
-                        <span id="nw-total-liabilities" class="text-base font-bold text-red-900 mt-0.5 block">$0.00</span>
+                    <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
+                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Préstamos Hipotecarios</label>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Cuánto debes todavía de tu hipoteca (y otras propiedades).</p>
+                        <input type="number" id="nw-mortgage" value="0" step="100" placeholder="Ej: 60000" oninput="updateNetWorth('mortgage', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
                     </div>
-                    <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-700 flex flex-col justify-center">
-                        <span class="text-slate-300 block font-medium text-[10px] uppercase tracking-wider">Patrimonio Neto (Este Año)</span>
-                        <span id="nw-net-worth" class="text-xl font-black text-emerald-400 mt-0.5 block">$0.00</span>
+
+                    <!-- Row 2: Checking Accounts | Credit Card Debt -->
+                    <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Cuentas Corrientes</label>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Cuánto tienes hoy en tu(s) cuenta(s) corriente(s).</p>
+                        <input type="number" id="nw-checking" value="0" step="50" placeholder="Ej: 500" oninput="updateNetWorth('checking', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     </div>
+                    <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
+                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Deuda de Tarjetas de Crédito</label>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Cuánto debes en total, no la cuota mensual.</p>
+                        <input type="number" id="nw-creditcards" value="0" step="50" placeholder="Ej: 800" oninput="updateNetWorth('creditCards', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+
+                    <!-- Row 3: Savings Accounts | Personal Loans -->
+                    <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Cuentas de Ahorro</label>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Cuánto tienes hoy en tu(s) cuenta(s) de ahorro.</p>
+                        <input type="number" id="nw-savings" value="0" step="50" placeholder="Ej: 1000" oninput="updateNetWorth('savings', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
+                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Préstamos Personales</label>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Deudas con familiares, amigos, o prestamistas.</p>
+                        <input type="number" id="nw-personalloans" value="0" step="50" placeholder="Ej: 300" oninput="updateNetWorth('personalLoans', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+
+                    <!-- Row 4: Investments/DPF (Retirement equivalent) | Student Loans -->
+                    <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Inversiones y Pólizas DPF</label>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Tu ahorro de retiro/inversión (Tab 5 y 8).</p>
+                        <input type="number" id="nw-investments" value="0" step="50" placeholder="Ej: 8000" oninput="updateNetWorth('investments', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
+                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Préstamos Estudiantiles</label>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Monto total adeudado, no la cuota mensual.</p>
+                        <input type="number" id="nw-studentloans" value="0" step="50" placeholder="Ej: 0" oninput="updateNetWorth('studentLoans', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+
+                    <!-- Row 5: Cars | Car Loans -->
+                    <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Vehículos</label>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Valor de reventa estimado de tus vehículos.</p>
+                        <input type="number" id="nw-vehicles" value="0" step="50" placeholder="Ej: 7000" oninput="updateNetWorth('vehicles', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
+                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Préstamos Vehiculares</label>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Cuánto debes todavía de tu(s) vehículo(s).</p>
+                        <input type="number" id="nw-autoloans" value="0" step="50" placeholder="Ej: 2000" oninput="updateNetWorth('autoLoans', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+
+                    <!-- Row 6: Other Assets | Other Debt -->
+                    <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Otros Bienes de Valor</label>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Joyas, electrónica, muebles, negocios, etc.</p>
+                        <input type="number" id="nw-personal" value="0" step="50" placeholder="Ej: 500" oninput="updateNetWorth('personalProperty', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
+                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Otras Deudas</label>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Gastos médicos, préstamos de negocio, etc.</p>
+                        <input type="number" id="nw-otherdebts" value="0" step="50" placeholder="Ej: 0" oninput="updateNetWorth('otherDebts', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+                </div>
+
+                <div id="nw-result-box" class="mt-6 bg-slate-50 border-t-4 border-slate-400 rounded-xl p-6 text-center">
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Tu Patrimonio Neto (<span class="active-year-display">2026</span>)</span>
+                    <span id="nw-net-worth" class="text-4xl font-black text-slate-900 block mb-2">$0.00</span>
+                    <p id="nw-verdict-message" class="text-sm font-bold text-slate-700"></p>
                 </div>
             </div>
 
@@ -1362,7 +1519,38 @@
             { id: 11, name: "Transporte / Gasolina", type: "Gasto Variable", isDeductible: false, prep: 70, real: 70 },
             { id: 12, name: "Entretenimiento", type: "Gasto Variable", isDeductible: false, prep: 50, real: 50 },
             { id: 13, name: "Bola de Nieve Deudas", type: "Deuda", isDeductible: false, prep: 75, real: 75 },
-            { id: 14, name: "Ahorro Recurrente Póliza DPF", type: "Ahorro", isDeductible: false, prep: 100, real: 100 }
+            { id: 14, name: "Ahorro Recurrente Póliza DPF", type: "Ahorro", isDeductible: false, prep: 100, real: 100 },
+            { id: 15, name: "Seguro Vehicular", type: "Gasto Fijo", isDeductible: false, prep: 0, real: 0 },
+            { id: 16, name: "Mantenimiento del Hogar", type: "Gasto Variable", isDeductible: false, prep: 0, real: 0 },
+            { id: 17, name: "Suscripciones Digitales (Streaming, etc.)", type: "Gasto Variable", isDeductible: false, prep: 0, real: 0 },
+            { id: 18, name: "Cuidado Personal (Peluquería, Cosméticos)", type: "Gasto Variable", isDeductible: false, prep: 0, real: 0 },
+            { id: 19, name: "Mascotas", type: "Gasto Variable", isDeductible: false, prep: 0, real: 0 },
+            { id: 20, name: "Regalos y Donaciones", type: "Gasto Variable", isDeductible: false, prep: 0, real: 0 },
+            { id: 21, name: "Impuestos y Trámites (Predial, Matrícula)", type: "Gasto Variable", isDeductible: false, prep: 0, real: 0 }
+        ];
+
+        // Shared parent/subcategory taxonomy for the Transaction Log (Tab 1) — also useful
+        // as a reference when naming budget rubros above.
+        const expenseCategoryTaxonomy = {
+            "Alimentación": ["Mercado / Supermercado", "Restaurantes", "Comida Rápida", "Cafetería"],
+            "Transporte": ["Pasajes / Bus", "Taxi / App de Transporte", "Gasolina", "Mantenimiento Vehicular", "Parqueo", "Peajes"],
+            "Servicios Básicos": ["Agua", "Energía Eléctrica", "Gas", "Internet", "Telefonía Móvil", "Cable/TV"],
+            "Vivienda": ["Arriendo", "Hipoteca", "Alícuotas/Condominio", "Mantenimiento del Hogar", "Mejoras del Hogar", "Muebles y Electrodomésticos"],
+            "Salud": ["Seguro Médico", "Consultas Médicas", "Medicinas", "Odontología", "Óptica"],
+            "Educación": ["Colegiatura/Pensión", "Útiles Escolares", "Uniformes", "Cursos y Capacitación", "Libros"],
+            "Seguros": ["Seguro de Vida", "Seguro Vehicular", "Seguro de Hogar"],
+            "Entretenimiento": ["Streaming (Netflix, Spotify, etc.)", "Cine", "Salidas y Paseos", "Hobbies", "Turismo Nacional"],
+            "Cuidado Personal": ["Ropa y Calzado", "Peluquería/Barbería", "Cosméticos", "Gimnasio"],
+            "Mascotas": ["Alimento para Mascotas", "Veterinario"],
+            "Deudas": ["Tarjeta de Crédito", "Préstamo Personal", "Préstamo Vehicular", "Préstamo Estudiantil"],
+            "Ahorro e Inversión": ["Aporte DPF", "Fondo de Emergencia", "Aporte a Metas"],
+            "Impuestos y Trámites": ["Impuesto Predial", "Matriculación Vehicular", "Trámites Legales"],
+            "Otros": ["Regalos", "Donaciones", "Imprevistos", "Otros Gastos"]
+        };
+
+        let transactionItems = [
+            { id: 1, description: "Compras de la semana", store: "Supermaxi", parentCategory: "Alimentación", category: "Mercado / Supermercado", amount: 45.50, date: new Date().toISOString().slice(0, 10), paymentType: "Débito" },
+            { id: 2, description: "Pasaje bus", store: "Cooperativa de Transporte", parentCategory: "Transporte", category: "Pasajes / Bus", amount: 0.35, date: new Date().toISOString().slice(0, 10), paymentType: "Efectivo" }
         ];
 
         let multiYearStore = {};
@@ -1413,8 +1601,8 @@
                     cosede: 32000,
                     sriCapMultiplier: 7,
                     netWorth: {
-                        cash: 0, investments: 0, realEstate: 0, vehicles: 0, personalProperty: 0,
-                        mortgage: 0, autoLoans: 0, creditCards: 0, studentLoans: 0, otherDebts: 0
+                        checking: 0, savings: 0, investments: 0, realEstate: 0, vehicles: 0, personalProperty: 0,
+                        mortgage: 0, autoLoans: 0, creditCards: 0, personalLoans: 0, studentLoans: 0, otherDebts: 0
                     },
                     budgetBase: JSON.parse(JSON.stringify(defaultBudgetTemplate)),
                     monthOverrides: {},
@@ -1918,16 +2106,47 @@
         function ensureNetWorthDefaults(yd) {
             if (!yd.netWorth) {
                 yd.netWorth = {
-                    cash: 0, investments: 0, realEstate: 0, vehicles: 0, personalProperty: 0,
-                    mortgage: 0, autoLoans: 0, creditCards: 0, studentLoans: 0, otherDebts: 0
+                    checking: 0, savings: 0, investments: 0, realEstate: 0, vehicles: 0, personalProperty: 0,
+                    mortgage: 0, autoLoans: 0, creditCards: 0, personalLoans: 0, studentLoans: 0, otherDebts: 0
                 };
+            } else {
+                // Migrate data saved before checking/savings were split out and personalLoans existed.
+                if (yd.netWorth.cash !== undefined && yd.netWorth.checking === undefined) {
+                    yd.netWorth.checking = yd.netWorth.cash;
+                    yd.netWorth.savings = 0;
+                    delete yd.netWorth.cash;
+                }
+                if (yd.netWorth.checking === undefined) yd.netWorth.checking = 0;
+                if (yd.netWorth.savings === undefined) yd.netWorth.savings = 0;
+                if (yd.netWorth.personalLoans === undefined) yd.netWorth.personalLoans = 0;
             }
             return yd.netWorth;
         }
 
+        function sumNetWorthAssets(nw) {
+            return nw.checking + nw.savings + nw.investments + nw.realEstate + nw.vehicles + nw.personalProperty;
+        }
+
+        function sumNetWorthLiabilities(nw) {
+            return nw.mortgage + nw.autoLoans + nw.creditCards + nw.personalLoans + nw.studentLoans + nw.otherDebts;
+        }
+
+        function getNetWorthVerdict(netWorthVal) {
+            if (netWorthVal < 0) {
+                return { text: 'Patrimonio negativo: debes más de lo que tienes. El Paso 2 (eliminar deudas) es tu prioridad — cada pago te acerca a cero.', color: 'text-red-700' };
+            } else if (netWorthVal < 5000) {
+                return { text: '¡Vas por buen camino! Mantente enfocado y sigue avanzando paso a paso.', color: 'text-slate-700' };
+            } else if (netWorthVal < 50000) {
+                return { text: 'Buen progreso — tu patrimonio neto está creciendo de forma sólida. Sigue así.', color: 'text-emerald-700' };
+            } else {
+                return { text: 'Excelente — estás construyendo riqueza real. Este es el camino a la libertad financiera.', color: 'text-emerald-800' };
+            }
+        }
+
         function loadNetWorthInputsForActiveYear() {
             const nw = ensureNetWorthDefaults(getYearData(activeYear));
-            document.getElementById('nw-cash').value = nw.cash;
+            document.getElementById('nw-checking').value = nw.checking;
+            document.getElementById('nw-savings').value = nw.savings;
             document.getElementById('nw-investments').value = nw.investments;
             document.getElementById('nw-realestate').value = nw.realEstate;
             document.getElementById('nw-vehicles').value = nw.vehicles;
@@ -1935,6 +2154,7 @@
             document.getElementById('nw-mortgage').value = nw.mortgage;
             document.getElementById('nw-autoloans').value = nw.autoLoans;
             document.getElementById('nw-creditcards').value = nw.creditCards;
+            document.getElementById('nw-personalloans').value = nw.personalLoans;
             document.getElementById('nw-studentloans').value = nw.studentLoans;
             document.getElementById('nw-otherdebts').value = nw.otherDebts;
             updateNetWorthDisplay();
@@ -1947,15 +2167,23 @@
 
         function updateNetWorthDisplay() {
             const nw = ensureNetWorthDefaults(getYearData(activeYear));
-            const totalAssets = nw.cash + nw.investments + nw.realEstate + nw.vehicles + nw.personalProperty;
-            const totalLiabilities = nw.mortgage + nw.autoLoans + nw.creditCards + nw.studentLoans + nw.otherDebts;
+            const totalAssets = sumNetWorthAssets(nw);
+            const totalLiabilities = sumNetWorthLiabilities(nw);
             const netWorthVal = totalAssets - totalLiabilities;
 
             document.getElementById('nw-total-assets').innerText = formatCurrency(totalAssets);
             document.getElementById('nw-total-liabilities').innerText = formatCurrency(totalLiabilities);
             const nwEl = document.getElementById('nw-net-worth');
             nwEl.innerText = formatCurrency(netWorthVal);
-            nwEl.className = netWorthVal >= 0 ? 'text-xl font-black text-emerald-400 mt-0.5 block' : 'text-xl font-black text-red-400 mt-0.5 block';
+            nwEl.className = netWorthVal >= 0 ? 'text-4xl font-black text-emerald-700 block mb-2' : 'text-4xl font-black text-red-600 block mb-2';
+
+            const verdict = getNetWorthVerdict(netWorthVal);
+            const verdictEl = document.getElementById('nw-verdict-message');
+            verdictEl.innerText = verdict.text;
+            verdictEl.className = 'text-sm font-bold ' + verdict.color;
+
+            const resultBox = document.getElementById('nw-result-box');
+            resultBox.className = 'mt-6 bg-slate-50 rounded-xl p-6 text-center border-t-4 ' + (netWorthVal >= 0 ? 'border-emerald-500' : 'border-red-500');
 
             if (!document.getElementById('tab9').classList.contains('hidden')) {
                 renderNetWorthChart();
@@ -1978,10 +2206,8 @@
             const data = [];
             for (let y = configStartYear; y <= configEndYear; y++) {
                 const nw = ensureNetWorthDefaults(getYearData(y));
-                const totalAssets = nw.cash + nw.investments + nw.realEstate + nw.vehicles + nw.personalProperty;
-                const totalLiabilities = nw.mortgage + nw.autoLoans + nw.creditCards + nw.studentLoans + nw.otherDebts;
                 labels.push(y.toString());
-                data.push((totalAssets - totalLiabilities).toFixed(2));
+                data.push((sumNetWorthAssets(nw) - sumNetWorthLiabilities(nw)).toFixed(2));
             }
 
             netWorthChartInstance = new Chart(ctx, {
@@ -2017,31 +2243,127 @@
             return fvPresent + fvContrib;
         }
 
-        function calculateRetirement() {
+        function getRetirementInputs() {
             const edadActual = Math.max(0, parseInt(document.getElementById('retire-edad-actual').value) || 0);
             const edadJubilacion = Math.max(edadActual, parseInt(document.getElementById('retire-edad-jubilacion').value) || 65);
-            const ahorroActual = Math.max(0, parseFloat(document.getElementById('retire-ahorro-actual').value) || 0);
-            const aporteMensual = Math.max(0, parseFloat(document.getElementById('retire-aporte-mensual').value) || 0);
-            const tasaRetorno = Math.max(0, parseFloat(document.getElementById('retire-tasa-retorno').value) || 0);
+            return {
+                edadActual,
+                edadJubilacion,
+                ahorroActual: Math.max(0, parseFloat(document.getElementById('retire-ahorro-actual').value) || 0),
+                aporteMensual: Math.max(0, parseFloat(document.getElementById('retire-aporte-mensual').value) || 0),
+                tasaRetorno: Math.max(0, parseFloat(document.getElementById('retire-tasa-retorno').value) || 0),
+                aniosAportadosIESS: Math.max(0, parseFloat(document.getElementById('retire-anios-aportados').value) || 0),
+                sueldoPromedio: Math.max(0, parseFloat(document.getElementById('retire-sueldo-promedio').value) || 0),
+                tasaReemplazo: Math.max(0, Math.min(100, parseFloat(document.getElementById('retire-tasa-reemplazo').value) || 0)),
+                tasaRetiroSegura: Math.max(0, parseFloat(document.getElementById('retire-tasa-retiro-segura').value) || 0),
+                aniosRestantes: Math.max(0, edadJubilacion - edadActual)
+            };
+        }
 
-            const aniosAportadosIESS = Math.max(0, parseFloat(document.getElementById('retire-anios-aportados').value) || 0);
-            const sueldoPromedio = Math.max(0, parseFloat(document.getElementById('retire-sueldo-promedio').value) || 0);
-            const tasaReemplazo = Math.max(0, Math.min(100, parseFloat(document.getElementById('retire-tasa-reemplazo').value) || 0));
-            const tasaRetiroSegura = Math.max(0, parseFloat(document.getElementById('retire-tasa-retiro-segura').value) || 0);
+        function calculateRetirement() {
+            const inp = getRetirementInputs();
+            const mesesRestantes = inp.aniosRestantes * 12;
 
-            const aniosRestantes = Math.max(0, edadJubilacion - edadActual);
-            const mesesRestantes = aniosRestantes * 12;
+            const valorFuturo = calculateFutureValue(inp.ahorroActual, inp.aporteMensual, inp.tasaRetorno, mesesRestantes);
+            const ingresoAhorro = (valorFuturo * (inp.tasaRetiroSegura / 100)) / 12;
 
-            const valorFuturo = calculateFutureValue(ahorroActual, aporteMensual, tasaRetorno, mesesRestantes);
-            const ingresoAhorro = (valorFuturo * (tasaRetiroSegura / 100)) / 12;
-            const pensionMensual = sueldoPromedio * (tasaReemplazo / 100);
+            // Full-career reference of 30 years: fewer total years contributed scales the
+            // pension down proportionally, so "Años Ya Aportados" actually affects the result.
+            const aniosTotalesIESS = inp.aniosAportadosIESS + inp.aniosRestantes;
+            const factorCarrera = Math.min(1, aniosTotalesIESS / 30);
+            const pensionMensual = inp.sueldoPromedio * (inp.tasaReemplazo / 100) * factorCarrera;
             const ingresoTotal = ingresoAhorro + pensionMensual;
 
-            document.getElementById('retire-anios-restantes').innerText = aniosRestantes.toFixed(0) + ` (aportados a IESS: ${(aniosAportadosIESS + aniosRestantes).toFixed(0)})`;
+            document.getElementById('retire-anios-restantes').innerText = inp.aniosRestantes.toFixed(0);
             document.getElementById('retire-valor-futuro').innerText = formatCurrency(valorFuturo);
             document.getElementById('retire-ingreso-ahorro').innerText = formatCurrency(ingresoAhorro);
             document.getElementById('retire-pension-mensual').innerText = formatCurrency(pensionMensual);
             document.getElementById('retire-ingreso-total').innerText = formatCurrency(ingresoTotal);
+
+            updateRetirementWhatIf();
+        }
+
+        let retirementChartInstance = null;
+
+        function computeDPFYearlySchedule(present, monthlyContribution, annualRatePct, totalMonths) {
+            const schedule = [];
+            for (let m = 0; m <= totalMonths; m += 12) {
+                schedule.push(calculateFutureValue(present, monthlyContribution, annualRatePct, m));
+            }
+            if (totalMonths % 12 !== 0) {
+                schedule.push(calculateFutureValue(present, monthlyContribution, annualRatePct, totalMonths));
+            }
+            return schedule;
+        }
+
+        function updateRetirementWhatIf() {
+            const extra = parseFloat(document.getElementById('retire-whatif-slider').value) || 0;
+            document.getElementById('retire-whatif-label').innerText = `+$${extra}/mes`;
+
+            const inp = getRetirementInputs();
+            const mesesRestantes = inp.aniosRestantes * 12;
+
+            const baseSchedule = computeDPFYearlySchedule(inp.ahorroActual, inp.aporteMensual, inp.tasaRetorno, mesesRestantes);
+            const whatIfSchedule = extra > 0
+                ? computeDPFYearlySchedule(inp.ahorroActual, inp.aporteMensual + extra, inp.tasaRetorno, mesesRestantes)
+                : null;
+
+            const resultEl = document.getElementById('retire-whatif-result');
+            if (extra > 0 && whatIfSchedule) {
+                const baseFinal = baseSchedule[baseSchedule.length - 1];
+                const whatIfFinal = whatIfSchedule[whatIfSchedule.length - 1];
+                const diff = whatIfFinal - baseFinal;
+                resultEl.innerText = `Aportando $${extra} más al mes, tendrías ${formatCurrency(diff)} adicionales al jubilarte (total ${formatCurrency(whatIfFinal)} en vez de ${formatCurrency(baseFinal)}).`;
+            } else {
+                resultEl.innerText = 'Mueve el control para ver cuánto más tendrías al jubilarte con un aporte mensual mayor.';
+            }
+
+            renderRetirementChart(inp, baseSchedule, whatIfSchedule);
+        }
+
+        function renderRetirementChart(inp, baseSchedule, whatIfSchedule) {
+            if (!document.getElementById('tab8') || document.getElementById('tab8').classList.contains('hidden')) return;
+            const canvas = document.getElementById('retirementChart');
+            const ctx = canvas.getContext('2d');
+            if (retirementChartInstance) retirementChartInstance.destroy();
+
+            const labels = baseSchedule.map((_, idx) => (inp.edadActual + idx).toString());
+            const datasets = [{
+                label: 'Con tu aporte actual ($)',
+                data: baseSchedule.map(v => v.toFixed(2)),
+                borderColor: '#059669',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 0
+            }];
+
+            if (whatIfSchedule) {
+                datasets.push({
+                    label: 'Con el aporte del simulador ($)',
+                    data: whatIfSchedule.map(v => v.toFixed(2)),
+                    borderColor: '#9333ea',
+                    borderDash: [6, 4],
+                    backgroundColor: 'rgba(147, 51, 234, 0.06)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0
+                });
+            }
+
+            retirementChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { font: { family: 'Inter', size: 11 } } } },
+                    scales: {
+                        x: { title: { display: true, text: 'Edad', font: { size: 10 } }, ticks: { font: { size: 9 } } },
+                        y: { ticks: { font: { size: 10 }, callback: function(val) { return '$' + Number(val).toLocaleString(); } } }
+                    }
+                }
+            });
         }
 
         function updateDeductibleStatusCard(deductiblesAnualReal, sriMaxCap) {
@@ -2143,6 +2465,102 @@
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        // --- TRANSACTION LOG (CATEGORIZED EXPENSE TRACKING) ---
+        function populateTransactionCategoryDropdowns() {
+            const parentNames = Object.keys(expenseCategoryTaxonomy);
+            document.getElementById('txn-parent-category').innerHTML = parentNames.map(p => `<option value="${p}">${p}</option>`).join('');
+            populateTransactionSubcategories();
+            document.getElementById('txn-filter-category').innerHTML = '<option value="all">Todas las Categorías</option>' + parentNames.map(p => `<option value="${p}">${p}</option>`).join('');
+        }
+
+        function populateTransactionSubcategories() {
+            const parent = document.getElementById('txn-parent-category').value;
+            const subs = expenseCategoryTaxonomy[parent] || [];
+            document.getElementById('txn-category').innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+
+        function populateTransactionYearFilter() {
+            const years = new Set(transactionItems.map(t => new Date(t.date + 'T00:00:00').getFullYear()));
+            years.add(new Date().getFullYear());
+            const sortedYears = [...years].sort((a, b) => a - b);
+            const select = document.getElementById('txn-filter-year');
+            const previousValue = select.value || 'all';
+            select.innerHTML = '<option value="all">Todos los Años</option>' + sortedYears.map(y => `<option value="${y}">${y}</option>`).join('');
+            select.value = previousValue;
+        }
+
+        function addTransaction() {
+            const description = document.getElementById('txn-description').value.trim();
+            const store = document.getElementById('txn-store').value.trim();
+            const parentCategory = document.getElementById('txn-parent-category').value;
+            const category = document.getElementById('txn-category').value;
+            const amount = parseFloat(document.getElementById('txn-amount').value) || 0;
+            const date = document.getElementById('txn-date').value || new Date().toISOString().slice(0, 10);
+            const paymentType = document.getElementById('txn-payment-type').value;
+
+            if (!description || amount <= 0) {
+                alert('Ingresa al menos una descripción y un monto mayor a $0.');
+                return;
+            }
+
+            const newId = transactionItems.length > 0 ? Math.max(...transactionItems.map(t => t.id)) + 1 : 1;
+            transactionItems.push({ id: newId, description, store, parentCategory, category, amount, date, paymentType });
+
+            document.getElementById('txn-description').value = '';
+            document.getElementById('txn-store').value = '';
+            document.getElementById('txn-amount').value = '';
+
+            populateTransactionYearFilter();
+            renderTransactionsTable();
+        }
+
+        function deleteTransaction(id) {
+            transactionItems = transactionItems.filter(t => t.id !== id);
+            renderTransactionsTable();
+        }
+
+        function renderTransactionsTable() {
+            const yearFilter = document.getElementById('txn-filter-year').value;
+            const monthFilter = document.getElementById('txn-filter-month').value;
+            const categoryFilter = document.getElementById('txn-filter-category').value;
+
+            const filtered = transactionItems.filter(t => {
+                const d = new Date(t.date + 'T00:00:00');
+                if (yearFilter !== 'all' && d.getFullYear().toString() !== yearFilter) return false;
+                if (monthFilter !== 'all' && (d.getMonth() + 1).toString() !== monthFilter) return false;
+                if (categoryFilter !== 'all' && t.parentCategory !== categoryFilter) return false;
+                return true;
+            }).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const tbody = document.getElementById('transactions-table-body');
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-4 text-center text-slate-400">No hay transacciones registradas para este filtro.</td></tr>`;
+            } else {
+                tbody.innerHTML = filtered.map(t => `
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-2 px-3">${t.date}</td>
+                        <td class="py-2 px-3 font-medium">${t.description}</td>
+                        <td class="py-2 px-3 text-slate-500">${t.store || '—'}</td>
+                        <td class="py-2 px-3">${t.parentCategory}</td>
+                        <td class="py-2 px-3 text-slate-500">${t.category}</td>
+                        <td class="py-2 px-3 text-right font-bold">${formatCurrency(t.amount)}</td>
+                        <td class="py-2 px-3"><span class="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-bold">${t.paymentType}</span></td>
+                        <td class="py-2 px-3 text-center"><button onclick="deleteTransaction(${t.id})" class="text-slate-400 hover:text-red-600"><i class="fa-solid fa-trash-can"></i></button></td>
+                    </tr>
+                `).join('');
+            }
+
+            const total = filtered.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+            document.getElementById('txn-filtered-total').innerText = formatCurrency(total);
+        }
+
+        function initTransactionLog() {
+            populateTransactionCategoryDropdowns();
+            populateTransactionYearFilter();
+            document.getElementById('txn-date').value = new Date().toISOString().slice(0, 10);
+            renderTransactionsTable();
         }
 
         function ensureMonthOverride() {
@@ -2591,10 +3009,57 @@
             return { schedule, firstPayment: schedule[0].payment, lastPayment: schedule[schedule.length - 1].payment, totalInterest, totalPaid: principal + totalInterest };
         }
 
+        // Simulates a French (fixed-payment) amortization with an extra amount applied to
+        // principal every month, on top of the normal payment. Terminates early once the
+        // balance is paid off instead of running the full contracted term.
+        function calculateFrenchPayoffWithExtra(principal, annualRatePct, months, extraMonthly) {
+            const i = (annualRatePct / 100) / 12;
+            const payment = i === 0 ? principal / months : principal * i / (1 - Math.pow(1 + i, -months));
+            let balance = principal;
+            let totalInterest = 0;
+            let period = 0;
+            while (balance > 0.01 && period < months) {
+                period++;
+                const interest = balance * i;
+                totalInterest += interest;
+                let principalPortion = (payment - interest) + extraMonthly;
+                if (principalPortion > balance) principalPortion = balance;
+                balance -= principalPortion;
+            }
+            return { months: period, totalInterest, totalPaid: principal + totalInterest };
+        }
+
+        // Same idea for the German (fixed-principal) system.
+        function calculateGermanPayoffWithExtra(principal, annualRatePct, months, extraMonthly) {
+            const i = (annualRatePct / 100) / 12;
+            const basePrincipalPortion = principal / months;
+            let balance = principal;
+            let totalInterest = 0;
+            let period = 0;
+            while (balance > 0.01 && period < months) {
+                period++;
+                const interest = balance * i;
+                totalInterest += interest;
+                let principalPortion = basePrincipalPortion + extraMonthly;
+                if (principalPortion > balance) principalPortion = balance;
+                balance -= principalPortion;
+            }
+            return { months: period, totalInterest, totalPaid: principal + totalInterest };
+        }
+
+        function formatMonthsAsYearsMonths(totalMonths) {
+            const years = Math.floor(totalMonths / 12);
+            const months = totalMonths % 12;
+            if (years === 0) return `${months}m`;
+            if (months === 0) return `${years}a`;
+            return `${years}a ${months}m`;
+        }
+
         function calculateMortgage() {
             const amount = Math.max(0, parseFloat(document.getElementById('mort-amount').value) || 0);
             const rate = Math.max(0, parseFloat(document.getElementById('mort-rate').value) || 0);
             const years = Math.max(1, parseInt(document.getElementById('mort-years').value) || 1);
+            const extraPayment = Math.max(0, parseFloat(document.getElementById('mort-extra-payment').value) || 0);
             const months = years * 12;
 
             const fr = calculateFrenchAmortization(amount, rate, months);
@@ -2610,6 +3075,23 @@
             document.getElementById('al-cuota-final').innerText = formatCurrency(al.lastPayment);
             document.getElementById('al-interes-total').innerText = formatCurrency(al.totalInterest);
             document.getElementById('al-total-pagado').innerText = formatCurrency(al.totalPaid);
+
+            const frExtraBox = document.getElementById('fr-extra-savings-box');
+            const alExtraBox = document.getElementById('al-extra-savings-box');
+            if (extraPayment > 0) {
+                const frExtra = calculateFrenchPayoffWithExtra(amount, rate, months, extraPayment);
+                const alExtra = calculateGermanPayoffWithExtra(amount, rate, months, extraPayment);
+
+                document.getElementById('fr-extra-months').innerText = formatMonthsAsYearsMonths(frExtra.months) + ` (antes ${formatMonthsAsYearsMonths(months)})`;
+                document.getElementById('fr-extra-interest-saved').innerText = formatCurrency(fr.totalInterest - frExtra.totalInterest);
+                document.getElementById('al-extra-months').innerText = formatMonthsAsYearsMonths(alExtra.months) + ` (antes ${formatMonthsAsYearsMonths(months)})`;
+                document.getElementById('al-extra-interest-saved').innerText = formatCurrency(al.totalInterest - alExtra.totalInterest);
+                frExtraBox.classList.remove('hidden');
+                alExtraBox.classList.remove('hidden');
+            } else {
+                frExtraBox.classList.add('hidden');
+                alExtraBox.classList.add('hidden');
+            }
 
             if (!document.getElementById('tab7').classList.contains('hidden')) {
                 renderMortgageChart();
@@ -2732,10 +3214,12 @@
                 polizasStore: polizasStore,
                 goalItems: goalItems,
                 debtItems: debtItems,
+                transactionItems: transactionItems,
                 mortgageConfig: {
                     amount: parseFloat(document.getElementById('mort-amount').value) || 0,
                     rate: parseFloat(document.getElementById('mort-rate').value) || 0,
-                    years: parseInt(document.getElementById('mort-years').value) || 20
+                    years: parseInt(document.getElementById('mort-years').value) || 20,
+                    extraPayment: parseFloat(document.getElementById('mort-extra-payment').value) || 0
                 }
             };
         }
@@ -2750,10 +3234,12 @@
             if (data.polizasStore) polizasStore = data.polizasStore;
             if (data.goalItems) goalItems = data.goalItems;
             if (data.debtItems) debtItems = data.debtItems;
+            if (data.transactionItems) transactionItems = data.transactionItems;
             if (data.mortgageConfig) {
                 document.getElementById('mort-amount').value = data.mortgageConfig.amount;
                 document.getElementById('mort-rate').value = data.mortgageConfig.rate;
                 document.getElementById('mort-years').value = data.mortgageConfig.years;
+                document.getElementById('mort-extra-payment').value = data.mortgageConfig.extraPayment || 0;
             }
         }
 
@@ -2770,6 +3256,7 @@
             recalculateAll();
             calculateMortgage();
             calculateRetirement();
+            initTransactionLog();
         }
 
         function saveToLocalStorage() {
@@ -2888,6 +3375,7 @@
             recalculateAll();
             calculateMortgage();
             calculateRetirement();
+            initTransactionLog();
         };
     </script>
 </body>
