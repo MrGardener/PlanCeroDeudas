@@ -1235,12 +1235,13 @@
                 </div>
 
                 <div class="bg-purple-50/60 p-4 rounded-xl border border-purple-200 mb-6">
-                    <div class="flex justify-between items-center mb-2">
+                    <div class="flex flex-wrap justify-between items-center gap-2 mb-1">
                         <label class="text-xs font-bold text-purple-900 uppercase flex items-center gap-1.5">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> ¿Qué Pasaría Si Aportaras un Poco Más? (Simulador — no cambia tu aporte real de arriba)
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> ¿Qué Pasaría Si Aportaras un Poco Más?
                         </label>
                         <span id="retire-whatif-label" class="text-sm font-black text-purple-900">+$0/mes</span>
                     </div>
+                    <p class="text-[11px] text-purple-700 mb-2">Simulador — mueve el control, no cambia tu "Aporte Mensual Adicional" real de arriba.</p>
                     <input type="range" id="retire-whatif-slider" min="0" max="500" step="10" value="0" oninput="updateRetirementWhatIf()" class="w-full accent-purple-600">
                     <p id="retire-whatif-result" class="text-xs text-purple-800 mt-2 font-medium"></p>
                 </div>
@@ -1258,20 +1259,20 @@
                     <i class="fa-solid fa-building-columns text-indigo-600"></i> Tu Pensión IESS Estimada
                 </h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Años Ya Aportados a IESS</label>
-                        <input type="number" id="retire-anios-aportados" value="5" placeholder="Ej: 5" min="0" max="60" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <p class="text-[10px] text-slate-500 mt-1">Años que ya llevas afiliado y aportando. Ejemplo: 5.</p>
+                    <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
+                        <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Años Ya Aportados a IESS</label>
+                        <input type="number" id="retire-anios-aportados" value="5" placeholder="Ej: 5" min="0" max="60" oninput="calculateRetirement()" class="w-full bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-[11px] text-indigo-700 mt-1">Años que ya llevas afiliado y aportando. Ejemplo: 5. Afecta la Pensión IESS de abajo (más años = pensión más alta, hasta un tope de carrera completa de 30 años).</p>
                     </div>
-                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Sueldo Promedio Mensual ($)</label>
-                        <input type="number" id="retire-sueldo-promedio" value="1500" placeholder="Ej: 1500" step="50" oninput="calculateRetirement()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <p class="text-[10px] text-slate-500 mt-1">Tu sueldo bruto promedio esperado (Tab 1).</p>
+                    <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
+                        <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Sueldo Promedio Mensual ($)</label>
+                        <input type="number" id="retire-sueldo-promedio" value="1500" placeholder="Ej: 1500" step="50" oninput="calculateRetirement()" class="w-full bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-[11px] text-indigo-700 mt-1">Tu sueldo bruto promedio esperado (Tab 1). Afecta la Pensión IESS de abajo.</p>
                     </div>
                     <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
                         <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Tasa de Reemplazo Estimada (%)</label>
                         <input type="number" id="retire-tasa-reemplazo" value="60" placeholder="Ej: 60" step="1" min="0" max="100" oninput="calculateRetirement()" class="w-full bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <p class="text-[10px] text-indigo-700 mt-1">% de tu sueldo que estimas recibirás de pensión. Ejemplo: 60%.</p>
+                        <p class="text-[11px] text-indigo-700 mt-1">% de tu sueldo que estimas recibirás de pensión. Ejemplo: 60% (rango típico IESS: 40-75% según años cotizados). Afecta la Pensión IESS de abajo.</p>
                     </div>
                 </div>
 
@@ -1294,17 +1295,17 @@
                     </div>
                 </div>
 
-                <div class="p-4 bg-gradient-to-r from-emerald-50 to-indigo-50 rounded-xl border border-emerald-200 flex justify-between items-center mb-4">
+                <div class="p-4 bg-gradient-to-r from-emerald-50 to-indigo-50 rounded-xl border border-slate-300 flex justify-between items-center mb-4">
                     <div>
                         <span class="text-xs font-bold text-slate-700 uppercase tracking-wide block">Ingreso Mensual Total Estimado en la Jubilación</span>
-                        <span class="text-[10px] text-slate-500"><span class="text-emerald-700 font-bold">Ahorro DPF</span> (retiro sostenible) + <span class="text-indigo-700 font-bold">Pensión IESS</span></span>
+                        <span class="text-[11px] text-slate-500"><span class="text-emerald-700 font-bold">Ahorro DPF</span> (retiro sostenible) + <span class="text-indigo-700 font-bold">Pensión IESS</span></span>
                     </div>
-                    <span id="retire-ingreso-total" class="text-2xl font-black text-emerald-700">$0.00</span>
+                    <span id="retire-ingreso-total" class="text-2xl font-black text-slate-900">$0.00</span>
                 </div>
 
                 <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
                     <i class="fa-solid fa-triangle-exclamation text-amber-600 mr-1"></i>
-                    <strong>Esto es una estimación educativa simplificada, no un cálculo oficial.</strong> La fórmula real de pensión de IESS (Jubilación Ordinaria de Vejez) depende de tu historial completo de aportes, el número mínimo de años exigido y tablas que cambian con reformas legales. Aquí, la pensión se reduce proporcionalmente si tus años totales aportados son menos de 30 (referencia aproximada de una carrera completa). Ajusta la "Tasa de Reemplazo" a lo que investigues como realista para tu caso, y verifica siempre tu situación específica en
+                    <strong>La fórmula real de pensión de IESS es más compleja:</strong> depende de tu historial completo de aportes, el número mínimo de años exigido y tablas que cambian con reformas legales. Aquí se reduce proporcionalmente si tus años totales aportados son menos de 30 (referencia aproximada de una carrera completa). Verifica siempre tu situación específica en
                     <a href="https://www.iess.gob.ec" target="_blank" rel="noopener" class="underline font-bold">iess.gob.ec</a>.
                 </div>
             </div>
