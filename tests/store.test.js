@@ -155,3 +155,15 @@ test('a new user starts with a balanced budget that funds the debt plan', () => 
     assert.equal(plan.shortfall, 0);
     assert.equal(plan.never, false);
 });
+
+test('income logged as transactions counts in its month of the budget', () => {
+    Store.init(memoryStorage());
+    Store.state.transactions = [{ id: 1, type: 'Ingreso', description: 'Venta de helados', parentCategory: 'Ingresos Independientes', category: 'Ventas de Negocio Propio', amount: 120, date: '2026-09-26' }];
+    const eff = Store.effective(2026);
+    const base = Engine.monthBudget(eff, 'base');
+    const sep = Engine.monthBudget(eff, '9');
+    assert.equal(Math.round((sep.income - base.income) * 100) / 100, 120);
+    assert.equal(Store.state.years[2044], undefined);
+    assert.equal(Engine.monthBudget(Store.effective(2044), '9').otherIncome, 0);  // other years untouched, nothing created
+    assert.equal(Store.state.years[2044], undefined);
+});

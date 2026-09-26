@@ -83,7 +83,7 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                 <div class="kpi tone-emerald">
-                    <span class="kpi-label">Ingreso neto del período</span>
+                    <span class="kpi-label">Ingreso del período</span>
                     <span class="kpi-value" id="bud-income">$0.00</span>
                     <span class="kpi-note"><span id="bud-income-note">Sueldo neto</span> · <a href="#" class="link" data-goto="presupuesto/ingresos">ver cálculo</a></span>
                 </div>
@@ -93,7 +93,7 @@
                     <span class="kpi-note">Presupuestado: <strong id="bud-assigned-prep">$0.00</strong></span>
                 </div>
                 <div class="kpi tone-emerald" id="bud-balance-box">
-                    <span class="kpi-label">Por asignar</span>
+                    <span class="kpi-label" id="bud-balance-label">Por asignar</span>
                     <span class="kpi-value" id="bud-balance">$0.00</span>
                     <span class="kpi-note" id="bud-balance-note"></span>
                 </div>
@@ -110,8 +110,11 @@
             </div>
 
             <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
-                <p class="text-xs text-slate-500 max-w-2xl">Edita rubros y montos. Marca los <strong>deducibles SRI</strong> y vincula cada rubro a una categoría de transacciones para comparar lo presupuestado con lo que realmente gastaste.</p>
-                <button class="btn btn-primary" data-action="budget.addRow"><i class="fa-solid fa-plus"></i> Agregar Rubro</button>
+                <p class="text-xs text-slate-500 max-w-2xl">Arriba van <strong>todos tus ingresos</strong>: tu sueldo y cualquier otro (negocio, freelance, remesas). Abajo, los rubros: edita montos, marca los <strong>deducibles SRI</strong> y vincula cada rubro a una categoría de transacciones para comparar lo presupuestado con lo que realmente gastaste.</p>
+                <div class="flex flex-wrap gap-2">
+                    <button class="btn btn-secondary" data-action="income.add"><i class="fa-solid fa-plus"></i> Agregar Ingreso</button>
+                    <button class="btn btn-primary" data-action="budget.addRow"><i class="fa-solid fa-plus"></i> Agregar Rubro</button>
+                </div>
             </div>
 
             <div class="table-wrap">
@@ -131,7 +134,7 @@
                     </thead>
                     <tbody id="bud-body"></tbody>
                     <tfoot>
-                        <tr><td colspan="3">Ingreso neto del período</td><td class="num" id="bud-f-inc-prep"></td><td class="num" id="bud-f-inc-real"></td><td colspan="4"></td></tr>
+                        <tr><td colspan="3">Ingresos del período</td><td class="num" id="bud-f-inc-prep"></td><td class="num" id="bud-f-inc-real"></td><td colspan="4"></td></tr>
                         <tr><td colspan="3">Total asignado</td><td class="num" id="bud-f-exp-prep"></td><td class="num" id="bud-f-exp-real"></td><td class="num" id="bud-f-exp-diff"></td><td colspan="3"></td></tr>
                         <tr><td colspan="3">Por asignar</td><td class="num" id="bud-f-bal-prep"></td><td class="num" id="bud-f-bal-real"></td><td colspan="4"></td></tr>
                     </tfoot>
@@ -157,7 +160,7 @@
             <div class="card-head">
                 <div>
                     <div class="card-title"><i class="fa-solid fa-money-check-dollar text-emerald-600"></i> Tu Sueldo · <span class="active-year"></span></div>
-                    <div class="card-sub">Estos datos definen tu ingreso neto, que alimenta el presupuesto, la proyección DPF y la jubilación.</div>
+                    <div class="card-sub">Estos datos definen tu sueldo neto, que alimenta el presupuesto, la proyección DPF y la jubilación. ¿Tienes otros ingresos (negocio, freelance, remesas)? <a href="#" class="link" data-goto="presupuesto/plan">Agrégalos en el Presupuesto del Mes</a>.</div>
                 </div>
                 <a href="#" class="link text-xs" data-goto="config" data-focus="cfg-legal">Parámetros legales (IESS, SBU, tabla SRI) →</a>
             </div>
@@ -254,7 +257,8 @@
                 <label class="field"><span class="field-label"><span>Categoría</span><button type="button" class="mini-btn" data-action="txn.addParent">+ Nueva</button></span>
                     <select id="txn-parent" class="input" data-change="txn.parentChanged"></select></label>
                 <label class="field"><span class="field-label"><span>Subcategoría</span><button type="button" class="mini-btn" data-action="txn.addSub">+ Nueva</button></span>
-                    <select id="txn-sub" class="input"></select></label>
+                    <select id="txn-sub" class="input" data-change="txn.subChanged"></select>
+                    <span id="txn-payroll-hint" class="help text-amber-700 hidden">Tu sueldo ya se cuenta desde "Tu Sueldo", así que esto no se suma a tu presupuesto. Si es un ingreso extra (ventas, trabajos), elige otra categoría.</span></label>
                 <label class="field"><span class="field-label">Forma de pago</span>
                     <select id="txn-payment" class="input">
                         <option>Efectivo</option><option>Tarjeta de Débito</option><option>Tarjeta de Crédito</option><option>Transferencia</option>

@@ -166,15 +166,19 @@
         },
 
         // A year's budget as the math sees it: its own rubros plus the linked debt/goal lines
-        // (in the base budget and in every month that has its own budget).
+        // (in the base budget and in every month that has its own budget), and the income
+        // logged as transactions in each month of that year.
         effective(y) {
             y = Number(y);
             const yd = this.peekYear(y);
             const rows = this.linkedRows(y);
-            if (!rows.length) return yd;
             const overrides = {};
             Object.keys(yd.monthOverrides || {}).forEach(m => { overrides[m] = yd.monthOverrides[m].concat(rows); });
-            return Object.assign({}, yd, { budgetBase: (yd.budgetBase || []).concat(rows), monthOverrides: overrides });
+            return Object.assign({}, yd, {
+                budgetBase: (yd.budgetBase || []).concat(rows),
+                monthOverrides: overrides,
+                receivedIncome: Engine.receivedIncome(this.state.transactions, y)
+            });
         },
 
         nextId(list) { return list.length ? Math.max(...list.map(x => Number(x.id) || 0)) + 1 : 1; },

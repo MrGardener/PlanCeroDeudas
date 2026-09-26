@@ -10,7 +10,10 @@
         const parentSel = document.getElementById('txn-parent');
         const prev = keepParent || parentSel.value;
         const parents = Object.keys(tax);
-        parentSel.innerHTML = Views.selectOptions(parents, parents.includes(prev) ? prev : parents[0]);
+        // Income you log is usually extra income (the salary comes from "Tu Sueldo"), so
+        // don't start new income on the salary category.
+        const first = document.getElementById('txn-type').value === 'Ingreso' && parents.includes('Ingresos Independientes') ? 'Ingresos Independientes' : parents[0];
+        parentSel.innerHTML = Views.selectOptions(parents, parents.includes(prev) ? prev : first);
         fillSubSelect();
     }
 
@@ -18,6 +21,12 @@
         const tax = taxonomyFor(document.getElementById('txn-type').value);
         const subs = tax[document.getElementById('txn-parent').value] || [];
         document.getElementById('txn-sub').innerHTML = Views.selectOptions(subs, keepSub || subs[0]);
+        payrollHint();
+    }
+
+    function payrollHint() {
+        const t = { type: document.getElementById('txn-type').value, category: document.getElementById('txn-sub').value };
+        UI.show('txn-payroll-hint', t.type === 'Ingreso' && Engine.isPayrollTxn(t));
     }
 
     function fillFilters(ctx) {
@@ -69,7 +78,7 @@
                 <td class="font-medium">${esc(t.description)}</td>
                 <td class="text-slate-500">${esc(t.store || '—')}</td>
                 <td>${esc(t.parentCategory)}</td>
-                <td class="text-slate-500">${esc(t.category)}</td>
+                <td class="text-slate-500">${esc(t.category)}${inc && Engine.isPayrollTxn(t) ? `<span class="block text-[10px] text-amber-700" title="Tu sueldo ya se cuenta desde Tu Sueldo">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>` : ''}${inc && t.countAsExtra ? '<span class="block text-[10px] text-emerald-700">Contado como ingreso extra</span>' : ''}</td>
                 <td class="num font-bold ${inc ? 'text-emerald-700' : 'text-red-700'}">${inc ? '+' : '−'}${money(t.amount)}</td>
                 <td><span class="badge badge-muted">${esc(t.paymentType)}</span></td>
                 <td class="text-center"><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button></td>
@@ -99,6 +108,7 @@
     UI.register({
         'txn.typeChanged': () => fillCategorySelects(),
         'txn.parentChanged': () => fillSubSelect(),
+        'txn.subChanged': () => payrollHint(),
         'txn.filter': () => {
             Store.ui.txnFilters = {
                 year: document.getElementById('txn-f-year').value,

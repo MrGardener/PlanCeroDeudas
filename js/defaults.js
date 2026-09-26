@@ -98,6 +98,8 @@
             netWorth: { checking: 0, savings: 0, investments: 0, mortgage: 0, autoLoans: 0, creditCards: 0, personalLoans: 0, studentLoans: 0, otherDebts: 0 },
             netWorthTouched: {},
             budgetBase: clone(BUDGET_TEMPLATE),
+            // Income besides the salary, every month: { id, name, amount, category }.
+            otherIncomes: [],
             monthOverrides: {},
             sriBrackets: sriBrackets()
         };

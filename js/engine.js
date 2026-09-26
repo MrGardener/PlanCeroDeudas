@@ -90,22 +90,78 @@
         return bonus;
     }
 
+    // ------------------------------------------------------------ other income
+    // Besides the salary, a person can have other income: a side business, freelance work,
+    // remittances... Two sources feed the budget:
+    //  - yd.otherIncomes: recurring monthly income the person plans on (every month);
+    //  - income transactions logged in a month (yd.receivedIncome, derived from the
+    //    transactions by Store.effective), which count in that month.
+    // A recurring source linked to a category is "received" by the transactions of that
+    // category: the month counts whichever is larger, never both. Transactions labelled as
+    // the salary itself (Sueldo/Salario, décimos) aren't added: the salary already comes from
+    // "Tu Sueldo". The person can mark one as extra income (t.countAsExtra) if it isn't.
+    const PAYROLL_SUBCATEGORIES = ['Sueldo/Salario', 'Décimo Tercero', 'Décimo Cuarto'];
+    const isPayrollTxn = (t) => PAYROLL_SUBCATEGORIES.includes(t.category) && !t.countAsExtra;
+
+    // Income transactions of one year, by month: { '9': { byCat: {cat: amount}, payroll: [txn] } }.
+    function receivedIncome(transactions, year) {
+        const out = {};
+        (transactions || []).forEach(t => {
+            if ((t.type || 'Gasto') !== 'Ingreso' || !t.date || Number(t.date.slice(0, 4)) !== Number(year)) return;
+            const m = String(Number(t.date.slice(5, 7)));
+            const bucket = out[m] || (out[m] = { byCat: {}, payroll: [] });
+            if (isPayrollTxn(t)) bucket.payroll.push(t);
+            else bucket.byCat[t.parentCategory] = (bucket.byCat[t.parentCategory] || 0) + Math.max(0, num(t.amount));
+        });
+        return out;
+    }
+
+    function otherIncome(yd, month) {
+        const rec = month === 'base' ? null : (yd.receivedIncome || {})[month];
+        const byCat = rec ? rec.byCat : {};
+        const plannedByCat = {};
+        const sources = (yd.otherIncomes || []).map(src => {
+            const planned = Math.max(0, num(src.amount));
+            const cat = src.category && src.category !== 'none' ? src.category : null;
+            if (cat) plannedByCat[cat] = (plannedByCat[cat] || 0) + planned;
+            return { id: src.id, name: src.name, category: cat, planned, received: 0, amount: planned };
+        });
+        // Received above what's planned for a category goes to its first source.
+        const seen = new Set();
+        sources.forEach(src => {
+            if (!src.category) return;
+            src.received = byCat[src.category] || 0;
+            if (seen.has(src.category)) return;
+            seen.add(src.category);
+            src.amount += Math.max(0, src.received - plannedByCat[src.category]);
+        });
+        const unplanned = Object.keys(byCat).filter(c => !(c in plannedByCat) && byCat[c] > 0).map(c => ({ category: c, amount: byCat[c] }));
+        const planned = sum(sources, x => x.planned);
+        const total = sum(sources, x => x.amount) + sum(unplanned, x => x.amount);
+        return { sources, unplanned, planned, total, extraReceived: total - planned, payroll: rec ? rec.payroll : [] };
+    }
+
     // Everything the zero-based budget needs for one month (or the 'base' month).
     // Auto-sweep is derived here — it never rewrites what the user typed — so it works
     // in both directions and applies to every month of the annual projection too.
     function monthBudget(yd, month, pay) {
         pay = pay || payroll(yd);
         const items = monthItems(yd, month);
-        const income = pay.netoM + bonusForMonth(yd, month);
+        const salary = pay.netoM + bonusForMonth(yd, month);
+        const other = otherIncome(yd, month);
+        const income = salary + other.total;
         const expPrep = sum(items, i => num(i.prep));
         const expReal = sum(items, i => num(i.real));
         const rawBalanceReal = income - expReal;
         const sweep = yd.sweepSavings && rawBalanceReal > 0 ? rawBalanceReal : 0;
         return {
             income,
+            salary,
+            otherIncome: other.total,
+            incomePrep: salary + other.planned,
             expPrep,
             expReal,
-            balancePrep: income - expPrep,
+            balancePrep: salary + other.planned - expPrep,
             balanceReal: rawBalanceReal - sweep,
             sweep,
             savingsReal: sum(items.filter(isSavingsItem), i => num(i.real)) + sweep,
@@ -610,7 +666,7 @@
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
-        incomeTax, sriCap, payroll, d4Month, bonusForMonth, monthBudget, annualBudget,
+        incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

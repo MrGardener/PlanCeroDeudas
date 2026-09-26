@@ -46,6 +46,88 @@
             </tr>`;
     }
 
+    // ---------------------------------------------------------------- income
+    // The salary (from "Tu Sueldo"), the person's other recurring income, and income logged
+    // as transactions this month. See Engine.otherIncome for how they combine.
+    function incomeRowsHTML(ctx) {
+        const m = month();
+        const other = Engine.otherIncome(ctx.budgetYear, m);
+        const cats = [{ value: 'none', label: 'Sin vincular' }].concat(Object.keys(ctx.state.taxonomy.income).map(c => ({ value: c, label: c })));
+        const catOptions = (cur) => Views.selectOptions(cur && cur !== 'none' && !cats.some(c => c.value === cur) ? cats.concat([{ value: cur, label: cur }]) : cats, cur || 'none');
+        const cells = '<td class="num font-bold" data-cell="prep"></td><td class="num font-bold" data-cell="real"></td><td class="num font-bold" data-cell="diff"></td>';
+        let html = `<tr class="group-row" data-group="income"><td colspan="3">Ingresos <span data-gcell="note" class="normal-case font-semibold text-emerald-700"></span></td><td class="num" data-gcell="prep"></td><td class="num" data-gcell="real"></td><td class="num" data-gcell="diff"></td><td colspan="3"></td></tr>
+            <tr data-income="salary" class="bg-emerald-50/40">
+                <td><div class="flex items-center gap-2 px-1"><span class="font-semibold text-slate-800">Sueldo neto</span><a href="#" class="badge badge-ok shrink-0" data-goto="presupuesto/ingresos" title="Se calcula en Ingresos e Impuestos"><i class="fa-solid fa-link"></i> Tu Sueldo</a></div></td>
+                <td class="text-xs text-slate-500 px-3">Sueldo</td><td class="text-center text-slate-300">—</td>${cells}
+                <td class="text-xs text-slate-500 px-3">Ingresos Laborales</td><td class="text-xs text-slate-500" data-cell="spend"></td>
+                <td class="text-center"><a href="#" class="row-del" data-goto="presupuesto/ingresos" title="Editar tu sueldo"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
+            </tr>`;
+        (ctx.year.otherIncomes || []).forEach(src => {
+            html += `<tr data-income="${src.id}" class="bg-emerald-50/40">
+                <td><input class="cell-input" value="${esc(src.name)}" data-change="income.set" data-id="${src.id}" data-field="name" aria-label="Nombre del ingreso"></td>
+                <td class="text-xs text-slate-500 px-3">Otro ingreso</td><td class="text-center text-slate-300">—</td>
+                <td><input type="number" class="cell-input num money" step="10" min="0" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Monto mensual" title="Lo que recibes cada mes (neto). Aplica a todos los meses del año."></td>
+                <td class="num font-bold" data-cell="real"></td><td class="num font-bold" data-cell="diff"></td>
+                <td><select class="cell-input" data-change="income.set" data-id="${src.id}" data-field="category" title="Categoría de ingreso de tus transacciones">${catOptions(src.category)}</select></td>
+                <td data-cell="spend"></td>
+                <td class="text-center"><button class="row-del" data-action="income.delete" data-id="${src.id}" title="Eliminar ingreso"><i class="fa-solid fa-trash-can"></i></button></td>
+            </tr>`;
+        });
+        other.unplanned.forEach(u => {
+            html += `<tr data-income="cat:${esc(u.category)}" class="bg-emerald-50/40">
+                <td><div class="px-1"><span class="font-semibold text-slate-800">${esc(u.category)}</span><span class="block text-[10px] text-slate-500">Registrado en Transacciones este mes</span></div></td>
+                <td class="text-xs text-slate-500 px-3">Transacciones</td><td class="text-center text-slate-300">—</td>${cells}
+                <td class="text-xs text-slate-500 px-3">${esc(u.category)}</td>
+                <td><button type="button" class="mini-btn" data-action="income.fromCategory" data-category="${esc(u.category)}" data-amount="${u.amount}" title="Lo recibes todos los meses: agrégalo como ingreso mensual">Es mensual</button></td>
+                <td class="text-center"><a href="#" class="row-del" data-goto="presupuesto/transacciones" title="Ver transacciones"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
+            </tr>`;
+        });
+        if (other.payroll.length) {
+            html += `<tr><td colspan="9" class="text-[11px] text-amber-900 bg-amber-50 px-3 py-2"><i class="fa-solid fa-circle-info text-amber-600"></i> No sumamos ${other.payroll.length === 1 ? 'este ingreso registrado' : 'estos ingresos registrados'} como sueldo/décimo, porque tu sueldo ya viene de "Tu Sueldo": `
+                + other.payroll.map(t => `<strong>${esc(t.description)}</strong> (${money(t.amount)}) <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button>`).join(' · ') + '</td></tr>';
+        }
+        return html;
+    }
+
+    function updateIncome(ctx) {
+        const m = month();
+        const mb = ctx.monthBudget;
+        const other = Engine.otherIncome(ctx.budgetYear, m);
+        const bonus = Engine.bonusForMonth(ctx.budgetYear, m);
+        const set = (row, prep, real) => {
+            if (!row) return;
+            const p = row.querySelector('[data-cell="prep"]');
+            if (p) p.textContent = money(prep);
+            row.querySelector('[data-cell="real"]').textContent = money(real);
+            const dc = row.querySelector('[data-cell="diff"]');
+            dc.textContent = money(real - prep);
+            dc.className = `num font-bold ${real - prep >= -0.005 ? 'text-emerald-600' : 'text-red-600'}`;
+        };
+        const salaryRow = document.querySelector('#bud-body tr[data-income="salary"]');
+        set(salaryRow, mb.salary, mb.salary);
+        if (salaryRow) salaryRow.querySelector('[data-cell="spend"]').textContent = bonus > 0 ? `Incluye décimo (${money0(bonus)})` : 'Calculado de tu sueldo bruto';
+        other.sources.forEach(src => {
+            const row = document.querySelector(`#bud-body tr[data-income="${src.id}"]`);
+            if (!row) return;
+            set(row, src.planned, src.amount);
+            const cell = row.querySelector('[data-cell="spend"]');
+            if (m === 'base') cell.innerHTML = '<span class="text-xs text-slate-500">Todos los meses</span>';
+            else if (!src.category) cell.innerHTML = '<span class="text-[11px] text-slate-500">Vincúlalo a una categoría para comparar con lo registrado</span>';
+            else cell.innerHTML = src.received + 0.005 >= src.planned
+                ? `<span class="badge badge-ok">Recibido ${money0(src.received)}</span>`
+                : `<span class="badge badge-warn">Recibido ${money0(src.received)} de ${money0(src.planned)}</span>`;
+        });
+        other.unplanned.forEach(u => set(document.querySelector(`#bud-body tr[data-income="cat:${CSS.escape(u.category)}"]`), 0, u.amount));
+        const g = document.querySelector('#bud-body tr.group-row[data-group="income"]');
+        if (g) {
+            g.querySelector('[data-gcell="prep"]').textContent = money(mb.incomePrep);
+            g.querySelector('[data-gcell="real"]').textContent = money(mb.income);
+            g.querySelector('[data-gcell="diff"]').textContent = money(mb.income - mb.incomePrep);
+            g.querySelector('[data-gcell="note"]').textContent = mb.otherIncome > 0 ? ` · sueldo + ${money0(mb.otherIncome)} de otros ingresos` : '';
+        }
+        return other;
+    }
+
     function rowHTML(item, taxonomy) {
         if (item.link) return linkedRowHTML(item);
         const cats = [{ value: 'none', label: 'Sin vincular' }].concat(Object.keys(taxonomy).map(c => ({ value: c, label: c })));
@@ -81,7 +163,7 @@
             return `<tr class="group-row" data-group="${esc(g)}"><td colspan="3">${esc(label)} <span data-gcell="note" class="normal-case font-semibold text-emerald-700"></span></td><td class="num" data-gcell="prep"></td><td class="num" data-gcell="real"></td><td class="num" data-gcell="diff"></td><td colspan="3"></td></tr>`
                 + byGroup[g].map(it => rowHTML(it, tax)).join('');
         }).join('');
-        UI.html('bud-body', body || '<tr class="empty-row"><td colspan="9">No hay rubros. Agrega el primero.</td></tr>');
+        UI.html('bud-body', incomeRowsHTML(ctx) + (body || '<tr class="empty-row"><td colspan="9">No hay rubros. Agrega el primero.</td></tr>'));
         update(ctx);
     }
 
@@ -101,23 +183,42 @@
             note.innerHTML = `${Fmt.MONTH_NAMES[m - 1]} usa el presupuesto base. Al editar cualquier valor se crea un presupuesto propio para este mes.`;
         }
 
+        // Income that was logged in the current month shows up in that month, not in the base
+        // budget: point at it so it isn't missed.
+        if (m === 'base' && ctx.state.activeYear === today.getFullYear()) {
+            const cm = String(today.getMonth() + 1);
+            const cur = Engine.otherIncome(ctx.budgetYear, cm);
+            if (cur.extraReceived > 0.005) note.innerHTML += ` <span class="block mt-1 text-emerald-800"><i class="fa-solid fa-circle-plus"></i> En ${Fmt.MONTH_NAMES[cm - 1]} registraste ${money(cur.extraReceived)} de ingresos extra: se suman a ese mes. <button type="button" class="link" data-action="budget.showMonth" data-month="${cm}">Ver ${Fmt.MONTH_NAMES[cm - 1]}</button></span>`;
+        }
+
+        const other = updateIncome(ctx);
+
         // Summary tiles
         UI.text('bud-income', money(mb.income));
         const bonus = Engine.bonusForMonth(yd, m);
-        UI.text('bud-income-note', bonus > 0 ? `Sueldo neto + décimo (${money0(bonus)})` : 'Sueldo neto');
+        const parts = ['Sueldo neto'];
+        if (bonus > 0) parts.push(`décimo (${money0(bonus)})`);
+        if (other.total > 0) parts.push(`otros ingresos (${money0(other.total)})`);
+        UI.text('bud-income-note', parts.join(' + '));
         UI.text('bud-assigned', money(mb.expReal + mb.sweep));
         UI.text('bud-assigned-prep', money(mb.expPrep));
         const bal = mb.balanceReal;
         const box = document.getElementById('bud-balance-box');
         const noteEl = document.getElementById('bud-balance-note');
-        if (Math.abs(bal) < 0.005) { box.className = 'kpi tone-emerald'; noteEl.textContent = '✓ Presupuesto base cero: cada dólar tiene un destino.'; }
+        UI.text('bud-balance-label', bal < -0.005 ? 'Te falta' : 'Por asignar');
+        if (Math.abs(bal) < 0.005) { box.className = 'kpi tone-emerald'; noteEl.textContent = mb.sweep > 0 ? `✓ Cada dólar tiene un destino (${money(mb.sweep)} barridos a ahorro).` : '✓ Presupuesto base cero: cada dólar tiene un destino.'; }
         else if (bal > 0) { box.className = 'kpi tone-amber'; noteEl.textContent = 'Asígnalo a un rubro (o activa el barrido a ahorro).'; }
-        else { box.className = 'kpi tone-red'; noteEl.textContent = `Tus rubros superan tu ingreso por ${money(-bal)}.`; }
+        else {
+            box.className = 'kpi tone-red';
+            noteEl.textContent = `Tus rubros superan tu ingreso por ${money(-bal)}. ${yd.sweepSavings ? 'El barrido solo mueve dinero que sobra; no puede cubrir lo que falta. ' : ''}Recorta rubros o agrega otro ingreso.`;
+        }
         UI.text('bud-balance', money(bal));
 
         const sweepEl = document.getElementById('bud-sweep');
-        UI.show(sweepEl, yd.sweepSavings && mb.sweep > 0);
-        sweepEl.textContent = `+${money(mb.sweep)} barrido a ahorro`;
+        const shortfall = yd.sweepSavings && bal < -0.005;
+        sweepEl.className = `badge ${shortfall ? 'badge-bad' : 'badge-ok'}`;
+        UI.show(sweepEl, yd.sweepSavings && (mb.sweep > 0 || shortfall));
+        sweepEl.textContent = shortfall ? `Nada que barrer: te faltan ${money(-bal)}` : `+${money(mb.sweep)} barrido a ahorro`;
 
         // Rows: diff and spend-vs-budget cells
         const period = m === 'base' ? 'base' : m;
@@ -154,6 +255,7 @@
         // Group subtotals
         UI.$$('#bud-body tr.group-row').forEach(gr => {
             const g = gr.dataset.group;
+            if (g === 'income') return;
             const gi = list.filter(it => groupOf(it) === g);
             const prep = gi.reduce((s, i) => s + (Number(i.prep) || 0), 0);
             const real = gi.reduce((s, i) => s + (Number(i.real) || 0), 0);
@@ -171,7 +273,7 @@
         });
 
         // Footer
-        UI.text('bud-f-inc-prep', money(mb.income));
+        UI.text('bud-f-inc-prep', money(mb.incomePrep));
         UI.text('bud-f-inc-real', money(mb.income));
         UI.text('bud-f-exp-prep', money(mb.expPrep));
         UI.text('bud-f-exp-real', money(mb.expReal + mb.sweep));
@@ -214,6 +316,46 @@
 
     UI.register({
         'budget.setMonth': (el) => { Store.ui.month = el.value; App.render(); },
+        'budget.showMonth': (el) => { Store.ui.month = el.dataset.month; App.render(); },
+        'income.add': () => {
+            const yd = Store.active();
+            const list = yd.otherIncomes || (yd.otherIncomes = []);
+            const id = Store.nextId(list);
+            const cats = Object.keys(Store.state.taxonomy.income);
+            list.push({ id, name: 'Otro ingreso', amount: 0, category: cats.includes('Ingresos Independientes') ? 'Ingresos Independientes' : 'none' });
+            App.changed({ structural: true });
+            UI.toast('Ingreso agregado. Escribe cuánto recibes al mes (neto).');
+            const input = document.querySelector(`#bud-body tr[data-income="${id}"] input`);
+            if (input) { input.focus(); input.select(); }
+        },
+        'income.set': (el) => {
+            const src = (Store.active().otherIncomes || []).find(x => x.id === Number(el.dataset.id));
+            if (!src) return;
+            const f = el.dataset.field;
+            src[f] = f === 'amount' ? Math.max(0, parseNum(el.value, 0)) : el.value;
+            // A new category can absorb (or release) this month's logged income rows.
+            App.changed({ structural: f === 'category' });
+        },
+        'income.delete': (el) => {
+            const yd = Store.active();
+            const src = (yd.otherIncomes || []).find(x => x.id === Number(el.dataset.id));
+            if (!src) return;
+            App.undoable(`Ingreso "${src.name}" eliminado`, () => { Store.active().otherIncomes = Store.active().otherIncomes.filter(x => x.id !== src.id); });
+        },
+        'income.fromCategory': (el) => {
+            const yd = Store.active();
+            const list = yd.otherIncomes || (yd.otherIncomes = []);
+            list.push({ id: Store.nextId(list), name: el.dataset.category, amount: Math.round(Number(el.dataset.amount) * 100) / 100, category: el.dataset.category });
+            App.changed({ structural: true });
+            UI.toast(`"${el.dataset.category}" ahora cuenta como ingreso de todos los meses.`);
+        },
+        'income.countExtra': (el) => {
+            const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
+            if (!t) return;
+            t.countAsExtra = true;
+            App.changed({ structural: true });
+            UI.toast(`"${t.description}" ahora se suma a tus ingresos del mes.`);
+        },
         'budget.set': (el) => {
             const id = Number(el.dataset.id), field = el.dataset.field;
             const item = editableItems().find(i => i.id === id);

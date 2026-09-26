@@ -227,3 +227,38 @@ test('baby steps pick the first unfinished step', () => {
     assert.equal(E.babySteps({ ...base, liquid: 9000, consumerDebt: 0, monthsCovered: 4 }).current, 4);
     assert.equal(E.babySteps({ ...base, liquid: 9000, consumerDebt: 0, monthsCovered: 4, savingsRate: 0.2 }).current, 7);
 });
+
+test('other income: recurring sources, logged income and the salary are each counted once', () => {
+    const txns = [
+        { type: 'Ingreso', parentCategory: 'Ingresos Independientes', category: 'Ventas de Negocio Propio', amount: 120, date: '2026-09-05' },
+        { type: 'Ingreso', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: '2026-09-10' },
+        { type: 'Ingreso', parentCategory: 'Ingresos Laborales', category: 'Sueldo/Salario', amount: 814.95, date: '2026-09-30' },
+        { type: 'Gasto', parentCategory: 'Alimentación', category: 'Mercado', amount: 50, date: '2026-09-02' },
+        { type: 'Ingreso', parentCategory: 'Ingresos Independientes', category: 'Freelance/Consultoría', amount: 999, date: '2025-09-05' }
+    ];
+    const received = E.receivedIncome(txns, 2026);
+    assert.deepEqual(received['9'].byCat, { 'Ingresos Independientes': 120, 'Remesas del Exterior': 200 });
+    assert.equal(received['9'].payroll.length, 1);  // the salary itself isn't added again
+
+    const yd = year({ sueldo: 900, otherIncomes: [{ id: 1, name: 'Remesa', amount: 150, category: 'Remesas del Exterior' }], receivedIncome: received });
+    const neto = E.payroll(yd).netoM;
+    // Base budget: salary + planned recurring income.
+    close(E.monthBudget(yd, 'base').income, neto + 150);
+    // September: remesa received 200 (> 150 planned, counted once) + unplanned 120.
+    const sep = E.monthBudget(yd, '9');
+    close(sep.income, neto + 200 + 120);
+    close(sep.incomePrep, neto + 150);
+    const other = E.otherIncome(yd, '9');
+    assert.deepEqual(other.unplanned, [{ category: 'Ingresos Independientes', amount: 120 }]);
+    assert.equal(other.sources[0].received, 200);
+    close(other.extraReceived, 170);
+    // A month with nothing logged still counts the planned income.
+    close(E.monthBudget(yd, '10').income, neto + 150);
+    // Logged extra income is swept to savings when the sweep is on.
+    const swept = E.monthBudget(Object.assign({}, yd, { sweepSavings: true }), '9');
+    assert.ok(swept.sweep > 0);
+    close(swept.balanceReal, 0);
+    // Marking a salary-labelled income as extra adds it.
+    txns[2].countAsExtra = true;
+    assert.equal(E.receivedIncome(txns, 2026)['9'].payroll.length, 0);
+});
