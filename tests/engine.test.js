@@ -1,0 +1,219 @@
+// Run with: node --test tests/
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const E = require('../js/engine.js');
+const D = require('../js/defaults.js');
+
+const close = (a, b, eps = 0.01) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
+const year = (overrides = {}) => Object.assign(D.newYear(), overrides);
+
+test('income tax follows the progressive SRI brackets', () => {
+    const b = D.sriBrackets();
+    assert.equal(E.incomeTax(10000, b), 0);
+    close(E.incomeTax(15159, b), (15159 - 11902) * 0.05);
+    close(E.incomeTax(20000, b), 615 + (20000 - 19682) * 0.12);
+    close(E.incomeTax(60000, b), 5538 + (60000 - 49207) * 0.25);
+});
+
+test('payroll: IESS, deductions capped at canasta × multiplier, net salary', () => {
+    const yd = year({ sueldo: 2500 });
+    const p = E.payroll(yd);
+    close(p.iessM, 2500 * 0.0945);
+    close(p.sriCap, 764.70 * 7);
+    assert.ok(p.dedApplied <= p.sriCap);
+    close(p.baseImponible, 2500 * 12 - p.iessAnual - p.dedApplied);
+    close(p.netoM, 2500 - p.iessM - p.isrAnual / 12);
+});
+
+test('a zero SRI multiplier means no deduction (not silently 7)', () => {
+    const p = E.payroll(year({ sueldo: 3000, sriCapMultiplier: 0 }));
+    assert.equal(p.sriCap, 0);
+    assert.equal(p.dedApplied, 0);
+});
+
+test('décimos are paid only in their month and region', () => {
+    const coast = year({ sueldo: 1000, d3: true, d4: true, d4Region: 'costa', sbu: 470 });
+    assert.equal(E.bonusForMonth(coast, '12'), 1000);
+    assert.equal(E.bonusForMonth(coast, '3'), 470);
+    assert.equal(E.bonusForMonth(coast, '8'), 0);
+    assert.equal(E.bonusForMonth(coast, 'base'), 0);
+    const sierra = year({ d4: true, d4Region: 'sierra', sbu: 470 });
+    assert.equal(E.bonusForMonth(sierra, '8'), 470);
+    assert.equal(E.bonusForMonth(sierra, '3'), 0);
+});
+
+test('month overrides replace the base budget only for that month', () => {
+    const yd = year();
+    yd.monthOverrides['5'] = [{ id: 1, name: 'x', type: 'Gasto Fijo', prep: 10, real: 20 }];
+    assert.equal(E.monthItems(yd, '5').length, 1);
+    assert.equal(E.monthItems(yd, '6'), yd.budgetBase);
+    assert.equal(E.monthItems(yd, 'base'), yd.budgetBase);
+});
+
+test('auto-sweep is derived: surplus goes to savings without touching typed values', () => {
+    const yd = year({ sueldo: 3000, sweepSavings: true });
+    const before = JSON.stringify(yd.budgetBase);
+    const mb = E.monthBudget(yd, 'base');
+    assert.ok(mb.sweep > 0);
+    close(mb.balanceReal, 0);
+    assert.equal(JSON.stringify(yd.budgetBase), before);
+    // No sweep when spending exceeds income — the deficit stays visible.
+    const tight = year({ sueldo: 500, sweepSavings: true });
+    const t = E.monthBudget(tight, 'base');
+    assert.equal(t.sweep, 0);
+    assert.ok(t.balanceReal < 0);
+});
+
+test('annual budget includes décimo months', () => {
+    const plain = E.annualBudget(year({ sueldo: 1500 }));
+    const withD3 = E.annualBudget(year({ sueldo: 1500, d3: true }));
+    close(withD3.income - plain.income, 1500);
+});
+
+test('deductibles respect base×12 vs month-by-month mode', () => {
+    const yd = year();
+    yd.monthOverrides['1'] = yd.budgetBase.map(i => ({ ...i, real: i.isDeductible ? 0 : i.real }));
+    const base12 = E.annualDeductibles(yd);
+    const sum12 = E.annualDeductibles({ ...yd, annualMode: 'sum12' });
+    assert.ok(sum12.real < base12.real);
+});
+
+test('póliza interest: simple vs compound', () => {
+    close(E.polizaInterest({ amount: 1000, rate: 10, days: 360, modality: 'Al Vencimiento (Simple)' }), 100);
+    close(E.polizaInterest({ amount: 1000, rate: 12, days: 360, modality: 'Mensual (Compuesto)' }), 1000 * (Math.pow(1.01, 12) - 1));
+});
+
+test('COSEDE flags a cooperativa over its limit', () => {
+    const coops = [{ name: 'A', cosedeMax: 32000 }];
+    const res = E.cosedeCheck([{ coopName: 'A', amount: 20000 }, { coopName: 'A', amount: 15000 }, { coopName: 'B', amount: 100 }], coops, 32000);
+    assert.equal(res.find(r => r.name === 'A').exceeded, true);
+    assert.equal(res.find(r => r.name === 'B').exceeded, false);
+});
+
+test('DPF projection starts from registered pólizas, not invented past savings', () => {
+    const getYear = () => year({ tasa: 10 });
+    const proj = E.projectDPF({ polizas: [{ amount: 5000 }], startYear: 2026, endYear: 2027, getYear });
+    assert.equal(proj.opening, 5000);
+    const c = E.annualBudget(getYear()).savingsReal;
+    close(proj.rows[0].balance, 5000 + c + 5000 * 0.1 + c * 0.1 * 0.5);
+    assert.equal(proj.rows.length, 2);
+});
+
+test('months elapsed for budget-to-date comparisons', () => {
+    const today = new Date(2026, 8, 26);
+    assert.equal(E.monthsElapsed(2025, today), 12);
+    assert.equal(E.monthsElapsed(2026, today), 9);
+    assert.equal(E.monthsElapsed(2027, today), 0);
+    assert.equal(E.categoryTarget({ prep: 100 }, 2026, 'base', today), 900);
+    assert.equal(E.categoryTarget({ prep: 100 }, 2026, '3', today), 100);
+});
+
+test('spend status classification', () => {
+    assert.equal(E.spendStatus(null, 100).kind, 'unlinked');
+    assert.equal(E.spendStatus(0, 100).kind, 'untouched');
+    assert.equal(E.spendStatus(50, 100).kind, 'ok');
+    assert.equal(E.spendStatus(85, 100).kind, 'warning');
+    assert.equal(E.spendStatus(120, 100).kind, 'over');
+    assert.equal(E.spendStatus(5, 0).kind, 'unbudgeted');
+});
+
+test('transaction trend switches to yearly buckets past 24 months', () => {
+    const txns = [];
+    for (let i = 0; i < 30; i++) txns.push({ type: 'Gasto', amount: 10, date: `${2020 + Math.floor(i / 12)}-${String(i % 12 + 1).padStart(2, '0')}-10` });
+    const t = E.transactionTrend(txns);
+    assert.equal(t.yearly, true);
+    assert.deepEqual(t.keys, ['2020', '2021', '2022']);
+    const monthly = E.transactionTrend(txns.slice(0, 3));
+    assert.equal(monthly.yearly, false);
+    assert.equal(monthly.keys.length, 3);
+});
+
+test('debt snowball pays smallest first and extra shortens payoff', () => {
+    const debts = [{ id: 1, balance: 5000, rate: 10, minPayment: 100 }, { id: 2, balance: 500, rate: 30, minPayment: 50 }];
+    const snow = E.debtPayoff(debts, 200, 'snowball');
+    assert.equal(snow.items[0].id, 2);
+    const aval = E.debtPayoff(debts, 200, 'avalanche');
+    assert.equal(aval.items[0].id, 2);
+    assert.ok(snow.monthsSaved > 0 && snow.interestSaved > 0);
+    const never = E.debtPayoff([{ id: 1, balance: 10000, rate: 36, minPayment: 10 }], 0, 'snowball');
+    assert.equal(never.never, true);
+});
+
+test('debt kinds map names to net worth liabilities', () => {
+    assert.equal(E.guessDebtKind('Tarjeta de Crédito'), 'tarjeta');
+    assert.equal(E.guessDebtKind('Préstamo Vehicular'), 'vehicular');
+    assert.equal(E.guessDebtKind('Préstamo a mi primo'), 'personal');
+    assert.equal(E.guessDebtKind('Otra cosa'), 'otra');
+});
+
+test('goal NPER handles reached goals, 0% rate and impossible goals', () => {
+    assert.equal(E.goalMonths({ target: 1000, current: 1500, monthly: 50, rate: 8 }).status, 'reached');
+    assert.deepEqual(E.goalMonths({ target: 1000, current: 0, monthly: 100, rate: 0 }), { status: 'ok', months: 10 });
+    assert.equal(E.goalMonths({ target: 1000, current: 0, monthly: 0, rate: 8 }).status, 'never');
+    const g = E.goalMonths({ target: 5000, current: 1000, monthly: 300, rate: 8.5 });
+    assert.equal(g.status, 'ok');
+    assert.ok(g.months > 0 && g.months < (4000 / 300) + 1);
+});
+
+test('amortization: French and German both repay the principal; German pays less interest', () => {
+    const fr = E.amortization('frances', 80000, 10.5, 240, 0);
+    const al = E.amortization('aleman', 80000, 10.5, 240, 0);
+    assert.equal(fr.schedule.length, 240);
+    close(fr.schedule.reduce((s, r) => s + r.principal, 0), 80000);
+    close(al.schedule.reduce((s, r) => s + r.principal, 0), 80000);
+    close(fr.schedule[fr.schedule.length - 1].balance, 0);
+    assert.ok(al.totalInterest < fr.totalInterest);
+    close(fr.firstPayment, E.frenchPayment(80000, 10.5, 240));
+    const extra = E.amortization('frances', 80000, 10.5, 240, 300);
+    assert.ok(extra.months < 240 && extra.totalInterest < fr.totalInterest);
+});
+
+test('chart axis resamples long schedules by year', () => {
+    const axis = E.chartAxis(30);
+    assert.deepEqual(axis.marks, [12, 24, 30]);
+    assert.deepEqual(axis.labels, ['Año 1', 'Año 2', 'Año 2+6m']);
+    const s = [{ v: 1 }, { v: 2 }, { v: 3 }];
+    assert.deepEqual(E.sampleSchedule(s, { marks: [1, 3, 5] }, 'v', true), [1, 6, undefined]);
+});
+
+test('retirement: future value, pension scaling, what-if', () => {
+    close(E.futureValue(1000, 0, 12, 12), 1000 * Math.pow(1.01, 12));
+    close(E.futureValue(0, 100, 0, 12), 1200);
+    close(E.pension({ sueldoPromedio: 1000, tasaReemplazo: 60, aniosAportados: 5, aniosRestantes: 10 }), 1000 * 0.6 * 0.5);
+    const r = E.retirement({ edadActual: 30, edadJubilacion: 65, ahorroActual: 1000, aporteMensual: 100, tasaRetorno: 8, tasaRetiroSegura: 4, sueldoPromedio: 1500, tasaReemplazo: 60, aniosAportados: 5, whatIfExtra: 50 });
+    assert.equal(r.aniosRestantes, 35);
+    assert.equal(r.schedule.length, 36);
+    assert.ok(r.whatIf.gain > 0 && r.whatIf.deltaIngreso > 0);
+    close(r.ingresoTotal, r.ingresoAhorro + r.pension);
+});
+
+test('net worth carries balances forward until edited', () => {
+    const years = {
+        2024: { netWorth: { checking: 1000 }, netWorthTouched: { checking: true } },
+        2025: { netWorth: { checking: 0 }, netWorthTouched: {} },
+        2027: { netWorth: { checking: 5000 }, netWorthTouched: { checking: true } }
+    };
+    assert.equal(E.netWorthField(years, 2023, 'checking'), 0);
+    assert.equal(E.netWorthField(years, 2026, 'checking'), 1000);
+    assert.equal(E.netWorthField(years, 2030, 'checking'), 5000);
+});
+
+test('assets count only between purchase and sale', () => {
+    const house = { category: 'Bienes Raíces', purchaseYear: 2025, purchaseValue: 100000, status: 'Vendido', saleYear: 2028, valuesByYear: { 2027: 110000 } };
+    assert.equal(E.assetOwned(house, 2024), false);
+    assert.equal(E.assetOwned(house, 2025), true);
+    assert.equal(E.assetOwned(house, 2028), false);
+    assert.equal(E.assetValue(house, 2026), 100000);
+    assert.equal(E.assetValue(house, 2027), 110000);
+    const nw = E.netWorth({}, [house], 2027);
+    assert.equal(nw.value, 110000);
+});
+
+test('baby steps pick the first unfinished step', () => {
+    const base = { liquid: 500, consumerDebt: 7500, monthsCovered: 0.5, savingsRate: 0.05, mortgageBalance: 0 };
+    assert.equal(E.babySteps(base).current, 1);
+    assert.equal(E.babySteps({ ...base, liquid: 1200 }).current, 2);
+    assert.equal(E.babySteps({ ...base, liquid: 1200, consumerDebt: 0 }).current, 3);
+    assert.equal(E.babySteps({ ...base, liquid: 9000, consumerDebt: 0, monthsCovered: 4 }).current, 4);
+    assert.equal(E.babySteps({ ...base, liquid: 9000, consumerDebt: 0, monthsCovered: 4, savingsRate: 0.2 }).current, 7);
+});
