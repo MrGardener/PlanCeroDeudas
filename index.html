@@ -101,6 +101,9 @@
                 <button onclick="switchTab('tab9')" id="nav-tab9" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-scale-unbalanced text-teal-500"></i> 9. Patrimonio Neto
                 </button>
+                <button onclick="switchTab('tab10')" id="nav-tab10" class="tab-btn py-2.5 px-3.5 rounded-t-lg text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-house-chimney-window text-teal-600"></i> 10. Registro de Activos
+                </button>
             </nav>
         </div>
     </header>
@@ -271,29 +274,42 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Tipo</label>
+                        <select id="txn-type" onchange="populateTransactionCategoryDropdowns()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold">
+                            <option value="Gasto">Gasto</option>
+                            <option value="Ingreso">Ingreso (sueldo, remesas, etc.)</option>
+                        </select>
+                    </div>
                     <div class="lg:col-span-2">
-                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Descripción (¿Qué compraste?)</label>
-                        <input type="text" id="txn-description" placeholder="Ej: Compras de la semana" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Descripción</label>
+                        <input type="text" id="txn-description" placeholder="Ej: Compras de la semana / Remesa de mi hermano" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Tienda / Lugar</label>
-                        <input type="text" id="txn-store" placeholder="Ej: Supermaxi" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Tienda / Lugar / Fuente</label>
+                        <input type="text" id="txn-store" placeholder="Ej: Supermaxi / Western Union" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-[10px] font-bold text-slate-600 uppercase">Categoría Principal</label>
+                            <button type="button" onclick="addCustomParentCategory()" title="Agregar nueva categoría principal" class="text-[10px] font-bold text-blue-600 hover:text-blue-800">+ Nueva</button>
+                        </div>
+                        <select id="txn-parent-category" onchange="populateTransactionSubcategories()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs"></select>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-[10px] font-bold text-slate-600 uppercase">Subcategoría</label>
+                            <button type="button" onclick="addCustomSubcategory()" title="Agregar subcategoría a la categoría seleccionada" class="text-[10px] font-bold text-blue-600 hover:text-blue-800">+ Nueva</button>
+                        </div>
+                        <select id="txn-category" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs"></select>
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Tipo de Pago</label>
                         <select id="txn-payment-type" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
-                            <option value="Débito">Débito</option>
                             <option value="Efectivo">Efectivo</option>
+                            <option value="Tarjeta de Débito">Tarjeta de Débito</option>
                             <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
                         </select>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Categoría Principal</label>
-                        <select id="txn-parent-category" onchange="populateTransactionSubcategories()" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs"></select>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Subcategoría</label>
-                        <select id="txn-category" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs"></select>
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Monto ($)</label>
@@ -328,8 +344,18 @@
                         <option value="11">Noviembre</option>
                         <option value="12">Diciembre</option>
                     </select>
+                    <select id="txn-filter-type" onchange="renderTransactionsTable()" class="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold">
+                        <option value="all">Ingresos y Gastos</option>
+                        <option value="Ingreso">Solo Ingresos</option>
+                        <option value="Gasto">Solo Gastos</option>
+                    </select>
                     <select id="txn-filter-category" onchange="renderTransactionsTable()" class="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold"></select>
-                    <span class="ml-auto font-bold text-slate-700">Total Filtrado: <span id="txn-filtered-total" class="text-blue-700">$0.00</span></span>
+                </div>
+
+                <div class="flex flex-wrap gap-4 mb-3 text-xs font-bold">
+                    <span class="text-emerald-700">Ingresos: <span id="txn-filtered-income">$0.00</span></span>
+                    <span class="text-red-600">Gastos: <span id="txn-filtered-expense">$0.00</span></span>
+                    <span class="text-slate-800">Neto: <span id="txn-filtered-net">$0.00</span></span>
                 </div>
 
                 <div class="overflow-x-auto max-h-96">
@@ -337,8 +363,9 @@
                         <thead class="bg-slate-900 text-slate-300 uppercase tracking-wider sticky top-0">
                             <tr>
                                 <th class="py-2 px-3">Fecha</th>
+                                <th class="py-2 px-3">Tipo</th>
                                 <th class="py-2 px-3">Descripción</th>
-                                <th class="py-2 px-3">Tienda</th>
+                                <th class="py-2 px-3">Tienda/Fuente</th>
                                 <th class="py-2 px-3">Categoría</th>
                                 <th class="py-2 px-3">Subcategoría</th>
                                 <th class="py-2 px-3 text-right">Monto</th>
@@ -1372,9 +1399,12 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-3">
                     <!-- Row 1: Real Estate | Real Estate Loans -->
                     <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
-                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Bienes Raíces</label>
-                        <p class="text-[10px] text-slate-500 mb-1.5">Valor actual de tu casa u otras propiedades.</p>
-                        <input type="number" id="nw-realestate" value="0" step="100" placeholder="Ej: 120000" oninput="updateNetWorth('realEstate', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <div class="flex items-center justify-between mb-0.5">
+                            <label class="block text-xs font-bold text-slate-800">Bienes Raíces</label>
+                            <button onclick="switchTab('tab10')" class="text-[10px] font-bold text-blue-600 hover:text-blue-800">Editar en Tab 10 →</button>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Suma automática de tu Registro de Activos (Tab 10) para este año.</p>
+                        <div id="nw-realestate-display" class="w-full bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-700">$0.00</div>
                     </div>
                     <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
                         <label class="block text-xs font-bold text-slate-800 mb-0.5">Préstamos Hipotecarios</label>
@@ -1420,9 +1450,12 @@
 
                     <!-- Row 5: Cars | Car Loans -->
                     <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
-                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Vehículos</label>
-                        <p class="text-[10px] text-slate-500 mb-1.5">Valor de reventa estimado de tus vehículos.</p>
-                        <input type="number" id="nw-vehicles" value="0" step="50" placeholder="Ej: 7000" oninput="updateNetWorth('vehicles', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <div class="flex items-center justify-between mb-0.5">
+                            <label class="block text-xs font-bold text-slate-800">Vehículos</label>
+                            <button onclick="switchTab('tab10')" class="text-[10px] font-bold text-blue-600 hover:text-blue-800">Editar en Tab 10 →</button>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Suma automática de tu Registro de Activos (Tab 10) para este año.</p>
+                        <div id="nw-vehicles-display" class="w-full bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-700">$0.00</div>
                     </div>
                     <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
                         <label class="block text-xs font-bold text-slate-800 mb-0.5">Préstamos Vehiculares</label>
@@ -1432,9 +1465,12 @@
 
                     <!-- Row 6: Other Assets | Other Debt -->
                     <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
-                        <label class="block text-xs font-bold text-slate-800 mb-0.5">Otros Bienes de Valor</label>
-                        <p class="text-[10px] text-slate-500 mb-1.5">Joyas, electrónica, muebles, negocios, etc.</p>
-                        <input type="number" id="nw-personal" value="0" step="50" placeholder="Ej: 500" oninput="updateNetWorth('personalProperty', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <div class="flex items-center justify-between mb-0.5">
+                            <label class="block text-xs font-bold text-slate-800">Otros Bienes de Valor</label>
+                            <button onclick="switchTab('tab10')" class="text-[10px] font-bold text-blue-600 hover:text-blue-800">Editar en Tab 10 →</button>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mb-1.5">Joyas, electrónica, muebles, negocios, etc. — desde el Registro de Activos (Tab 10).</p>
+                        <div id="nw-personal-display" class="w-full bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-700">$0.00</div>
                     </div>
                     <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
                         <label class="block text-xs font-bold text-slate-800 mb-0.5">Otras Deudas</label>
@@ -1464,6 +1500,50 @@
                 <div class="mt-3 space-y-2">
                     <p>Adaptado del principio de Ramsey Solutions sobre patrimonio neto: tu ingreso mensual es solo un flujo; tu <strong>patrimonio neto</strong> (Activos − Pasivos) es una fotografía real de tu riqueza. Alguien con un sueldo alto pero mucha deuda de consumo puede tener un patrimonio neto más bajo que alguien con un sueldo modesto y cero deudas.</p>
                     <p>Por eso esta calculadora es <strong>por año</strong>: lo importante no es el número de un solo mes, sino la tendencia — que tu patrimonio neto crezca año tras año a medida que pagas deudas (Tab 4) y acumulas ahorro DPF (Tab 3 y 5).</p>
+                </div>
+            </details>
+        </section>
+
+        <!-- TAB 10: REGISTRO DE ACTIVOS (FEEDS PATRIMONIO NETO) -->
+        <section id="tab10" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-3 mb-4 gap-2">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-house-chimney-window text-teal-600"></i> Registro de Activos
+                        </h2>
+                        <p class="text-xs text-slate-500">Lista aquí lo que posees: vivienda, vehículos u otros bienes de valor. El valor de cada activo se mantiene igual año a año automáticamente hasta que lo actualices o lo marques como vendido — y alimenta directamente Bienes Raíces, Vehículos y Otros Bienes de Valor en Tab 9 (Patrimonio Neto).</p>
+                    </div>
+                    <button onclick="addAssetRow()" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm whitespace-nowrap">
+                        <i class="fa-solid fa-plus"></i> Agregar Activo
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-900 text-slate-300 uppercase tracking-wider">
+                            <tr>
+                                <th class="py-2 px-3">Nombre del Activo</th>
+                                <th class="py-2 px-3">Categoría</th>
+                                <th class="py-2 px-3">Año de Compra</th>
+                                <th class="py-2 px-3">Valor de Compra ($)</th>
+                                <th class="py-2 px-3">Valor en <span class="asset-active-year-display">2026</span> ($)</th>
+                                <th class="py-2 px-3">Estado</th>
+                                <th class="py-2 px-3 text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assets-table-body" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <details class="bg-amber-50/60 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 leading-relaxed">
+                <summary class="font-bold cursor-pointer">¿Cómo funciona el valor por año y la venta de un activo?</summary>
+                <div class="mt-3 space-y-2">
+                    <p><strong>Valor por año:</strong> el campo "Valor en [Año Activo]" es específico del año que tengas seleccionado arriba en el encabezado. Si compraste una casa en $120,000 y no cambias nada, ese valor se usa en todos los años siguientes automáticamente. Si un año quieres reflejar que se revalorizó o depreció, edita el valor de ESE año — los años siguientes heredarán ese nuevo valor hasta que lo vuelvas a cambiar.</p>
+                    <p><strong>Marcar como Vendido:</strong> registra el valor y año de venta. Desde ese año en adelante, el activo deja de sumar en Patrimonio Neto (ya no lo tienes). Puedes agregar el monto de la venta a "Cuentas Corrientes" del año de venta con un clic, para que tu patrimonio neto total no cambie de golpe — el valor simplemente se mueve de "activo físico" a "efectivo".</p>
                 </div>
             </details>
         </section>
@@ -1557,26 +1637,47 @@
 
         // Shared parent/subcategory taxonomy for the Transaction Log (Tab 1) — also useful
         // as a reference when naming budget rubros above.
-        const expenseCategoryTaxonomy = {
-            "Alimentación": ["Mercado / Supermercado", "Restaurantes", "Comida Rápida", "Cafetería"],
-            "Transporte": ["Pasajes / Bus", "Taxi / App de Transporte", "Gasolina", "Mantenimiento Vehicular", "Parqueo", "Peajes"],
-            "Servicios Básicos": ["Agua", "Energía Eléctrica", "Gas", "Internet", "Telefonía Móvil", "Cable/TV"],
-            "Vivienda": ["Arriendo", "Hipoteca", "Alícuotas/Condominio", "Mantenimiento del Hogar", "Mejoras del Hogar", "Muebles y Electrodomésticos"],
-            "Salud": ["Seguro Médico", "Consultas Médicas", "Medicinas", "Odontología", "Óptica"],
-            "Educación": ["Colegiatura/Pensión", "Útiles Escolares", "Uniformes", "Cursos y Capacitación", "Libros"],
-            "Seguros": ["Seguro de Vida", "Seguro Vehicular", "Seguro de Hogar"],
-            "Entretenimiento": ["Streaming (Netflix, Spotify, etc.)", "Cine", "Salidas y Paseos", "Hobbies", "Turismo Nacional"],
-            "Cuidado Personal": ["Ropa y Calzado", "Peluquería/Barbería", "Cosméticos", "Gimnasio"],
-            "Mascotas": ["Alimento para Mascotas", "Veterinario"],
-            "Deudas": ["Tarjeta de Crédito", "Préstamo Personal", "Préstamo Vehicular", "Préstamo Estudiantil"],
-            "Ahorro e Inversión": ["Aporte DPF", "Fondo de Emergencia", "Aporte a Metas"],
-            "Impuestos y Trámites": ["Impuesto Predial", "Matriculación Vehicular", "Trámites Legales"],
-            "Otros": ["Regalos", "Donaciones", "Imprevistos", "Otros Gastos"]
+        // User-extendable taxonomies (mutated by addCustomParentCategory/addCustomSubcategory,
+        // persisted via buildStateObject/applyLoadedState). Adapted from a broad US-household
+        // category list down to what applies in Ecuador's dollarized, cash/DPF-based economy —
+        // dropped things like 529 plans, HSAs, and US-specific tax/legal items that don't apply.
+        let expenseCategoryTaxonomy = {
+            "Vivienda": ["Arriendo", "Hipoteca", "Alícuotas/Condominio", "Impuesto Predial", "Seguro de Hogar", "Mantenimiento del Hogar", "Reparaciones (plomería, eléctrico, techo)", "Muebles y Electrodomésticos", "Jardinería/Limpieza del Hogar"],
+            "Servicios Básicos y Comunicación": ["Agua", "Energía Eléctrica", "Gas", "Internet", "Plan Celular", "Cable/TV"],
+            "Transporte": ["Cuota de Vehículo (Préstamo)", "Gasolina/Diesel", "Seguro Vehicular", "Mantenimiento (aceite, llantas, frenos)", "Matriculación/Revisión Vehicular", "Pasajes/Bus", "Taxi/App de Transporte", "Parqueo", "Peajes", "Alquiler de Vehículo"],
+            "Alimentación": ["Mercado/Supermercado", "Mercado Municipal/Ferias", "Restaurantes", "Comida Rápida", "Delivery a Domicilio", "Cafetería", "Panadería"],
+            "Suscripciones y Entretenimiento Digital": ["Streaming de Video", "Streaming de Música", "Almacenamiento en la Nube", "Software/Herramientas", "Videojuegos"],
+            "Entretenimiento y Ocio": ["Cine", "Conciertos/Eventos", "Salidas y Paseos", "Turismo Nacional", "Hobbies", "Libros", "Suscripciones de Revistas/Periódicos"],
+            "Cuidado Personal": ["Peluquería/Barbería", "Manicure/Pedicure", "Spa/Masajes", "Cosméticos y Perfumería", "Higiene Personal"],
+            "Vestimenta": ["Ropa y Calzado", "Ropa de Trabajo", "Reparación de Ropa/Zapatos", "Lavandería/Tintorería"],
+            "Salud": ["Seguro Médico", "Consultas Médicas", "Medicinas", "Odontología", "Óptica", "Terapia/Salud Mental", "Exámenes de Laboratorio"],
+            "Educación": ["Colegiatura/Pensión", "Matrícula Universitaria", "Útiles Escolares", "Uniformes", "Libros y Material Educativo", "Cursos/Capacitación", "Clases Particulares/Tutoría"],
+            "Familia e Hijos": ["Guardería/Niñera", "Pañales y Artículos de Bebé", "Juguetes", "Actividades Extracurriculares", "Pensión Alimenticia"],
+            "Mascotas": ["Alimento para Mascotas", "Veterinario", "Peluquería Canina", "Accesorios"],
+            "Deudas": ["Tarjeta de Crédito", "Préstamo Personal", "Préstamo Vehicular", "Préstamo Estudiantil", "Préstamos entre Familiares"],
+            "Seguros y Protección": ["Seguro de Vida", "Seguro de Vida de Deudor"],
+            "Financiero y Legal": ["Comisiones Bancarias", "Trámites Legales/Notaría", "Asesoría Contable/Tributaria", "Multas y Trámites Municipales"],
+            "Ahorro e Inversión": ["Aporte DPF", "Fondo de Emergencia", "Aporte a Metas", "Aporte Voluntario IESS"],
+            "Viajes y Vacaciones": ["Vuelos", "Hospedaje", "Alquiler de Auto de Viaje", "Seguro de Viaje", "Pasaportes/Visas", "Equipaje"],
+            "Regalos, Celebraciones y Donaciones": ["Regalos de Cumpleaños", "Regalos Navideños/Bodas/Baby Showers", "Diezmo/Donaciones Religiosas", "Donaciones Benéficas", "Fiestas/Celebraciones"],
+            "Remesas y Ayuda Familiar": ["Remesa Enviada al Exterior", "Ayuda Económica a Familiares"],
+            "Negocio Propio / Freelance": ["Software/Herramientas de Negocio", "Publicidad/Marketing", "Insumos/Inventario", "Envíos y Empaque", "Espacio de Trabajo/Coworking"],
+            "Otros": ["Imprevistos", "Multas", "Otros Gastos"]
+        };
+
+        let incomeCategoryTaxonomy = {
+            "Ingresos Laborales": ["Sueldo/Salario", "Horas Extras", "Bonos", "Comisiones", "Décimo Tercero", "Décimo Cuarto"],
+            "Ingresos Independientes": ["Freelance/Consultoría", "Ventas de Negocio Propio", "Honorarios Profesionales"],
+            "Remesas del Exterior": ["Remesa Familiar (EE.UU.)", "Remesa Familiar (España)", "Remesa Familiar (Otro País)"],
+            "Ingresos Financieros": ["Interés DPF/Pólizas", "Dividendos", "Alquiler de Propiedad (que recibes)"],
+            "Gobierno y Beneficios": ["Bono de Desarrollo Humano", "Devolución de Impuestos (SRI)", "Pensión IESS"],
+            "Otros Ingresos": ["Regalos Recibidos", "Herencias", "Venta de Artículos Usados", "Reembolsos"]
         };
 
         let transactionItems = [
-            { id: 1, description: "Compras de la semana", store: "Supermaxi", parentCategory: "Alimentación", category: "Mercado / Supermercado", amount: 45.50, date: new Date().toISOString().slice(0, 10), paymentType: "Débito" },
-            { id: 2, description: "Pasaje bus", store: "Cooperativa de Transporte", parentCategory: "Transporte", category: "Pasajes / Bus", amount: 0.35, date: new Date().toISOString().slice(0, 10), paymentType: "Efectivo" }
+            { id: 1, type: "Gasto", description: "Compras de la semana", store: "Supermaxi", parentCategory: "Alimentación", category: "Mercado/Supermercado", amount: 45.50, date: new Date().toISOString().slice(0, 10), paymentType: "Tarjeta de Débito" },
+            { id: 2, type: "Gasto", description: "Pasaje bus", store: "Cooperativa de Transporte", parentCategory: "Transporte", category: "Pasajes/Bus", amount: 0.35, date: new Date().toISOString().slice(0, 10), paymentType: "Efectivo" },
+            { id: 3, type: "Ingreso", description: "Remesa mensual de mi hermano", store: "Western Union", parentCategory: "Remesas del Exterior", category: "Remesa Familiar (EE.UU.)", amount: 200, date: new Date().toISOString().slice(0, 10), paymentType: "Tarjeta de Débito" }
         ];
 
         let multiYearStore = {};
@@ -1656,6 +1757,16 @@
             { id: 2, name: "Préstamo Vehicular", balance: 6000, rate: 11, minPayment: 220 }
         ];
 
+        // Asset Registry: items owned (real estate, vehicles, other valuables). Feeds the
+        // corresponding Net Worth (Tab 9) categories automatically for whichever year is
+        // active. A value set for one year carries forward unchanged into later years until
+        // explicitly updated (appreciation/depreciation) or the asset is marked sold.
+        const ASSET_CATEGORIES = ["Bienes Raíces", "Vehículo", "Otro"];
+
+        let assetItems = [
+            { id: 1, name: "Casa Principal", category: "Bienes Raíces", purchaseYear: 2022, purchaseValue: 120000, status: "Activo", saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} }
+        ];
+
         let chartInstance = null;
 
         function initYearSelector() {
@@ -1716,8 +1827,10 @@
         function changeActiveYear(newYr) {
             activeYear = parseInt(newYr);
             document.querySelectorAll('.active-year-display').forEach(el => el.innerText = activeYear);
+            document.querySelectorAll('.asset-active-year-display').forEach(el => el.innerText = activeYear);
             loadYearToInputs();
             renderBudgetTable();
+            renderAssetsTable();
             recalculateAll();
         }
 
@@ -2005,6 +2118,7 @@
             if (tabId === 'tab7') { calculateMortgage(); }
             if (tabId === 'tab8') { calculateRetirement(); }
             if (tabId === 'tab9') { renderNetWorthChart(); }
+            if (tabId === 'tab10') { renderAssetsTable(); }
         }
 
         function formatCurrency(amount) {
@@ -2167,8 +2281,145 @@
             return yd.netWorth;
         }
 
-        function sumNetWorthAssets(nw) {
-            return nw.checking + nw.savings + nw.investments + nw.realEstate + nw.vehicles + nw.personalProperty;
+        function getAssetValueForYear(asset, year) {
+            const years = Object.keys(asset.valuesByYear || {}).map(Number).filter(y => y <= year);
+            if (years.length === 0) return asset.purchaseValue;
+            const closestYear = Math.max(...years);
+            return asset.valuesByYear[closestYear];
+        }
+
+        function isAssetOwnedInYear(asset, year) {
+            if (asset.status !== 'Vendido') return true;
+            return asset.saleYear === null || asset.saleYear === undefined || year < asset.saleYear;
+        }
+
+        function sumAssetsForYearByCategory(year, category) {
+            return assetItems
+                .filter(a => a.category === category && isAssetOwnedInYear(a, year))
+                .reduce((s, a) => s + getAssetValueForYear(a, year), 0);
+        }
+
+        function sumNetWorthAssets(nw, year) {
+            const registryTotal = sumAssetsForYearByCategory(year, 'Bienes Raíces')
+                + sumAssetsForYearByCategory(year, 'Vehículo')
+                + sumAssetsForYearByCategory(year, 'Otro');
+            return nw.checking + nw.savings + nw.investments + registryTotal;
+        }
+
+        // --- ASSET REGISTRY (TAB 10) ---
+        function addAssetRow() {
+            const newId = assetItems.length > 0 ? Math.max(...assetItems.map(a => a.id)) + 1 : 1;
+            assetItems.push({ id: newId, name: "Nuevo Activo", category: "Otro", purchaseYear: activeYear, purchaseValue: 0, status: "Activo", saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} });
+            renderAssetsTable();
+            updateNetWorthDisplay();
+        }
+
+        function deleteAssetRow(id) {
+            assetItems = assetItems.filter(a => a.id !== id);
+            renderAssetsTable();
+            updateNetWorthDisplay();
+        }
+
+        function updateAssetField(id, field, value) {
+            const asset = assetItems.find(a => a.id === id);
+            if (!asset) return;
+            if (field === 'name') asset.name = value;
+            else if (field === 'category') asset.category = value;
+            else if (field === 'purchaseYear') asset.purchaseYear = parseInt(value) || activeYear;
+            else if (field === 'purchaseValue') asset.purchaseValue = parseFloat(value) || 0;
+            renderAssetsTable();
+            updateNetWorthDisplay();
+        }
+
+        function updateAssetValueForActiveYear(id, value) {
+            const asset = assetItems.find(a => a.id === id);
+            if (!asset) return;
+            asset.valuesByYear[activeYear] = parseFloat(value) || 0;
+            updateNetWorthDisplay();
+        }
+
+        function markAssetSold(id) {
+            const asset = assetItems.find(a => a.id === id);
+            if (!asset) return;
+            const currentValueGuess = getAssetValueForYear(asset, activeYear);
+            const saleValueStr = prompt(`¿Por cuánto vendiste "${asset.name}"?`, currentValueGuess);
+            if (saleValueStr === null) return;
+            const saleYearStr = prompt('¿En qué año lo vendiste?', activeYear.toString());
+            if (saleYearStr === null) return;
+
+            asset.status = 'Vendido';
+            asset.saleValue = parseFloat(saleValueStr) || 0;
+            asset.saleYear = parseInt(saleYearStr) || activeYear;
+            asset.proceedsAdded = false;
+            renderAssetsTable();
+            updateNetWorthDisplay();
+        }
+
+        function unmarkAssetSold(id) {
+            const asset = assetItems.find(a => a.id === id);
+            if (!asset) return;
+            if (!confirm('¿Deshacer la venta y marcar este activo como Activo de nuevo? Esto no revierte automáticamente el monto que ya hayas agregado a Cuentas Corrientes.')) return;
+            asset.status = 'Activo';
+            asset.saleValue = 0;
+            asset.saleYear = null;
+            asset.proceedsAdded = false;
+            renderAssetsTable();
+            updateNetWorthDisplay();
+        }
+
+        function addSaleProceedsToChecking(id) {
+            const asset = assetItems.find(a => a.id === id);
+            if (!asset || asset.status !== 'Vendido' || asset.proceedsAdded) return;
+            const nw = ensureNetWorthDefaults(getYearData(asset.saleYear));
+            nw.checking += asset.saleValue;
+            asset.proceedsAdded = true;
+            alert(`Se agregaron ${formatCurrency(asset.saleValue)} a Cuentas Corrientes del año ${asset.saleYear}.`);
+            if (activeYear === asset.saleYear) loadNetWorthInputsForActiveYear();
+            renderAssetsTable();
+        }
+
+        function renderAssetsTable() {
+            document.querySelectorAll('.asset-active-year-display').forEach(el => el.innerText = activeYear);
+            const tbody = document.getElementById('assets-table-body');
+            if (!tbody) return;
+
+            if (assetItems.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-slate-400">No has registrado ningún activo todavía.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = assetItems.map(a => {
+                const currentValue = getAssetValueForYear(a, activeYear);
+                const owned = isAssetOwnedInYear(a, activeYear);
+                const categoryOptions = ASSET_CATEGORIES.map(c => `<option value="${c}" ${c === a.category ? 'selected' : ''}>${c}</option>`).join('');
+
+                let statusCell;
+                if (a.status === 'Vendido') {
+                    statusCell = `
+                        <div class="text-[10px] leading-relaxed">
+                            <span class="px-2 py-0.5 bg-slate-200 text-slate-700 rounded font-bold whitespace-nowrap">Vendido en ${a.saleYear} por ${formatCurrency(a.saleValue)}</span>
+                            <div class="mt-1 flex flex-col gap-0.5">
+                                ${!a.proceedsAdded
+                                    ? `<button onclick="addSaleProceedsToChecking(${a.id})" class="text-emerald-700 hover:text-emerald-900 font-bold underline text-left">+ Agregar a Cuentas Corrientes</button>`
+                                    : `<span class="text-emerald-600 font-bold">✓ Agregado a Cuentas Corrientes</span>`}
+                                <button onclick="unmarkAssetSold(${a.id})" class="text-slate-400 hover:text-red-600 underline text-left">Deshacer venta</button>
+                            </div>
+                        </div>`;
+                } else {
+                    statusCell = `<button onclick="markAssetSold(${a.id})" class="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded text-[10px] font-bold whitespace-nowrap">Marcar como Vendido</button>`;
+                }
+
+                return `
+                <tr class="hover:bg-slate-50 ${!owned ? 'opacity-50' : ''}">
+                    <td class="py-2 px-3"><input type="text" value="${a.name}" onchange="updateAssetField(${a.id}, 'name', this.value)" class="w-full bg-transparent border rounded px-1.5 py-1 font-medium"></td>
+                    <td class="py-2 px-3"><select onchange="updateAssetField(${a.id}, 'category', this.value)" class="bg-transparent border rounded px-1 py-1 text-xs">${categoryOptions}</select></td>
+                    <td class="py-2 px-3"><input type="number" value="${a.purchaseYear}" onchange="updateAssetField(${a.id}, 'purchaseYear', this.value)" class="w-20 bg-transparent border rounded px-1.5 py-1"></td>
+                    <td class="py-2 px-3"><input type="number" value="${a.purchaseValue}" onchange="updateAssetField(${a.id}, 'purchaseValue', this.value)" class="w-24 bg-transparent border rounded px-1.5 py-1 font-bold"></td>
+                    <td class="py-2 px-3"><input type="number" value="${currentValue}" ${!owned ? 'disabled' : ''} oninput="updateAssetValueForActiveYear(${a.id}, this.value)" class="w-24 bg-white border border-emerald-300 rounded px-1.5 py-1 font-bold text-emerald-800"></td>
+                    <td class="py-2 px-3">${statusCell}</td>
+                    <td class="py-2 px-3 text-center"><button onclick="deleteAssetRow(${a.id})" class="text-slate-400 hover:text-red-600"><i class="fa-solid fa-trash-can"></i></button></td>
+                </tr>`;
+            }).join('');
         }
 
         function sumNetWorthLiabilities(nw) {
@@ -2192,9 +2443,6 @@
             document.getElementById('nw-checking').value = nw.checking;
             document.getElementById('nw-savings').value = nw.savings;
             document.getElementById('nw-investments').value = nw.investments;
-            document.getElementById('nw-realestate').value = nw.realEstate;
-            document.getElementById('nw-vehicles').value = nw.vehicles;
-            document.getElementById('nw-personal').value = nw.personalProperty;
             document.getElementById('nw-mortgage').value = nw.mortgage;
             document.getElementById('nw-autoloans').value = nw.autoLoans;
             document.getElementById('nw-creditcards').value = nw.creditCards;
@@ -2211,9 +2459,13 @@
 
         function updateNetWorthDisplay() {
             const nw = ensureNetWorthDefaults(getYearData(activeYear));
-            const totalAssets = sumNetWorthAssets(nw);
+            const totalAssets = sumNetWorthAssets(nw, activeYear);
             const totalLiabilities = sumNetWorthLiabilities(nw);
             const netWorthVal = totalAssets - totalLiabilities;
+
+            document.getElementById('nw-realestate-display').innerText = formatCurrency(sumAssetsForYearByCategory(activeYear, 'Bienes Raíces'));
+            document.getElementById('nw-vehicles-display').innerText = formatCurrency(sumAssetsForYearByCategory(activeYear, 'Vehículo'));
+            document.getElementById('nw-personal-display').innerText = formatCurrency(sumAssetsForYearByCategory(activeYear, 'Otro'));
 
             document.getElementById('nw-total-assets').innerText = formatCurrency(totalAssets);
             document.getElementById('nw-total-liabilities').innerText = formatCurrency(totalLiabilities);
@@ -2251,7 +2503,7 @@
             for (let y = configStartYear; y <= configEndYear; y++) {
                 const nw = ensureNetWorthDefaults(getYearData(y));
                 labels.push(y.toString());
-                data.push((sumNetWorthAssets(nw) - sumNetWorthLiabilities(nw)).toFixed(2));
+                data.push((sumNetWorthAssets(nw, y) - sumNetWorthLiabilities(nw)).toFixed(2));
             }
 
             netWorthChartInstance = new Chart(ctx, {
@@ -2531,17 +2783,66 @@
         }
 
         // --- TRANSACTION LOG (CATEGORIZED EXPENSE TRACKING) ---
+        function getActiveTransactionTaxonomy() {
+            const type = document.getElementById('txn-type').value;
+            return type === 'Ingreso' ? incomeCategoryTaxonomy : expenseCategoryTaxonomy;
+        }
+
         function populateTransactionCategoryDropdowns() {
-            const parentNames = Object.keys(expenseCategoryTaxonomy);
+            const taxonomy = getActiveTransactionTaxonomy();
+            const parentNames = Object.keys(taxonomy);
             document.getElementById('txn-parent-category').innerHTML = parentNames.map(p => `<option value="${p}">${p}</option>`).join('');
             populateTransactionSubcategories();
-            document.getElementById('txn-filter-category').innerHTML = '<option value="all">Todas las Categorías</option>' + parentNames.map(p => `<option value="${p}">${p}</option>`).join('');
+            populateTransactionCategoryFilter();
+        }
+
+        function populateTransactionCategoryFilter() {
+            const allNames = new Set([...Object.keys(expenseCategoryTaxonomy), ...Object.keys(incomeCategoryTaxonomy)]);
+            const select = document.getElementById('txn-filter-category');
+            const previousValue = select.value || 'all';
+            select.innerHTML = '<option value="all">Todas las Categorías</option>' + [...allNames].map(p => `<option value="${p}">${p}</option>`).join('');
+            select.value = previousValue;
         }
 
         function populateTransactionSubcategories() {
+            const taxonomy = getActiveTransactionTaxonomy();
             const parent = document.getElementById('txn-parent-category').value;
-            const subs = expenseCategoryTaxonomy[parent] || [];
+            const subs = taxonomy[parent] || [];
             document.getElementById('txn-category').innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+
+        function addCustomParentCategory() {
+            const taxonomy = getActiveTransactionTaxonomy();
+            const name = prompt('Nombre de la nueva categoría principal:');
+            if (!name || !name.trim()) return;
+            const trimmed = name.trim();
+            if (taxonomy[trimmed]) {
+                alert('Esa categoría ya existe.');
+                return;
+            }
+            taxonomy[trimmed] = [];
+            populateTransactionCategoryDropdowns();
+            document.getElementById('txn-parent-category').value = trimmed;
+            populateTransactionSubcategories();
+        }
+
+        function addCustomSubcategory() {
+            const taxonomy = getActiveTransactionTaxonomy();
+            const parent = document.getElementById('txn-parent-category').value;
+            if (!parent) {
+                alert('Primero selecciona o crea una categoría principal.');
+                return;
+            }
+            const name = prompt(`Nueva subcategoría para "${parent}":`);
+            if (!name || !name.trim()) return;
+            const trimmed = name.trim();
+            if (taxonomy[parent].includes(trimmed)) {
+                alert('Esa subcategoría ya existe.');
+                return;
+            }
+            taxonomy[parent].push(trimmed);
+            populateTransactionSubcategories();
+            document.getElementById('txn-category').value = trimmed;
         }
 
         function populateTransactionYearFilter() {
@@ -2555,6 +2856,7 @@
         }
 
         function addTransaction() {
+            const type = document.getElementById('txn-type').value;
             const description = document.getElementById('txn-description').value.trim();
             const store = document.getElementById('txn-store').value.trim();
             const parentCategory = document.getElementById('txn-parent-category').value;
@@ -2569,7 +2871,7 @@
             }
 
             const newId = transactionItems.length > 0 ? Math.max(...transactionItems.map(t => t.id)) + 1 : 1;
-            transactionItems.push({ id: newId, description, store, parentCategory, category, amount, date, paymentType });
+            transactionItems.push({ id: newId, type, description, store, parentCategory, category, amount, date, paymentType });
 
             document.getElementById('txn-description').value = '';
             document.getElementById('txn-store').value = '';
@@ -2587,36 +2889,45 @@
         function renderTransactionsTable() {
             const yearFilter = document.getElementById('txn-filter-year').value;
             const monthFilter = document.getElementById('txn-filter-month').value;
+            const typeFilter = document.getElementById('txn-filter-type').value;
             const categoryFilter = document.getElementById('txn-filter-category').value;
 
             const filtered = transactionItems.filter(t => {
                 const d = new Date(t.date + 'T00:00:00');
                 if (yearFilter !== 'all' && d.getFullYear().toString() !== yearFilter) return false;
                 if (monthFilter !== 'all' && (d.getMonth() + 1).toString() !== monthFilter) return false;
+                if (typeFilter !== 'all' && (t.type || 'Gasto') !== typeFilter) return false;
                 if (categoryFilter !== 'all' && t.parentCategory !== categoryFilter) return false;
                 return true;
             }).sort((a, b) => new Date(b.date) - new Date(a.date));
 
             const tbody = document.getElementById('transactions-table-body');
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="py-4 text-center text-slate-400">No hay transacciones registradas para este filtro.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="py-4 text-center text-slate-400">No hay transacciones registradas para este filtro.</td></tr>`;
             } else {
-                tbody.innerHTML = filtered.map(t => `
+                tbody.innerHTML = filtered.map(t => {
+                    const isIncome = (t.type || 'Gasto') === 'Ingreso';
+                    return `
                     <tr class="hover:bg-slate-50">
                         <td class="py-2 px-3">${t.date}</td>
+                        <td class="py-2 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${isIncome ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}">${t.type || 'Gasto'}</span></td>
                         <td class="py-2 px-3 font-medium">${t.description}</td>
                         <td class="py-2 px-3 text-slate-500">${t.store || '—'}</td>
                         <td class="py-2 px-3">${t.parentCategory}</td>
                         <td class="py-2 px-3 text-slate-500">${t.category}</td>
-                        <td class="py-2 px-3 text-right font-bold">${formatCurrency(t.amount)}</td>
+                        <td class="py-2 px-3 text-right font-bold ${isIncome ? 'text-emerald-700' : 'text-red-700'}">${isIncome ? '+' : '-'}${formatCurrency(t.amount)}</td>
                         <td class="py-2 px-3"><span class="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-bold">${t.paymentType}</span></td>
                         <td class="py-2 px-3 text-center"><button onclick="deleteTransaction(${t.id})" class="text-slate-400 hover:text-red-600"><i class="fa-solid fa-trash-can"></i></button></td>
                     </tr>
-                `).join('');
+                `;
+                }).join('');
             }
 
-            const total = filtered.reduce((s, t) => s + (Number(t.amount) || 0), 0);
-            document.getElementById('txn-filtered-total').innerText = formatCurrency(total);
+            const income = filtered.filter(t => (t.type || 'Gasto') === 'Ingreso').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+            const expense = filtered.filter(t => (t.type || 'Gasto') === 'Gasto').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+            document.getElementById('txn-filtered-income').innerText = formatCurrency(income);
+            document.getElementById('txn-filtered-expense').innerText = formatCurrency(expense);
+            document.getElementById('txn-filtered-net').innerText = formatCurrency(income - expense);
         }
 
         function initTransactionLog() {
@@ -3349,7 +3660,10 @@
                 polizasStore: polizasStore,
                 goalItems: goalItems,
                 debtItems: debtItems,
+                assetItems: assetItems,
                 transactionItems: transactionItems,
+                expenseCategoryTaxonomy: expenseCategoryTaxonomy,
+                incomeCategoryTaxonomy: incomeCategoryTaxonomy,
                 retireWhatIfMax: retireWhatIfMax,
                 mortgageWhatIfMax: mortgageWhatIfMax,
                 mortgageConfig: {
@@ -3371,7 +3685,10 @@
             if (data.polizasStore) polizasStore = data.polizasStore;
             if (data.goalItems) goalItems = data.goalItems;
             if (data.debtItems) debtItems = data.debtItems;
+            if (data.assetItems) assetItems = data.assetItems;
             if (data.transactionItems) transactionItems = data.transactionItems;
+            if (data.expenseCategoryTaxonomy) expenseCategoryTaxonomy = data.expenseCategoryTaxonomy;
+            if (data.incomeCategoryTaxonomy) incomeCategoryTaxonomy = data.incomeCategoryTaxonomy;
             if (data.retireWhatIfMax) retireWhatIfMax = data.retireWhatIfMax;
             if (data.mortgageWhatIfMax) mortgageWhatIfMax = data.mortgageWhatIfMax;
             if (data.mortgageConfig) {
@@ -3395,6 +3712,7 @@
             renderCooperativasTable();
             renderPolizasTable();
             renderDebtsTable();
+            renderAssetsTable();
             recalculateAll();
             calculateMortgage();
             calculateRetirement();
@@ -3487,6 +3805,7 @@
                 cooperativasStore = [];
                 polizasStore = [];
                 debtItems = [];
+                assetItems = [];
                 configStartYear = 2020;
                 configEndYear = 2050;
                 activeYear = 2026;
@@ -3500,6 +3819,7 @@
                 renderCooperativasTable();
                 renderPolizasTable();
                 renderDebtsTable();
+                renderAssetsTable();
                 recalculateAll();
                 alert('El sistema ha sido purgado por completo.');
             } else {
@@ -3516,6 +3836,7 @@
             renderCooperativasTable();
             renderPolizasTable();
             renderDebtsTable();
+            renderAssetsTable();
             updateEmergencyFundTracker();
             recalculateAll();
             calculateMortgage();
