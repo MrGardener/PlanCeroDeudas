@@ -108,7 +108,7 @@
     const Store = {
         KEY,
         state: null,
-        ui: { tab: 'resumen', sub: { presupuesto: 'plan', ahorro: 'proyeccion' }, month: 'base', txnFilters: { year: 'all', month: 'all', type: 'all', category: 'all' } },
+        ui: { tab: 'resumen', sub: { presupuesto: 'plan', ahorro: 'proyeccion' }, month: 'base', txnFilters: { year: 'all', month: 'all', type: 'all', category: 'all' }, txnEditing: null },
         status: { lastSavedAt: null, error: null },
         listeners: [],
         _timer: null,

@@ -82,6 +82,9 @@ input[type=range] { accent-color: #059669; width: 100%; }
 .btn.btn-danger { background: #dc2626; color: #fff; } .btn.btn-danger:hover { background: #b91c1c; }
 .btn.btn-ghost { background: transparent; color: #475569; } .btn.btn-ghost:hover { background: #f1f5f9; }
 .row-del.row-del { color: #94a3b8; padding: .25rem .35rem; border-radius: .35rem; } .row-del:hover { color: #dc2626; background: #fef2f2; }
+.row-edit.row-edit { color: #94a3b8; padding: .25rem .35rem; border-radius: .35rem; } .row-edit:hover { color: #2563eb; background: #eff6ff; }
+#txn-form-card.editing { box-shadow: 0 0 0 2px #3b82f6; }
+tr.row-editing td { background: #eff6ff; }
 .link { color: #2563eb; font-weight: 700; cursor: pointer; } .link:hover { text-decoration: underline; }
 .mini-btn { font-size: .66rem; font-weight: 700; color: #2563eb; } .mini-btn:hover { text-decoration: underline; }
 

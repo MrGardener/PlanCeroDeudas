@@ -239,11 +239,11 @@
 
     <!-- ---- Transacciones -->
     <div data-view="transacciones" class="space-y-5 hidden">
-        <div class="card">
+        <div class="card" id="txn-form-card">
             <div class="card-head">
                 <div>
-                    <div class="card-title"><i class="fa-solid fa-receipt text-blue-600"></i> Registrar Transacción</div>
-                    <div class="card-sub">Anota cada compra o ingreso. Con el tiempo verás a dónde se va tu dinero, y tu presupuesto compara lo planeado con lo real.</div>
+                    <div class="card-title"><i class="fa-solid fa-receipt text-blue-600"></i> <span id="txn-form-title">Registrar Transacción</span></div>
+                    <div class="card-sub" id="txn-form-sub">Anota cada compra o ingreso. Con el tiempo verás a dónde se va tu dinero, y tu presupuesto compara lo planeado con lo real. Para corregir una ya registrada, usa el lápiz <i class="fa-solid fa-pen"></i> en la lista.</div>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -273,7 +273,10 @@
                 <label class="field"><span class="field-label">Fecha</span>
                     <input type="date" id="txn-date" class="input"></label>
                 <div class="lg:col-span-3 flex items-end justify-end">
-                    <button class="btn btn-blue" data-action="txn.add"><i class="fa-solid fa-plus"></i> Agregar Transacción</button>
+                    <div class="flex flex-wrap gap-2 justify-end">
+                        <button class="btn btn-secondary hidden" id="txn-cancel" data-action="txn.cancelEdit">Cancelar</button>
+                        <button class="btn btn-blue" id="txn-submit" data-action="txn.add"><i class="fa-solid fa-plus"></i> Agregar Transacción</button>
+                    </div>
                 </div>
             </div>
             <details class="mt-4 panel tone-slate">

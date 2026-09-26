@@ -13,24 +13,46 @@
         // Income you log is usually extra income (the salary comes from "Tu Sueldo"), so
         // don't start new income on the salary category.
         const first = document.getElementById('txn-type').value === 'Ingreso' && parents.includes('Ingresos Independientes') ? 'Ingresos Independientes' : parents[0];
-        parentSel.innerHTML = Views.selectOptions(parents, parents.includes(prev) ? prev : first);
+        // A transaction being edited may use a category deleted since: keep it selectable.
+        const opts = prev && keepParent && !parents.includes(prev) ? parents.concat([prev]) : parents;
+        parentSel.innerHTML = Views.selectOptions(opts, opts.includes(prev) ? prev : first);
         fillIncomeSelect();
         fillSubSelect();
     }
 
+    // ------------------------------------------------------------------ editing
+    // Editing reuses the form above: the pencil loads a transaction into it and the button
+    // saves over it instead of adding a new one.
+    const FORM_FIELDS = ['txn-description', 'txn-store', 'txn-amount'];
+    function setEditing(t) {
+        Store.ui.txnEditing = t ? t.id : null;
+        const card = document.getElementById('txn-form-card');
+        card.classList.toggle('editing', !!t);
+        UI.text('txn-form-title', t ? 'Editar Transacción' : 'Registrar Transacción');
+        UI.show('txn-cancel', !!t);
+        document.getElementById('txn-submit').innerHTML = t ? '<i class="fa-solid fa-check"></i> Guardar cambios' : '<i class="fa-solid fa-plus"></i> Agregar Transacción';
+        UI.$$('#txn-body tr[data-row]').forEach(r => r.classList.toggle('row-editing', !!t && Number(r.dataset.row) === t.id));
+    }
+
+    function clearForm() {
+        FORM_FIELDS.forEach(id => { document.getElementById(id).value = ''; });
+        document.getElementById('txn-income').value = '';
+    }
+
     // Income lines of the budget (active year) that a new income can be the receipt of.
-    function fillIncomeSelect() {
+    function fillIncomeSelect(keep) {
         const isInc = document.getElementById('txn-type').value === 'Ingreso';
         const lines = Store.active().otherIncomes || [];
         UI.show('txn-income-field', isInc && lines.length > 0);
         const sel = document.getElementById('txn-income');
-        const prev = sel.value;
+        const prev = keep !== undefined ? String(keep || '') : sel.value;
         sel.innerHTML = Views.selectOptions([{ value: '', label: 'No: es un ingreso extra' }].concat(lines.map(x => ({ value: String(x.id), label: `Sí: ${x.name}` }))), lines.some(x => String(x.id) === prev) ? prev : '');
     }
 
     function fillSubSelect(keepSub) {
         const tax = taxonomyFor(document.getElementById('txn-type').value);
-        const subs = tax[document.getElementById('txn-parent').value] || [];
+        let subs = tax[document.getElementById('txn-parent').value] || [];
+        if (keepSub && !subs.includes(keepSub)) subs = subs.concat([keepSub]);
         document.getElementById('txn-sub').innerHTML = Views.selectOptions(subs, keepSub || subs[0]);
         payrollHint();
     }
@@ -76,6 +98,10 @@
         renderCategories();
         fillFilters(ctx);
         update(ctx);
+        // Still editing after switching tabs, or was the transaction removed (e.g. by undo)?
+        const editing = ctx.state.transactions.find(t => t.id === Store.ui.txnEditing);
+        if (!editing && Store.ui.txnEditing) clearForm();
+        setEditing(editing || null);
     }
 
     function incomeLabel(t) {
@@ -89,7 +115,7 @@
         const list = Engine.filterTransactions(ctx.state.transactions, f).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
         UI.html('txn-body', list.length ? list.map(t => {
             const inc = (t.type || 'Gasto') === 'Ingreso';
-            return `<tr>
+            return `<tr data-row="${t.id}" class="${Store.ui.txnEditing === t.id ? 'row-editing' : ''}">
                 <td class="whitespace-nowrap">${esc(t.date)}</td>
                 <td><span class="badge ${inc ? 'badge-ok' : 'badge-bad'}">${inc ? 'Ingreso' : 'Gasto'}</span></td>
                 <td class="font-medium">${esc(t.description)}</td>
@@ -98,7 +124,7 @@
                 <td class="text-slate-500">${esc(t.category)}${inc && Engine.isPayrollTxn(t) ? `<span class="block text-[10px] text-amber-700" title="Tu sueldo ya se cuenta desde Tu Sueldo">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>` : ''}${inc && t.countAsExtra ? '<span class="block text-[10px] text-emerald-700">Contado como ingreso extra</span>' : ''}${inc && t.incomeId ? incomeLabel(t) : ''}</td>
                 <td class="num font-bold ${inc ? 'text-emerald-700' : 'text-red-700'}">${inc ? '+' : '−'}${money(t.amount)}</td>
                 <td><span class="badge badge-muted">${esc(t.paymentType)}</span></td>
-                <td class="text-center"><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button></td>
+                <td class="text-center whitespace-nowrap"><button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Editar" aria-label="Editar"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`;
         }).join('') : '<tr class="empty-row"><td colspan="9">No hay transacciones para este filtro.</td></tr>');
 
@@ -145,8 +171,7 @@
                 return;
             }
             const s = Store.state;
-            s.transactions.push({
-                id: Store.nextId(s.transactions),
+            const values = {
                 type: get('txn-type').value,
                 description,
                 store: get('txn-store').value.trim(),
@@ -156,17 +181,51 @@
                 date: get('txn-date').value || new Date().toISOString().slice(0, 10),
                 paymentType: get('txn-payment').value,
                 incomeId: get('txn-type').value === 'Ingreso' && get('txn-income').value ? Number(get('txn-income').value) : undefined
-            });
-            get('txn-income').value = '';
-            get('txn-description').value = '';
-            get('txn-store').value = '';
-            get('txn-amount').value = '';
-            App.changed({ structural: true });
+            };
+            const editing = s.transactions.find(t => t.id === Store.ui.txnEditing);
+            if (editing) {
+                Object.assign(editing, values);
+                if (!values.incomeId) delete editing.incomeId;
+                setEditing(null);
+                clearForm();
+                App.changed({ structural: true, step: true });
+                UI.toast(`Transacción "${description}" actualizada`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+                const row = document.querySelector(`#txn-body tr[data-row="${editing.id}"]`);
+                if (row) { row.scrollIntoView({ block: 'center' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1600); }
+                return;
+            }
+            s.transactions.push(Object.assign({ id: Store.nextId(s.transactions) }, values));
+            clearForm();
+            App.changed({ structural: true, step: true });
             UI.toast(`Transacción de ${money(amount)} registrada`);
             get('txn-description').focus();
         },
+        'txn.edit': (el) => {
+            const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
+            if (!t) return;
+            const get = (id) => document.getElementById(id);
+            get('txn-type').value = t.type || 'Gasto';
+            fillCategorySelects(t.parentCategory);
+            fillSubSelect(t.category);
+            fillIncomeSelect(t.incomeId);
+            get('txn-description').value = t.description || '';
+            get('txn-store').value = t.store || '';
+            get('txn-amount').value = Number(t.amount) || '';
+            get('txn-date').value = t.date || '';
+            const pay = get('txn-payment');
+            if (t.paymentType && ![...pay.options].some(o => o.value === t.paymentType)) pay.add(new Option(t.paymentType, t.paymentType));
+            pay.value = t.paymentType || pay.options[0].value;
+            setEditing(t);
+            document.getElementById('txn-form-card').scrollIntoView({ block: 'start', behavior: 'smooth' });
+            get('txn-description').focus();
+        },
+        'txn.cancelEdit': () => {
+            setEditing(null);
+            clearForm();
+        },
         'txn.delete': (el) => {
             const id = Number(el.dataset.id);
+            if (Store.ui.txnEditing === id) { setEditing(null); clearForm(); }
             App.undoable('Transacción eliminada', () => { Store.state.transactions = Store.state.transactions.filter(t => t.id !== id); });
         },
         'txn.renderCategories': () => renderCategories(),
