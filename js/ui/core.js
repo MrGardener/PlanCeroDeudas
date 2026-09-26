@@ -28,7 +28,10 @@
                 const fn = actions[el.getAttribute(attr)];
                 if (!fn) { console.warn('Acción no registrada:', el.getAttribute(attr)); return; }
                 if (attr === 'data-action' && el.tagName === 'A') e.preventDefault();
-                fn(el, e);
+                // Which field is being edited (stable across re-renders), for undo grouping.
+                UI.source = [el.getAttribute(attr), el.dataset.id, el.dataset.ref, el.dataset.field, el.dataset.bind].join('|');
+                if (UI.beforeAction) UI.beforeAction(UI.source);
+                try { fn(el, e); } finally { UI.source = null; }
             };
             document.addEventListener('click', dispatch('data-action'));
             document.addEventListener('input', dispatch('data-input'));

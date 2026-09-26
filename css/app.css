@@ -26,6 +26,8 @@ body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; b
 .save-status.save-error { color: #fca5a5; background: rgba(220, 38, 38, .18); }
 .icon-btn.icon-btn { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: .55rem; background: #1e293b; border: 1px solid #334155; color: #e2e8f0; }
 .icon-btn.icon-btn:hover { background: #334155; }
+.icon-btn.icon-btn:disabled { opacity: .35; cursor: default; background: #1e293b; }
+@media (max-width: 639px) { .icon-btn.icon-btn.hide-mobile { display: none; } }
 
 .main-nav { display: flex; gap: .25rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 0; }
 .main-nav::-webkit-scrollbar { display: none; }

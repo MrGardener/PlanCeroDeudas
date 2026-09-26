@@ -191,10 +191,78 @@
         (v.update || v.render)(ctx);
     }
 
-    // Called after every mutation. Any new change also cancels a pending "Deshacer": undo
-    // restores a snapshot, so it must never jump back over edits made after the deletion.
+    // ------------------------------------------------------------ undo / redo
+    // Every change can be undone from the header (or Ctrl+Z). The history holds snapshots of
+    // the whole saved state; quick successive changes (typing a number, dragging a slider)
+    // are grouped into one step, so "Deshacer" goes back one action, not one keystroke.
+    const HISTORY_MAX = 60, GROUP_MS = 800;
+    const hist = { past: [], future: [], committed: null, base: null, timer: null, field: null };
+
+    // Grouping only continues while the same field is being edited: any other action first
+    // closes the pending step (before it changes anything, so steps never blur together).
+    UI.beforeAction = (source) => { if (hist.base !== null && source !== hist.field) commitHistory(); };
+
+    function recordChange() {
+        hist.field = UI.source;
+        if (hist.base === null) hist.base = hist.committed;
+        clearTimeout(hist.timer);
+        hist.timer = setTimeout(commitHistory, GROUP_MS);
+        renderHistoryButtons();
+    }
+
+    function commitHistory() {
+        clearTimeout(hist.timer);
+        const now = Store.serialize();
+        if (hist.base !== null && hist.base !== now) {
+            hist.past.push(hist.base);
+            if (hist.past.length > HISTORY_MAX) hist.past.shift();
+            hist.future = [];
+        }
+        hist.committed = now;
+        hist.base = null;
+        renderHistoryButtons();
+    }
+
+    function restore(snapshot) {
+        const ui = Store.state.activeYear;
+        Store.state = Store.migrate(JSON.parse(snapshot));
+        Store.year(Store.state.activeYear || ui);
+        hist.committed = Store.serialize();
+        dismissUndo();
+        Store.scheduleSave();
+        render();
+        renderHistoryButtons();
+    }
+
+    function undo() {
+        commitHistory();
+        if (!hist.past.length) { UI.toast('No hay nada que deshacer.', 'error'); return; }
+        hist.future.push(hist.committed);
+        restore(hist.past.pop());
+        UI.toast('Cambio deshecho', 'ok', { label: 'Rehacer', className: 'toast-undo', onClick: redo });
+    }
+
+    function redo() {
+        commitHistory();
+        if (!hist.future.length) { UI.toast('No hay nada que rehacer.', 'error'); return; }
+        hist.past.push(hist.committed);
+        restore(hist.future.pop());
+        UI.toast('Cambio rehecho');
+    }
+
+    function renderHistoryButtons() {
+        const u = document.getElementById('hist-undo'), r = document.getElementById('hist-redo');
+        if (u) u.disabled = !(hist.past.length || (hist.base !== null && hist.base !== hist.committed));
+        if (r) r.disabled = !hist.future.length || hist.base !== null;
+    }
+
+    // Called after every mutation. { step: true } makes this change its own undo step
+    // (buttons like "Agregar"), instead of grouping it with changes that follow quickly.
+    // Any new change also dismisses a pending "Deshacer" toast (the header button remains).
     function changed(opts = {}) {
         if (!opts.keepUndo) dismissUndo();
+        recordChange();
+        if (opts.step) commitHistory();
         Store.scheduleSave();
         if (opts.structural) render(); else update();
     }
@@ -202,17 +270,13 @@
     const dismissUndo = () => UI.$$('.toast-undo').forEach(t => t.remove());
 
     // Deletions are instant and reversible instead of guarded by "are you sure?" pop-ups:
-    // snapshot, apply, and offer "Deshacer" until the next change.
+    // apply, and offer "Deshacer" right there (it's also in the header).
     function undoable(message, mutate) {
         dismissUndo();
-        const snapshot = Store.serialize();
+        commitHistory();
         mutate();
-        changed({ structural: true, keepUndo: true });
-        UI.toast(message, 'ok', {
-            label: 'Deshacer',
-            className: 'toast-undo',
-            onClick: () => { Store.state = Store.migrate(JSON.parse(snapshot)); changed({ structural: true }); }
-        });
+        changed({ structural: true, keepUndo: true, step: true });
+        UI.toast(message, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: undo });
     }
 
     function renderSaveStatus(status) {
@@ -238,6 +302,8 @@
             changed({ structural: true });
         },
         'app.print': () => window.print(),
+        'app.undo': () => undo(),
+        'app.redo': () => redo(),
         'app.help': () => {
             go('config', { focus: 'cfg-guide' });
             const g = document.getElementById('cfg-guide');
@@ -247,7 +313,19 @@
 
     function init() {
         Store.init();
+        hist.committed = Store.serialize();
         UI.initEvents();
+        // Ctrl+Z / Ctrl+Y (⌘ on Mac). Inside a text box the browser's own undo for that box wins.
+        document.addEventListener('keydown', (e) => {
+            if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+            const k = e.key.toLowerCase();
+            if (k !== 'z' && k !== 'y') return;
+            const t = e.target;
+            if (t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && !['checkbox', 'radio', 'button'].includes(t.type)))) return;
+            if (document.querySelector('.modal-backdrop:not(.hidden)')) return;
+            e.preventDefault();
+            if (k === 'y' || e.shiftKey) redo(); else undo();
+        });
         // data-bind fields dispatch through the generic "bind" handler.
         UI.$$('[data-bind]').forEach(el => {
             const evt = (el.type === 'checkbox' || el.tagName === 'SELECT' || el.dataset.structural === 'true') ? 'data-change' : 'data-input';
@@ -273,7 +351,7 @@
     root.App = {
         tabs, views,
         defineView(key, def) { views[key] = def; },
-        go, render, update, changed, undoable, init, buildContext, fillBindings
+        go, render, update, changed, undoable, undo, redo, commitHistory, init, buildContext, fillBindings
     };
 
     document.addEventListener('DOMContentLoaded', init);

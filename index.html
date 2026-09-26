@@ -28,8 +28,10 @@
                 <select id="global-year-select" data-change="app.setYear" aria-label="Año activo"></select>
             </label>
             <span id="save-status" class="save-status" role="status"><i class="fa-solid fa-circle-check"></i><span class="hidden sm:inline">Guardado</span></span>
+            <button class="icon-btn" id="hist-undo" data-action="app.undo" title="Deshacer el último cambio (Ctrl+Z)" aria-label="Deshacer" disabled><i class="fa-solid fa-rotate-left"></i></button>
+            <button class="icon-btn hide-mobile" id="hist-redo" data-action="app.redo" title="Rehacer (Ctrl+Y)" aria-label="Rehacer" disabled><i class="fa-solid fa-rotate-right"></i></button>
             <button class="icon-btn" data-action="app.help" title="Cómo usar la app" aria-label="Ayuda"><i class="fa-solid fa-circle-question"></i></button>
-            <button class="icon-btn" data-action="app.print" title="Imprimir esta pestaña" aria-label="Imprimir"><i class="fa-solid fa-print"></i></button>
+            <button class="icon-btn hide-mobile" data-action="app.print" title="Imprimir esta pestaña" aria-label="Imprimir"><i class="fa-solid fa-print"></i></button>
         </div>
     </div>
     <nav id="main-nav" class="wrap main-nav" role="tablist" aria-label="Secciones"></nav>

@@ -162,7 +162,7 @@
             });
             if (!r) return;
             tax[r.name.trim()] = [];
-            Store.scheduleSave();
+            App.changed({ step: true });
             fillCategorySelects(r.name.trim());
             renderCategories();
             fillFilters(App.buildContext());
@@ -179,7 +179,7 @@
             });
             if (!r) return;
             tax[parent].push(r.name.trim());
-            Store.scheduleSave();
+            App.changed({ step: true });
             fillSubSelect(r.name.trim());
             renderCategories();
         },

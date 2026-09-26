@@ -249,9 +249,15 @@ test('other income: recurring sources, logged income and the salary are each cou
     close(sep.income, neto + 200 + 120);
     close(sep.incomePrep, neto + 150);
     const other = E.otherIncome(yd, '9');
-    assert.deepEqual(other.unplanned, [{ category: 'Ingresos Independientes', amount: 120 }]);
+    assert.deepEqual(other.unplanned.map(u => [u.category, u.amount, u.txns.length]), [['Ingresos Independientes', 120, 1]]);
     assert.equal(other.sources[0].received, 200);
     close(other.extraReceived, 170);
+    // A second source on the same category doesn't report (or count) the same money again.
+    const twice = Object.assign({}, yd, { otherIncomes: yd.otherIncomes.concat([{ id: 2, name: 'Otra remesa', amount: 0, category: 'Remesas del Exterior' }]) });
+    const o2 = E.otherIncome(twice, '9');
+    assert.equal(o2.sources[1].sharedWith, 'Remesa');
+    assert.equal(o2.sources[1].received, 0);
+    close(o2.total, other.total);
     // A month with nothing logged still counts the planned income.
     close(E.monthBudget(yd, '10').income, neto + 150);
     // Logged extra income is swept to savings when the sweep is on.

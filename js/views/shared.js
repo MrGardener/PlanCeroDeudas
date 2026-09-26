@@ -110,6 +110,7 @@
                 <div class="section-label"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Tus datos</div>
                 <ul class="space-y-2">
                     ${item('fa-floppy-disk', 'Todo se <strong>guarda solo</strong>, en este navegador y este computador. Tus datos nunca salen de tu equipo.')}
+                    ${item('fa-rotate-left', '¿Te equivocaste? Usa <strong>Deshacer</strong> <i class="fa-solid fa-rotate-left"></i> arriba a la derecha (o Ctrl+Z) para volver atrás paso a paso, y <strong>Rehacer</strong> <i class="fa-solid fa-rotate-right"></i> si te arrepientes.')}
                     ${item('fa-triangle-exclamation', 'Si abres la app en <strong>otro navegador u otro computador</strong>, empezará vacía. Si borras el historial o los datos de navegación, <strong>se borra tu plan</strong>.')}
                     ${item('fa-download', 'Descarga una <strong>copia de respaldo</strong> cada cierto tiempo en <a href="#" class="link" data-goto="config" data-focus="cfg-data">Configuración → Tus Datos</a>. Para pasar a otro equipo, abre la app allí y usa <strong>Cargar copia</strong>.')}
                 </ul>

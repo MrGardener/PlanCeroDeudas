@@ -75,7 +75,7 @@
         });
         other.unplanned.forEach(u => {
             html += `<tr data-income="cat:${esc(u.category)}" class="bg-emerald-50/40">
-                <td><div class="px-1"><span class="font-semibold text-slate-800">${esc(u.category)}</span><span class="block text-[10px] text-slate-500">Registrado en Transacciones este mes</span></div></td>
+                <td><div class="px-1"><span class="font-semibold text-slate-800">${esc(u.category)}</span><span class="block text-[10px] text-slate-500">Registrado este mes: ${esc(u.txns.map(t => t.description).join(', '))}</span></div></td>
                 <td class="text-xs text-slate-500 px-3">Transacciones</td><td class="text-center text-slate-300">—</td>${cells}
                 <td class="text-xs text-slate-500 px-3">${esc(u.category)}</td>
                 <td><button type="button" class="mini-btn" data-action="income.fromCategory" data-category="${esc(u.category)}" data-amount="${u.amount}" title="Lo recibes todos los meses: agrégalo como ingreso mensual">Es mensual</button></td>
@@ -113,9 +113,11 @@
             const cell = row.querySelector('[data-cell="spend"]');
             if (m === 'base') cell.innerHTML = '<span class="text-xs text-slate-500">Todos los meses</span>';
             else if (!src.category) cell.innerHTML = '<span class="text-[11px] text-slate-500">Vincúlalo a una categoría para comparar con lo registrado</span>';
-            else cell.innerHTML = src.received + 0.005 >= src.planned
+            else if (src.sharedWith) cell.innerHTML = `<span class="text-[11px] text-slate-500">Lo registrado en esta categoría ya cuenta en «${esc(src.sharedWith)}»</span>`;
+            else cell.innerHTML = (src.received + 0.005 >= src.planned
                 ? `<span class="badge badge-ok">Recibido ${money0(src.received)}</span>`
-                : `<span class="badge badge-warn">Recibido ${money0(src.received)} de ${money0(src.planned)}</span>`;
+                : `<span class="badge badge-warn">Recibido ${money0(src.received)} de ${money0(src.planned)}</span>`)
+                + (src.txns.length ? `<span class="block text-[10px] text-slate-500 mt-0.5">${esc(src.txns.map(t => t.description).join(', '))}</span>` : '');
         });
         other.unplanned.forEach(u => set(document.querySelector(`#bud-body tr[data-income="cat:${CSS.escape(u.category)}"]`), 0, u.amount));
         const g = document.querySelector('#bud-body tr.group-row[data-group="income"]');
@@ -321,10 +323,11 @@
             const yd = Store.active();
             const list = yd.otherIncomes || (yd.otherIncomes = []);
             const id = Store.nextId(list);
-            const cats = Object.keys(Store.state.taxonomy.income);
-            list.push({ id, name: 'Otro ingreso', amount: 0, category: cats.includes('Ingresos Independientes') ? 'Ingresos Independientes' : 'none' });
-            App.changed({ structural: true });
-            UI.toast('Ingreso agregado. Escribe cuánto recibes al mes (neto).');
+            // Starts unlinked: linking it to a category is the person's choice, so it never
+            // absorbs income already logged under that category by surprise.
+            list.push({ id, name: 'Nuevo ingreso', amount: 0, category: 'none' });
+            App.changed({ structural: true, step: true });
+            UI.toast('Ingreso agregado. Escribe su nombre y cuánto recibes al mes (neto).', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
             const input = document.querySelector(`#bud-body tr[data-income="${id}"] input`);
             if (input) { input.focus(); input.select(); }
         },

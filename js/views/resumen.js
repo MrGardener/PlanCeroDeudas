@@ -122,6 +122,7 @@
         'app.dismissWelcome': (el) => {
             Store.state.settings.welcomeDismissed = true;
             Store.scheduleSave();
+            App.commitHistory();  // a preference, not something to undo
             if (el.dataset.then) App.go(el.dataset.then); else App.render();
         }
     });

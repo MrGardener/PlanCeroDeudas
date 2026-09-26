@@ -50,6 +50,7 @@
             URL.revokeObjectURL(url);
             Store.state.settings.lastBackupAt = new Date().toISOString();
             Store.scheduleSave();
+            App.commitHistory();  // a record, not something to undo
             UI.toast('Copia de respaldo descargada. Guárdala en un lugar seguro (por ejemplo Google Drive o un USB).');
         },
         'cfg.upload': () => document.getElementById('cfg-file').click(),
@@ -64,9 +65,11 @@
                 if (!data || typeof data !== 'object' || !(data.years || data.multiYearStore)) { UI.toast('Ese archivo no parece una copia de esta app.', 'error'); return; }
                 const ok = await UI.confirm({ title: 'Cargar copia de respaldo', message: 'Tus datos actuales se reemplazarán por los de la copia. Si quieres conservarlos, descarga primero una copia o crea un baseline.', confirmText: 'Reemplazar mis datos', danger: true });
                 if (!ok) return;
+                App.commitHistory();
                 Store.replaceState(data);
+                App.changed({ step: true });
                 App.go('resumen');
-                UI.toast('Copia de respaldo cargada');
+                UI.toast('Copia de respaldo cargada', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
             };
             reader.readAsText(file);
         },
@@ -123,10 +126,12 @@
                 validate: v => v.word.trim() === 'ELIMINAR' ? null : 'Escribe exactamente ELIMINAR.'
             });
             if (!r) return;
+            App.commitHistory();
             Store.reset('empty');
             Store.ui.month = 'base';
+            App.changed({ step: true });
             App.go('resumen');
-            UI.toast('Todos tus datos fueron borrados');
+            UI.toast('Todos tus datos fueron borrados', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         }
     });
 

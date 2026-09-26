@@ -103,15 +103,17 @@
     const PAYROLL_SUBCATEGORIES = ['Sueldo/Salario', 'Décimo Tercero', 'Décimo Cuarto'];
     const isPayrollTxn = (t) => PAYROLL_SUBCATEGORIES.includes(t.category) && !t.countAsExtra;
 
-    // Income transactions of one year, by month: { '9': { byCat: {cat: amount}, payroll: [txn] } }.
+    // Income transactions of one year, by month:
+    // { '9': { byCat: {cat: amount}, txns: {cat: [txn]}, payroll: [txn] } }.
     function receivedIncome(transactions, year) {
         const out = {};
         (transactions || []).forEach(t => {
             if ((t.type || 'Gasto') !== 'Ingreso' || !t.date || Number(t.date.slice(0, 4)) !== Number(year)) return;
             const m = String(Number(t.date.slice(5, 7)));
-            const bucket = out[m] || (out[m] = { byCat: {}, payroll: [] });
-            if (isPayrollTxn(t)) bucket.payroll.push(t);
-            else bucket.byCat[t.parentCategory] = (bucket.byCat[t.parentCategory] || 0) + Math.max(0, num(t.amount));
+            const bucket = out[m] || (out[m] = { byCat: {}, txns: {}, payroll: [] });
+            if (isPayrollTxn(t)) { bucket.payroll.push(t); return; }
+            bucket.byCat[t.parentCategory] = (bucket.byCat[t.parentCategory] || 0) + Math.max(0, num(t.amount));
+            (bucket.txns[t.parentCategory] = bucket.txns[t.parentCategory] || []).push(t);
         });
         return out;
     }
@@ -119,23 +121,26 @@
     function otherIncome(yd, month) {
         const rec = month === 'base' ? null : (yd.receivedIncome || {})[month];
         const byCat = rec ? rec.byCat : {};
+        const txnsOf = (cat) => (rec && rec.txns && rec.txns[cat]) || [];
         const plannedByCat = {};
         const sources = (yd.otherIncomes || []).map(src => {
             const planned = Math.max(0, num(src.amount));
             const cat = src.category && src.category !== 'none' ? src.category : null;
             if (cat) plannedByCat[cat] = (plannedByCat[cat] || 0) + planned;
-            return { id: src.id, name: src.name, category: cat, planned, received: 0, amount: planned };
+            return { id: src.id, name: src.name, category: cat, planned, received: 0, amount: planned, txns: [], sharedWith: null };
         });
-        // Received above what's planned for a category goes to its first source.
-        const seen = new Set();
+        // What was logged in a category is reported (and anything above the plan is counted)
+        // on the first source of that category; later ones point at it.
+        const first = {};
         sources.forEach(src => {
             if (!src.category) return;
+            if (first[src.category]) { src.sharedWith = first[src.category].name; return; }
+            first[src.category] = src;
             src.received = byCat[src.category] || 0;
-            if (seen.has(src.category)) return;
-            seen.add(src.category);
+            src.txns = txnsOf(src.category);
             src.amount += Math.max(0, src.received - plannedByCat[src.category]);
         });
-        const unplanned = Object.keys(byCat).filter(c => !(c in plannedByCat) && byCat[c] > 0).map(c => ({ category: c, amount: byCat[c] }));
+        const unplanned = Object.keys(byCat).filter(c => !(c in plannedByCat) && byCat[c] > 0).map(c => ({ category: c, amount: byCat[c], txns: txnsOf(c) }));
         const planned = sum(sources, x => x.planned);
         const total = sum(sources, x => x.amount) + sum(unplanned, x => x.amount);
         return { sources, unplanned, planned, total, extraReceived: total - planned, payroll: rec ? rec.payroll : [] };
