@@ -129,7 +129,8 @@
         debit: ['debito', 'debitos', 'cargo', 'cargos', 'retiro', 'retiros', 'egreso', 'egresos', 'debit', 'withdrawal'],
         credit: ['credito', 'creditos', 'abono', 'abonos', 'deposito', 'depositos', 'ingreso', 'ingresos', 'credit', 'deposit'],
         category: ['categoria', 'category', 'rubro', 'tipo de gasto'],
-        store: ['lugar', 'comercio', 'establecimiento', 'merchant', 'tienda', 'oficina', 'agencia']
+        store: ['lugar', 'comercio', 'establecimiento', 'merchant', 'tienda', 'oficina', 'agencia'],
+        balance: ['saldo', 'saldo disponible', 'saldo contable', 'balance', 'running balance']
     };
 
     // Best guess of which column holds what, from the header names.
@@ -143,7 +144,7 @@
         };
         const taken = new Set();
         const map = {};
-        ['date', 'debit', 'credit', 'description', 'category', 'store', 'amount'].forEach(k => {
+        ['date', 'debit', 'credit', 'balance', 'description', 'category', 'store', 'amount'].forEach(k => {
             const i = find(k, taken);
             map[k] = i;
             if (i >= 0) taken.add(i);
@@ -156,16 +157,28 @@
         return map;
     }
 
+    // The account balance after the most recent row (bank statements carry a running balance).
+    function latestBalance(rows) {
+        const withBal = (rows || []).filter(r => !r.error && r.balance !== null && r.balance !== undefined);
+        if (!withBal.length) return null;
+        // Same date: statements may be oldest-first or newest-first; keep the file's last row
+        // of the latest date when oldest-first, the first one when newest-first.
+        const newestFirst = withBal.length > 1 && withBal[0].date > withBal[withBal.length - 1].date;
+        const latest = withBal.reduce((a, r) => (r.date > a.date || (r.date === a.date && !newestFirst) ? r : a));
+        return { date: latest.date, balance: latest.balance };
+    }
+
     const headerSignature = (headers) => headers.map(norm).join('|');
 
     // Rows of the table (after the header) → candidate transactions, using the mapping:
     // { date, description, store, category?, amount>0, type 'Gasto'|'Ingreso', error? }
     function buildRows(table, mapping) {
-        const { mode = 'single', date, description, amount, debit, credit, category, store,
+        const { mode = 'single', date, description, amount, debit, credit, category, store, balance,
             dateFormat = 'auto', decimal = 'auto', expensesAre = 'negative' } = mapping;
         return table.map((cells, i) => {
             const get = (idx) => (idx !== undefined && idx !== null && idx >= 0 ? cells[idx] : '');
             const out = { index: i, date: parseDate(get(date), dateFormat), description: get(description) || '', store: get(store) || '', category: get(category) || '' };
+            if (balance !== undefined && balance >= 0) out.balance = parseAmount(get(balance), decimal);
             let value = null;
             if (mode === 'split') {
                 const d = parseAmount(get(debit), decimal), c = parseAmount(get(credit), decimal);
@@ -277,7 +290,7 @@
         return '﻿' + rows.map(r => r.map(cell).join(delimiter)).join('\r\n') + '\r\n';
     }
 
-    const Importers = { toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    const Importers = { latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
     if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
     else root.Importers = Importers;
 })(this);

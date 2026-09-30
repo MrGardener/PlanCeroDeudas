@@ -84,6 +84,11 @@
         const f = ctx.netWorth.fields;
         const holdings = Engine.holdingsValue(s.holdings);
         const expected = { investments: ctx.polizasCapital + holdings };
+        const accts = s.accounts || [];
+        if (accts.length) {
+            expected.checking = accts.filter(a => a.kind !== 'ahorros').reduce((t, a) => t + (Number(a.balance) || 0), 0);
+            expected.savings = accts.filter(a => a.kind === 'ahorros').reduce((t, a) => t + (Number(a.balance) || 0), 0);
+        }
         Engine.DEBT_KINDS.forEach(k => { expected[k.netWorthField] = 0; });
         s.debts.forEach(d => {
             const k = Engine.DEBT_KINDS.find(x => x.id === d.kind) || Engine.DEBT_KINDS[4];

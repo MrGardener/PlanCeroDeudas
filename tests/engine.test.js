@@ -480,3 +480,16 @@ test('split transactions count on several lines; the rest follows the usual rule
     assert.equal(s.unassigned[0].amount, 50);
     assert.equal(s.unassignedTotal, 50);
 });
+
+test('logging streak counts consecutive days, alive until today ends', () => {
+    const tx = (d, created) => ({ type: 'Gasto', amount: 1, date: d, createdAt: created });
+    const txns = [tx('2026-09-20', '2026-09-28T10:00:00'), tx('2026-09-29'), tx('2026-09-27'), tx('2026-09-25')];
+    const s = E.loggingStreak(txns, new Date(2026, 8, 29));   // Tue 29
+    assert.equal(s.days, 3);          // 27, 28 (created), 29
+    assert.equal(s.today, true);
+    assert.deepEqual(s.week, [true, true, false, false, false, false, false]);   // Mon 28, Tue 29
+    const y = E.loggingStreak(txns, new Date(2026, 8, 30));   // nothing yet today
+    assert.equal(y.days, 3);
+    assert.equal(y.today, false);
+    assert.equal(E.loggingStreak(txns, new Date(2026, 9, 5)).days, 0);
+});

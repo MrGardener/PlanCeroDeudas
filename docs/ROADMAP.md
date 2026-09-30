@@ -46,27 +46,27 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ✅ Per-line detail | Chart icon on a line: this month planned/spent/remaining, last 12 months vs. plan, its transactions, group / type / linked category |
 | ✅ Split transactions | "✂ Dividir entre rubros" on a transaction's chip: up to 3 lines, the rest counts as usual |
 | ✅ Investments: ETF / stocks / funds | Ticker + units; price from Finnhub or Alpha Vantage with the user's free key, or typed by hand; flows into net worth. The key never goes into backups |
+| ✅ Accounts with balances | Patrimonio → Cuentas (corriente / ahorros / efectivo); a bank CSV with a "Saldo" column updates the account with the latest balance on import; feeds net worth and the Resumen |
+| ✅ Quick entry | Floating "+" on every screen: amount keypad, most-used category chips, note, date, person; rules apply |
+| ✅ Logging streak | Resumen → Hoy: days in a row with something logged, this week's dots |
+| ✅ Dark mode | Configuración → Este dispositivo (Claro / Oscuro / Automático) or the moon button in the header; charts follow |
+| ✅ App lock with a PIN | Configuración → Este dispositivo. Salted PBKDF2 hash, 5 tries then a 30 s wait, locks again after 5 min in the background. Honest caveat shown: it hides the screen, it does not encrypt the data (encryption at rest → stage B). Forgot PIN = wipe this browser and load a backup |
 
 ## Phase 3 — planned (works without a server)
 
 | Feature | Source / notes |
 |---|---|
-| 📋 Accounts with balances (checking, savings, card, cash) | Rocket Money / Empower |
 | 📋 Nested budget groups (a group inside a group) | "Car Money → Transportation / Maintenance" |
-| 📋 Quick entry (amount keypad + category tags) | Nudget |
-| 📋 History grouped by week/month with category totals | Nudget history |
-| 📋 Dark mode | Nudget settings |
-| 📋 Share a read-only report (file / print) | Until hosting allows real sharing |
-| 📋 Streaks / motivation | EveryDollar streaks (logging every day) |
-| 📋 App lock with a PIN | Honest caveat: without hosting the data in the browser is not encrypted; a PIN only hides the screen |
+| 📋 History grouped by week/month with category totals | Nudget history. Partly covered: Reportes groups by week/month with totals; a timeline view in Transacciones is still to do |
+| 📋 Share a read-only report (file / print) | Until hosting allows real sharing. Today: Reportes → CSV / print to PDF. Next: a single-file read-only snapshot |
 
 ## Needs hosting / a server 🌐
 
 | Feature | Why not now | What it needs |
 |---|---|---|
-| 🌐 Sync the budget across phone and computer | No server to hold the data; localStorage is per browser | Hosting + accounts + encrypted sync (see stage B) |
+| 🌐 Sync the budget across phone and computer (and encrypt the data at rest) | No server to hold the data; localStorage is per browser | Hosting + accounts + encrypted sync (see stage B) |
 | 🌐 Shared household / group budgets with invitation codes ("Start / Join group", review what is shared) | Two people's devices can't talk without a server | Accounts, groups, invitations, per-item sharing permissions |
-| 🌐 Sign in with Touch ID / Face ID | WebAuthn needs a secure `https://` origin; `file://` doesn't qualify | Stage A (static hosting over HTTPS) is enough for a local lock; stage B for real sign-in |
+| 🌐 Sign in with Touch ID / Face ID (the PIN lock is the offline stand-in) | WebAuthn needs a secure `https://` origin; `file://` doesn't qualify | Stage A (static hosting over HTTPS) is enough for a local lock; stage B for real sign-in |
 | 🌐 Installable app on the phone (home-screen icon, works offline) | PWA install requires `https://` | Stage A |
 | 🌐 Bill reminders as phone notifications | Push needs a service worker on `https://` and a push server | Stage A (local reminders) / B (push) |
 | 🌐 Live customer support chat | Needs someone to answer and a chat service | Stage B: chat widget (e.g. WhatsApp Business link or a support tool) |

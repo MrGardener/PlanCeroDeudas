@@ -104,6 +104,8 @@
                         if (f.step) input.step = f.step;
                         if (f.min !== undefined) input.min = f.min;
                         if (f.placeholder) input.placeholder = f.placeholder;
+                        if (f.inputmode) input.inputMode = f.inputmode;
+                        if (f.type === 'password') input.autocomplete = 'new-password';
                     }
                     input.className = 'input';
                     input.name = f.name;

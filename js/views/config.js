@@ -7,6 +7,7 @@
         const s = ctx.state, yd = ctx.year;
         UI.html('cfg-guide-body', Views.guideHTML());
         renderMembers();
+        renderDevice();
         const curSel = document.getElementById('cfg-currency');
         if (!curSel.options.length) curSel.innerHTML = Views.selectOptions(Fmt.CURRENCIES.map(c => ({ value: c.code, label: c.label })), s.settings.currency || 'USD');
         curSel.value = s.settings.currency || 'USD';
@@ -35,6 +36,28 @@
             </td></tr>`).join('') : '<tr class="empty-row"><td colspan="3">Aún no hay baselines.</td></tr>');
     }
 
+    // Theme and PIN belong to this device (js/device.js), outside the saved budget.
+    function renderDevice() {
+        const sel = document.getElementById('cfg-theme');
+        if (sel) sel.value = Device.read().theme || 'light';
+        UI.html('cfg-lock', Device.hasPin()
+            ? `<span class="badge badge-ok"><i class="fa-solid fa-lock"></i> Activado</span>
+               <button class="btn btn-secondary btn-sm" data-action="device.lockNow"><i class="fa-solid fa-lock"></i> Bloquear ahora</button>
+               <button class="btn btn-secondary btn-sm" data-action="device.setPin">Cambiar PIN</button>
+               <button class="btn btn-ghost btn-sm" data-action="device.removePin">Quitar</button>`
+            : `<span class="badge badge-muted">Desactivado</span>
+               <button class="btn btn-secondary btn-sm" data-action="device.setPin"><i class="fa-solid fa-lock"></i> Activar PIN</button>`);
+    }
+
+    async function askPin(title) {
+        const r = await UI.form({
+            title, confirmText: 'Guardar PIN',
+            fields: [{ name: 'pin', label: 'PIN (4 a 8 números)', type: 'password', inputmode: 'numeric' }, { name: 'again', label: 'Repite el PIN', type: 'password', inputmode: 'numeric' }],
+            validate: v => !/^\d{4,8}$/.test(v.pin) ? 'Usa de 4 a 8 números.' : (v.pin !== v.again ? 'Los dos PIN no coinciden.' : null)
+        });
+        return r ? r.pin : null;
+    }
+
     // Household members: fixed colors in the order they're added (color follows the person).
     const MEMBER_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
     function renderMembers() {
@@ -46,6 +69,31 @@
     }
 
     UI.register({
+        'device.theme': (el) => Device.setTheme(el.value),
+        'device.toggleTheme': () => Device.setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'),
+        'device.setPin': async () => {
+            if (Device.hasPin()) {
+                const cur = await UI.form({ title: 'Cambiar PIN', confirmText: 'Continuar', fields: [{ name: 'pin', label: 'Tu PIN actual', type: 'password', inputmode: 'numeric' }] });
+                if (!cur) return;
+                const lock = Device.read().lock;
+                if (await Device.hashPin(cur.pin, lock.salt) !== lock.hash) { UI.toast('Ese no es tu PIN actual.', 'error'); return; }
+            }
+            const pin = await askPin(Device.hasPin() ? 'Nuevo PIN' : 'Activar bloqueo con PIN');
+            if (!pin) return;
+            if (!await Device.setPin(pin)) { UI.toast('No se pudo guardar el PIN en este navegador.', 'error'); return; }
+            renderDevice();
+            UI.toast('PIN guardado. La app lo pedirá al abrirla. Si lo olvidas, tendrás que borrar los datos y cargar tu copia de respaldo.');
+        },
+        'device.removePin': async () => {
+            const cur = await UI.form({ title: 'Quitar el PIN', confirmText: 'Quitar', fields: [{ name: 'pin', label: 'Tu PIN actual', type: 'password', inputmode: 'numeric' }] });
+            if (!cur) return;
+            const lock = Device.read().lock;
+            if (await Device.hashPin(cur.pin, lock.salt) !== lock.hash) { UI.toast('Ese no es tu PIN.', 'error'); return; }
+            Device.removePin();
+            renderDevice();
+            UI.toast('Bloqueo con PIN desactivado.');
+        },
+        'device.lockNow': () => Device.lockNow(),
         'member.add': async () => {
             const r = await UI.form({ title: 'Agregar persona', fields: [{ name: 'name', label: 'Nombre', placeholder: 'Ej: Ana' }], confirmText: 'Agregar', validate: v => v.name.trim() ? null : 'Escribe un nombre.' });
             if (!r) return;

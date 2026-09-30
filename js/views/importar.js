@@ -63,7 +63,8 @@
         { key: 'debit', label: 'Débito / cargos (gastos)', mode: 'split' },
         { key: 'credit', label: 'Crédito / abonos (ingresos)', mode: 'split' },
         { key: 'store', label: 'Lugar / comercio (opcional)' },
-        { key: 'category', label: 'Categoría (opcional)' }
+        { key: 'category', label: 'Categoría (opcional)' },
+        { key: 'balance', label: 'Saldo (opcional, actualiza tu cuenta)' }
     ];
 
     function guessHeaderRow(rows) {
@@ -127,7 +128,8 @@
             ...FIELDS.map(field),
             m.mode === 'single' ? sel('expensesAre', 'En esa columna los gastos son…', [['negative', 'Negativos (−45.50)'], ['positive', 'Positivos (todo es gasto)']]) : '',
             sel('dateFormat', 'Formato de fecha', [['auto', 'Detectar (día primero)'], ['dmy', 'Día/Mes/Año'], ['mdy', 'Mes/Día/Año'], ['ymd', 'Año-Mes-Día']]),
-            sel('decimal', 'Separador decimal', [['auto', 'Detectar'], ['.', 'Punto (1,234.50)'], [',', 'Coma (1.234,50)']])
+            sel('decimal', 'Separador decimal', [['auto', 'Detectar'], ['.', 'Punto (1,234.50)'], [',', 'Coma (1.234,50)']]),
+            m.balance >= 0 ? `<label class="field"><span class="field-label">Actualizar el saldo de</span><select class="input" data-change="imp.account">${[['', 'No actualizar ninguna cuenta'], ['new', 'Una cuenta nueva']].concat((Store.state.accounts || []).map(a => [String(a.id), a.name])).map(([v, l]) => `<option value="${v}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>` : ''
         ].join(''));
         // First rows as they are in the file, so the columns are easy to recognize.
         UI.html('imp-raw', `<thead><tr>${s.headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${s.table.slice(0, 4).map(r => `<tr>${s.headers.map((_, i) => `<td class="text-xs">${esc(r[i] || '')}</td>`).join('')}</tr>`).join('')}</tbody>`);
@@ -234,6 +236,7 @@
             if (el.value) session.catMap[el.dataset.value] = el.value; else delete session.catMap[el.dataset.value];
             recompute();
         },
+        'imp.account': (el) => { if (session) session.account = el.value; },
         'imp.cat': (el) => { if (!session) return; session.catOverride[Number(el.dataset.i)] = el.value; recompute(); },
         'imp.toggle': (el) => { if (!session) return; session.include[Number(el.dataset.i)] = el.checked; recompute(); },
         'imp.toggleAll': (el) => { if (!session) return; session.rows.forEach((r, i) => { if (!r.error) session.include[i] = el.checked; }); recompute(); },
@@ -258,10 +261,20 @@
                 const { date, description, amount, debit, credit, store, category, mode, dateFormat, decimal, expensesAre } = s.mapping;
                 profiles[s.signature] = { mapping: { date, description, amount, debit, credit, store, category, mode, dateFormat, decimal, expensesAre }, catMap: s.catMap, name: s.name, savedAt: new Date().toISOString().slice(0, 10) };
             }
+            // The statement's running balance updates the chosen account.
+            let balanceNote = '';
+            const lb = s.source === 'csv' && s.account ? Importers.latestBalance(s.rows) : null;
+            if (lb) {
+                const accts = Store.state.accounts || (Store.state.accounts = []);
+                let a = accts.find(x => String(x.id) === String(s.account));
+                if (!a) { a = { id: Store.nextId(accts), name: s.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Cuenta', kind: 'ahorros', balance: 0 }; accts.push(a); }
+                a.balance = lb.balance; a.updatedAt = lb.date;
+                balanceNote = ` Saldo de "${a.name}": ${money(lb.balance)} (${lb.date}).`;
+            }
             const skipped = s.rows.length - rows.length;
             endSession();
             App.changed({ structural: true, step: true });
-            UI.toast(`${rows.length} movimiento${rows.length === 1 ? '' : 's'} importado${rows.length === 1 ? '' : 's'}${skipped ? ` (${skipped} omitido${skipped === 1 ? '' : 's'})` : ''}. Revísalos en Transacciones.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`${rows.length} movimiento${rows.length === 1 ? '' : 's'} importado${rows.length === 1 ? '' : 's'}${skipped ? ` (${skipped} omitido${skipped === 1 ? '' : 's'})` : ''}.${balanceNote} Revísalos en Transacciones.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         },
         'imp.xml': async (el) => {
             const files = Array.from(el.files || []);

@@ -60,6 +60,16 @@ test('column guess, rows and duplicates', () => {
     assert.ok(!I.isDuplicate(rows[0], [{ type: 'Gasto', date: '2026-09-02', amount: 45.5, description: 'Supermaxi' }]));
 });
 
+test('running balance column gives the account balance after the latest movement', () => {
+    const m = I.guessMapping(['Fecha', 'Descripción', 'Débito', 'Crédito', 'Saldo']);
+    assert.equal(m.balance, 4);
+    const oldestFirst = I.buildRows([['01/09/2026', 'A', '10', '', '990'], ['02/09/2026', 'B', '', '5', '995'], ['02/09/2026', 'C', '20', '', '975']], m);
+    assert.deepEqual(I.latestBalance(oldestFirst), { date: '2026-09-02', balance: 975 });
+    const newestFirst = I.buildRows([['02/09/2026', 'C', '20', '', '975'], ['02/09/2026', 'B', '', '5', '995'], ['01/09/2026', 'A', '10', '', '990']], m);
+    assert.deepEqual(I.latestBalance(newestFirst), { date: '2026-09-02', balance: 975 });
+    assert.equal(I.latestBalance(I.buildRows([['01/09/2026', 'A', '10', '']], { ...m, balance: -1 })), null);
+});
+
 test('categorization rules match text regardless of case and accents', () => {
     const rules = [{ contains: 'farmacia', category: 'Salud' }, { contains: 'SUPERMAXI', category: 'Alimentación' }];
     assert.equal(I.applyRules(rules, 'Farmacia Fybeca').category, 'Salud');

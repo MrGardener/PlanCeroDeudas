@@ -21,6 +21,7 @@ reason and what it needs) is logged in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 ```
 index.html              markup for every tab (no logic)
 css/app.css             shared components: cards, fields, buttons, KPI tiles, tables
+js/device.js            this device only: theme (light/dark/auto) and PIN lock — never in backups
 js/format.js            money/percent formatting, HTML escaping
 js/defaults.js          default budget template, categories, sample data, new-year factory
 js/engine.js            ALL financial math — pure functions, no DOM (payroll/SRI, budget,

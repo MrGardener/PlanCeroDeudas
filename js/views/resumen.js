@@ -82,6 +82,8 @@
         const iso = Engine.isoDate(t);
         const spentToday = txns.filter(x => (x.type || 'Gasto') === 'Gasto' && x.date === iso).reduce((a, x) => a + (Number(x.amount) || 0), 0);
         const pay = Engine.nextPayday(s.settings.paydays, t);
+        const streak = Engine.loggingStreak(txns, t);
+        const DOW = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
         UI.html('dash-today', `
             <div class="kpi ${allow.perDay > 0 ? (spentToday > allow.perDay ? 'tone-amber' : 'tone-emerald') : 'tone-red'}">
                 <span class="kpi-label">Puedes gastar hoy</span>
@@ -92,6 +94,12 @@
                 <span class="kpi-label">Próximo día de pago</span>
                 <span class="kpi-value">${pay ? (pay.days === 0 ? '¡Hoy!' : `En ${pay.days} día${pay.days === 1 ? '' : 's'}`) : '—'}</span>
                 <span class="kpi-note">${pay ? `${pay.date.getDate()} de ${Fmt.MONTH_NAMES[pay.date.getMonth()].toLowerCase()}` : '<a href="#" class="link" data-goto="presupuesto/ingresos">Dinos qué días cobras</a>'}</span>
+            </div>
+            <div class="kpi ${streak.days >= 3 ? 'tone-amber' : 'tone-slate'}">
+                <span class="kpi-label">${streak.days ? '🔥 Racha registrando' : 'Registra hoy'}</span>
+                <span class="kpi-value">${streak.days} día${streak.days === 1 ? '' : 's'}</span>
+                <div class="streak-week">${streak.week.map((on, i) => `<span class="${on ? 'on' : ''}" title="${on ? 'Registraste' : 'Sin registros'}">${DOW[i]}</span>`).join('')}</div>
+                <span class="kpi-note">${streak.today ? '¡Ya registraste hoy!' : streak.days ? 'Registra algo hoy para no perder la racha.' : 'Anotar tus gastos cada día es el hábito que más ayuda.'} <button type="button" class="link" data-action="quick.open">+ Registrar</button></span>
             </div>`);
 
         // Cash flow: money in vs. out this month, compared with last month.
@@ -128,6 +136,16 @@
         if (ins.drop) tip('fa-circle-minus', '#0891b2', 'Mayor baja', `<strong>${esc(ins.drop.category)}</strong>: ${money0(-ins.drop.change)} menos que el mes pasado a esta fecha.`);
         if (!ins.hasHistory && ins.spent > 0) out.push('<p class="help">Con un mes más de datos verás qué subió y qué bajó.</p>');
         UI.html('dash-insights', out.join('') || '<p class="help">Registra algunos gastos y aquí verás proyecciones y comparaciones.</p>');
+
+        // Accounts
+        const accts = s.accounts || [];
+        UI.show('dash-accounts-card', accts.length > 0);
+        if (accts.length) {
+            const KIND = { corriente: 'fa-building-columns', ahorros: 'fa-piggy-bank', efectivo: 'fa-money-bill-wave' };
+            const total = accts.reduce((a, x) => a + (Number(x.balance) || 0), 0);
+            UI.html('dash-accounts', `<div class="space-y-2 text-xs">${accts.map(a => `<div class="flex items-center justify-between gap-2"><span class="flex items-center gap-2 min-w-0"><i class="fa-solid ${KIND[a.kind] || KIND.corriente} text-blue-600 w-4 text-center"></i><span class="truncate font-semibold text-slate-800">${esc(a.name)}</span></span><span class="text-right"><strong>${money(a.balance)}</strong><span class="block text-[10px] text-slate-400">${esc(a.updatedAt || '')}</span></span></div>`).join('')}
+                <div class="flex justify-between border-t border-slate-100 pt-2"><span class="font-semibold text-slate-600">Disponible</span><strong class="${total < 0 ? 'text-red-600' : 'text-emerald-700'}">${money(total)}</strong></div></div>`);
+        }
 
         // Household contributions
         const members = s.members || [];

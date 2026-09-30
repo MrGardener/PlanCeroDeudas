@@ -918,6 +918,21 @@
 
     // Dave Ramsey's Baby Steps, evaluated against the user's own data. Steps 4-6 are worked
     // on at the same time once the emergency fund is full, as Ramsey prescribes.
+    // Consecutive days (up to today, or yesterday if today has nothing yet) with at least one
+    // transaction logged, and which days of this week (Mon–Sun) had one.
+    function loggingStreak(transactions, today) {
+        const days = new Set((transactions || []).map(t => (t.createdAt ? isoDate(new Date(t.createdAt)) : t.date)));
+        const t = new Date(today);
+        const d = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+        const loggedToday = days.has(isoDate(d));
+        if (!loggedToday) d.setDate(d.getDate() - 1);
+        let n = 0;
+        while (days.has(isoDate(d)) && n < 3660) { n++; d.setDate(d.getDate() - 1); }
+        const start = periodStart(t, 'week');
+        const week = Array.from({ length: 7 }, (_, i) => { const x = new Date(start); x.setDate(start.getDate() + i); return days.has(isoDate(x)); });
+        return { days: n, week, today: loggedToday };
+    }
+
     // Rough projection of net worth month by month (an estimate, explained as such in the UI).
     // Only invested money (`invested`: pólizas, investments) and new savings earn `rate`; the
     // rest of net worth (house, car, cash) is held flat. While debts are being paid, each
@@ -964,7 +979,7 @@
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
         occurrences, dueOccurrences, nextOccurrence, monthlyCost,
-        netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
+        loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,

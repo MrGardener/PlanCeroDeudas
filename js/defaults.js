@@ -157,6 +157,9 @@
             recurring: [],
             // Deleted transactions, restorable for 60 days.
             trash: [],
+            // Money accounts: { id, name, kind: 'corriente'|'ahorros'|'efectivo', balance, updatedAt }.
+            // Cards and loans are debts (Deudas y Metas), so they're never counted twice.
+            accounts: [],
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -169,7 +172,7 @@
     // (taxonomies, cooperativas) because they are configuration, not personal data.
     function emptyState(today) {
         const s = newState(today);
-        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = [];
+        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = [];
         return s;
     }
 

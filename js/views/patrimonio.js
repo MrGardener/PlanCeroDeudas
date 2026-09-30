@@ -54,6 +54,7 @@
 
     function render(ctx) {
         renderHoldings(ctx);
+        renderAccounts(ctx);
         UI.html('nw-asset-fields', ASSET_FIELDS.map(d => fieldHTML(d, 'emerald')).join(''));
         UI.html('nw-liability-fields', LIABILITY_FIELDS.map(d => fieldHTML(d, 'red')).join(''));
         const snap = ctx.netWorth.fields;
@@ -103,6 +104,20 @@
     }
 
     const find = (el) => Store.state.assets.find(a => a.id === Number(el.dataset.id));
+
+    // ------------------------------------------------------------ accounts
+    const ACCT_KINDS = [{ value: 'corriente', label: 'Cuenta corriente' }, { value: 'ahorros', label: 'Cuenta de ahorros' }, { value: 'efectivo', label: 'Efectivo' }];
+    function renderAccounts(ctx) {
+        const list = ctx.state.accounts || [];
+        UI.html('acct-body', list.length ? list.map(a => `<tr data-row="${a.id}">
+            <td><input class="cell-input font-semibold" value="${esc(a.name)}" data-change="acct.set" data-id="${a.id}" data-field="name" aria-label="Nombre de la cuenta"></td>
+            <td><select class="cell-input" data-change="acct.set" data-id="${a.id}" data-field="kind">${Views.selectOptions(ACCT_KINDS, a.kind)}</select></td>
+            <td><input type="number" class="cell-input num money" step="any" value="${Number(a.balance) || 0}" data-input="acct.set" data-id="${a.id}" data-field="balance" aria-label="Saldo"></td>
+            <td class="text-[11px] text-slate-500" data-cell="when">${a.updatedAt ? esc(a.updatedAt) : '—'}</td>
+            <td class="text-center"><button class="row-del" data-action="acct.delete" data-id="${a.id}" title="Eliminar cuenta" aria-label="Eliminar cuenta"><i class="fa-solid fa-trash-can"></i></button></td>
+        </tr>`).join('') : '<tr class="empty-row"><td colspan="5">Agrega tus cuentas (Pichincha ahorros, Produbanco corriente, efectivo…) para ver tu dinero disponible de un vistazo.</td></tr>');
+        UI.text('acct-total', money(list.reduce((t, a) => t + (Number(a.balance) || 0), 0)));
+    }
 
     // ------------------------------------------------------------ investments
     const KINDS = ['ETF', 'Acción', 'Fondo mutuo', 'Cripto', 'Otro'];
@@ -165,6 +180,28 @@
     }
 
     UI.register({
+        'acct.add': () => {
+            const list = Store.state.accounts || (Store.state.accounts = []);
+            const id = Store.nextId(list);
+            list.push({ id, name: 'Nueva cuenta', kind: 'ahorros', balance: 0, updatedAt: Engine.isoDate(new Date()) });
+            App.changed({ structural: true, step: true });
+            const input = document.querySelector(`#acct-body tr[data-row="${id}"] input`);
+            if (input) { input.focus(); input.select(); }
+        },
+        'acct.set': (el) => {
+            const a = (Store.state.accounts || []).find(x => x.id === Number(el.dataset.id));
+            if (!a) return;
+            const f = el.dataset.field;
+            a[f] = f === 'balance' ? parseNum(el.value, 0) : el.value;
+            if (f === 'balance') a.updatedAt = Engine.isoDate(new Date());
+            App.changed();
+            UI.text('acct-total', money((Store.state.accounts || []).reduce((t, x) => t + (Number(x.balance) || 0), 0)));
+        },
+        'acct.delete': (el) => {
+            const id = Number(el.dataset.id);
+            const a = (Store.state.accounts || []).find(x => x.id === id);
+            App.undoable(`Cuenta "${a ? a.name : ''}" eliminada`, () => { Store.state.accounts = Store.state.accounts.filter(x => x.id !== id); });
+        },
         'hold.add': () => {
             const list = Store.state.holdings || (Store.state.holdings = []);
             const id = Store.nextId(list);
@@ -217,6 +254,12 @@
             const s = Store.state, yd = Store.active();
             const capital = Engine.polizasCapital(s.polizas) + Engine.holdingsValue(s.holdings);
             touch(yd, 'investments', capital);
+            // Accounts, when registered, fill checking (corriente + efectivo) and savings.
+            const accts = s.accounts || [];
+            if (accts.length) {
+                touch(yd, 'checking', accts.filter(a => a.kind !== 'ahorros').reduce((t, a) => t + (Number(a.balance) || 0), 0));
+                touch(yd, 'savings', accts.filter(a => a.kind === 'ahorros').reduce((t, a) => t + (Number(a.balance) || 0), 0));
+            }
             const byKind = {};
             Engine.DEBT_KINDS.forEach(k => { byKind[k.netWorthField] = 0; });
             s.debts.forEach(d => {

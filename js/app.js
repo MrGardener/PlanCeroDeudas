@@ -326,7 +326,7 @@
             if (k !== 'z' && k !== 'y') return;
             const t = e.target;
             if (t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && !['checkbox', 'radio', 'button'].includes(t.type)))) return;
-            if (document.querySelector('.modal-backdrop:not(.hidden)')) return;
+            if (document.querySelector('.modal-backdrop:not(.hidden)') || document.documentElement.classList.contains('app-locked')) return;
             e.preventDefault();
             if (k === 'y' || e.shiftKey) redo(); else undo();
         });

@@ -531,7 +531,7 @@
             } else if (values.date > todayISO) {
                 UI.toast('Registrada con fecha futura. Para que se repita, elige una opción en "Repetir".', 'warn');
             }
-            s.transactions.push(Object.assign({ id: Store.nextId(s.transactions) }, values));
+            s.transactions.push(Object.assign({ id: Store.nextId(s.transactions), createdAt: new Date().toISOString() }, values));
             clearForm();
             App.changed({ structural: true, step: true });
             UI.toast(repeat ? `"${description}" registrada y programada ${FREQ[repeat].toLowerCase()}.` : `Transacción de ${money(amount)} registrada`);
