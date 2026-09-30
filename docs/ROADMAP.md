@@ -32,7 +32,7 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ✅ Savings goals, net worth, DPF projection, mortgage, retirement | Existing tabs |
 | ✅ Unlimited custom categories / subcategories | Transacciones → Gestionar categorías |
 | ✅ CSV import from any bank/app ("connect your bank") | Presupuesto → Importar. Column mapping, the file's categories → yours, preview, duplicates skipped, mapping remembered per file layout; the file is never stored |
-| ✅ Automatic categorization rules | "Contains X → category / budget line"; applied on import and while typing a new transaction |
+| ✅ Automatic categorization rules | "Contains X → name / category / budget line"; applied on import and while typing a new transaction |
 | ✅ SRI electronic invoice import (XML) | Supplier, RUC, number, date, total, IVA, items, payment type; the same invoice twice is detected by its access key |
 | ✅ Invoice / receipt photo (OCR) | Best effort in the browser (Tesseract.js, needs internet the first time); prefills the form for review |
 | ✅ Household members | Configuración → Tu hogar; "¿Quién?" on each transaction, filter by person, "Aportes del hogar" (income/expense share per person). Real-time sharing between phones still needs hosting (below) |
@@ -53,6 +53,7 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ✅ App lock with a PIN | Configuración → Este dispositivo. Salted PBKDF2 hash, 5 tries then a 30 s wait, locks again after 5 min in the background. Honest caveat shown: it hides the screen, it does not encrypt the data (encryption at rest → stage B). Forgot PIN = wipe this browser and load a backup |
 | ✅ Import: change many rows at once | Review step: one description / category / subcategory / budget line for every checked row, each row still editable (own description too); remembered for files with the same layout. Decimal separator decided by the whole column ("273.841" next to "173.94" is 273.84). Imported rows keep a fingerprint so re-importing is detected even after renaming |
 | ✅ No double counting between hand-typed and imported | Import: a bank/SRI row with the same amount within 4 days of something typed by hand shows "¿Ya la anotaste?" and starts unchecked ("Es otro gasto" to import both); linking keeps your text and remembers the bank row (and the invoice). Typing something a file already brought in warns with Deshacer |
+| ✅ Merchant alias rules | Rules can rename ("SQ *COZ" → "Cozy Coffee") besides category and budget line; offered for existing transactions when created; "+ regla" on any import row (starts from the file text); the file text stays visible next to the new name. Applied on import, in the form and in quick entry |
 
 ## Phase 3 — planned (works without a server)
 
@@ -73,7 +74,6 @@ Assessed only; nothing built. "Now" = works in the offline file; "Hosting" = nee
 | Safe-to-spend | Yes, now (as good as the balances you enter) | Accounts, bills with due dates, paydays, scheduled transactions, goals, "Puedes gastar hoy" | Small–medium: cash balance − bills and scheduled payments before next payday − goal money still to set aside − buffer. Shown as a big number + bar (a dial reads worse). "Pending checks" can't be known without the bank: logged as scheduled items |
 | Calendar bill forecast with low-cash days | Yes, now | Same data as above | Medium: month grid with paydays, bills, projected balance per day, days below your buffer highlighted |
 | Smart manual fallback when a bank connection breaks | The fallback is already the only mode (no bank connections in Ecuador yet) | CSV import with remembered mappings | Small now: a downloadable CSV template that imports with no mapping; "last import per account" reminder. The automatic switch belongs to stage C |
-| Merchant alias rules ("SQ *COZ" → "Cozy Coffee", Dining Out) | Yes, now | Rules: "contains X → category / budget line" | Small: add "rename to" to rules; offer "create rule" from an edited transaction |
 | Pitfall: irregular / annual bills | Yes, now | Goals with a target date (sinking funds), yearly/semiannual repeats | Small: "gastos anuales" list that turns into a monthly set-aside line; Ecuador items (matrícula vehicular, predial) and irregular income (décimo tercero / cuarto) |
 | Pitfall: drop-off | Partly now | Streak, alerts | Small: weekly review checklist (unassigned, uncategorized, over-budget, next bills). Reminders need hosting |
 | Pitfall: cash-flow blindness | Yes, now | Emergency fund steps | Covered by safe-to-spend + calendar + a "one month ahead" buffer goal |

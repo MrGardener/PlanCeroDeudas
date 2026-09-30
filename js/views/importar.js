@@ -35,7 +35,7 @@
     function resolve(row, catMap) {
         const tax = row.type === 'Ingreso' ? incomeTax() : expenseTax();
         const rule = Importers.applyRules(Store.state.rules, `${row.description} ${row.store}`);
-        if (rule && tax[rule.category]) return { category: rule.category, sub: rule.sub && (tax[rule.category] || []).includes(rule.sub) ? rule.sub : firstSub(tax, rule.category), budgetLine: rule.budgetLine || '', why: `Por la regla «${rule.contains}»` };
+        if (rule && tax[rule.category]) return { category: rule.category, sub: rule.sub && (tax[rule.category] || []).includes(rule.sub) ? rule.sub : firstSub(tax, rule.category), budgetLine: rule.budgetLine || '', rename: rule.rename || '', why: `Por la regla «${rule.contains}»` };
         const mapped = row.category && catMap ? catMap[row.category] : null;
         if (mapped && tax[mapped]) return { category: mapped, sub: firstSub(tax, mapped), why: 'Por la categoría del archivo' };
         if (row.category && tax[row.category]) return { category: row.category, sub: firstSub(tax, row.category), why: 'Por la categoría del archivo' };
@@ -127,7 +127,9 @@
             // Your changes: the ones for every row (saved for this kind of file) and then this row's own.
             const e = Object.assign({}, s.defaults || {}, s.edits[i] || {});
             const tax = r.type === 'Ingreso' ? incomeTax() : expenseTax();
+            out.original = r.description;
             if (!r.error) {
+                if (out.rename) out.description = out.rename;
                 if (e.category && tax[e.category]) Object.assign(out, { category: e.category, sub: firstSub(tax, e.category), why: 'Elegida por ti' });
                 if (e.sub && (tax[out.category] || []).includes(e.sub)) out.sub = e.sub;
                 if (e.description) out.description = e.description;
@@ -194,7 +196,7 @@
         UI.html('imp-rows', s.rows.slice(0, 500).map((r, i) => `<tr class="${r.error ? 'opacity-60' : ''}">
                 <td class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggle" data-i="${i}" ${r.include ? 'checked' : ''} ${r.error ? 'disabled' : ''}></td>
                 <td class="whitespace-nowrap text-xs">${esc(r.date || '—')}</td>
-                <td>${r.error ? `<div class="font-semibold text-xs">${esc(r.description)}</div>` : `<input class="cell-input text-xs font-semibold imp-desc" value="${r.description === NO_DESC ? '' : esc(r.description)}" placeholder="Sin descripción: escribe una" data-change="imp.desc" data-i="${i}" aria-label="Descripción">`}${r.store ? `<div class="text-[10px] text-slate-500">${esc(r.store)}</div>` : ''}${r.items && r.items.length ? `<div class="text-[10px] text-slate-500">${r.items.length} producto${r.items.length === 1 ? '' : 's'}${r.iva ? ` · IVA ${money(r.iva)}` : ''}</div>` : ''}</td>
+                <td>${r.error ? `<div class="font-semibold text-xs">${esc(r.description)}</div>` : `<input class="cell-input text-xs font-semibold imp-desc" value="${r.description === NO_DESC ? '' : esc(r.description)}" placeholder="Sin descripción: escribe una" data-change="imp.desc" data-i="${i}" aria-label="Descripción">${r.original && r.original !== NO_DESC && r.original !== r.description ? `<div class="text-[10px] text-slate-500">En el archivo: ${esc(r.original)}</div>` : ''}${r.original && r.original !== NO_DESC && !r.rename ? `<button type="button" class="link text-[10px]" data-action="rule.add" data-contains="${esc(r.original.slice(0, 40))}" data-rename="${r.description !== r.original ? esc(r.description) : ''}" data-cat="${r.type === 'Ingreso' ? 'I' : 'G'}|${esc(r.category)}" title="Que la próxima vez se nombre y categorice solo">+ regla</button>` : ''}`}${r.store ? `<div class="text-[10px] text-slate-500">${esc(r.store)}</div>` : ''}${r.items && r.items.length ? `<div class="text-[10px] text-slate-500">${r.items.length} producto${r.items.length === 1 ? '' : 's'}${r.iva ? ` · IVA ${money(r.iva)}` : ''}</div>` : ''}</td>
                 <td>${r.error ? '—' : `<select class="cell-input text-xs" data-change="imp.cat" data-i="${i}">${catOptions(r)}</select>${r.why ? `<div class="text-[10px] text-slate-400">${esc(r.why)}</div>` : ''}${r.budgetLine && r.type !== 'Ingreso' ? `<div class="text-[10px] text-blue-600">Rubro: ${esc(lineName(r.budgetLine))}</div>` : ''}`}</td>
                 <td class="num font-bold ${r.type === 'Ingreso' ? 'text-emerald-700' : ''}">${r.error ? '' : (r.type === 'Ingreso' ? '+' : '−') + money(r.amount)}</td>
                 <td class="text-xs">${r.error ? `<span class="badge badge-bad">${esc(r.error)}</span>` : r.dup ? '<span class="badge badge-warn">Ya existe</span>' : r.match ? matchCell(r, i) : '<span class="badge badge-ok">Nueva</span>'}</td>
@@ -252,10 +254,11 @@
         const rules = Store.state.rules || [];
         UI.html('rule-body', rules.length ? rules.map(r => `<tr>
                 <td class="font-semibold">“${esc(r.contains)}”</td>
+                <td>${r.rename ? esc(r.rename) : '<span class="text-slate-400">—</span>'}</td>
                 <td>${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}</td>
                 <td class="text-xs">${r.budgetLine ? esc(lineName(r.budgetLine)) : '<span class="text-slate-400">Automático</span>'}</td>
                 <td class="text-center"><button class="row-del" data-action="rule.delete" data-id="${r.id}" title="Eliminar regla" aria-label="Eliminar regla"><i class="fa-solid fa-trash-can"></i></button></td>
-            </tr>`).join('') : '<tr class="empty-row"><td colspan="4">Sin reglas. Ejemplo: si contiene “supermaxi” → Alimentación.</td></tr>');
+            </tr>`).join('') : '<tr class="empty-row"><td colspan="5">Sin reglas. Ejemplo: si contiene “SQ *COZ” → se llama “Cozy Coffee”, categoría Alimentación.</td></tr>');
     }
 
     function lineName(id) {
@@ -439,13 +442,18 @@
                 status('<i class="fa-solid fa-triangle-exclamation text-red-600"></i> No se pudo leer la foto (se necesita internet la primera vez). Puedes registrar la factura a mano en Transacciones.');
             } finally { el.value = ''; }
         },
-        'rule.add': async () => {
+        'rule.add': async (el) => {
+            const pre = (el && el.dataset) || {};
             const cats = Object.keys(expenseTax()).map(c => ({ value: 'G|' + c, label: c })).concat(Object.keys(incomeTax()).map(c => ({ value: 'I|' + c, label: `${c} (ingreso)` })));
             const items = Engine.monthItems(Store.effective(Store.state.activeYear), 'base');
+            // Options can't be preselected by UI.form, so the suggested category goes first.
+            if (pre.cat) { const k = cats.findIndex(c => c.value === pre.cat); if (k > 0) cats.unshift(cats.splice(k, 1)[0]); }
             const r = await UI.form({
                 title: 'Nueva regla automática',
+                message: 'Es una coincidencia de texto exacta que tú defines: sin adivinanzas.',
                 fields: [
-                    { name: 'contains', label: 'Si la descripción o el lugar contiene…', placeholder: 'Ej: supermaxi' },
+                    { name: 'contains', label: 'Si la descripción o el lugar contiene…', placeholder: 'Ej: SQ *COZ o supermaxi', value: pre.contains || '' },
+                    { name: 'rename', label: 'Cambiar el nombre a (opcional)', placeholder: 'Ej: Cozy Coffee', value: pre.rename || '' },
                     { name: 'cat', label: 'Poner la categoría', options: cats },
                     { name: 'line', label: 'Y contar en el rubro (opcional)', options: [{ value: '', label: 'Automático (según la categoría)' }].concat(items.map(i => ({ value: String(i.id), label: i.name }))) }
                 ],
@@ -454,8 +462,24 @@
             });
             if (!r) return;
             const rules = Store.state.rules || (Store.state.rules = []);
-            rules.push({ id: Store.nextId(rules), contains: r.contains.trim(), category: r.cat.slice(2), budgetLine: r.line || undefined });
+            const rule = { id: Store.nextId(rules), contains: r.contains.trim().slice(0, 60), category: r.cat.slice(2), budgetLine: r.line || undefined };
+            if (r.rename.trim()) rule.rename = r.rename.trim().slice(0, 80);
+            rules.push(rule);
+            // Transactions you already have that the rule would have caught: offer to fix them too.
+            const hits = Store.state.transactions.filter(t => Importers.applyRules([rule], `${t.description} ${t.store || ''}`));
+            let fixed = 0;
+            if (hits.length && await UI.confirm({ title: 'Aplicar a lo que ya tienes', message: `${hits.length} transacci${hits.length === 1 ? 'ón que ya tienes contiene' : 'ones que ya tienes contienen'} «${rule.contains}». ¿Les aplicamos la regla (${[rule.rename ? `nombre «${rule.rename}»` : '', `categoría ${rule.category}`].filter(Boolean).join(', ')})?`, confirmText: `Aplicar a ${hits.length}` })) {
+                hits.forEach(t => {
+                    const tax = (t.type || 'Gasto') === 'Ingreso' ? incomeTax() : expenseTax();
+                    if (rule.rename) t.description = rule.rename;
+                    if (tax[rule.category] && t.parentCategory !== rule.category) { t.parentCategory = rule.category; t.category = firstSub(tax, rule.category); }
+                    if (rule.budgetLine && (t.type || 'Gasto') !== 'Ingreso') t.budgetLine = String(rule.budgetLine);
+                    fixed++;
+                });
+            }
+            if (session) recompute();
             App.changed({ structural: true, step: true });
+            UI.toast(`Regla creada${fixed ? ` y aplicada a ${fixed} transacci${fixed === 1 ? 'ón' : 'ones'}` : ''}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         },
         'rule.delete': (el) => {
             const id = Number(el.dataset.id);

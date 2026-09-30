@@ -85,7 +85,7 @@
             let line;
             const rule = note ? Importers.applyRules(s.rules, note) : null;
             if (rule && tax[rule.category]) { cat = rule.category; line = rule.budgetLine; }
-            const t = { id: Store.nextId(s.transactions), type: state.type, description: note || cat, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date, paymentType: 'Efectivo', createdAt: new Date().toISOString() };
+            const t = { id: Store.nextId(s.transactions), type: state.type, description: (rule && rule.rename) || note || cat, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date, paymentType: 'Efectivo', createdAt: new Date().toISOString() };
             if (line && state.type !== 'Ingreso') t.budgetLine = String(line);
             if (memberSel && memberSel.value) { t.memberId = Number(memberSel.value); Store.ui.lastMember = t.memberId; }
             s.transactions.push(t);

@@ -396,7 +396,8 @@
             if (!tax[rule.category]) return;
             fillCategorySelects(rule.category);
             if (rule.budgetLine && get('txn-type').value !== 'Ingreso') fillLineSelect(rule.budgetLine);
-            UI.toast(`Regla «${rule.contains}»: categoría ${rule.category}.`);
+            if (rule.rename) get('txn-description').value = rule.rename;
+            UI.toast(`Regla «${rule.contains}»: ${rule.rename ? `«${rule.rename}», ` : ''}categoría ${rule.category}.`);
         },
         'txn.typeChanged': () => fillCategorySelects(),
         'txn.parentChanged': () => { fillSubSelect(); fillLineSelect(); },
