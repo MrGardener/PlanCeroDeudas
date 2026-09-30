@@ -30,6 +30,8 @@ js/importers.js         CSV / SRI invoice XML / receipt text parsing — pure, n
 js/store.js             the single state object: autosave, migrations, baselines, reset
 js/ui/core.js           event delegation, dialogs, toasts, chart helper
 js/app.js               tab registry, router (#hash), bindings, render orchestration
+js/views/cash.js        safe to spend + money calendar (shared by the Resumen cards)
+js/views/whatif.js      "¿Y si compro…?" sandbox (nothing saved)
 js/views/*.js           one file per tab: render() on structure changes, update() for numbers
 tests/                  node:test unit tests (engine, store/migration, build)
 scripts/build.js        inlines everything into dist/

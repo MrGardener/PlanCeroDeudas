@@ -524,6 +524,16 @@ html[data-theme="dark"] .cal-day, html[data-theme="dark"] .cal-bal, html[data-th
 html[data-theme="dark"] .cal-ev.in { background: rgba(16, 185, 129, .2); color: #6ee7b7; }
 html[data-theme="dark"] .cal-ev.out { background: #22314d; color: #e2e8f0; }
 html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-theme="dark"] .cal-cell.short .cal-bal { color: #f87171; }
+
+/* ================================================================ what-if sandbox */
+.wi-col { border: 1px solid #e2e8f0; border-radius: .75rem; padding: .85rem; display: flex; flex-direction: column; gap: .4rem; background: #fff; min-width: 0; }
+.wi-head { font-weight: 800; color: #0f172a; font-size: .9rem; }
+.wi-list { display: flex; flex-direction: column; gap: .3rem; font-size: .78rem; }
+.wi-change { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; color: #334155; align-items: baseline; }
+.modal.modal-xwide { max-width: min(78rem, 100%); width: 100%; }
+.wi-change .num { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+html[data-theme="dark"] .wi-col { background: var(--surface); border-color: var(--line); }
+html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi-change { color: #cbd5e1; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -569,7 +579,10 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
                 <div class="card-title"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Seguro para gastar hoy</div>
                 <div class="card-sub">Tu efectivo menos lo que tiene que salir antes de tu próximo cobro, lo que falta apartar para tus metas y tu colchón.</div>
             </div>
-            <a href="#" class="link text-xs" data-goto="patrimonio" data-focus="nw-accounts">Saldos →</a>
+            <div class="flex flex-wrap gap-2 items-center justify-end">
+                <button type="button" class="btn btn-secondary btn-sm" data-action="wi.open" id="wi-open"><i class="fa-solid fa-flask"></i> ¿Y si compro…?</button>
+                <a href="#" class="link text-xs" data-goto="patrimonio" data-focus="nw-accounts">Saldos →</a>
+            </div>
         </div>
         <div id="dash-safe"></div>
     </div>
@@ -1555,6 +1568,9 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
                     <div class="field"><span class="field-label">Bloqueo con PIN</span>
                         <div id="cfg-lock" class="flex flex-wrap gap-2 items-center"></div></div>
                 </div>
+                <div class="field mt-3 max-w-2xl"><span class="field-label">Acceso directo al registro rápido</span>
+                    <div class="flex gap-2"><input id="cfg-quick-link" class="input" readonly aria-label="Enlace de registro rápido"><button type="button" class="btn btn-secondary btn-sm" data-action="device.copyQuick"><i class="fa-regular fa-copy"></i> Copiar</button></div>
+                    <span class="help">Guárdalo como favorito (o en tu pantalla de inicio cuando la app esté en internet): abre directo el teclado para anotar un gasto. En computadora, la tecla <kbd>N</kbd> hace lo mismo.</span></div>
                 <p class="help mt-2">Se guardan solo en este navegador (no van en la copia de respaldo). El PIN oculta la app al abrirla y después de 5 minutos en segundo plano; no cifra tus datos, así que usa también el bloqueo de tu teléfono o computadora.</p>
             </div>
             <div class="panel tone-slate">
@@ -1657,7 +1673,7 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
 
 <footer class="wrap py-6 text-center text-[11px] text-slate-400 no-print">Estimaciones educativas. Tus datos se guardan solo en este navegador. · <a href="#" class="link" data-action="app.help">Cómo usar la app</a></footer>
 
-<button type="button" class="fab no-print" data-action="quick.open" title="Registro rápido de un gasto o ingreso" aria-label="Registro rápido"><i class="fa-solid fa-plus"></i></button>
+<button type="button" class="fab no-print" data-action="quick.open" title="Registro rápido de un gasto o ingreso (tecla N)" aria-label="Registro rápido"><i class="fa-solid fa-plus"></i></button>
 
 <script>/* js/device.js */
 /*
@@ -1759,6 +1775,7 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
                 tries = 0;
                 el.remove();
                 document.documentElement.classList.remove('app-locked');
+                if (root.Store && Store.ui.quickAfterUnlock && root.QuickEntry) { Store.ui.quickAfterUnlock = false; QuickEntry.open(); }
                 return;
             }
             tries++;
@@ -3126,11 +3143,35 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
         return days;
     }
 
+    // "What if I buy this now, from this month's budget?" Where the money would come from:
+    // money not yet assigned, then the purchase's own line, then everyday (variable) lines with
+    // the most left, then savings and goal lines (the sweep "Sobrante del mes" first). Fixed
+    // bills and debt payments are never touched. Returns what each line would lose and any
+    // amount the month can't cover.
+    function starveLines({ items, spend, amount, lineId, free = 0, sweep = 0 }) {
+        let need = Math.max(0, num(amount));
+        const takes = [];
+        const left = (i) => Math.max(0, num(i.real) - ((spend && spend.byLine[String(i.id)]) || { spent: 0 }).spent);
+        const take = (id, name, kind, available) => {
+            const t = Math.min(need, Math.max(0, available));
+            if (t > 0.004) { takes.push({ id, name, kind, available, take: t }); need -= t; }
+        };
+        take('free', 'Dinero sin asignar', 'free', num(free));
+        const own = (items || []).find(i => String(i.id) === String(lineId));
+        if (own && !isSavingsItem(own)) take(String(own.id), own.name, 'own', left(own));
+        (items || []).filter(i => i.type === 'Gasto Variable' && i !== own).sort((a, b) => left(b) - left(a))
+            .forEach(i => take(String(i.id), i.name, 'variable', left(i)));
+        take('sweep', 'Sobrante del mes (ahorro)', 'savings', num(sweep));
+        (items || []).filter(i => isSavingsItem(i)).sort((a, b) => left(b) - left(a))
+            .forEach(i => take(String(i.id), i.name, i.link === 'goal' ? 'goal' : 'savings', left(i)));
+        return { takes, short: need > 0.004 ? need : 0 };
+    }
+
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
         occurrences, dueOccurrences, nextOccurrence, monthlyCost,
-        cashNow, cashEvents, safeToSpend, cashForecast,
+        cashNow, cashEvents, safeToSpend, cashForecast, starveLines,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
@@ -4301,6 +4342,14 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
         UI.initEvents();
         // Ctrl+Z / Ctrl+Y (⌘ on Mac). Inside a text box the browser's own undo for that box wins.
         document.addEventListener('keydown', (e) => {
+            if (e.key && e.key.toLowerCase() === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && window.QuickEntry) {
+                const t = e.target;
+                const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+                if (!typing && !document.querySelector('.modal-backdrop:not(.hidden)') && !document.documentElement.classList.contains('app-locked')) { e.preventDefault(); QuickEntry.open(); }
+                return;
+            }
+        });
+        document.addEventListener('keydown', (e) => {
             if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
             const k = e.key.toLowerCase();
             if (k !== 'z' && k !== 'y') return;
@@ -4327,8 +4376,17 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
         Store.onChange(renderSaveStatus);
         window.addEventListener('beforeunload', () => Store.saveNow());
         document.addEventListener('visibilitychange', () => { if (document.hidden) Store.saveNow(); });
-        window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== currentKey()) go(h, { scroll: false }); });
-        go(location.hash.slice(1) || 'resumen', { scroll: false });
+        // "#rapido" (a bookmark or home-screen shortcut) opens quick entry straight away.
+        const quickLink = () => location.hash === '#rapido' && window.QuickEntry;
+        window.addEventListener('hashchange', () => {
+            if (quickLink()) { history.replaceState(null, '', '#' + currentKey()); QuickEntry.open(); return; }
+            const h = location.hash.slice(1); if (h && h !== currentKey()) go(h, { scroll: false });
+        });
+        const start = location.hash.slice(1);
+        const openQuick = !!quickLink();
+        go(tabs.some(t => t.id === start.split('/')[0]) ? start : 'resumen', { scroll: false });
+        if (openQuick && !document.documentElement.classList.contains('app-locked')) QuickEntry.open();
+        else if (openQuick) Store.ui.quickAfterUnlock = true;
         // Post repeating transactions that came due since the app was last opened.
         if (window.Recurring) window.Recurring.maintain();
         document.addEventListener('visibilitychange', () => { if (!document.hidden && window.Recurring) window.Recurring.maintain(); });
@@ -6219,6 +6277,7 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
         if (v.store !== undefined) get('txn-store').value = v.store;
         if (v.amount !== undefined) get('txn-amount').value = v.amount;
         if (v.date) { get('txn-date').value = v.date; fillLineSelect(); }
+        if (v.budgetLine) fillLineSelect(v.budgetLine);
         get('txn-form-card').scrollIntoView({ block: 'start' });
         (v.amount ? get('txn-description') : get('txn-amount')).focus();
         UI.toast('Revisa los datos y toca "Agregar Transacción" para guardarla.');
@@ -7330,6 +7389,147 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
     window.Cash = { safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar };
 })();
 </script>
+<script>/* js/views/whatif.js */
+/*
+ * "¿Y si compro…?" — a sandbox for one purchase. Three ways to pay it side by side: from this
+ * month's budget, from savings, or on a credit card in installments, each with what it would
+ * starve or delay. Nothing is saved; "Registrar la compra" only prefills the form.
+ */
+(function () {
+    'use strict';
+    const { money, money0, esc } = Fmt;
+    let st = null;   // { sheet, description, amount, line, months, rate }
+
+    function thisMonth() {
+        const t = new Date();
+        const y = t.getFullYear(), m = String(t.getMonth() + 1);
+        const yd = Store.effective(Store.state.years[y] ? y : Store.state.activeYear);
+        const items = Engine.monthItems(yd, m);
+        const spend = Engine.lineSpend(items, Store.state.transactions, y, m);
+        const mb = Engine.monthBudget(yd, m, Engine.payroll(yd));
+        return { items, spend, free: Math.max(0, mb.balanceReal), sweep: mb.sweep };
+    }
+
+    const verdict = (kind, text) => `<span class="badge ${kind === 'ok' ? 'badge-ok' : kind === 'warn' ? 'badge-warn' : 'badge-bad'}"><i class="fa-solid ${kind === 'ok' ? 'fa-circle-check' : kind === 'warn' ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}"></i> ${text}</span>`;
+    const change = (label, before, after, fmt = money0, worseWhenLower = true) => {
+        const worse = worseWhenLower ? after < before - 0.004 : after > before + 0.004;
+        return `<li class="wi-change"><span>${label}</span><span class="num"><span class="text-slate-500">${fmt(before)}</span> → <strong class="${worse ? 'text-red-600' : ''}">${fmt(after)}</strong></span></li>`;
+    };
+
+    function fromBudget(amount) {
+        const mo = thisMonth();
+        const r = Engine.starveLines({ items: mo.items, spend: mo.spend, amount, lineId: st.line, free: mo.free, sweep: mo.sweep });
+        const safe = Cash.safeContext(new Date());
+        const goalsHit = r.takes.filter(t => t.kind === 'goal' || t.kind === 'savings');
+        const kind = r.short > 0 || (safe.res && safe.res.safe - amount < 0) ? 'bad' : goalsHit.length ? 'warn' : 'ok';
+        return `<div class="wi-col" id="wi-budget">
+            <div class="wi-head"><i class="fa-solid fa-wallet text-blue-600"></i> Del presupuesto de este mes</div>
+            ${verdict(kind, kind === 'ok' ? 'Cabe' : kind === 'warn' ? 'Cabe, pero frena tu ahorro' : 'No alcanza')}
+            <ul class="wi-list">
+                ${safe.res ? change('Seguro para gastar hoy', safe.res.safe, safe.res.safe - amount) : '<li class="help">Agrega el saldo de tu cuenta para ver el efecto en tu efectivo.</li>'}
+            </ul>
+            <div class="section-label mt-3">Saldría de</div>
+            <ul class="wi-list">${r.takes.map(t => `<li class="wi-change"><span>${esc(t.name)}${t.kind === 'goal' ? ' <span class="badge badge-purple">meta</span>' : t.kind === 'savings' ? ' <span class="badge badge-info">ahorro</span>' : ''}</span><span class="num">−${money(t.take)}${t.take < t.available - 0.004 ? ` <span class="text-slate-500 text-[10px]">de ${money(t.available)}</span>` : ' <span class="text-slate-500 text-[10px]">(todo)</span>'}</span></li>`).join('') || '<li class="help">—</li>'}
+                ${r.short > 0 ? `<li class="wi-change text-red-600 font-bold"><span>Faltan (sin rubro de dónde sacar)</span><span class="num">${money(r.short)}</span></li>` : ''}</ul>
+            <p class="help mt-2">Los pagos fijos y de deudas no se tocan. Si lo haces, cambia esos rubros en tu presupuesto del mes.</p>
+        </div>`;
+    }
+
+    function fromSavings(amount, ctx) {
+        const liquid = ctx.ef.liquid;
+        const ef2 = Engine.emergencyFund({ liquid: Math.max(0, liquid - amount), budgetBase: ctx.year.budgetBase });
+        const steps2 = Engine.babySteps({ liquid: ef2.liquid, consumerDebt: ctx.debts.totalBalance, monthsCovered: ef2.monthsCovered, savingsRate: ctx.savingsRate, mortgageBalance: ctx.netWorth.fields.mortgage });
+        const kind = amount > liquid || ef2.liquid < 1000 ? 'bad' : ef2.monthsCovered < 3 || steps2.current < ctx.steps.current ? 'warn' : 'ok';
+        return `<div class="wi-col" id="wi-savings">
+            <div class="wi-head"><i class="fa-solid fa-piggy-bank text-emerald-600"></i> De tus ahorros</div>
+            ${verdict(kind, amount > liquid ? 'No tienes tanto ahorrado' : kind === 'ok' ? 'Tu fondo lo aguanta' : kind === 'warn' ? 'Debilita tu fondo' : 'Te deja sin colchón')}
+            <ul class="wi-list">
+                ${change('Ahorro disponible (DPF + cuentas de ahorro)', liquid, Math.max(0, liquid - amount))}
+                ${change('Meses de gastos cubiertos', ctx.ef.monthsCovered, ef2.monthsCovered, v => v.toFixed(1))}
+                ${change('Tu paso de Dave Ramsey', ctx.steps.current, steps2.current, v => `Paso ${v}`)}
+            </ul>
+            <p class="help mt-2">El fondo de emergencia es para imprevistos, no para compras planeadas. Si lo usas, repónlo con una meta.</p>
+        </div>`;
+    }
+
+    function onCard(amount, ctx) {
+        const s = Store.state;
+        const months = Math.max(1, Math.min(60, Number(st.months) || 1));
+        const rate = Math.max(0, Number(st.rate) || 0);
+        const cuota = Engine.frenchPayment(amount, rate, months);
+        const interest = cuota * months - amount;
+        const pool = ctx.debtExtraRubros;
+        const extra = Math.max(0, pool - cuota);
+        const newDebt = { id: 'wi', name: st.description || 'Compra', balance: amount, rate, minPayment: cuota, monthly: cuota };
+        const before = ctx.debts;
+        const after = Engine.debtPayoff(s.debts.concat([newDebt]), s.debtPlan.strategy, extra);
+        const missing = Math.max(0, cuota - pool);
+        const when = (p) => p.never ? 'nunca' : p.totalBalance <= 0.01 ? 'ya' : Fmt.monthYear(Engine.addMonths(new Date(), p.months));
+        const kind = after.never || missing > 0 ? 'bad' : 'warn';
+        return `<div class="wi-col" id="wi-card">
+            <div class="wi-head"><i class="fa-solid fa-credit-card text-purple-600"></i> Con tarjeta, ${months} cuota${months === 1 ? '' : 's'}</div>
+            ${verdict(kind, kind === 'bad' ? 'Tu presupuesto no cubre la cuota' : 'Es una deuda nueva')}
+            <ul class="wi-list">
+                <li class="wi-change"><span>Cuota mensual</span><span class="num font-bold">${money(cuota)}</span></li>
+                <li class="wi-change"><span>Intereses en total${rate === 0 ? ' (diferido sin intereses)' : ` (${rate}% anual)`}</span><span class="num ${interest > 0 ? 'text-red-600 font-bold' : ''}">${money(interest)}</span></li>
+                ${change('Deudas de consumo', before.totalBalance, before.totalBalance + amount, money0, false)}
+                <li class="wi-change"><span>Libre de deudas</span><span class="num"><span class="text-slate-500">${when(before)}</span> → <strong class="${after.months > before.months || after.never ? 'text-red-600' : ''}">${when(after)}</strong></span></li>
+                ${missing > 0 ? `<li class="wi-change text-red-600"><span>Tu presupuesto para deudas no alcanza la cuota</span><span class="num">faltan ${money(missing)}/mes</span></li>` : `<li class="help">La cuota sale de lo que hoy va a tu bola de nieve (${money0(pool)}/mes).</li>`}
+                ${ctx.steps.current > 2 ? '<li class="text-red-600 text-xs font-bold">Volverías al Paso 2: pagar deudas.</li>' : ''}
+            </ul>
+            <p class="help mt-2">Dave Ramsey: no financies compras. Si no puedes pagarlo en efectivo, ahorra para ello con una meta.</p>
+        </div>`;
+    }
+
+    function results() {
+        const host = document.getElementById('wi-results');
+        if (!host) return;
+        const amount = Math.round((Number(st.amount) || 0) * 100) / 100;
+        if (!(amount > 0)) { host.innerHTML = '<p class="help">Escribe el monto para ver qué pasaría.</p>'; return; }
+        const ctx = App.buildContext();
+        host.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${fromBudget(amount)}${fromSavings(amount, ctx)}${onCard(amount, ctx)}</div>
+            <div class="flex flex-wrap items-center justify-between gap-2 mt-4">
+                <span class="help"><i class="fa-solid fa-flask"></i> Es solo una prueba: nada se guarda.</span>
+                <button type="button" class="btn btn-secondary btn-sm" data-action="wi.record"><i class="fa-solid fa-receipt"></i> Registrar la compra</button>
+            </div>`;
+    }
+
+    function open() {
+        const mo = thisMonth();
+        const card = (Store.state.debts || []).find(d => d.kind === 'tarjeta' && Number(d.rate) > 0);
+        st = { description: '', amount: '', line: '', months: 3, rate: card ? Number(card.rate) : 16.5 };
+        const lines = mo.items.filter(i => !Engine.isSavingsItem(i) && i.type !== 'Deuda' && i.type !== 'Ingreso');
+        st.sheet = UI.sheet({
+            title: '¿Y si compro…?', icon: 'fa-flask', wide: true, onClose: () => { st = null; },
+            html: `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    <label class="field lg:col-span-2"><span class="field-label">¿Qué?</span><input id="wi-desc" class="input" placeholder="Ej: Pasaje a Galápagos" data-input="wi.input" data-key="description" autocomplete="off"></label>
+                    <label class="field"><span class="field-label"><span>Monto (<span class="cur">${esc(Fmt.currency().symbol)}</span>)</span></span><input id="wi-amount" class="input" inputmode="decimal" placeholder="1200" data-input="wi.input" data-key="amount" autocomplete="off"></label>
+                    <label class="field"><span class="field-label">Contaría en el rubro</span><select id="wi-line" class="input" data-change="wi.input" data-key="line"><option value="">Ninguno en especial</option>${lines.map(i => `<option value="${esc(String(i.id))}">${esc(i.name)}</option>`).join('')}</select></label>
+                    <div class="field"><span class="field-label">Con tarjeta: cuotas y tasa</span><div class="flex gap-2"><input id="wi-months" type="number" min="1" max="60" class="input" value="3" data-input="wi.input" data-key="months" aria-label="Cuotas"><input id="wi-rate" type="number" min="0" step="0.1" class="input" value="${st.rate}" data-input="wi.input" data-key="rate" aria-label="Tasa anual %"></div><span class="help">Tasa 0 = diferido sin intereses.</span></div>
+                </div>
+                <div id="wi-results" class="mt-4"></div>`
+        });
+        st.sheet.el.querySelector('.modal').classList.add('modal-xwide');
+        results();
+        setTimeout(() => { const a = document.getElementById('wi-amount'); if (a) a.focus(); }, 30);
+    }
+
+    UI.register({
+        'wi.open': () => open(),
+        'wi.input': (el) => { if (!st) return; st[el.dataset.key] = el.value; results(); },
+        'wi.record': () => {
+            if (!st) return;
+            const v = { type: 'Gasto', description: st.description || '', amount: Number(st.amount) || '', budgetLine: st.line || undefined };
+            const line = st.line && thisMonth().items.find(i => String(i.id) === String(st.line));
+            if (line && line.linkedCategory && line.linkedCategory !== 'none') v.parent = line.linkedCategory;
+            st.sheet.close();
+            TxnForm.prefill(v);
+        }
+    });
+
+    window.WhatIf = { open };
+})();
+</script>
 <script>/* js/views/quick.js */
 /*
  * Quick entry: a floating "+" on every screen opens a small sheet to log a purchase or income
@@ -7427,6 +7627,8 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
             if (!TxnForm.warnIfImported(t)) UI.toast(`${state.type === 'Ingreso' ? '+' : '−'}${money(amount)} en ${cat} registrado.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         }
     });
+
+    window.QuickEntry = { open };
 
     // Enter in the amount saves.
     document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target && (e.target.id === 'quick-amount' || e.target.id === 'quick-note')) { e.preventDefault(); UI.$('#quick-save') && UI.$('#quick-save').click(); } });
@@ -8346,6 +8548,8 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
 
     // Theme and PIN belong to this device (js/device.js), outside the saved budget.
     function renderDevice() {
+        const link = document.getElementById('cfg-quick-link');
+        if (link) link.value = location.href.split('#')[0] + '#rapido';
         const sel = document.getElementById('cfg-theme');
         if (sel) sel.value = Device.read().theme || 'light';
         UI.html('cfg-lock', Device.hasPin()
@@ -8402,6 +8606,11 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
             UI.toast('Bloqueo con PIN desactivado.');
         },
         'device.lockNow': () => Device.lockNow(),
+        'device.copyQuick': async () => {
+            const el = document.getElementById('cfg-quick-link');
+            try { await navigator.clipboard.writeText(el.value); UI.toast('Enlace copiado.'); }
+            catch (e) { el.select(); UI.toast('Selecciónalo y cópialo (Ctrl+C).', 'warn'); }
+        },
         'member.add': async () => {
             const r = await UI.form({ title: 'Agregar persona', fields: [{ name: 'name', label: 'Nombre', placeholder: 'Ej: Ana' }], confirmText: 'Agregar', validate: v => v.name.trim() ? null : 'Escribe un nombre.' });
             if (!r) return;

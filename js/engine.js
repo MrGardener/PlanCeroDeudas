@@ -1071,11 +1071,35 @@
         return days;
     }
 
+    // "What if I buy this now, from this month's budget?" Where the money would come from:
+    // money not yet assigned, then the purchase's own line, then everyday (variable) lines with
+    // the most left, then savings and goal lines (the sweep "Sobrante del mes" first). Fixed
+    // bills and debt payments are never touched. Returns what each line would lose and any
+    // amount the month can't cover.
+    function starveLines({ items, spend, amount, lineId, free = 0, sweep = 0 }) {
+        let need = Math.max(0, num(amount));
+        const takes = [];
+        const left = (i) => Math.max(0, num(i.real) - ((spend && spend.byLine[String(i.id)]) || { spent: 0 }).spent);
+        const take = (id, name, kind, available) => {
+            const t = Math.min(need, Math.max(0, available));
+            if (t > 0.004) { takes.push({ id, name, kind, available, take: t }); need -= t; }
+        };
+        take('free', 'Dinero sin asignar', 'free', num(free));
+        const own = (items || []).find(i => String(i.id) === String(lineId));
+        if (own && !isSavingsItem(own)) take(String(own.id), own.name, 'own', left(own));
+        (items || []).filter(i => i.type === 'Gasto Variable' && i !== own).sort((a, b) => left(b) - left(a))
+            .forEach(i => take(String(i.id), i.name, 'variable', left(i)));
+        take('sweep', 'Sobrante del mes (ahorro)', 'savings', num(sweep));
+        (items || []).filter(i => isSavingsItem(i)).sort((a, b) => left(b) - left(a))
+            .forEach(i => take(String(i.id), i.name, i.link === 'goal' ? 'goal' : 'savings', left(i)));
+        return { takes, short: need > 0.004 ? need : 0 };
+    }
+
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
         occurrences, dueOccurrences, nextOccurrence, monthlyCost,
-        cashNow, cashEvents, safeToSpend, cashForecast,
+        cashNow, cashEvents, safeToSpend, cashForecast, starveLines,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,

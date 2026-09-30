@@ -321,6 +321,14 @@
         UI.initEvents();
         // Ctrl+Z / Ctrl+Y (⌘ on Mac). Inside a text box the browser's own undo for that box wins.
         document.addEventListener('keydown', (e) => {
+            if (e.key && e.key.toLowerCase() === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && window.QuickEntry) {
+                const t = e.target;
+                const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+                if (!typing && !document.querySelector('.modal-backdrop:not(.hidden)') && !document.documentElement.classList.contains('app-locked')) { e.preventDefault(); QuickEntry.open(); }
+                return;
+            }
+        });
+        document.addEventListener('keydown', (e) => {
             if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
             const k = e.key.toLowerCase();
             if (k !== 'z' && k !== 'y') return;
@@ -347,8 +355,17 @@
         Store.onChange(renderSaveStatus);
         window.addEventListener('beforeunload', () => Store.saveNow());
         document.addEventListener('visibilitychange', () => { if (document.hidden) Store.saveNow(); });
-        window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== currentKey()) go(h, { scroll: false }); });
-        go(location.hash.slice(1) || 'resumen', { scroll: false });
+        // "#rapido" (a bookmark or home-screen shortcut) opens quick entry straight away.
+        const quickLink = () => location.hash === '#rapido' && window.QuickEntry;
+        window.addEventListener('hashchange', () => {
+            if (quickLink()) { history.replaceState(null, '', '#' + currentKey()); QuickEntry.open(); return; }
+            const h = location.hash.slice(1); if (h && h !== currentKey()) go(h, { scroll: false });
+        });
+        const start = location.hash.slice(1);
+        const openQuick = !!quickLink();
+        go(tabs.some(t => t.id === start.split('/')[0]) ? start : 'resumen', { scroll: false });
+        if (openQuick && !document.documentElement.classList.contains('app-locked')) QuickEntry.open();
+        else if (openQuick) Store.ui.quickAfterUnlock = true;
         // Post repeating transactions that came due since the app was last opened.
         if (window.Recurring) window.Recurring.maintain();
         document.addEventListener('visibilitychange', () => { if (!document.hidden && window.Recurring) window.Recurring.maintain(); });

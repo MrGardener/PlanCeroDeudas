@@ -38,6 +38,8 @@
 
     // Theme and PIN belong to this device (js/device.js), outside the saved budget.
     function renderDevice() {
+        const link = document.getElementById('cfg-quick-link');
+        if (link) link.value = location.href.split('#')[0] + '#rapido';
         const sel = document.getElementById('cfg-theme');
         if (sel) sel.value = Device.read().theme || 'light';
         UI.html('cfg-lock', Device.hasPin()
@@ -94,6 +96,11 @@
             UI.toast('Bloqueo con PIN desactivado.');
         },
         'device.lockNow': () => Device.lockNow(),
+        'device.copyQuick': async () => {
+            const el = document.getElementById('cfg-quick-link');
+            try { await navigator.clipboard.writeText(el.value); UI.toast('Enlace copiado.'); }
+            catch (e) { el.select(); UI.toast('Selecciónalo y cópialo (Ctrl+C).', 'warn'); }
+        },
         'member.add': async () => {
             const r = await UI.form({ title: 'Agregar persona', fields: [{ name: 'name', label: 'Nombre', placeholder: 'Ej: Ana' }], confirmText: 'Agregar', validate: v => v.name.trim() ? null : 'Escribe un nombre.' });
             if (!r) return;

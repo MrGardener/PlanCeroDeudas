@@ -509,3 +509,13 @@ html[data-theme="dark"] .cal-day, html[data-theme="dark"] .cal-bal, html[data-th
 html[data-theme="dark"] .cal-ev.in { background: rgba(16, 185, 129, .2); color: #6ee7b7; }
 html[data-theme="dark"] .cal-ev.out { background: #22314d; color: #e2e8f0; }
 html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-theme="dark"] .cal-cell.short .cal-bal { color: #f87171; }
+
+/* ================================================================ what-if sandbox */
+.wi-col { border: 1px solid #e2e8f0; border-radius: .75rem; padding: .85rem; display: flex; flex-direction: column; gap: .4rem; background: #fff; min-width: 0; }
+.wi-head { font-weight: 800; color: #0f172a; font-size: .9rem; }
+.wi-list { display: flex; flex-direction: column; gap: .3rem; font-size: .78rem; }
+.wi-change { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; color: #334155; align-items: baseline; }
+.modal.modal-xwide { max-width: min(78rem, 100%); width: 100%; }
+.wi-change .num { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+html[data-theme="dark"] .wi-col { background: var(--surface); border-color: var(--line); }
+html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi-change { color: #cbd5e1; }

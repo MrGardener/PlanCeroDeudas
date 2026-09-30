@@ -97,6 +97,7 @@
                 tries = 0;
                 el.remove();
                 document.documentElement.classList.remove('app-locked');
+                if (root.Store && Store.ui.quickAfterUnlock && root.QuickEntry) { Store.ui.quickAfterUnlock = false; QuickEntry.open(); }
                 return;
             }
             tries++;

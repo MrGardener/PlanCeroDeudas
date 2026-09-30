@@ -370,6 +370,7 @@
         if (v.store !== undefined) get('txn-store').value = v.store;
         if (v.amount !== undefined) get('txn-amount').value = v.amount;
         if (v.date) { get('txn-date').value = v.date; fillLineSelect(); }
+        if (v.budgetLine) fillLineSelect(v.budgetLine);
         get('txn-form-card').scrollIntoView({ block: 'start' });
         (v.amount ? get('txn-description') : get('txn-amount')).focus();
         UI.toast('Revisa los datos y toca "Agregar Transacción" para guardarla.');

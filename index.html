@@ -57,7 +57,10 @@
                 <div class="card-title"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Seguro para gastar hoy</div>
                 <div class="card-sub">Tu efectivo menos lo que tiene que salir antes de tu próximo cobro, lo que falta apartar para tus metas y tu colchón.</div>
             </div>
-            <a href="#" class="link text-xs" data-goto="patrimonio" data-focus="nw-accounts">Saldos →</a>
+            <div class="flex flex-wrap gap-2 items-center justify-end">
+                <button type="button" class="btn btn-secondary btn-sm" data-action="wi.open" id="wi-open"><i class="fa-solid fa-flask"></i> ¿Y si compro…?</button>
+                <a href="#" class="link text-xs" data-goto="patrimonio" data-focus="nw-accounts">Saldos →</a>
+            </div>
         </div>
         <div id="dash-safe"></div>
     </div>
@@ -1043,6 +1046,9 @@
                     <div class="field"><span class="field-label">Bloqueo con PIN</span>
                         <div id="cfg-lock" class="flex flex-wrap gap-2 items-center"></div></div>
                 </div>
+                <div class="field mt-3 max-w-2xl"><span class="field-label">Acceso directo al registro rápido</span>
+                    <div class="flex gap-2"><input id="cfg-quick-link" class="input" readonly aria-label="Enlace de registro rápido"><button type="button" class="btn btn-secondary btn-sm" data-action="device.copyQuick"><i class="fa-regular fa-copy"></i> Copiar</button></div>
+                    <span class="help">Guárdalo como favorito (o en tu pantalla de inicio cuando la app esté en internet): abre directo el teclado para anotar un gasto. En computadora, la tecla <kbd>N</kbd> hace lo mismo.</span></div>
                 <p class="help mt-2">Se guardan solo en este navegador (no van en la copia de respaldo). El PIN oculta la app al abrirla y después de 5 minutos en segundo plano; no cifra tus datos, así que usa también el bloqueo de tu teléfono o computadora.</p>
             </div>
             <div class="panel tone-slate">
@@ -1145,7 +1151,7 @@
 
 <footer class="wrap py-6 text-center text-[11px] text-slate-400 no-print">Estimaciones educativas. Tus datos se guardan solo en este navegador. · <a href="#" class="link" data-action="app.help">Cómo usar la app</a></footer>
 
-<button type="button" class="fab no-print" data-action="quick.open" title="Registro rápido de un gasto o ingreso" aria-label="Registro rápido"><i class="fa-solid fa-plus"></i></button>
+<button type="button" class="fab no-print" data-action="quick.open" title="Registro rápido de un gasto o ingreso (tecla N)" aria-label="Registro rápido"><i class="fa-solid fa-plus"></i></button>
 
 <script src="js/device.js"></script>
 <script src="js/format.js"></script>
@@ -1164,6 +1170,7 @@
 <script src="js/views/importar.js"></script>
 <script src="js/views/reportes.js"></script>
 <script src="js/views/cash.js"></script>
+<script src="js/views/whatif.js"></script>
 <script src="js/views/quick.js"></script>
 <script src="js/views/metas.js"></script>
 <script src="js/views/ahorro.js"></script>

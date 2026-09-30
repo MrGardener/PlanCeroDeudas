@@ -95,6 +95,8 @@
         }
     });
 
+    window.QuickEntry = { open };
+
     // Enter in the amount saves.
     document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target && (e.target.id === 'quick-amount' || e.target.id === 'quick-note')) { e.preventDefault(); UI.$('#quick-save') && UI.$('#quick-save').click(); } });
 })();

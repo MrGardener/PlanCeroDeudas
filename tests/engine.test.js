@@ -547,3 +547,20 @@ test('cash events, safe to spend and the day-by-day forecast', () => {
     const low = E.cashForecast({ from: '2026-09-16', to: '2026-09-20', start: 120, events: ev, dailyByMonth: { '2026-09': 10 }, buffer: 100 });
     assert.deepEqual(low.map(d => d.status), ['low', 'low', 'low', 'low', 'short']);          // the overdue bill leaves on day one
 });
+
+test('what if: a purchase takes from free money, its line, variable lines, then savings — never fixed bills', () => {
+    const items = [
+        { id: 1, name: 'Arriendo', type: 'Gasto Fijo', real: 400 },
+        { id: 2, name: 'Comida', type: 'Gasto Variable', real: 300 },
+        { id: 3, name: 'Salidas', type: 'Gasto Variable', real: 100 },
+        { id: 4, name: 'Ropa', type: 'Gasto Variable', real: 50 },
+        { id: 5, name: 'Ahorro', type: 'Ahorro', real: 200 },
+        { id: 'goal-1', name: 'Viaje', type: 'Ahorro', real: 80, link: 'goal' }
+    ];
+    const spend = { byLine: { 2: { spent: 250 }, 3: { spent: 20 }, 4: { spent: 0 } } };
+    const r = E.starveLines({ items, spend, amount: 500, lineId: 4, free: 30, sweep: 0 });
+    assert.deepEqual(r.takes.map(t => [t.name, t.take]), [['Dinero sin asignar', 30], ['Ropa', 50], ['Salidas', 80], ['Comida', 50], ['Ahorro', 200], ['Viaje', 80]]);
+    assert.equal(r.short, 10);
+    assert.ok(!r.takes.some(t => t.name === 'Arriendo'));
+    assert.deepEqual(E.starveLines({ items, spend, amount: 20, lineId: 4 }).takes.map(t => t.name), ['Ropa']);
+});
