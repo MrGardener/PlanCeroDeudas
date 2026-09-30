@@ -314,11 +314,23 @@
             const d = txnDate(t);
             if (d.getFullYear() !== Number(year)) return;
             if (month !== 'base' && (d.getMonth() + 1) !== Number(month)) return;
+            // A split transaction puts parts of its amount on several lines; whatever isn't
+            // split follows the usual rule below.
+            let rest = num(t.amount);
+            (Array.isArray(t.splits) ? t.splits : []).forEach(sp => {
+                const k = sp && byLine[String(sp.line)] ? String(sp.line) : null;
+                const a = Math.min(rest, Math.max(0, num(sp && sp.amount)));
+                if (!k || a <= 0) return;
+                byLine[k].spent += a;
+                if (!byLine[k].txns.includes(t)) byLine[k].txns.push(t);
+                rest -= a;
+            });
+            if (rest <= 0.005) return;
             const explicit = t.budgetLine !== undefined && t.budgetLine !== null && t.budgetLine !== '' && byLine[String(t.budgetLine)] ? String(t.budgetLine) : null;
             const key = explicit || firstByCat[t.parentCategory] || null;
-            if (!key) { unassigned.push(t); return; }
-            byLine[key].spent += num(t.amount);
-            byLine[key].txns.push(t);
+            if (!key) { unassigned.push(rest === num(t.amount) ? t : Object.assign({}, t, { amount: rest })); return; }
+            byLine[key].spent += rest;
+            if (!byLine[key].txns.includes(t)) byLine[key].txns.push(t);
         });
         return { byLine, unassigned, unassignedTotal: sum(unassigned, t => num(t.amount)) };
     }
@@ -906,6 +918,26 @@
 
     // Dave Ramsey's Baby Steps, evaluated against the user's own data. Steps 4-6 are worked
     // on at the same time once the emergency fund is full, as Ramsey prescribes.
+    // Rough projection of net worth month by month (an estimate, explained as such in the UI).
+    // Only invested money (`invested`: pólizas, investments) and new savings earn `rate`; the
+    // rest of net worth (house, car, cash) is held flat. While debts are being paid, each
+    // month's payment raises net worth by what goes to principal; once debt-free, that money
+    // is saved and invested too.
+    function netWorthPath({ start, invested = 0, monthlySavings, rate, debtBalance = 0, debtMonths = 0, debtPayment = 0, months }) {
+        const r = num(rate) / 1200;
+        const flat = num(start) - Math.max(0, num(invested));
+        let pot = Math.max(0, num(invested));
+        let paid = 0;
+        const principalPerMonth = debtMonths > 0 ? num(debtBalance) / debtMonths : 0;
+        const out = [Math.round(flat + pot)];
+        for (let m = 1; m <= months; m++) {
+            pot += pot * r + num(monthlySavings) + (m > debtMonths ? num(debtPayment) : 0);
+            if (m <= debtMonths) paid += principalPerMonth;
+            out.push(Math.round(flat + pot + paid));
+        }
+        return out;
+    }
+
     function babySteps({ liquid, consumerDebt, monthsCovered, savingsRate, mortgageBalance }) {
         const steps = [
             { n: 1, title: 'Fondo de Emergencia Inicial', done: liquid >= 1000, detail: `${Math.min(100, liquid / 10).toFixed(0)}% de $1,000` },
@@ -932,7 +964,7 @@
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
         occurrences, dueOccurrences, nextOccurrence, monthlyCost,
-        goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
+        netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,

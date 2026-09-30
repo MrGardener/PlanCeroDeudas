@@ -179,9 +179,10 @@
         } else {
             const a = assignOf(t);
             pending = !a.lineId;
-            const first = a.explicit ? 'Automático (por categoría)' : a.lineId ? `${a.line.name} (auto)` : '+ Asignar a un rubro';
-            chip = `<select class="chip-select ${a.explicit ? '' : a.lineId ? 'auto' : 'empty'}" data-change="txn.assignLine" data-id="${t.id}" aria-label="Rubro del presupuesto">
-                <option value="">${esc(first)}</option>${BudgetSimple.lineOptions(a.items, a.explicit ? a.lineId : null)}</select>`;
+            const split = Array.isArray(t.splits) && t.splits.length;
+            const first = split ? `✂ Dividida en ${t.splits.length} rubro${t.splits.length === 1 ? '' : 's'}` : a.explicit ? 'Automático (por categoría)' : a.lineId ? `${a.line.name} (auto)` : '+ Asignar a un rubro';
+            chip = `<select class="chip-select ${split || a.explicit ? '' : a.lineId ? 'auto' : 'empty'}" data-change="txn.assignLine" data-id="${t.id}" aria-label="Rubro del presupuesto">
+                <option value="">${esc(first)}</option>${BudgetSimple.lineOptions(a.items, a.explicit && !split ? a.lineId : null)}<option value="__split">✂ Dividir entre rubros…</option></select>`;
         }
         const notes = [];
         if (inc && Engine.isPayrollTxn(t)) notes.push(`<span class="text-amber-700">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>`);

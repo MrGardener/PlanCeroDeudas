@@ -455,3 +455,28 @@ test('goal schedule: monthly needed for a target date, on track or behind', () =
     assert.equal(E.goalSchedule({ ...g, targetDate: '' }, today), null);
     assert.equal(E.goalSchedule({ ...g, current: 1500 }, today).onTrack, true);
 });
+
+test('net worth path: debt paid down, then that money is saved', () => {
+    const p = E.netWorthPath({ start: -1000, monthlySavings: 100, rate: 0, debtBalance: 1000, debtMonths: 5, debtPayment: 250, months: 7 });
+    assert.equal(p.length, 8);
+    assert.equal(p[5], -1000 + 5 * 100 + 1000);   // 5 months of saving + debt gone
+    assert.equal(p[7], p[5] + 2 * (100 + 250));   // after: savings + the freed debt payment
+    const grow = E.netWorthPath({ start: 1000, invested: 1000, monthlySavings: 0, rate: 12, months: 12 });
+    assert.ok(grow[12] > 1120 && grow[12] < 1130);
+    // A house doesn't earn the DPF rate: only invested money grows.
+    const house = E.netWorthPath({ start: 120000, invested: 0, monthlySavings: 0, rate: 12, months: 12 });
+    assert.equal(house[12], 120000);
+});
+
+test('split transactions count on several lines; the rest follows the usual rule', () => {
+    const items = [{ id: 1, name: 'Comida', linkedCategory: 'Alimentación', real: 200 }, { id: 2, name: 'Limpieza', linkedCategory: 'Hogar', real: 50 }, { id: 3, name: 'Mascotas', linkedCategory: 'Mascotas', real: 40 }];
+    const txns = [{ id: 1, type: 'Gasto', parentCategory: 'Alimentación', amount: 100, date: '2026-09-05', splits: [{ line: '2', amount: 30 }, { line: '3', amount: 20 }] },
+        { id: 2, type: 'Gasto', parentCategory: 'Otros', amount: 60, date: '2026-09-06', splits: [{ line: '2', amount: 10 }] }];
+    const s = E.lineSpend(items, txns, 2026, '9');
+    assert.equal(s.byLine['1'].spent, 50);    // remainder by category
+    assert.equal(s.byLine['2'].spent, 40);
+    assert.equal(s.byLine['3'].spent, 20);
+    assert.equal(s.unassigned.length, 1);     // 50 of the second one has no line
+    assert.equal(s.unassigned[0].amount, 50);
+    assert.equal(s.unassignedTotal, 50);
+});

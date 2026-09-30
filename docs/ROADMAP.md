@@ -41,17 +41,18 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ✅ Deleted transactions bin | Kept 60 days; restore or delete for good |
 | ✅ Goals with a target date (sinking funds) | Monthly needed to arrive on time (with DPF interest), "A tiempo" / "Atrasada", progress bar, "Depositar" (optionally logged on the goal's budget line) |
 | ✅ Custom reports + export | Presupuesto → Reportes: any period, group by category / subcategory / budget line / person / month / week / place / payment; CSV (Excel/Sheets, re-importable) and print to PDF |
+| ✅ Baby Steps roadmap ("Tu camino") | Deudas y Metas: net worth today → projected at retirement age (only invested money earns interest), debt-free date, the next concrete step; debts show how much is already paid |
+| ✅ Custom budget groups | Simple view → "Agregar grupo"; move a line between groups from its detail. (Nested sub-groups: not yet — see Phase 3) |
+| ✅ Per-line detail | Chart icon on a line: this month planned/spent/remaining, last 12 months vs. plan, its transactions, group / type / linked category |
+| ✅ Split transactions | "✂ Dividir entre rubros" on a transaction's chip: up to 3 lines, the rest counts as usual |
 | ✅ Investments: ETF / stocks / funds | Ticker + units; price from Finnhub or Alpha Vantage with the user's free key, or typed by hand; flows into net worth. The key never goes into backups |
 
 ## Phase 3 — planned (works without a server)
 
 | Feature | Source / notes |
 |---|---|
-| 📋 Custom budget groups (Dar, Vivienda, Comida…) and nested groups | EveryDollar desktop, "Car Money" style |
-| 📋 Per-line detail: monthly history vs. limit, its transactions | MoneyCoach budget detail |
-| 📋 Split a transaction across budget lines | EveryDollar "Add a split" |
-| 📋 Baby Steps roadmap: net worth today vs. projected, debt-free date, debt paid progress | EveryDollar roadmap |
 | 📋 Accounts with balances (checking, savings, card, cash) | Rocket Money / Empower |
+| 📋 Nested budget groups (a group inside a group) | "Car Money → Transportation / Maintenance" |
 | 📋 Quick entry (amount keypad + category tags) | Nudget |
 | 📋 History grouped by week/month with category totals | Nudget history |
 | 📋 Dark mode | Nudget settings |

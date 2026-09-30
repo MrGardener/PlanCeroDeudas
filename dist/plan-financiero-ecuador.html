@@ -312,6 +312,9 @@ input[type="file"].hidden { display: none; }
 .mini-bar { height: 6px; border-radius: 6px; background: #e2e8f0; overflow: hidden; margin-top: .25rem; }
 .mini-bar > span { display: block; height: 100%; border-radius: 6px; }
 .insight-ico { flex: 0 0 auto; width: 1.9rem; height: 1.9rem; border-radius: 999px; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; }
+.bs-add-group { border: 2px dashed #cbd5e1; border-radius: 1rem; padding: 1.25rem; color: #2563eb; font-weight: 700; font-size: .85rem; text-align: center; background: transparent; min-height: 6rem; }
+.bs-add-group:hover { border-color: #3b82f6; background: #eff6ff; }
+.modal.modal-wide { max-width: 46rem; width: calc(100% - 2rem); max-height: calc(100vh - 2rem); overflow-y: auto; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -851,10 +854,14 @@ input[type="file"].hidden { display: none; }
     <div class="card">
         <div class="card-head">
             <div>
-                <div class="card-title"><i class="fa-solid fa-route text-emerald-600"></i> Los 7 Baby Steps (adaptados a Ecuador)</div>
+                <div class="card-title"><i class="fa-solid fa-route text-emerald-600"></i> Tu camino: los 7 Baby Steps (adaptados a Ecuador)</div>
                 <div class="card-sub">Tu progreso, calculado con tus propios datos. Completa los pasos en orden; del 4 al 6 se trabajan a la vez.</div>
             </div>
         </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="road-kpis"></div>
+        <div class="chart-box mb-2"><canvas id="road-chart"></canvas></div>
+        <p class="help mb-4" id="road-note"></p>
+        <div id="road-next" class="panel tone-blue mb-4 text-xs text-blue-900"></div>
         <div id="metas-steps" class="steps"></div>
     </div>
 
@@ -1954,11 +1961,23 @@ input[type="file"].hidden { display: none; }
             const d = txnDate(t);
             if (d.getFullYear() !== Number(year)) return;
             if (month !== 'base' && (d.getMonth() + 1) !== Number(month)) return;
+            // A split transaction puts parts of its amount on several lines; whatever isn't
+            // split follows the usual rule below.
+            let rest = num(t.amount);
+            (Array.isArray(t.splits) ? t.splits : []).forEach(sp => {
+                const k = sp && byLine[String(sp.line)] ? String(sp.line) : null;
+                const a = Math.min(rest, Math.max(0, num(sp && sp.amount)));
+                if (!k || a <= 0) return;
+                byLine[k].spent += a;
+                if (!byLine[k].txns.includes(t)) byLine[k].txns.push(t);
+                rest -= a;
+            });
+            if (rest <= 0.005) return;
             const explicit = t.budgetLine !== undefined && t.budgetLine !== null && t.budgetLine !== '' && byLine[String(t.budgetLine)] ? String(t.budgetLine) : null;
             const key = explicit || firstByCat[t.parentCategory] || null;
-            if (!key) { unassigned.push(t); return; }
-            byLine[key].spent += num(t.amount);
-            byLine[key].txns.push(t);
+            if (!key) { unassigned.push(rest === num(t.amount) ? t : Object.assign({}, t, { amount: rest })); return; }
+            byLine[key].spent += rest;
+            if (!byLine[key].txns.includes(t)) byLine[key].txns.push(t);
         });
         return { byLine, unassigned, unassignedTotal: sum(unassigned, t => num(t.amount)) };
     }
@@ -2546,6 +2565,26 @@ input[type="file"].hidden { display: none; }
 
     // Dave Ramsey's Baby Steps, evaluated against the user's own data. Steps 4-6 are worked
     // on at the same time once the emergency fund is full, as Ramsey prescribes.
+    // Rough projection of net worth month by month (an estimate, explained as such in the UI).
+    // Only invested money (`invested`: pólizas, investments) and new savings earn `rate`; the
+    // rest of net worth (house, car, cash) is held flat. While debts are being paid, each
+    // month's payment raises net worth by what goes to principal; once debt-free, that money
+    // is saved and invested too.
+    function netWorthPath({ start, invested = 0, monthlySavings, rate, debtBalance = 0, debtMonths = 0, debtPayment = 0, months }) {
+        const r = num(rate) / 1200;
+        const flat = num(start) - Math.max(0, num(invested));
+        let pot = Math.max(0, num(invested));
+        let paid = 0;
+        const principalPerMonth = debtMonths > 0 ? num(debtBalance) / debtMonths : 0;
+        const out = [Math.round(flat + pot)];
+        for (let m = 1; m <= months; m++) {
+            pot += pot * r + num(monthlySavings) + (m > debtMonths ? num(debtPayment) : 0);
+            if (m <= debtMonths) paid += principalPerMonth;
+            out.push(Math.round(flat + pot + paid));
+        }
+        return out;
+    }
+
     function babySteps({ liquid, consumerDebt, monthsCovered, savingsRate, mortgageBalance }) {
         const steps = [
             { n: 1, title: 'Fondo de Emergencia Inicial', done: liquid >= 1000, detail: `${Math.min(100, liquid / 10).toFixed(0)}% de $1,000` },
@@ -2572,7 +2611,7 @@ input[type="file"].hidden { display: none; }
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
         occurrences, dueOccurrences, nextOccurrence, monthlyCost,
-        goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
+        netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
@@ -2959,6 +2998,8 @@ input[type="file"].hidden { display: none; }
             if (!d.kind) d.kind = Engine.guessDebtKind(d.name);
             if (d.monthly === undefined || d.monthly === null) d.monthly = Math.max(0, Number(d.minPayment) || 0);
             if (!d.createdYear) d.createdYear = thisYear;
+            // Where the debt started, to show how much has been paid off.
+            if (!(Number(d.originalBalance) > 0)) d.originalBalance = Math.max(0, Number(d.balance) || 0);
         });
         s.goals.forEach(g => {
             if (g.monthly === undefined || g.monthly === null) g.monthly = 0;
@@ -3290,6 +3331,24 @@ input[type="file"].hidden { display: none; }
         },
 
         confirm(opts) { return UI.form({ ...opts, fields: [] }); },
+
+        // sheet(): a dialog with custom content (lists, a chart…). Controls inside use the same
+        // data-action / data-change handlers as the rest of the app. Returns { el, close }.
+        sheet({ title, icon = 'fa-circle-info', html = '', wide = false, onClose }) {
+            UI.$$('.modal-backdrop.sheet').forEach(b => b.remove());
+            const back = document.createElement('div');
+            back.className = 'modal-backdrop sheet';
+            back.innerHTML = `<div class="modal ${wide ? 'modal-wide' : ''}" role="dialog" aria-modal="true">
+                    <div class="flex items-start justify-between gap-3"><h3 class="modal-title"><i class="fa-solid ${icon}"></i><span></span></h3>
+                    <button type="button" class="row-del text-lg" data-dialog-cancel aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button></div>
+                    <div class="sheet-body">${html}</div></div>`;
+            back.querySelector('.modal-title span').textContent = title;
+            const close = () => { if (!back.isConnected) return; back.remove(); if (onClose) onClose(); };
+            back.querySelector('[data-dialog-cancel]').addEventListener('click', close);
+            back.addEventListener('mousedown', (e) => { if (e.target === back) close(); });
+            document.body.appendChild(back);
+            return { el: back, body: back.querySelector('.sheet-body'), close };
+        },
 
         // --------------------------------------------------------------- charts
         // Creates the chart the first time, then swaps data/options in place so live edits
@@ -4147,7 +4206,9 @@ input[type="file"].hidden { display: none; }
     const MODES = { planned: 'Planeado', spent: 'Gastado', remaining: 'Restante', all: 'Todo' };
     const INCOME_MODES = { planned: 'Planeado', spent: 'Recibido', remaining: 'Por recibir', all: 'Todo' };
 
+    // Lines can live in a custom group (item.group); otherwise their type decides.
     const groupOf = (item) => {
+        if (item.group && !item.link) return 'g:' + item.group;
         const t = item.type || '';
         if (GROUPS.some(g => g.type === t)) return t;
         return t.includes('Ahorro') ? 'Ahorro' : 'Otros';
@@ -4197,6 +4258,7 @@ input[type="file"].hidden { display: none; }
                     : `<input class="bs-name-input" value="${esc(item.name)}" data-change="budget.set" data-id="${id}" data-field="name" aria-label="Nombre del rubro">`} ${badge}
                     ${!item.link && !item.sweep ? `<button type="button" class="row-del bs-del" data-action="budget.delete" data-id="${id}" title="Eliminar rubro" aria-label="Eliminar rubro"><i class="fa-solid fa-trash-can"></i></button>` : ''}
                     ${canDue ? `<button type="button" class="bs-due" data-action="budget.dueDay" data-id="${id}" data-kind="${item.link || 'line'}" data-ref="${item.refId || ''}" title="Fecha de pago"><i class="fa-regular fa-calendar"></i> <span data-due></span></button>` : ''}
+                    ${item.sweep ? '' : `<button type="button" class="bs-due" data-action="line.detail" data-id="${id}" title="Detalle: historial, transacciones, grupo"><i class="fa-solid fa-chart-simple"></i></button>`}
                     <span class="bs-sub" data-sub></span></div>
                 ${valueCell(input)}
                 <div class="bs-bar"><span data-bar></span></div>
@@ -4233,17 +4295,26 @@ input[type="file"].hidden { display: none; }
         const byGroup = {};
         m.plannedItems.forEach(it => { (byGroup[groupOf(it)] = byGroup[groupOf(it)] || []).push(it); });
         if (ctx.year.sweepSavings) (byGroup.Ahorro = byGroup.Ahorro || []).push({ id: 'sweep', sweep: true, type: 'Ahorro' });
-        const order = GROUPS.map(g => g.type).concat(Object.keys(byGroup).filter(k => !GROUPS.some(g => g.type === k)));
+        // Custom groups: the year's list (keeps empty ones) plus any group a line mentions.
+        const custom = (ctx.year.groups || []).map(g => g.name);
+        m.plannedItems.forEach(it => { if (it.group && !it.link && !custom.includes(it.group)) custom.push(it.group); });
+        const order = GROUPS.map(g => g.type).concat(custom.map(n => 'g:' + n), Object.keys(byGroup).filter(k => !GROUPS.some(g => g.type === k) && !k.startsWith('g:')));
         const cards = order.map(g => {
-            const def = GROUPS.find(x => x.type === g) || { label: g, icon: 'fa-folder' };
+            const isCustom = g.startsWith('g:');
+            const name = isCustom ? g.slice(2) : g;
+            const def = isCustom ? { label: name, icon: 'fa-folder-open' } : (GROUPS.find(x => x.type === g) || { label: g, icon: 'fa-folder' });
             const list = byGroup[g] || [];
+            const gdef = (ctx.year.groups || []).find(x => x.name === name);
+            const addType = isCustom ? ((gdef && gdef.type) || (list[0] && list[0].type) || 'Gasto Variable') : (g === 'Ahorro' ? 'Ahorro/Inversión' : g);
+            const foot = g === 'Deuda' ? '<a href="#" class="link" data-goto="metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Agregar deuda</a>'
+                : GROUPS.some(x => x.type === g) || isCustom ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(addType)}" ${isCustom ? `data-group="${esc(name)}"` : ''}><i class="fa-solid fa-plus"></i> Agregar rubro</button>${isCustom && !list.length ? ` <button type="button" class="mini-btn text-red-600 ml-2" data-action="group.delete" data-name="${esc(name)}">Quitar grupo</button>` : ''}` : '<span></span>';
             return `<section class="bs-card" data-group="${esc(g)}">
                 <header class="bs-head"><span class="bs-title"><i class="fa-solid ${def.icon} text-slate-400"></i> ${esc(def.label)}</span>${colsHTML(MODES)}</header>
                 ${list.map(lineRow).join('') || '<p class="bs-empty">Sin rubros todavía.</p>'}
-                <footer class="bs-foot">${GROUPS.some(x => x.type === g) && g !== 'Deuda' ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(g === 'Ahorro' ? 'Ahorro/Inversión' : g)}"><i class="fa-solid fa-plus"></i> Agregar rubro</button>`
-                    : g === 'Deuda' ? '<a href="#" class="link" data-goto="metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Agregar deuda</a>' : '<span></span>'}<span class="bs-total" data-total></span></footer>
+                <footer class="bs-foot">${foot}<span class="bs-total" data-total></span></footer>
             </section>`;
         });
+        cards.push('<button type="button" class="bs-add-group" data-action="group.add"><i class="fa-solid fa-folder-plus"></i> Agregar grupo<span class="block text-[11px] font-normal text-slate-500 mt-1">Ej: Dar, Mascotas, Carro, Hijos</span></button>');
         host.innerHTML = `
             <div class="bs-toolbar">
                 <div class="segmented bs-modes" role="tablist" aria-label="Qué mostrar">${Object.keys(MODES).map(k => `<button type="button" data-action="budget.mode" data-mode="${k}">${MODES[k]}</button>`).join('')}</div>
@@ -4441,8 +4512,120 @@ input[type="file"].hidden { display: none; }
         }
     }
 
+    // ------------------------------------------------------------------ custom groups
+    // The same line in the base budget and every month that has its own copy.
+    function lineCopies(yd, id) {
+        return [yd.budgetBase].concat(Object.values(yd.monthOverrides || {})).map(l => l.find(i => String(i.id) === String(id))).filter(Boolean);
+    }
+
+    // ------------------------------------------------------------------ line detail
+    function openDetail(id) {
+        const ctx = App.buildContext();
+        const s = ctx.state, t = ctx.today;
+        const sm = spendMonth(ctx) || String(t.getMonth() + 1);
+        const y0 = ctx.state.activeYear;
+        const item = Engine.monthItems(ctx.budgetYear, sm).find(i => String(i.id) === String(id));
+        if (!item) return;
+        // Last 12 months up to the month on screen.
+        const months = [];
+        for (let k = 11; k >= 0; k--) { const d = new Date(y0, Number(sm) - 1 - k, 1); months.push([d.getFullYear(), String(d.getMonth() + 1)]); }
+        const hist = months.map(([y, m]) => {
+            const items = Engine.monthItems(Store.effective(y), m);
+            const it = items.find(i => String(i.id) === String(id));
+            const sp = Engine.lineSpend(items, s.transactions, y, m).byLine[String(id)];
+            return { label: `${Fmt.MONTH_SHORT[m - 1]} ${String(y).slice(2)}`, planned: it ? Number(it.real) || 0 : 0, spent: sp ? sp.spent : 0, txns: sp ? sp.txns : [] };
+        });
+        const cur = hist[hist.length - 1];
+        const withData = hist.filter(h => h.spent > 0);
+        const avg = withData.length ? withData.reduce((a, h) => a + h.spent, 0) / withData.length : 0;
+        const over = hist.filter(h => h.planned > 0 && h.spent > h.planned + 0.005).length;
+        const custom = (ctx.year.groups || []).map(g => g.name);
+        const settings = item.link ? `<p class="help">Es la línea de ${item.link === 'debt' ? 'una deuda' : 'una meta'}: se edita en <a href="#" class="link" data-goto="metas">Deudas y Metas</a>.</p>` : `
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label class="field"><span class="field-label">Grupo</span><select class="input" data-change="line.setGroup" data-id="${esc(String(id))}"><option value="">Según su tipo</option>${custom.map(n => `<option ${n === item.group ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+                <label class="field"><span class="field-label">Tipo</span><select class="input" data-change="line.setType" data-id="${esc(String(id))}">${Views.selectOptions(Defaults.BUDGET_TYPES, item.type)}</select></label>
+                <label class="field"><span class="field-label">Categoría vinculada</span><select class="input" data-change="line.setCategory" data-id="${esc(String(id))}">${Views.selectOptions([{ value: 'none', label: 'Sin vincular' }].concat(Object.keys(s.taxonomy.expense).map(c => ({ value: c, label: c }))), item.linkedCategory || 'none')}</select></label>
+            </div>`;
+        const sheet = UI.sheet({ title: item.name, icon: 'fa-chart-simple', wide: true, html: `
+            <div class="grid grid-cols-3 gap-3 mb-3">
+                <div class="kpi tone-slate"><span class="kpi-label">Planeado · ${Fmt.MONTH_NAMES[sm - 1]}</span><span class="kpi-value">${money(cur.planned)}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">Gastado</span><span class="kpi-value">${money(cur.spent)}</span></div>
+                <div class="kpi ${cur.planned - cur.spent < -0.005 ? 'tone-red' : 'tone-emerald'}"><span class="kpi-label">Restante</span><span class="kpi-value">${money(cur.planned - cur.spent)}</span></div>
+            </div>
+            <div class="chart-box" style="height:13rem"><canvas id="line-detail-chart"></canvas></div>
+            <p class="help mb-3">Promedio gastado: <strong>${money(avg)}</strong>/mes en los meses con gastos · Te pasaste en ${over} de los últimos 12 meses.</p>
+            ${settings}
+            <div class="section-label mt-4">Transacciones de ${Fmt.MONTH_NAMES[sm - 1]}</div>
+            ${cur.txns.length ? `<div class="space-y-1 text-xs">${cur.txns.map(x => `<div class="flex justify-between gap-2 bg-slate-50 rounded-lg px-2 py-1.5"><span class="truncate">${esc(x.date)} · <strong>${esc(x.description)}</strong>${Array.isArray(x.splits) && x.splits.length ? ' <span class="badge badge-muted">dividida</span>' : ''}</span><span class="font-bold whitespace-nowrap">${money(x.amount)}</span></div>`).join('')}</div>` : '<p class="help">Sin transacciones este mes.</p>'}` });
+        UI.chart('line-detail-chart', {
+            type: 'line',
+            data: { labels: hist.map(h => h.label), datasets: [
+                { label: 'Planeado', data: hist.map(h => h.planned), borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, stepped: true },
+                { label: 'Gastado', data: hist.map(h => h.spent), borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 4, fill: true, cubicInterpolationMode: 'monotone' }
+            ] },
+            options: { interaction: { mode: 'index', intersect: false } }
+        });
+        return sheet;
+    }
+
+    // Split one expense across several budget lines (up to 3; the rest follows the usual rule).
+    async function openSplit(t) {
+        const y = Number(t.date.slice(0, 4)), m = String(Number(t.date.slice(5, 7)));
+        const items = Engine.monthItems(Store.effective(y), m);
+        const options = [{ value: '', label: '—' }].concat(items.map(i => ({ value: String(i.id), label: i.name })));
+        const cur = Array.isArray(t.splits) ? t.splits : [];
+        const fields = [];
+        for (let k = 0; k < 3; k++) {
+            fields.push({ name: 'line' + k, label: `Rubro ${k + 1}`, options, value: cur[k] ? String(cur[k].line) : '' });
+            fields.push({ name: 'amt' + k, label: `Monto ${k + 1}`, type: 'number', min: 0, step: '0.01', value: cur[k] ? cur[k].amount : '' });
+        }
+        const r = await UI.form({ title: `Dividir "${t.description}" (${money(t.amount)})`, message: 'Reparte el monto entre rubros. Lo que no repartas cuenta como siempre (según su categoría).', fields, confirmText: 'Guardar',
+            validate: v => { const tot = [0, 1, 2].reduce((a, k) => a + (v['line' + k] ? Number(v['amt' + k]) || 0 : 0), 0); return tot > Number(t.amount) + 0.005 ? `Repartiste ${money(tot)}, más que ${money(t.amount)}.` : null; } });
+        if (!r) return;
+        const splits = [0, 1, 2].map(k => ({ line: r['line' + k], amount: Math.round((Number(r['amt' + k]) || 0) * 100) / 100 })).filter(x => x.line && x.amount > 0);
+        if (splits.length) { t.splits = splits; delete t.budgetLine; } else delete t.splits;
+        App.changed({ structural: true, step: true });
+        UI.toast(splits.length ? `"${t.description}" dividida entre ${splits.length} rubro${splits.length === 1 ? '' : 's'}.` : 'División quitada.');
+    }
+
     UI.register({
-        'txn.assignLine': (el) => assignLine(Number(el.dataset.id), el.value),
+        'txn.assignLine': (el) => {
+            if (el.value === '__split') { const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id)); if (t) openSplit(t); return; }
+            const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
+            if (t && t.splits) delete t.splits;
+            assignLine(Number(el.dataset.id), el.value);
+        },
+        'line.detail': (el) => openDetail(el.dataset.id),
+        'line.setGroup': (el) => {
+            lineCopies(Store.active(), el.dataset.id).forEach(i => { if (el.value) i.group = el.value; else delete i.group; });
+            App.changed({ structural: true, step: true });
+            openDetail(el.dataset.id);
+        },
+        'line.setType': (el) => {
+            lineCopies(Store.active(), el.dataset.id).forEach(i => { i.type = el.value; });
+            App.changed({ structural: true, step: true });
+            openDetail(el.dataset.id);
+        },
+        'line.setCategory': (el) => {
+            lineCopies(Store.active(), el.dataset.id).forEach(i => { i.linkedCategory = el.value; });
+            App.changed({ structural: true, step: true });
+            openDetail(el.dataset.id);
+        },
+        'group.add': async () => {
+            const r = await UI.form({ title: 'Nuevo grupo', fields: [
+                { name: 'name', label: 'Nombre del grupo', placeholder: 'Ej: Dar, Mascotas, Carro' },
+                { name: 'type', label: '¿Qué tipo de dinero es?', options: [{ value: 'Gasto Variable', label: 'Gastos que varían' }, { value: 'Gasto Fijo', label: 'Gastos fijos' }, { value: 'Ahorro/Inversión', label: 'Ahorro' }] }
+            ], confirmText: 'Crear', validate: v => !v.name.trim() ? 'Escribe un nombre.' : (Store.active().groups || []).some(g => g.name === v.name.trim()) ? 'Ya existe un grupo con ese nombre.' : null });
+            if (!r) return;
+            const yd = Store.active();
+            (yd.groups || (yd.groups = [])).push({ name: r.name.trim().slice(0, 40), type: r.type });
+            App.changed({ structural: true, step: true });
+            UI.toast(`Grupo "${r.name.trim()}" creado. Agrégale rubros o mueve uno desde su detalle (ícono de gráfico).`);
+        },
+        'group.delete': (el) => {
+            const yd = Store.active();
+            App.undoable(`Grupo "${el.dataset.name}" quitado`, () => { yd.groups = (yd.groups || []).filter(g => g.name !== el.dataset.name); });
+        },
         'budget.mode': (el) => { Store.ui.budgetMode = el.dataset.mode; App.update(); },
         'budget.layout': (el) => { Store.ui.budgetLayout = el.dataset.layout; App.render(); }
     });
@@ -4962,7 +5145,7 @@ input[type="file"].hidden { display: none; }
             const list = editableItems();
             const id = Store.nextId(list);
             const type = el && el.dataset.type && Defaults.BUDGET_TYPES.includes(el.dataset.type) ? el.dataset.type : 'Gasto Variable';
-            list.push({ id, name: 'Nuevo rubro', type, isDeductible: false, prep: 0, real: 0, linkedCategory: 'none' });
+            list.push(Object.assign({ id, name: 'Nuevo rubro', type, isDeductible: false, prep: 0, real: 0, linkedCategory: 'none' }, el && el.dataset.group ? { group: el.dataset.group } : {}));
             App.changed({ structural: true, step: true });
             const input = document.querySelector(layout() === 'simple' ? `#bud-simple [data-line="${id}"] .bs-name-input` : `#bud-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
@@ -5243,9 +5426,10 @@ input[type="file"].hidden { display: none; }
         } else {
             const a = assignOf(t);
             pending = !a.lineId;
-            const first = a.explicit ? 'Automático (por categoría)' : a.lineId ? `${a.line.name} (auto)` : '+ Asignar a un rubro';
-            chip = `<select class="chip-select ${a.explicit ? '' : a.lineId ? 'auto' : 'empty'}" data-change="txn.assignLine" data-id="${t.id}" aria-label="Rubro del presupuesto">
-                <option value="">${esc(first)}</option>${BudgetSimple.lineOptions(a.items, a.explicit ? a.lineId : null)}</select>`;
+            const split = Array.isArray(t.splits) && t.splits.length;
+            const first = split ? `✂ Dividida en ${t.splits.length} rubro${t.splits.length === 1 ? '' : 's'}` : a.explicit ? 'Automático (por categoría)' : a.lineId ? `${a.line.name} (auto)` : '+ Asignar a un rubro';
+            chip = `<select class="chip-select ${split || a.explicit ? '' : a.lineId ? 'auto' : 'empty'}" data-change="txn.assignLine" data-id="${t.id}" aria-label="Rubro del presupuesto">
+                <option value="">${esc(first)}</option>${BudgetSimple.lineOptions(a.items, a.explicit && !split ? a.lineId : null)}<option value="__split">✂ Dividir entre rubros…</option></select>`;
         }
         const notes = [];
         if (inc && Engine.isPayrollTxn(t)) notes.push(`<span class="text-amber-700">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>`);
@@ -6210,9 +6394,51 @@ input[type="file"].hidden { display: none; }
         update(ctx);
     }
 
+    // "Tu camino": net worth today → projected at retirement, with the debt-free milestone,
+    // and the one concrete thing to do now.
+    function roadmap(ctx) {
+        const s = ctx.state, r = s.retirement, plan = ctx.debts;
+        const ageNow = Math.max(0, Number(r.edadActual) || 0), ageEnd = Math.max(ageNow + 1, Number(r.edadJubilacion) || 65);
+        const months = Math.min(600, (ageEnd - ageNow) * 12);
+        const debtMonths = plan.totalBalance > 0 && !plan.never ? plan.months : 0;
+        const invested = ctx.polizasCapital + Engine.holdingsValue(s.holdings);
+        const path = Engine.netWorthPath({ start: ctx.netWorth.value, invested, monthlySavings: ctx.retirementMonthly, rate: ctx.year.tasa, debtBalance: plan.totalBalance, debtMonths, debtPayment: plan.pool, months });
+        const years = Math.ceil(months / 12);
+        const labels = Array.from({ length: years + 1 }, (_, i) => `${ageNow + i} años`);
+        const yearly = labels.map((_, i) => path[Math.min(i * 12, path.length - 1)]);
+        const milestones = labels.map(() => null);
+        if (debtMonths) milestones[Math.min(years, Math.round(debtMonths / 12))] = yearly[Math.min(years, Math.round(debtMonths / 12))];
+        milestones[years] = yearly[years];
+        UI.chart('road-chart', {
+            type: 'line',
+            data: { labels, datasets: [
+                { label: 'Patrimonio proyectado', data: yearly, borderColor: '#059669', backgroundColor: 'rgba(5,150,105,.12)', borderWidth: 2, pointRadius: 0, fill: true, cubicInterpolationMode: 'monotone' },
+                { label: 'Hitos', data: milestones, borderColor: '#2a78d6', backgroundColor: '#2a78d6', pointStyle: 'rectRot', pointRadius: 7, pointHoverRadius: 9, showLine: false }
+            ] },
+            options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false } } }
+        });
+        const freeDate = plan.totalBalance <= 0 ? '¡Ya!' : plan.never ? 'Nunca (con este presupuesto)' : Fmt.monthYear(Engine.addMonths(ctx.today, plan.months));
+        UI.html('road-kpis', `
+            <div class="kpi tone-slate"><span class="kpi-label">Patrimonio hoy</span><span class="kpi-value">${money0(ctx.netWorth.value)}</span><span class="kpi-note"><a href="#" class="link" data-goto="patrimonio">Ver detalle</a></span></div>
+            <div class="kpi ${plan.totalBalance <= 0 ? 'tone-emerald' : plan.never ? 'tone-red' : 'tone-blue'}"><span class="kpi-label">🎯 Libre de deudas</span><span class="kpi-value">${freeDate}</span><span class="kpi-note">${plan.totalBalance > 0 ? `Quedan ${money0(plan.totalBalance)}` : 'Sin deudas de consumo'}</span></div>
+            <div class="kpi tone-emerald"><span class="kpi-label">🏖️ Proyectado a los ${ageEnd}</span><span class="kpi-value">${money0(yearly[years])}</span><span class="kpi-note">Estimación</span></div>`);
+        UI.text('road-note', `Estimación: tu patrimonio de hoy; tus pólizas e inversiones (${money0(invested)}) y lo que ahorras al mes según tu presupuesto (${money0(ctx.retirementMonthly)}) crecen al ${ctx.year.tasa}% anual (tu casa y otros bienes se mantienen); lo que pagas a tus deudas baja lo que debes, y al terminar de pagarlas ese dinero (${money0(plan.pool)}/mes) pasa a ahorro. Cambia tu edad en Jubilación.`);
+        // The next concrete action, by step.
+        const st = ctx.steps.current, ef = ctx.ef;
+        const paidAll = s.debts.reduce((t, d) => t + Math.max(0, Math.max(Number(d.originalBalance) || 0, Number(d.balance) || 0) - (Number(d.balance) || 0)), 0);
+        const next = st === 1 ? `<strong>Paso 1:</strong> junta ${money0(Math.max(0, 1000 - ef.liquid))} más para llegar a $1,000 en tu fondo de emergencia inicial.`
+            : st === 2 ? (plan.never || plan.shortfall > 0 ? `<strong>Paso 2:</strong> tu presupuesto no alcanza para salir de deudas. Asigna más dinero a tus deudas en el presupuesto.`
+                : `<strong>Paso 2:</strong> envía <strong>${money0(plan.pool)}/mes</strong> a tus deudas (mínimos ${money0(plan.totalMin)}${plan.extra > 0 ? ` + ${money0(plan.extra)} extra` : ''}) y quedas libre en <strong>${freeDate}</strong>.${paidAll > 0 ? ` Ya pagaste ${money0(paidAll)}. ¡Sigue!` : ''}`)
+            : st === 3 ? `<strong>Paso 3:</strong> llevas ${ef.monthsCovered.toFixed(1)} de 3–6 meses de gastos (${money0(ef.monthlyEssential)}/mes). Te faltan ${money0(Math.max(0, ef.monthlyEssential * 3 - ef.liquid))} para 3 meses.`
+            : st === 4 ? `<strong>Pasos 4–6:</strong> ahorras el ${(ctx.savingsRate * 100).toFixed(0)}% de tu sueldo (meta 15%); luego educación de tus hijos y abonos a la hipoteca.`
+            : '<strong>Paso 7:</strong> sigue invirtiendo y da con generosidad.';
+        UI.html('road-next', `<i class="fa-solid fa-location-dot text-blue-600"></i> ${next}`);
+    }
+
     function update(ctx) {
         const s = ctx.state;
         UI.html('metas-steps', Views.stepsHTML(ctx));
+        roadmap(ctx);
 
         // Emergency fund
         const ef = ctx.ef;
@@ -6231,8 +6457,12 @@ input[type="file"].hidden { display: none; }
             const info = plan.items.find(i => i.id === d.id);
             row.querySelector('[data-cell="order"]').innerHTML = info ? `<span class="badge badge-bad">${info.order}°</span>` : '—';
             const under = plan.underfunded.some(u => u.id === d.id);
+            const orig = Math.max(Number(d.originalBalance) || 0, Number(d.balance) || 0);
+            const paid = Math.max(0, orig - (Number(d.balance) || 0));
+            const paidPct = orig > 0 ? paid / orig : 0;
             row.querySelector('[data-cell="payoff"]').innerHTML = (info && info.payoffMonth ? `Mes ${info.payoffMonth} · ${Fmt.monthYear(Engine.addMonths(ctx.today, info.payoffMonth))}` : (Number(d.balance) > 0 ? 'Nunca' : '—'))
-                + (under ? '<span class="block"><span class="badge badge-bad">Bajo el mínimo</span></span>' : '');
+                + (under ? '<span class="block"><span class="badge badge-bad">Bajo el mínimo</span></span>' : '')
+                + (orig > 0 ? `<span class="block text-[10px] font-semibold text-slate-500 mt-1">Pagado ${money0(paid)} (${Math.round(paidPct * 100)}%)</span><div class="mini-bar"><span style="width:${(paidPct * 100).toFixed(1)}%;background:#059669"></span></div>` : '');
         });
         UI.text('debt-total', money0(plan.totalBalance));
         UI.text('debt-interest', money0(plan.totalInterest));
@@ -6294,12 +6524,14 @@ input[type="file"].hidden { display: none; }
                 if (twin) twin.value = v;
             }
             d[f] = v;
+            // A higher balance (a new charge) raises the starting point; paying down doesn't.
+            if (f === 'balance' && v > (Number(d.originalBalance) || 0)) d.originalBalance = v;
             App.changed();
         },
         'debt.add': () => {
             const debts = Store.state.debts;
             const id = Store.nextId(debts);
-            debts.push({ id, name: 'Nueva deuda', kind: 'personal', balance: 1000, rate: 15, minPayment: 50, monthly: 50, createdYear: new Date().getFullYear() });
+            debts.push({ id, name: 'Nueva deuda', kind: 'personal', balance: 1000, originalBalance: 1000, rate: 15, minPayment: 50, monthly: 50, createdYear: new Date().getFullYear() });
             App.changed({ structural: true });
             UI.toast('Deuda agregada a tu presupuesto con su pago mínimo ($50). Ajusta los montos.');
             const input = document.querySelector(`#debt-body tr[data-row="${id}"] input`);

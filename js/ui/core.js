@@ -136,6 +136,24 @@
 
         confirm(opts) { return UI.form({ ...opts, fields: [] }); },
 
+        // sheet(): a dialog with custom content (lists, a chart…). Controls inside use the same
+        // data-action / data-change handlers as the rest of the app. Returns { el, close }.
+        sheet({ title, icon = 'fa-circle-info', html = '', wide = false, onClose }) {
+            UI.$$('.modal-backdrop.sheet').forEach(b => b.remove());
+            const back = document.createElement('div');
+            back.className = 'modal-backdrop sheet';
+            back.innerHTML = `<div class="modal ${wide ? 'modal-wide' : ''}" role="dialog" aria-modal="true">
+                    <div class="flex items-start justify-between gap-3"><h3 class="modal-title"><i class="fa-solid ${icon}"></i><span></span></h3>
+                    <button type="button" class="row-del text-lg" data-dialog-cancel aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button></div>
+                    <div class="sheet-body">${html}</div></div>`;
+            back.querySelector('.modal-title span').textContent = title;
+            const close = () => { if (!back.isConnected) return; back.remove(); if (onClose) onClose(); };
+            back.querySelector('[data-dialog-cancel]').addEventListener('click', close);
+            back.addEventListener('mousedown', (e) => { if (e.target === back) close(); });
+            document.body.appendChild(back);
+            return { el: back, body: back.querySelector('.sheet-body'), close };
+        },
+
         // --------------------------------------------------------------- charts
         // Creates the chart the first time, then swaps data/options in place so live edits
         // redraw smoothly instead of rebuilding (and re-animating) on every keystroke.

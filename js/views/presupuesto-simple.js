@@ -17,7 +17,9 @@
     const MODES = { planned: 'Planeado', spent: 'Gastado', remaining: 'Restante', all: 'Todo' };
     const INCOME_MODES = { planned: 'Planeado', spent: 'Recibido', remaining: 'Por recibir', all: 'Todo' };
 
+    // Lines can live in a custom group (item.group); otherwise their type decides.
     const groupOf = (item) => {
+        if (item.group && !item.link) return 'g:' + item.group;
         const t = item.type || '';
         if (GROUPS.some(g => g.type === t)) return t;
         return t.includes('Ahorro') ? 'Ahorro' : 'Otros';
@@ -67,6 +69,7 @@
                     : `<input class="bs-name-input" value="${esc(item.name)}" data-change="budget.set" data-id="${id}" data-field="name" aria-label="Nombre del rubro">`} ${badge}
                     ${!item.link && !item.sweep ? `<button type="button" class="row-del bs-del" data-action="budget.delete" data-id="${id}" title="Eliminar rubro" aria-label="Eliminar rubro"><i class="fa-solid fa-trash-can"></i></button>` : ''}
                     ${canDue ? `<button type="button" class="bs-due" data-action="budget.dueDay" data-id="${id}" data-kind="${item.link || 'line'}" data-ref="${item.refId || ''}" title="Fecha de pago"><i class="fa-regular fa-calendar"></i> <span data-due></span></button>` : ''}
+                    ${item.sweep ? '' : `<button type="button" class="bs-due" data-action="line.detail" data-id="${id}" title="Detalle: historial, transacciones, grupo"><i class="fa-solid fa-chart-simple"></i></button>`}
                     <span class="bs-sub" data-sub></span></div>
                 ${valueCell(input)}
                 <div class="bs-bar"><span data-bar></span></div>
@@ -103,17 +106,26 @@
         const byGroup = {};
         m.plannedItems.forEach(it => { (byGroup[groupOf(it)] = byGroup[groupOf(it)] || []).push(it); });
         if (ctx.year.sweepSavings) (byGroup.Ahorro = byGroup.Ahorro || []).push({ id: 'sweep', sweep: true, type: 'Ahorro' });
-        const order = GROUPS.map(g => g.type).concat(Object.keys(byGroup).filter(k => !GROUPS.some(g => g.type === k)));
+        // Custom groups: the year's list (keeps empty ones) plus any group a line mentions.
+        const custom = (ctx.year.groups || []).map(g => g.name);
+        m.plannedItems.forEach(it => { if (it.group && !it.link && !custom.includes(it.group)) custom.push(it.group); });
+        const order = GROUPS.map(g => g.type).concat(custom.map(n => 'g:' + n), Object.keys(byGroup).filter(k => !GROUPS.some(g => g.type === k) && !k.startsWith('g:')));
         const cards = order.map(g => {
-            const def = GROUPS.find(x => x.type === g) || { label: g, icon: 'fa-folder' };
+            const isCustom = g.startsWith('g:');
+            const name = isCustom ? g.slice(2) : g;
+            const def = isCustom ? { label: name, icon: 'fa-folder-open' } : (GROUPS.find(x => x.type === g) || { label: g, icon: 'fa-folder' });
             const list = byGroup[g] || [];
+            const gdef = (ctx.year.groups || []).find(x => x.name === name);
+            const addType = isCustom ? ((gdef && gdef.type) || (list[0] && list[0].type) || 'Gasto Variable') : (g === 'Ahorro' ? 'Ahorro/Inversión' : g);
+            const foot = g === 'Deuda' ? '<a href="#" class="link" data-goto="metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Agregar deuda</a>'
+                : GROUPS.some(x => x.type === g) || isCustom ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(addType)}" ${isCustom ? `data-group="${esc(name)}"` : ''}><i class="fa-solid fa-plus"></i> Agregar rubro</button>${isCustom && !list.length ? ` <button type="button" class="mini-btn text-red-600 ml-2" data-action="group.delete" data-name="${esc(name)}">Quitar grupo</button>` : ''}` : '<span></span>';
             return `<section class="bs-card" data-group="${esc(g)}">
                 <header class="bs-head"><span class="bs-title"><i class="fa-solid ${def.icon} text-slate-400"></i> ${esc(def.label)}</span>${colsHTML(MODES)}</header>
                 ${list.map(lineRow).join('') || '<p class="bs-empty">Sin rubros todavía.</p>'}
-                <footer class="bs-foot">${GROUPS.some(x => x.type === g) && g !== 'Deuda' ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(g === 'Ahorro' ? 'Ahorro/Inversión' : g)}"><i class="fa-solid fa-plus"></i> Agregar rubro</button>`
-                    : g === 'Deuda' ? '<a href="#" class="link" data-goto="metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Agregar deuda</a>' : '<span></span>'}<span class="bs-total" data-total></span></footer>
+                <footer class="bs-foot">${foot}<span class="bs-total" data-total></span></footer>
             </section>`;
         });
+        cards.push('<button type="button" class="bs-add-group" data-action="group.add"><i class="fa-solid fa-folder-plus"></i> Agregar grupo<span class="block text-[11px] font-normal text-slate-500 mt-1">Ej: Dar, Mascotas, Carro, Hijos</span></button>');
         host.innerHTML = `
             <div class="bs-toolbar">
                 <div class="segmented bs-modes" role="tablist" aria-label="Qué mostrar">${Object.keys(MODES).map(k => `<button type="button" data-action="budget.mode" data-mode="${k}">${MODES[k]}</button>`).join('')}</div>
@@ -311,8 +323,120 @@
         }
     }
 
+    // ------------------------------------------------------------------ custom groups
+    // The same line in the base budget and every month that has its own copy.
+    function lineCopies(yd, id) {
+        return [yd.budgetBase].concat(Object.values(yd.monthOverrides || {})).map(l => l.find(i => String(i.id) === String(id))).filter(Boolean);
+    }
+
+    // ------------------------------------------------------------------ line detail
+    function openDetail(id) {
+        const ctx = App.buildContext();
+        const s = ctx.state, t = ctx.today;
+        const sm = spendMonth(ctx) || String(t.getMonth() + 1);
+        const y0 = ctx.state.activeYear;
+        const item = Engine.monthItems(ctx.budgetYear, sm).find(i => String(i.id) === String(id));
+        if (!item) return;
+        // Last 12 months up to the month on screen.
+        const months = [];
+        for (let k = 11; k >= 0; k--) { const d = new Date(y0, Number(sm) - 1 - k, 1); months.push([d.getFullYear(), String(d.getMonth() + 1)]); }
+        const hist = months.map(([y, m]) => {
+            const items = Engine.monthItems(Store.effective(y), m);
+            const it = items.find(i => String(i.id) === String(id));
+            const sp = Engine.lineSpend(items, s.transactions, y, m).byLine[String(id)];
+            return { label: `${Fmt.MONTH_SHORT[m - 1]} ${String(y).slice(2)}`, planned: it ? Number(it.real) || 0 : 0, spent: sp ? sp.spent : 0, txns: sp ? sp.txns : [] };
+        });
+        const cur = hist[hist.length - 1];
+        const withData = hist.filter(h => h.spent > 0);
+        const avg = withData.length ? withData.reduce((a, h) => a + h.spent, 0) / withData.length : 0;
+        const over = hist.filter(h => h.planned > 0 && h.spent > h.planned + 0.005).length;
+        const custom = (ctx.year.groups || []).map(g => g.name);
+        const settings = item.link ? `<p class="help">Es la línea de ${item.link === 'debt' ? 'una deuda' : 'una meta'}: se edita en <a href="#" class="link" data-goto="metas">Deudas y Metas</a>.</p>` : `
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label class="field"><span class="field-label">Grupo</span><select class="input" data-change="line.setGroup" data-id="${esc(String(id))}"><option value="">Según su tipo</option>${custom.map(n => `<option ${n === item.group ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+                <label class="field"><span class="field-label">Tipo</span><select class="input" data-change="line.setType" data-id="${esc(String(id))}">${Views.selectOptions(Defaults.BUDGET_TYPES, item.type)}</select></label>
+                <label class="field"><span class="field-label">Categoría vinculada</span><select class="input" data-change="line.setCategory" data-id="${esc(String(id))}">${Views.selectOptions([{ value: 'none', label: 'Sin vincular' }].concat(Object.keys(s.taxonomy.expense).map(c => ({ value: c, label: c }))), item.linkedCategory || 'none')}</select></label>
+            </div>`;
+        const sheet = UI.sheet({ title: item.name, icon: 'fa-chart-simple', wide: true, html: `
+            <div class="grid grid-cols-3 gap-3 mb-3">
+                <div class="kpi tone-slate"><span class="kpi-label">Planeado · ${Fmt.MONTH_NAMES[sm - 1]}</span><span class="kpi-value">${money(cur.planned)}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">Gastado</span><span class="kpi-value">${money(cur.spent)}</span></div>
+                <div class="kpi ${cur.planned - cur.spent < -0.005 ? 'tone-red' : 'tone-emerald'}"><span class="kpi-label">Restante</span><span class="kpi-value">${money(cur.planned - cur.spent)}</span></div>
+            </div>
+            <div class="chart-box" style="height:13rem"><canvas id="line-detail-chart"></canvas></div>
+            <p class="help mb-3">Promedio gastado: <strong>${money(avg)}</strong>/mes en los meses con gastos · Te pasaste en ${over} de los últimos 12 meses.</p>
+            ${settings}
+            <div class="section-label mt-4">Transacciones de ${Fmt.MONTH_NAMES[sm - 1]}</div>
+            ${cur.txns.length ? `<div class="space-y-1 text-xs">${cur.txns.map(x => `<div class="flex justify-between gap-2 bg-slate-50 rounded-lg px-2 py-1.5"><span class="truncate">${esc(x.date)} · <strong>${esc(x.description)}</strong>${Array.isArray(x.splits) && x.splits.length ? ' <span class="badge badge-muted">dividida</span>' : ''}</span><span class="font-bold whitespace-nowrap">${money(x.amount)}</span></div>`).join('')}</div>` : '<p class="help">Sin transacciones este mes.</p>'}` });
+        UI.chart('line-detail-chart', {
+            type: 'line',
+            data: { labels: hist.map(h => h.label), datasets: [
+                { label: 'Planeado', data: hist.map(h => h.planned), borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, stepped: true },
+                { label: 'Gastado', data: hist.map(h => h.spent), borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 4, fill: true, cubicInterpolationMode: 'monotone' }
+            ] },
+            options: { interaction: { mode: 'index', intersect: false } }
+        });
+        return sheet;
+    }
+
+    // Split one expense across several budget lines (up to 3; the rest follows the usual rule).
+    async function openSplit(t) {
+        const y = Number(t.date.slice(0, 4)), m = String(Number(t.date.slice(5, 7)));
+        const items = Engine.monthItems(Store.effective(y), m);
+        const options = [{ value: '', label: '—' }].concat(items.map(i => ({ value: String(i.id), label: i.name })));
+        const cur = Array.isArray(t.splits) ? t.splits : [];
+        const fields = [];
+        for (let k = 0; k < 3; k++) {
+            fields.push({ name: 'line' + k, label: `Rubro ${k + 1}`, options, value: cur[k] ? String(cur[k].line) : '' });
+            fields.push({ name: 'amt' + k, label: `Monto ${k + 1}`, type: 'number', min: 0, step: '0.01', value: cur[k] ? cur[k].amount : '' });
+        }
+        const r = await UI.form({ title: `Dividir "${t.description}" (${money(t.amount)})`, message: 'Reparte el monto entre rubros. Lo que no repartas cuenta como siempre (según su categoría).', fields, confirmText: 'Guardar',
+            validate: v => { const tot = [0, 1, 2].reduce((a, k) => a + (v['line' + k] ? Number(v['amt' + k]) || 0 : 0), 0); return tot > Number(t.amount) + 0.005 ? `Repartiste ${money(tot)}, más que ${money(t.amount)}.` : null; } });
+        if (!r) return;
+        const splits = [0, 1, 2].map(k => ({ line: r['line' + k], amount: Math.round((Number(r['amt' + k]) || 0) * 100) / 100 })).filter(x => x.line && x.amount > 0);
+        if (splits.length) { t.splits = splits; delete t.budgetLine; } else delete t.splits;
+        App.changed({ structural: true, step: true });
+        UI.toast(splits.length ? `"${t.description}" dividida entre ${splits.length} rubro${splits.length === 1 ? '' : 's'}.` : 'División quitada.');
+    }
+
     UI.register({
-        'txn.assignLine': (el) => assignLine(Number(el.dataset.id), el.value),
+        'txn.assignLine': (el) => {
+            if (el.value === '__split') { const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id)); if (t) openSplit(t); return; }
+            const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
+            if (t && t.splits) delete t.splits;
+            assignLine(Number(el.dataset.id), el.value);
+        },
+        'line.detail': (el) => openDetail(el.dataset.id),
+        'line.setGroup': (el) => {
+            lineCopies(Store.active(), el.dataset.id).forEach(i => { if (el.value) i.group = el.value; else delete i.group; });
+            App.changed({ structural: true, step: true });
+            openDetail(el.dataset.id);
+        },
+        'line.setType': (el) => {
+            lineCopies(Store.active(), el.dataset.id).forEach(i => { i.type = el.value; });
+            App.changed({ structural: true, step: true });
+            openDetail(el.dataset.id);
+        },
+        'line.setCategory': (el) => {
+            lineCopies(Store.active(), el.dataset.id).forEach(i => { i.linkedCategory = el.value; });
+            App.changed({ structural: true, step: true });
+            openDetail(el.dataset.id);
+        },
+        'group.add': async () => {
+            const r = await UI.form({ title: 'Nuevo grupo', fields: [
+                { name: 'name', label: 'Nombre del grupo', placeholder: 'Ej: Dar, Mascotas, Carro' },
+                { name: 'type', label: '¿Qué tipo de dinero es?', options: [{ value: 'Gasto Variable', label: 'Gastos que varían' }, { value: 'Gasto Fijo', label: 'Gastos fijos' }, { value: 'Ahorro/Inversión', label: 'Ahorro' }] }
+            ], confirmText: 'Crear', validate: v => !v.name.trim() ? 'Escribe un nombre.' : (Store.active().groups || []).some(g => g.name === v.name.trim()) ? 'Ya existe un grupo con ese nombre.' : null });
+            if (!r) return;
+            const yd = Store.active();
+            (yd.groups || (yd.groups = [])).push({ name: r.name.trim().slice(0, 40), type: r.type });
+            App.changed({ structural: true, step: true });
+            UI.toast(`Grupo "${r.name.trim()}" creado. Agrégale rubros o mueve uno desde su detalle (ícono de gráfico).`);
+        },
+        'group.delete': (el) => {
+            const yd = Store.active();
+            App.undoable(`Grupo "${el.dataset.name}" quitado`, () => { yd.groups = (yd.groups || []).filter(g => g.name !== el.dataset.name); });
+        },
         'budget.mode': (el) => { Store.ui.budgetMode = el.dataset.mode; App.update(); },
         'budget.layout': (el) => { Store.ui.budgetLayout = el.dataset.layout; App.render(); }
     });

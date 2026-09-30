@@ -83,6 +83,8 @@
             if (!d.kind) d.kind = Engine.guessDebtKind(d.name);
             if (d.monthly === undefined || d.monthly === null) d.monthly = Math.max(0, Number(d.minPayment) || 0);
             if (!d.createdYear) d.createdYear = thisYear;
+            // Where the debt started, to show how much has been paid off.
+            if (!(Number(d.originalBalance) > 0)) d.originalBalance = Math.max(0, Number(d.balance) || 0);
         });
         s.goals.forEach(g => {
             if (g.monthly === undefined || g.monthly === null) g.monthly = 0;

@@ -547,10 +547,14 @@
     <div class="card">
         <div class="card-head">
             <div>
-                <div class="card-title"><i class="fa-solid fa-route text-emerald-600"></i> Los 7 Baby Steps (adaptados a Ecuador)</div>
+                <div class="card-title"><i class="fa-solid fa-route text-emerald-600"></i> Tu camino: los 7 Baby Steps (adaptados a Ecuador)</div>
                 <div class="card-sub">Tu progreso, calculado con tus propios datos. Completa los pasos en orden; del 4 al 6 se trabajan a la vez.</div>
             </div>
         </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="road-kpis"></div>
+        <div class="chart-box mb-2"><canvas id="road-chart"></canvas></div>
+        <p class="help mb-4" id="road-note"></p>
+        <div id="road-next" class="panel tone-blue mb-4 text-xs text-blue-900"></div>
         <div id="metas-steps" class="steps"></div>
     </div>
 

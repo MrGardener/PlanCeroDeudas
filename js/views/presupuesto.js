@@ -509,7 +509,7 @@
             const list = editableItems();
             const id = Store.nextId(list);
             const type = el && el.dataset.type && Defaults.BUDGET_TYPES.includes(el.dataset.type) ? el.dataset.type : 'Gasto Variable';
-            list.push({ id, name: 'Nuevo rubro', type, isDeductible: false, prep: 0, real: 0, linkedCategory: 'none' });
+            list.push(Object.assign({ id, name: 'Nuevo rubro', type, isDeductible: false, prep: 0, real: 0, linkedCategory: 'none' }, el && el.dataset.group ? { group: el.dataset.group } : {}));
             App.changed({ structural: true, step: true });
             const input = document.querySelector(layout() === 'simple' ? `#bud-simple [data-line="${id}"] .bs-name-input` : `#bud-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }

@@ -35,9 +35,51 @@
         update(ctx);
     }
 
+    // "Tu camino": net worth today → projected at retirement, with the debt-free milestone,
+    // and the one concrete thing to do now.
+    function roadmap(ctx) {
+        const s = ctx.state, r = s.retirement, plan = ctx.debts;
+        const ageNow = Math.max(0, Number(r.edadActual) || 0), ageEnd = Math.max(ageNow + 1, Number(r.edadJubilacion) || 65);
+        const months = Math.min(600, (ageEnd - ageNow) * 12);
+        const debtMonths = plan.totalBalance > 0 && !plan.never ? plan.months : 0;
+        const invested = ctx.polizasCapital + Engine.holdingsValue(s.holdings);
+        const path = Engine.netWorthPath({ start: ctx.netWorth.value, invested, monthlySavings: ctx.retirementMonthly, rate: ctx.year.tasa, debtBalance: plan.totalBalance, debtMonths, debtPayment: plan.pool, months });
+        const years = Math.ceil(months / 12);
+        const labels = Array.from({ length: years + 1 }, (_, i) => `${ageNow + i} años`);
+        const yearly = labels.map((_, i) => path[Math.min(i * 12, path.length - 1)]);
+        const milestones = labels.map(() => null);
+        if (debtMonths) milestones[Math.min(years, Math.round(debtMonths / 12))] = yearly[Math.min(years, Math.round(debtMonths / 12))];
+        milestones[years] = yearly[years];
+        UI.chart('road-chart', {
+            type: 'line',
+            data: { labels, datasets: [
+                { label: 'Patrimonio proyectado', data: yearly, borderColor: '#059669', backgroundColor: 'rgba(5,150,105,.12)', borderWidth: 2, pointRadius: 0, fill: true, cubicInterpolationMode: 'monotone' },
+                { label: 'Hitos', data: milestones, borderColor: '#2a78d6', backgroundColor: '#2a78d6', pointStyle: 'rectRot', pointRadius: 7, pointHoverRadius: 9, showLine: false }
+            ] },
+            options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false } } }
+        });
+        const freeDate = plan.totalBalance <= 0 ? '¡Ya!' : plan.never ? 'Nunca (con este presupuesto)' : Fmt.monthYear(Engine.addMonths(ctx.today, plan.months));
+        UI.html('road-kpis', `
+            <div class="kpi tone-slate"><span class="kpi-label">Patrimonio hoy</span><span class="kpi-value">${money0(ctx.netWorth.value)}</span><span class="kpi-note"><a href="#" class="link" data-goto="patrimonio">Ver detalle</a></span></div>
+            <div class="kpi ${plan.totalBalance <= 0 ? 'tone-emerald' : plan.never ? 'tone-red' : 'tone-blue'}"><span class="kpi-label">🎯 Libre de deudas</span><span class="kpi-value">${freeDate}</span><span class="kpi-note">${plan.totalBalance > 0 ? `Quedan ${money0(plan.totalBalance)}` : 'Sin deudas de consumo'}</span></div>
+            <div class="kpi tone-emerald"><span class="kpi-label">🏖️ Proyectado a los ${ageEnd}</span><span class="kpi-value">${money0(yearly[years])}</span><span class="kpi-note">Estimación</span></div>`);
+        UI.text('road-note', `Estimación: tu patrimonio de hoy; tus pólizas e inversiones (${money0(invested)}) y lo que ahorras al mes según tu presupuesto (${money0(ctx.retirementMonthly)}) crecen al ${ctx.year.tasa}% anual (tu casa y otros bienes se mantienen); lo que pagas a tus deudas baja lo que debes, y al terminar de pagarlas ese dinero (${money0(plan.pool)}/mes) pasa a ahorro. Cambia tu edad en Jubilación.`);
+        // The next concrete action, by step.
+        const st = ctx.steps.current, ef = ctx.ef;
+        const paidAll = s.debts.reduce((t, d) => t + Math.max(0, Math.max(Number(d.originalBalance) || 0, Number(d.balance) || 0) - (Number(d.balance) || 0)), 0);
+        const next = st === 1 ? `<strong>Paso 1:</strong> junta ${money0(Math.max(0, 1000 - ef.liquid))} más para llegar a $1,000 en tu fondo de emergencia inicial.`
+            : st === 2 ? (plan.never || plan.shortfall > 0 ? `<strong>Paso 2:</strong> tu presupuesto no alcanza para salir de deudas. Asigna más dinero a tus deudas en el presupuesto.`
+                : `<strong>Paso 2:</strong> envía <strong>${money0(plan.pool)}/mes</strong> a tus deudas (mínimos ${money0(plan.totalMin)}${plan.extra > 0 ? ` + ${money0(plan.extra)} extra` : ''}) y quedas libre en <strong>${freeDate}</strong>.${paidAll > 0 ? ` Ya pagaste ${money0(paidAll)}. ¡Sigue!` : ''}`)
+            : st === 3 ? `<strong>Paso 3:</strong> llevas ${ef.monthsCovered.toFixed(1)} de 3–6 meses de gastos (${money0(ef.monthlyEssential)}/mes). Te faltan ${money0(Math.max(0, ef.monthlyEssential * 3 - ef.liquid))} para 3 meses.`
+            : st === 4 ? `<strong>Pasos 4–6:</strong> ahorras el ${(ctx.savingsRate * 100).toFixed(0)}% de tu sueldo (meta 15%); luego educación de tus hijos y abonos a la hipoteca.`
+            : '<strong>Paso 7:</strong> sigue invirtiendo y da con generosidad.';
+        UI.html('road-next', `<i class="fa-solid fa-location-dot text-blue-600"></i> ${next}`);
+    }
+
     function update(ctx) {
         const s = ctx.state;
         UI.html('metas-steps', Views.stepsHTML(ctx));
+        roadmap(ctx);
 
         // Emergency fund
         const ef = ctx.ef;
@@ -56,8 +98,12 @@
             const info = plan.items.find(i => i.id === d.id);
             row.querySelector('[data-cell="order"]').innerHTML = info ? `<span class="badge badge-bad">${info.order}°</span>` : '—';
             const under = plan.underfunded.some(u => u.id === d.id);
+            const orig = Math.max(Number(d.originalBalance) || 0, Number(d.balance) || 0);
+            const paid = Math.max(0, orig - (Number(d.balance) || 0));
+            const paidPct = orig > 0 ? paid / orig : 0;
             row.querySelector('[data-cell="payoff"]').innerHTML = (info && info.payoffMonth ? `Mes ${info.payoffMonth} · ${Fmt.monthYear(Engine.addMonths(ctx.today, info.payoffMonth))}` : (Number(d.balance) > 0 ? 'Nunca' : '—'))
-                + (under ? '<span class="block"><span class="badge badge-bad">Bajo el mínimo</span></span>' : '');
+                + (under ? '<span class="block"><span class="badge badge-bad">Bajo el mínimo</span></span>' : '')
+                + (orig > 0 ? `<span class="block text-[10px] font-semibold text-slate-500 mt-1">Pagado ${money0(paid)} (${Math.round(paidPct * 100)}%)</span><div class="mini-bar"><span style="width:${(paidPct * 100).toFixed(1)}%;background:#059669"></span></div>` : '');
         });
         UI.text('debt-total', money0(plan.totalBalance));
         UI.text('debt-interest', money0(plan.totalInterest));
@@ -119,12 +165,14 @@
                 if (twin) twin.value = v;
             }
             d[f] = v;
+            // A higher balance (a new charge) raises the starting point; paying down doesn't.
+            if (f === 'balance' && v > (Number(d.originalBalance) || 0)) d.originalBalance = v;
             App.changed();
         },
         'debt.add': () => {
             const debts = Store.state.debts;
             const id = Store.nextId(debts);
-            debts.push({ id, name: 'Nueva deuda', kind: 'personal', balance: 1000, rate: 15, minPayment: 50, monthly: 50, createdYear: new Date().getFullYear() });
+            debts.push({ id, name: 'Nueva deuda', kind: 'personal', balance: 1000, originalBalance: 1000, rate: 15, minPayment: 50, monthly: 50, createdYear: new Date().getFullYear() });
             App.changed({ structural: true });
             UI.toast('Deuda agregada a tu presupuesto con su pago mínimo ($50). Ajusta los montos.');
             const input = document.querySelector(`#debt-body tr[data-row="${id}"] input`);
