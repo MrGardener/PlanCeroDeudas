@@ -975,10 +975,107 @@
         return { steps, current };
     }
 
+    // ------------------------------------------------------------------ cash on hand & ahead
+    // Cash you can reach today: checking + cash accounts (savings stay out), moved by what you
+    // logged after the balance date. Credit-card purchases don't leave the account until the
+    // card is paid, so they're not subtracted.
+    function cashNow(accounts, transactions, today) {
+        const cash = (accounts || []).filter(a => a.kind !== 'ahorros');
+        if (!cash.length) return null;
+        const t = isoDate(new Date(today));
+        const asOf = cash.map(a => a.updatedAt || '').sort().pop() || t;
+        const base = sum(cash, a => num(a.balance));
+        let adjust = 0;
+        (transactions || []).forEach(x => {
+            if (!x.date || x.date <= asOf || x.date > t || x.paymentType === 'Tarjeta de Crédito') return;
+            adjust += (txnType(x) === 'Ingreso' ? 1 : -1) * num(x.amount);
+        });
+        return { base, adjust, total: base + adjust, asOf, accounts: cash.length };
+    }
+
+    // Money that will leave or arrive on known dates between `from` and `to` (ISO):
+    // bills (budget lines with a due day: what's still unpaid), repeating/scheduled
+    // transactions, and paydays (net salary split between them).
+    // months: [{ year, month, items, spend }] covering the range (current month may include
+    // overdue unpaid bills, dated before `from`).
+    function cashEvents({ from, to, months, recurring, paydays, payPerMonth = 0 }) {
+        const out = [];
+        const billLines = new Set();
+        const billCats = new Set();
+        (months || []).forEach(({ year, month, items, spend }) => {
+            billsDue({ items, spend, year, month, today: parseISO(from) }).forEach(b => {
+                const date = `${year}-${pad2(month)}-${pad2(b.day)}`;
+                billLines.add(String(b.item.id));
+                if (b.item.linkedCategory && b.item.linkedCategory !== 'none') billCats.add(b.item.linkedCategory);
+                if (date > to) return;
+                out.push({ date, kind: 'bill', name: b.item.name, amount: -b.remaining, planned: b.planned, paid: b.paid, lineId: String(b.item.id) });
+            });
+        });
+        const days = (paydays || []).map(Number).filter(d => d >= 1 && d <= 31);
+        (recurring || []).forEach(r => {
+            if (r.auto === false) return;
+            const inc = (r.type || 'Gasto') === 'Ingreso';
+            // Already counted: a bill's line, or the salary when paydays are set.
+            if (!inc && ((r.budgetLine && billLines.has(String(r.budgetLine))) || (!r.budgetLine && billCats.has(r.parentCategory)))) return;
+            if (inc && days.length && isPayrollTxn(r)) return;
+            const after = r.lastPosted && r.lastPosted >= from ? isoDate(new Date(parseISO(r.lastPosted).getTime() + 86400000)) : from;
+            occurrences(r, after, to).forEach(date => out.push({ date, kind: inc ? 'income' : 'scheduled', name: r.description, amount: (inc ? 1 : -1) * num(r.amount) }));
+        });
+        // payPerMonth: one amount, or { 'YYYY-MM': amount } (months with décimo pay more).
+        const payFor = (key) => (payPerMonth && typeof payPerMonth === 'object' ? num(payPerMonth[key]) : num(payPerMonth));
+        if (days.length) {
+            const start = parseISO(from), end = parseISO(to);
+            for (let d = new Date(start.getFullYear(), start.getMonth(), 1); d <= end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+                const last = daysIn(d.getFullYear(), d.getMonth() + 1);
+                const each = payFor(`${d.getFullYear()}-${pad2(d.getMonth() + 1)}`) / days.length;
+                if (!(each > 0)) continue;
+                [...new Set(days.map(x => Math.min(x, last)))].forEach(x => {
+                    const date = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(x)}`;
+                    if (date >= from && date <= to) out.push({ date, kind: 'payday', name: 'Día de pago', amount: each * days.filter(y => Math.min(y, last) === x).length });
+                });
+            }
+        }
+        return out.sort((a, b) => a.date.localeCompare(b.date) || a.amount - b.amount);
+    }
+
+    // How much of today's cash is free to spend: minus what must go out before the next payday
+    // (unpaid bills, overdue ones included, and scheduled payments), minus what this month's
+    // savings/goal lines still need, minus the cushion you want to keep.
+    function safeToSpend({ cash, today, until, events, setAside = 0, buffer = 0 }) {
+        const t = isoDate(new Date(today));
+        const out = (events || []).filter(e => e.amount < 0 && e.date <= until && (e.date >= t || e.kind === 'bill'));
+        const bills = -sum(out.filter(e => e.kind === 'bill'), e => e.amount);
+        const scheduled = -sum(out.filter(e => e.kind !== 'bill'), e => e.amount);
+        const safe = num(cash) - bills - scheduled - num(setAside) - num(buffer);
+        const daysLeft = Math.max(1, Math.round((parseISO(until) - parseISO(t)) / 86400000));
+        return { cash: num(cash), bills, scheduled, setAside: num(setAside), buffer: num(buffer), safe, perDay: safe > 0 ? safe / daysLeft : 0, daysLeft, items: out };
+    }
+
+    // Day-by-day projected balance: today's cash, the known events, and an even daily amount
+    // for everyday spending (dailyByMonth: { 'YYYY-MM': amount }). Days under `buffer` are
+    // flagged low; under 0, short.
+    function cashForecast({ from, to, start, events, dailyByMonth = {}, buffer = 0 }) {
+        const days = [];
+        let bal = num(start);
+        const byDate = {};
+        (events || []).forEach(e => { (byDate[e.date] = byDate[e.date] || []).push(e); });
+        // Overdue unpaid bills are still owed: they leave on the first day.
+        const overdue = (events || []).filter(e => e.date < from && e.amount < 0);
+        for (let d = parseISO(from), end = parseISO(to), first = true; d <= end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1), first = false) {
+            const iso = isoDate(d);
+            const ev = byDate[iso] || [];
+            const everyday = num(dailyByMonth[iso.slice(0, 7)]);
+            bal += sum(ev, e => e.amount) - everyday + (first ? sum(overdue, e => e.amount) : 0);
+            days.push({ date: iso, events: ev, everyday, balance: bal, status: bal < 0 ? 'short' : bal < num(buffer) ? 'low' : 'ok' });
+        }
+        return days;
+    }
+
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
         occurrences, dueOccurrences, nextOccurrence, monthlyCost,
+        cashNow, cashEvents, safeToSpend, cashForecast,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,

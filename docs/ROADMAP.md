@@ -54,6 +54,8 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ✅ Import: change many rows at once | Review step: one description / category / subcategory / budget line for every checked row, each row still editable (own description too); remembered for files with the same layout. Decimal separator decided by the whole column ("273.841" next to "173.94" is 273.84). Imported rows keep a fingerprint so re-importing is detected even after renaming |
 | ✅ No double counting between hand-typed and imported | Import: a bank/SRI row with the same amount within 4 days of something typed by hand shows "¿Ya la anotaste?" and starts unchecked ("Es otro gasto" to import both); linking keeps your text and remembers the bank row (and the invoice). Typing something a file already brought in warns with Deshacer |
 | ✅ Merchant alias rules | Rules can rename ("SQ *COZ" → "Cozy Coffee") besides category and budget line; offered for existing transactions when created; "+ regla" on any import row (starts from the file text); the file text stays visible next to the new name. Applied on import, in the form and in quick entry |
+| ✅ Safe to spend | Resumen: checking + cash (savings excluded, credit-card purchases don't reduce it) − unpaid bills (overdue too) and scheduled payments until the next payday − what savings/goal lines still need this month − your cushion; per-day amount; the list of payments counted. Only as exact as the balances entered/imported |
+| ✅ Money calendar | Resumen: this month + 2 ahead; paydays (net pay of each month, décimos included), bills (paid ones crossed out), scheduled items, projected balance per day with everyday spending spread evenly; days under the cushion (amber) or below zero (red) and the tightest day named; list view for small screens |
 
 ## Phase 3 — planned (works without a server)
 
@@ -71,12 +73,9 @@ Assessed only; nothing built. "Now" = works in the offline file; "Hosting" = nee
 |---|---|---|---|
 | Frictionless entry widget (lock screen / 2-second shortcut) | Partly now, fully only as a native app | Floating "+" quick entry | Now: open quick entry straight from a link/bookmark (`#rapido`) and a keyboard key. Hosting A (PWA): home-screen icon + Android long-press shortcut "Registrar gasto"; iPhone via the Shortcuts app. A real lock-screen widget needs a native iOS/Android app ⛔ for now |
 | "What if" overspending sandbox | Yes, now | Budget, goals, debt plan, projections, undo | Medium: a copy of the plan where you add a purchase and see which lines/goals get starved, new debt-free date, emergency-fund months; nothing saved unless applied |
-| Safe-to-spend | Yes, now (as good as the balances you enter) | Accounts, bills with due dates, paydays, scheduled transactions, goals, "Puedes gastar hoy" | Small–medium: cash balance − bills and scheduled payments before next payday − goal money still to set aside − buffer. Shown as a big number + bar (a dial reads worse). "Pending checks" can't be known without the bank: logged as scheduled items |
-| Calendar bill forecast with low-cash days | Yes, now | Same data as above | Medium: month grid with paydays, bills, projected balance per day, days below your buffer highlighted |
 | Smart manual fallback when a bank connection breaks | The fallback is already the only mode (no bank connections in Ecuador yet) | CSV import with remembered mappings | Small now: a downloadable CSV template that imports with no mapping; "last import per account" reminder. The automatic switch belongs to stage C |
 | Pitfall: irregular / annual bills | Yes, now | Goals with a target date (sinking funds), yearly/semiannual repeats | Small: "gastos anuales" list that turns into a monthly set-aside line; Ecuador items (matrícula vehicular, predial) and irregular income (décimo tercero / cuarto) |
 | Pitfall: drop-off | Partly now | Streak, alerts | Small: weekly review checklist (unassigned, uncategorized, over-budget, next bills). Reminders need hosting |
-| Pitfall: cash-flow blindness | Yes, now | Emergency fund steps | Covered by safe-to-spend + calendar + a "one month ahead" buffer goal |
 
 ## Needs hosting / a server 🌐
 

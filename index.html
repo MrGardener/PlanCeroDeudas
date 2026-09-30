@@ -51,6 +51,16 @@
     <div id="dash-hero" class="hero"></div>
     <div id="dash-steps" class="steps steps-compact"></div>
     <div id="dash-kpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    <div class="card" id="dash-safe-card">
+        <div class="card-head">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Seguro para gastar hoy</div>
+                <div class="card-sub">Tu efectivo menos lo que tiene que salir antes de tu próximo cobro, lo que falta apartar para tus metas y tu colchón.</div>
+            </div>
+            <a href="#" class="link text-xs" data-goto="patrimonio" data-focus="nw-accounts">Saldos →</a>
+        </div>
+        <div id="dash-safe"></div>
+    </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4" id="dash-month">
         <div class="card lg:col-span-2">
             <div class="card-head">
@@ -96,6 +106,19 @@
             <a href="#" data-goto="presupuesto/plan" class="link text-xs">Fechas en el presupuesto →</a>
         </div>
         <div id="dash-bills" class="bills-list"></div>
+    </div>
+    <div class="card" id="dash-cal-card">
+        <div class="card-head">
+            <div>
+                <div class="card-title"><i class="fa-regular fa-calendar text-blue-600"></i> Calendario de dinero · <span id="dash-cal-month"></span></div>
+                <div class="card-sub">Cuándo llega tu sueldo y cuándo vencen tus pagos, con el saldo que tendrías cada día. Los días rojos o ámbar son los que hay que preparar.</div>
+            </div>
+            <div class="flex gap-1">
+                <button type="button" class="icon-btn icon-btn-light" data-action="cal.move" data-step="-1" aria-label="Mes anterior"><i class="fa-solid fa-chevron-left"></i></button>
+                <button type="button" class="icon-btn icon-btn-light" data-action="cal.move" data-step="1" aria-label="Mes siguiente"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+        </div>
+        <div id="dash-cal"></div>
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="card lg:col-span-2">
@@ -1140,6 +1163,7 @@
 <script src="js/views/transacciones.js"></script>
 <script src="js/views/importar.js"></script>
 <script src="js/views/reportes.js"></script>
+<script src="js/views/cash.js"></script>
 <script src="js/views/quick.js"></script>
 <script src="js/views/metas.js"></script>
 <script src="js/views/ahorro.js"></script>

@@ -493,3 +493,57 @@ test('logging streak counts consecutive days, alive until today ends', () => {
     assert.equal(y.today, false);
     assert.equal(E.loggingStreak(txns, new Date(2026, 9, 5)).days, 0);
 });
+
+test('cash on hand: checking + cash, moved by what was logged after the balance date', () => {
+    const accounts = [
+        { kind: 'corriente', balance: 1000, updatedAt: '2026-09-10' },
+        { kind: 'efectivo', balance: 50, updatedAt: '2026-09-08' },
+        { kind: 'ahorros', balance: 5000, updatedAt: '2026-09-10' }
+    ];
+    const txns = [
+        { type: 'Gasto', amount: 30, date: '2026-09-10' },                                   // same day: already in the balance
+        { type: 'Gasto', amount: 40, date: '2026-09-12' },
+        { type: 'Gasto', amount: 99, date: '2026-09-12', paymentType: 'Tarjeta de Crédito' },
+        { type: 'Ingreso', amount: 200, date: '2026-09-13' },
+        { type: 'Gasto', amount: 10, date: '2026-09-20' }                                    // future
+    ];
+    const c = E.cashNow(accounts, txns, new Date(2026, 8, 15));
+    assert.deepEqual([c.base, c.adjust, c.total, c.asOf], [1050, 160, 1210, '2026-09-10']);
+    assert.equal(E.cashNow([{ kind: 'ahorros', balance: 1 }], [], new Date()), null);
+});
+
+test('cash events, safe to spend and the day-by-day forecast', () => {
+    const items = [
+        { id: 1, name: 'Arriendo', real: 400, dueDay: 5, linkedCategory: 'Vivienda' },
+        { id: 2, name: 'Internet', real: 35, dueDay: 20, linkedCategory: 'Servicios' },
+        { id: 3, name: 'Luz', real: 30, dueDay: 12, linkedCategory: 'Luz' },
+        { id: 4, name: 'Comida', real: 300 }
+    ];
+    const spendSep = { byLine: { 1: { spent: 400 }, 2: { spent: 0 }, 3: { spent: 0 }, 4: { spent: 100 } } };
+    const spendOct = { byLine: {} };
+    const recurring = [
+        { description: 'Netflix', type: 'Gasto', amount: 10, frequency: 'monthly', startDate: '2026-01-18', lastPosted: '2026-08-18', parentCategory: 'Entretenimiento' },
+        { description: 'Internet', type: 'Gasto', amount: 35, frequency: 'monthly', startDate: '2026-01-20', budgetLine: '2' },   // same as the bill
+        { description: 'Sueldo', type: 'Ingreso', category: 'Sueldo/Salario', amount: 1000, frequency: 'monthly', startDate: '2026-01-15' }  // the payday covers it
+    ];
+    const ev = E.cashEvents({ from: '2026-09-15', to: '2026-10-15', months: [{ year: 2026, month: 9, items, spend: spendSep }, { year: 2026, month: 10, items, spend: spendOct }], recurring, paydays: [15, 30], payPerMonth: 1000 });
+    const names = ev.map(e => `${e.date} ${e.name} ${e.amount}`);
+    assert.ok(names.includes('2026-09-12 Luz -30'), 'overdue unpaid bill kept');
+    const rent = ev.find(e => e.date === '2026-09-05');
+    assert.ok(rent.paid && rent.amount === 0, 'paid bill has nothing left to pay');
+    assert.ok(names.includes('2026-09-18 Netflix -10') && names.includes('2026-09-20 Internet -35'));
+    assert.equal(ev.filter(e => e.name === 'Internet' && e.date === '2026-09-20').length, 1, 'bill and its repeat are not counted twice');
+    assert.ok(names.includes('2026-09-15 Día de pago 500') && names.includes('2026-09-30 Día de pago 500') && names.includes('2026-10-15 Día de pago 500'));
+    assert.ok(!ev.some(e => e.name === 'Sueldo'));
+    assert.ok(names.includes('2026-10-05 Arriendo -400'));
+
+    const safe = E.safeToSpend({ cash: 800, today: new Date(2026, 8, 15), until: '2026-09-30', events: ev, setAside: 100, buffer: 50 });
+    assert.deepEqual([safe.bills, safe.scheduled, safe.safe, safe.daysLeft], [65, 10, 575, 15]);
+    assert.ok(Math.abs(safe.perDay - 575 / 15) < 1e-9);
+
+    const f = E.cashForecast({ from: '2026-09-15', to: '2026-09-21', start: 300, events: ev, dailyByMonth: { '2026-09': 10 }, buffer: 100 });
+    assert.equal(f[0].balance, 300 + 500 - 10 - 30);                                         // payday, everyday, overdue Luz
+    assert.equal(f.find(d => d.date === '2026-09-20').balance, 760 - 10 * 5 - 10 - 35);
+    const low = E.cashForecast({ from: '2026-09-16', to: '2026-09-20', start: 120, events: ev, dailyByMonth: { '2026-09': 10 }, buffer: 100 });
+    assert.deepEqual(low.map(d => d.status), ['low', 'low', 'low', 'low', 'short']);          // the overdue bill leaves on day one
+});

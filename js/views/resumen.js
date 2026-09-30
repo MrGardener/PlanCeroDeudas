@@ -48,6 +48,8 @@
         const y = t.getFullYear(), m = String(t.getMonth() + 1);
         const [py, pm] = m === '1' ? [y - 1, '12'] : [y, String(Number(m) - 1)];
         UI.text('dash-month-name', `${Fmt.MONTH_NAMES[m - 1]} ${y}`);
+        Cash.renderSafe(t);
+        Cash.renderCalendar(t);
         const txns = s.transactions;
         const items = Engine.monthItems(Store.effective(y), m);
         const plannedSpend = items.filter(i => !Engine.isSavingsItem(i)).reduce((a, i) => a + (Number(i.real) || 0), 0);
