@@ -153,6 +153,10 @@
             holdings: [],
             // Household members: { id, name, color }. Transactions can say who (memberId).
             members: [],
+            // Repeating / scheduled transactions (posted automatically when due).
+            recurring: [],
+            // Deleted transactions, restorable for 60 days.
+            trash: [],
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -165,7 +169,7 @@
     // (taxonomies, cooperativas) because they are configuration, not personal data.
     function emptyState(today) {
         const s = newState(today);
-        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = [];
+        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = [];
         return s;
     }
 

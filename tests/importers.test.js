@@ -94,6 +94,17 @@ test('SRI electronic invoice (authorization file with CDATA)', () => {
     assert.equal(I.parseSriXml('<nota>hola</nota>'), null);
 });
 
+test('CSV export: quotes, BOM, numbers, and no formula injection', () => {
+    const csv = I.toCSV([['Fecha', 'Descripción', 'Monto'], ['2026-09-01', 'Pan, leche', 12.5], ['2026-09-02', 'Dijo "hola"', -3], ['x', '=HYPERLINK("a")', 1]]);
+    assert.ok(csv.startsWith('﻿'));
+    const lines = csv.slice(1).trim().split('\r\n');
+    assert.equal(lines[1], '2026-09-01,"Pan, leche",12.5');
+    assert.equal(lines[2], '2026-09-02,"Dijo ""hola""",-3');
+    assert.equal(lines[3], `x,"'=HYPERLINK(""a"")",1`);
+    // Round-trips through our own importer.
+    assert.deepEqual(I.parseCSV(csv).rows[1], ['2026-09-01', 'Pan, leche', '12.5']);
+});
+
 test('receipt text from a photo: total, date, RUC, store', () => {
     const text = `FARMACIAS FYBECA\nRUC: 1790710319001\nFACTURA 001-002-000045678\nFecha: 12/09/2026\nSUBTOTAL 20,00\nIVA 15% 3,00\nTOTAL 23,00\nGracias por su compra`;
     const r = I.parseReceiptText(text);

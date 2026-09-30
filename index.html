@@ -339,6 +339,11 @@
                     <input type="number" id="txn-amount" class="input" step="0.01" min="0" placeholder="Ej: 25.50"></label>
                 <label class="field"><span class="field-label">Fecha</span>
                     <input type="date" id="txn-date" class="input" data-change="txn.dateChanged"></label>
+                <label class="field" id="txn-repeat-field"><span class="field-label">Repetir</span>
+                    <select id="txn-repeat" class="input">
+                        <option value="">No se repite</option><option value="monthly">Cada mes</option><option value="biweekly">Cada 2 semanas</option><option value="weekly">Cada semana</option><option value="yearly">Cada año</option>
+                    </select>
+                    <span class="help">Se registrará sola cada vez (arriendo, Netflix, sueldo…). Con fecha futura queda programada.</span></label>
                 <div class="lg:col-span-3 flex items-end justify-end">
                     <div class="flex flex-wrap gap-2 justify-end">
                         <button class="btn btn-secondary hidden" id="txn-cancel" data-action="txn.cancelEdit">Cancelar</button>
@@ -389,6 +394,16 @@
                 <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Período</th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">Neto</th></tr></thead><tbody id="trend-table"></tbody></table></div>
             </details>
         </div>
+        <div class="card" id="rec-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-repeat text-purple-600"></i> Programados y suscripciones</div>
+                    <div class="card-sub">Movimientos que se repiten. Se registran solos el día que tocan (al abrir la app). Crea uno con "Repetir" al registrar, o con <i class="fa-solid fa-repeat"></i> en una transacción del historial.</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="rec-kpis"></div>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Próxima fecha</th><th>Descripción</th><th>Frecuencia</th><th class="num">Monto</th><th class="num">Por mes</th><th class="text-center" title="Registrar automáticamente">Auto</th><th></th></tr></thead><tbody id="rec-body"></tbody></table></div>
+        </div>
         <div class="card">
             <div class="card-head">
                 <div class="card-title"><i class="fa-solid fa-list text-blue-600"></i> Historial</div>
@@ -410,6 +425,11 @@
             </div>
             <p class="help mb-2" id="txn-unassigned-note"></p>
             <div id="txn-body" class="txn-list"></div>
+            <details class="mt-4 panel tone-slate" id="trash-panel">
+                <summary class="text-xs font-bold text-slate-700 cursor-pointer"><i class="fa-solid fa-trash-can-arrow-up text-slate-500"></i> Eliminadas recientemente (<span id="trash-count">0</span>)</summary>
+                <p class="help mt-2">Se guardan 60 días por si te arrepientes.</p>
+                <div id="trash-body" class="mt-2"></div>
+            </details>
         </div>
     </div>
     <div data-view="importar" class="space-y-5 hidden">
@@ -488,6 +508,37 @@
                 <button class="btn btn-primary" data-action="rule.add"><i class="fa-solid fa-plus"></i> Nueva regla</button>
             </div>
             <div class="table-wrap"><table class="table"><thead><tr><th>Si contiene</th><th>Categoría</th><th>Rubro del presupuesto</th><th></th></tr></thead><tbody id="rule-body"></tbody></table></div>
+        </div>
+    </div>
+    <div data-view="reportes" class="space-y-5 hidden">
+        <div class="card" id="rep-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-chart-pie text-blue-600"></i> Reporte personalizado</div>
+                    <div class="card-sub">Elige el período y cómo agrupar. Descárgalo en CSV (Excel / Google Sheets) o imprímelo como PDF.</div>
+                </div>
+                <div class="flex flex-wrap gap-2 no-print">
+                    <button class="btn btn-secondary" data-action="rep.csv"><i class="fa-solid fa-file-csv"></i> Reporte (CSV)</button>
+                    <button class="btn btn-secondary" data-action="rep.txns"><i class="fa-solid fa-table-list"></i> Transacciones (CSV)</button>
+                    <button class="btn btn-primary" data-action="app.print"><i class="fa-solid fa-print"></i> Imprimir / PDF</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4 no-print">
+                <label class="field"><span class="field-label">Período</span>
+                    <select id="rep-range" class="input" data-change="rep.set" data-key="range">
+                        <option value="this-month">Este mes</option><option value="last-month">Mes pasado</option><option value="3m">Últimos 3 meses</option><option value="6m">Últimos 6 meses</option><option value="this-year">Este año</option><option value="last-year">Año pasado</option><option value="all">Todo</option><option value="custom">Personalizado…</option>
+                    </select></label>
+                <label class="field" id="rep-from-field"><span class="field-label">Desde</span><input type="date" id="rep-from" class="input" data-change="rep.set" data-key="from"></label>
+                <label class="field" id="rep-to-field"><span class="field-label">Hasta</span><input type="date" id="rep-to" class="input" data-change="rep.set" data-key="to"></label>
+                <label class="field"><span class="field-label">Incluir</span>
+                    <select id="rep-type" class="input" data-change="rep.set" data-key="type"><option value="Gasto">Gastos</option><option value="Ingreso">Ingresos</option><option value="both">Ingresos y gastos</option></select></label>
+                <label class="field"><span class="field-label">Agrupar por</span>
+                    <select id="rep-by" class="input" data-change="rep.set" data-key="by">
+                        <option value="category">Categoría</option><option value="sub">Subcategoría</option><option value="line">Rubro del presupuesto</option><option value="member">Persona</option><option value="month">Mes</option><option value="week">Semana</option><option value="store">Lugar / comercio</option><option value="payment">Forma de pago</option>
+                    </select></label>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4" id="rep-kpis"></div>
+            <div class="table-wrap"><table class="table"><thead><tr><th id="rep-group-head">Categoría</th><th class="num">Movimientos</th><th class="num">Total</th><th style="min-width:10rem">Parte del total</th><th class="num">Promedio</th></tr></thead><tbody id="rep-body"></tbody></table></div>
         </div>
     </div>
 </section>
@@ -575,7 +626,7 @@
         </div>
         <div class="table-wrap mb-4">
             <table class="table">
-                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo (<span class="cur">$</span>)</th><th style="width:8rem">Ahorrado (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th class="text-center">Tiempo estimado</th><th></th></tr></thead>
+                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo (<span class="cur">$</span>)</th><th style="width:8rem">Ahorrado (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th style="width:9rem">¿Para cuándo?</th><th style="min-width:13rem">Progreso</th><th></th></tr></thead>
                 <tbody id="goal-body"></tbody>
             </table>
         </div>
@@ -1049,6 +1100,7 @@
 <script src="js/views/ingresos.js"></script>
 <script src="js/views/transacciones.js"></script>
 <script src="js/views/importar.js"></script>
+<script src="js/views/reportes.js"></script>
 <script src="js/views/metas.js"></script>
 <script src="js/views/ahorro.js"></script>
 <script src="js/views/hipoteca.js"></script>

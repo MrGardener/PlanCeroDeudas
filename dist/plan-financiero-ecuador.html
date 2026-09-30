@@ -643,6 +643,11 @@ input[type="file"].hidden { display: none; }
                     <input type="number" id="txn-amount" class="input" step="0.01" min="0" placeholder="Ej: 25.50"></label>
                 <label class="field"><span class="field-label">Fecha</span>
                     <input type="date" id="txn-date" class="input" data-change="txn.dateChanged"></label>
+                <label class="field" id="txn-repeat-field"><span class="field-label">Repetir</span>
+                    <select id="txn-repeat" class="input">
+                        <option value="">No se repite</option><option value="monthly">Cada mes</option><option value="biweekly">Cada 2 semanas</option><option value="weekly">Cada semana</option><option value="yearly">Cada año</option>
+                    </select>
+                    <span class="help">Se registrará sola cada vez (arriendo, Netflix, sueldo…). Con fecha futura queda programada.</span></label>
                 <div class="lg:col-span-3 flex items-end justify-end">
                     <div class="flex flex-wrap gap-2 justify-end">
                         <button class="btn btn-secondary hidden" id="txn-cancel" data-action="txn.cancelEdit">Cancelar</button>
@@ -693,6 +698,16 @@ input[type="file"].hidden { display: none; }
                 <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Período</th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">Neto</th></tr></thead><tbody id="trend-table"></tbody></table></div>
             </details>
         </div>
+        <div class="card" id="rec-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-repeat text-purple-600"></i> Programados y suscripciones</div>
+                    <div class="card-sub">Movimientos que se repiten. Se registran solos el día que tocan (al abrir la app). Crea uno con "Repetir" al registrar, o con <i class="fa-solid fa-repeat"></i> en una transacción del historial.</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="rec-kpis"></div>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Próxima fecha</th><th>Descripción</th><th>Frecuencia</th><th class="num">Monto</th><th class="num">Por mes</th><th class="text-center" title="Registrar automáticamente">Auto</th><th></th></tr></thead><tbody id="rec-body"></tbody></table></div>
+        </div>
         <div class="card">
             <div class="card-head">
                 <div class="card-title"><i class="fa-solid fa-list text-blue-600"></i> Historial</div>
@@ -714,6 +729,11 @@ input[type="file"].hidden { display: none; }
             </div>
             <p class="help mb-2" id="txn-unassigned-note"></p>
             <div id="txn-body" class="txn-list"></div>
+            <details class="mt-4 panel tone-slate" id="trash-panel">
+                <summary class="text-xs font-bold text-slate-700 cursor-pointer"><i class="fa-solid fa-trash-can-arrow-up text-slate-500"></i> Eliminadas recientemente (<span id="trash-count">0</span>)</summary>
+                <p class="help mt-2">Se guardan 60 días por si te arrepientes.</p>
+                <div id="trash-body" class="mt-2"></div>
+            </details>
         </div>
     </div>
     <div data-view="importar" class="space-y-5 hidden">
@@ -792,6 +812,37 @@ input[type="file"].hidden { display: none; }
                 <button class="btn btn-primary" data-action="rule.add"><i class="fa-solid fa-plus"></i> Nueva regla</button>
             </div>
             <div class="table-wrap"><table class="table"><thead><tr><th>Si contiene</th><th>Categoría</th><th>Rubro del presupuesto</th><th></th></tr></thead><tbody id="rule-body"></tbody></table></div>
+        </div>
+    </div>
+    <div data-view="reportes" class="space-y-5 hidden">
+        <div class="card" id="rep-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-chart-pie text-blue-600"></i> Reporte personalizado</div>
+                    <div class="card-sub">Elige el período y cómo agrupar. Descárgalo en CSV (Excel / Google Sheets) o imprímelo como PDF.</div>
+                </div>
+                <div class="flex flex-wrap gap-2 no-print">
+                    <button class="btn btn-secondary" data-action="rep.csv"><i class="fa-solid fa-file-csv"></i> Reporte (CSV)</button>
+                    <button class="btn btn-secondary" data-action="rep.txns"><i class="fa-solid fa-table-list"></i> Transacciones (CSV)</button>
+                    <button class="btn btn-primary" data-action="app.print"><i class="fa-solid fa-print"></i> Imprimir / PDF</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4 no-print">
+                <label class="field"><span class="field-label">Período</span>
+                    <select id="rep-range" class="input" data-change="rep.set" data-key="range">
+                        <option value="this-month">Este mes</option><option value="last-month">Mes pasado</option><option value="3m">Últimos 3 meses</option><option value="6m">Últimos 6 meses</option><option value="this-year">Este año</option><option value="last-year">Año pasado</option><option value="all">Todo</option><option value="custom">Personalizado…</option>
+                    </select></label>
+                <label class="field" id="rep-from-field"><span class="field-label">Desde</span><input type="date" id="rep-from" class="input" data-change="rep.set" data-key="from"></label>
+                <label class="field" id="rep-to-field"><span class="field-label">Hasta</span><input type="date" id="rep-to" class="input" data-change="rep.set" data-key="to"></label>
+                <label class="field"><span class="field-label">Incluir</span>
+                    <select id="rep-type" class="input" data-change="rep.set" data-key="type"><option value="Gasto">Gastos</option><option value="Ingreso">Ingresos</option><option value="both">Ingresos y gastos</option></select></label>
+                <label class="field"><span class="field-label">Agrupar por</span>
+                    <select id="rep-by" class="input" data-change="rep.set" data-key="by">
+                        <option value="category">Categoría</option><option value="sub">Subcategoría</option><option value="line">Rubro del presupuesto</option><option value="member">Persona</option><option value="month">Mes</option><option value="week">Semana</option><option value="store">Lugar / comercio</option><option value="payment">Forma de pago</option>
+                    </select></label>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4" id="rep-kpis"></div>
+            <div class="table-wrap"><table class="table"><thead><tr><th id="rep-group-head">Categoría</th><th class="num">Movimientos</th><th class="num">Total</th><th style="min-width:10rem">Parte del total</th><th class="num">Promedio</th></tr></thead><tbody id="rep-body"></tbody></table></div>
         </div>
     </div>
 </section>
@@ -879,7 +930,7 @@ input[type="file"].hidden { display: none; }
         </div>
         <div class="table-wrap mb-4">
             <table class="table">
-                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo (<span class="cur">$</span>)</th><th style="width:8rem">Ahorrado (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th class="text-center">Tiempo estimado</th><th></th></tr></thead>
+                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo (<span class="cur">$</span>)</th><th style="width:8rem">Ahorrado (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th style="width:9rem">¿Para cuándo?</th><th style="min-width:13rem">Progreso</th><th></th></tr></thead>
                 <tbody id="goal-body"></tbody>
             </table>
         </div>
@@ -1560,6 +1611,10 @@ input[type="file"].hidden { display: none; }
             holdings: [],
             // Household members: { id, name, color }. Transactions can say who (memberId).
             members: [],
+            // Repeating / scheduled transactions (posted automatically when due).
+            recurring: [],
+            // Deleted transactions, restorable for 60 days.
+            trash: [],
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -1572,7 +1627,7 @@ input[type="file"].hidden { display: none; }
     // (taxonomies, cooperativas) because they are configuration, not personal data.
     function emptyState(today) {
         const s = newState(today);
-        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = [];
+        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = [];
         return s;
     }
 
@@ -2064,6 +2119,47 @@ input[type="file"].hidden { display: none; }
         return { income: ti, expense: te, rows: all.map(r => Object.assign(r, { incomeShare: ti ? r.income / ti : 0, expenseShare: te ? r.expense / te : 0 })) };
     }
 
+    // ------------------------------------------------------------ recurring
+    // A repeating transaction: { frequency: 'weekly'|'biweekly'|'monthly'|'yearly',
+    // startDate, endDate?, lastPosted? }. Monthly/yearly keep the start's day of month
+    // (clamped to short months: the 31st becomes the 30th/28th).
+    const parseISO = (s) => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
+    function occurrences(rec, fromISO, toISO) {
+        if (!rec || !rec.startDate) return [];
+        const start = parseISO(rec.startDate), from = parseISO(fromISO), to = parseISO(toISO);
+        const end = rec.endDate ? parseISO(rec.endDate) : null;
+        const out = [];
+        const day = start.getDate();
+        for (let i = 0; i < 1000; i++) {
+            let d;
+            if (rec.frequency === 'weekly') { d = new Date(start); d.setDate(start.getDate() + 7 * i); }
+            else if (rec.frequency === 'biweekly') { d = new Date(start); d.setDate(start.getDate() + 14 * i); }
+            else if (rec.frequency === 'yearly') { const y = start.getFullYear() + i; d = new Date(y, start.getMonth(), Math.min(day, new Date(y, start.getMonth() + 1, 0).getDate())); }
+            else { const mm = start.getMonth() + i; d = new Date(start.getFullYear(), mm, Math.min(day, new Date(start.getFullYear(), mm + 1, 0).getDate())); }
+            if (d > to || (end && d > end)) break;
+            if (d >= from) out.push(isoDate(d));
+        }
+        return out;
+    }
+
+    // Dates that should have been posted by `today` and weren't yet.
+    function dueOccurrences(rec, today) {
+        const t = isoDate(new Date(today));
+        const after = rec.lastPosted ? isoDate(new Date(parseISO(rec.lastPosted).getTime() + 86400000)) : rec.startDate;
+        return after > t ? [] : occurrences(rec, after, t);
+    }
+
+    function nextOccurrence(rec, today) {
+        const t = new Date(today);
+        const from = rec.lastPosted && rec.lastPosted >= isoDate(t) ? isoDate(new Date(parseISO(rec.lastPosted).getTime() + 86400000)) : isoDate(t);
+        const horizon = new Date(t.getFullYear() + 2, t.getMonth(), t.getDate());
+        return occurrences(rec, from, isoDate(horizon))[0] || null;
+    }
+
+    // Cost per month of a repeating amount (weekly ≈ 52/12 per month).
+    const PER_MONTH = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, yearly: 1 / 12 };
+    const monthlyCost = (rec) => num(rec.amount) * (PER_MONTH[rec.frequency] || 1);
+
     // ------------------------------------------------------------ investments
     // Market value of stock / ETF / fund holdings: shares × last known price.
     const holdingValue = (h) => Math.max(0, num(h.shares)) * Math.max(0, num(h.price));
@@ -2245,6 +2341,24 @@ input[type="file"].hidden { display: none; }
         if (monthly + current * r <= 0) return { status: 'never', months: null };
         const months = Math.log((target * r + monthly) / (current * r + monthly)) / Math.log(1 + r);
         return Number.isFinite(months) ? { status: 'ok', months: Math.ceil(months) } : { status: 'never', months: null };
+    }
+
+    // Monthly amount needed to reach a goal by its target date (with the DPF rate), and
+    // whether what's budgeted keeps it on track: { months, required, onTrack, gap }.
+    function goalSchedule(goal, today) {
+        const target = num(goal.target), current = num(goal.current), monthly = num(goal.monthly);
+        if (!goal.targetDate) return null;
+        const t = new Date(today);
+        const [y, m] = String(goal.targetDate).split('-').map(Number);
+        const months = Math.max(0, (y - t.getFullYear()) * 12 + (m - 1 - t.getMonth()));
+        const remaining = Math.max(0, target - current);
+        if (remaining <= 0) return { months, required: 0, onTrack: true, gap: 0 };
+        if (months === 0) return { months, required: remaining, onTrack: false, gap: remaining };
+        const r = num(goal.rate) / 1200;
+        const grown = current * Math.pow(1 + r, months);
+        const need = Math.max(0, target - grown);
+        const required = r === 0 ? need / months : need * r / (Math.pow(1 + r, months) - 1);
+        return { months, required, onTrack: monthly + 0.005 >= required, gap: Math.max(0, required - monthly) };
     }
 
     // ----------------------------------------------------------------- mortgage
@@ -2457,7 +2571,8 @@ input[type="file"].hidden { display: none; }
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
-        monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
+        occurrences, dueOccurrences, nextOccurrence, monthlyCost,
+        goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
@@ -2739,7 +2854,21 @@ input[type="file"].hidden { display: none; }
         return { total, date: dateMatch ? parseDate(dateMatch[1], 'dmy') : null, ruc, merchant: merchant.slice(0, 60) };
     }
 
-    const Importers = { detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    // ------------------------------------------------------------------ export
+    // Rows (arrays) → CSV text that Excel/Sheets open correctly (BOM, quotes, CRLF). Text that
+    // starts like a formula (=, +, -, @) is prefixed with ' so spreadsheets don't run it.
+    function toCSV(rows, delimiter = ',') {
+        const cell = (v) => {
+            if (v === null || v === undefined) return '';
+            if (typeof v === 'number') return String(Math.round(v * 100) / 100);
+            let s = String(v);
+            if (/^[=+\-@]/.test(s)) s = "'" + s;
+            return /[",;\n\r\t']/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        return '﻿' + rows.map(r => r.map(cell).join(delimiter)).join('\r\n') + '\r\n';
+    }
+
+    const Importers = { toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
     if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
     else root.Importers = Importers;
 })(this);
@@ -3235,7 +3364,8 @@ input[type="file"].hidden { display: none; }
             { id: 'plan', label: 'Presupuesto del Mes', icon: 'fa-table-list' },
             { id: 'ingresos', label: 'Ingresos e Impuestos', icon: 'fa-receipt' },
             { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping' },
-            { id: 'importar', label: 'Importar', icon: 'fa-file-import' }
+            { id: 'importar', label: 'Importar', icon: 'fa-file-import' },
+            { id: 'reportes', label: 'Reportes', icon: 'fa-chart-pie' }
         ] },
         { id: 'metas', label: 'Deudas y Metas', icon: 'fa-bullseye' },
         { id: 'ahorro', label: 'Ahorro DPF', icon: 'fa-piggy-bank', subviews: [
@@ -3563,6 +3693,9 @@ input[type="file"].hidden { display: none; }
         document.addEventListener('visibilitychange', () => { if (document.hidden) Store.saveNow(); });
         window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== currentKey()) go(h, { scroll: false }); });
         go(location.hash.slice(1) || 'resumen', { scroll: false });
+        // Post repeating transactions that came due since the app was last opened.
+        if (window.Recurring) window.Recurring.maintain();
+        document.addEventListener('visibilitychange', () => { if (!document.hidden && window.Recurring) window.Recurring.maintain(); });
         renderSaveStatus({ lastSavedAt: new Date(), error: null });
     }
 
@@ -4932,7 +5065,7 @@ input[type="file"].hidden { display: none; }
 /* Presupuesto → Transacciones: log individual purchases/income and see trends. */
 (function () {
     'use strict';
-    const { money, esc } = Fmt;
+    const { money, money0, esc } = Fmt;
 
     const taxonomyFor = (type) => type === 'Ingreso' ? Store.state.taxonomy.income : Store.state.taxonomy.expense;
 
@@ -4963,6 +5096,7 @@ input[type="file"].hidden { display: none; }
         card.classList.toggle('editing', !!t);
         UI.text('txn-form-title', t ? 'Editar Transacción' : 'Registrar Transacción');
         UI.show('txn-cancel', !!t);
+        UI.show('txn-repeat-field', !t);
         document.getElementById('txn-submit').innerHTML = t ? '<i class="fa-solid fa-check"></i> Guardar cambios' : '<i class="fa-solid fa-plus"></i> Agregar Transacción';
         UI.$$('#txn-body [data-row]').forEach(r => r.classList.toggle('row-editing', !!t && Number(r.dataset.row) === t.id));
     }
@@ -5126,7 +5260,7 @@ input[type="file"].hidden { display: none; }
                 </div>
                 <div class="txn-amt ${inc ? 'inc' : ''}">${inc ? '+' : '−'}${money(t.amount)}</div>
                 <div class="txn-chip">${chip}</div>
-                <div class="txn-actions"><button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Editar" aria-label="Editar"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></div>
+                <div class="txn-actions">${t.recurringId ? '<span class="text-purple-500 text-xs px-1" title="Se repite"><i class="fa-solid fa-repeat"></i></span>' : `<button class="row-edit" data-action="txn.repeat" data-id="${t.id}" title="Repetir cada mes/semana/año" aria-label="Repetir"><i class="fa-solid fa-repeat"></i></button>`}<button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Editar" aria-label="Editar"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></div>
             </div>`;
     }
 
@@ -5162,6 +5296,78 @@ input[type="file"].hidden { display: none; }
         UI.html('txn-unassigned-note', pending ? `<i class="fa-solid fa-circle-exclamation text-amber-600"></i> ${pending} gasto${pending === 1 ? '' : 's'} sin rubro: elige su rubro en el botón punteado para que cuenten en tu presupuesto.` : '');
 
         updateTrend(ctx);
+        renderRecurring(ctx);
+        renderTrash(ctx);
+    }
+
+    // ------------------------------------------------------------------ recurring
+    const FREQ = { weekly: 'Cada semana', biweekly: 'Cada 2 semanas', monthly: 'Cada mes', yearly: 'Cada año' };
+    const isSubscription = (r) => /suscrip/i.test(r.parentCategory || '') || /netflix|spotify|disney|hbo|prime|youtube|icloud|google one|apple/i.test(r.description || '');
+
+    function renderRecurring(ctx) {
+        const recs = (ctx.state.recurring || []).map(r => ({ r, next: Engine.nextOccurrence(r, ctx.today), due: Engine.dueOccurrences(r, ctx.today) }))
+            .sort((a, b) => String(a.next).localeCompare(String(b.next)));
+        const exp = recs.filter(x => (x.r.type || 'Gasto') === 'Gasto');
+        const subs = exp.filter(x => isSubscription(x.r));
+        const inc = recs.filter(x => x.r.type === 'Ingreso');
+        const per = (list) => list.reduce((a, x) => a + Engine.monthlyCost(x.r), 0);
+        UI.html('rec-kpis', `
+            <div class="kpi tone-slate"><span class="kpi-label">Gastos programados</span><span class="kpi-value">${money(per(exp))}<span class="text-xs font-semibold text-slate-500">/mes</span></span><span class="kpi-note">${exp.length} movimiento${exp.length === 1 ? '' : 's'}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Suscripciones</span><span class="kpi-value">${money(per(subs))}<span class="text-xs font-semibold text-slate-500">/mes</span></span><span class="kpi-note">${money0(per(subs) * 12)} al año</span></div>
+            <div class="kpi tone-emerald"><span class="kpi-label">Ingresos programados</span><span class="kpi-value">${money(per(inc))}<span class="text-xs font-semibold text-slate-500">/mes</span></span><span class="kpi-note">${inc.length} movimiento${inc.length === 1 ? '' : 's'}</span></div>`);
+        UI.html('rec-body', recs.length ? recs.map(({ r, next, due }) => `<tr>
+                <td class="whitespace-nowrap text-xs">${next ? esc(next) : '<span class="text-slate-400">Terminó</span>'}${due.length && r.auto === false ? `<span class="block"><button type="button" class="mini-btn" data-action="rec.postNow" data-id="${r.id}">Registrar ${due.length} pendiente${due.length === 1 ? '' : 's'}</button></span>` : ''}</td>
+                <td><div class="font-semibold text-xs">${esc(r.description)}${isSubscription(r) ? ' <span class="badge badge-purple">Suscripción</span>' : ''}</div><div class="text-[10px] text-slate-500">${esc(r.parentCategory)}</div></td>
+                <td><select class="cell-input text-xs" data-change="rec.freq" data-id="${r.id}">${Object.keys(FREQ).map(k => `<option value="${k}" ${k === r.frequency ? 'selected' : ''}>${FREQ[k]}</option>`).join('')}</select></td>
+                <td class="num font-bold ${r.type === 'Ingreso' ? 'text-emerald-700' : ''}">${r.type === 'Ingreso' ? '+' : '−'}${money(r.amount)}</td>
+                <td class="num text-xs">${money(Engine.monthlyCost(r))}</td>
+                <td class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="rec.auto" data-id="${r.id}" ${r.auto === false ? '' : 'checked'} title="Registrar automáticamente"></td>
+                <td class="text-center"><button class="row-del" data-action="rec.delete" data-id="${r.id}" title="Dejar de repetir" aria-label="Dejar de repetir"><i class="fa-solid fa-trash-can"></i></button></td>
+            </tr>`).join('') : '<tr class="empty-row"><td colspan="7">Nada programado. Ejemplos: arriendo el 5 de cada mes, Netflix, tu sueldo quincenal.</td></tr>');
+    }
+
+    // Post every repeating movement that's due (only those set to automatic unless `ids` given).
+    function postDue(ids) {
+        const s = Store.state;
+        const today = new Date();
+        const posted = [];
+        (s.recurring || []).forEach(r => {
+            if (ids ? !ids.includes(r.id) : r.auto === false) return;
+            const dates = Engine.dueOccurrences(r, today);
+            dates.forEach(date => {
+                const t = Object.assign({}, r, { id: Store.nextId(s.transactions), date, recurringId: r.id });
+                ['frequency', 'startDate', 'endDate', 'lastPosted', 'auto'].forEach(k => delete t[k]);
+                s.transactions.push(t);
+                posted.push(t);
+            });
+            if (dates.length) r.lastPosted = dates[dates.length - 1];
+        });
+        return posted;
+    }
+
+    // Opening the app: post what came due, and forget deleted items older than 60 days.
+    function maintain() {
+        const s = Store.state;
+        const cutoff = Date.now() - 60 * 86400000;
+        const before = (s.trash || []).length;
+        s.trash = (s.trash || []).filter(t => !t.deletedAt || new Date(t.deletedAt).getTime() >= cutoff);
+        const posted = postDue();
+        if (posted.length || s.trash.length !== before) App.changed({ structural: true, step: true });
+        if (posted.length) {
+            const names = [...new Set(posted.map(t => t.description))].slice(0, 3).join(', ');
+            UI.toast(`Se registraron ${posted.length} movimiento${posted.length === 1 ? '' : 's'} programado${posted.length === 1 ? '' : 's'}: ${names}${posted.length > 3 ? '…' : ''}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        }
+    }
+    window.Recurring = { maintain, postDue };
+
+    // ------------------------------------------------------------------ deleted bin
+    function renderTrash(ctx) {
+        const trash = (ctx.state.trash || []).slice().sort((a, b) => String(b.deletedAt).localeCompare(String(a.deletedAt)));
+        UI.text('trash-count', trash.length);
+        UI.html('trash-body', trash.length ? `<div class="space-y-1">${trash.map(t => `<div class="flex items-center justify-between gap-2 text-xs bg-white rounded-lg px-2 py-1.5">
+                <span class="min-w-0 truncate"><strong>${esc(t.description)}</strong> · ${esc(t.date)} · ${(t.type || 'Gasto') === 'Ingreso' ? '+' : '−'}${money(t.amount)}</span>
+                <span class="flex gap-2 shrink-0"><button type="button" class="mini-btn" data-action="trash.restore" data-id="${t.id}" data-deleted="${esc(t.deletedAt)}">Recuperar</button><button type="button" class="mini-btn text-red-600" data-action="trash.purge" data-id="${t.id}" data-deleted="${esc(t.deletedAt)}">Borrar</button></span>
+            </div>`).join('')}</div><button type="button" class="mini-btn text-red-600 mt-2" data-action="trash.empty">Vaciar</button>` : '<p class="help">Nada por aquí.</p>');
     }
 
     // ------------------------------------------------------------------ trend
@@ -5248,6 +5454,65 @@ input[type="file"].hidden { display: none; }
         },
         'txn.typeChanged': () => fillCategorySelects(),
         'txn.parentChanged': () => { fillSubSelect(); fillLineSelect(); },
+        'txn.repeat': async (el) => {
+            const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
+            if (!t) return;
+            const r = await UI.form({ title: `Repetir "${t.description}"`, message: `Desde el ${t.date}. Se registrará sola cada vez que toque.`, fields: [{ name: 'freq', label: 'Frecuencia', options: Object.keys(FREQ).map(k => ({ value: k, label: FREQ[k] })) }], confirmText: 'Repetir' });
+            if (!r) return;
+            const recs = Store.state.recurring || (Store.state.recurring = []);
+            const rec = Object.assign({}, t, { id: Store.nextId(recs), frequency: r.freq, startDate: t.date, lastPosted: t.date, auto: true });
+            ['date', 'recurringId', 'invoice', 'source'].forEach(k => delete rec[k]);
+            recs.push(rec);
+            t.recurringId = rec.id;
+            const posted = postDue([rec.id]);
+            App.changed({ structural: true, step: true });
+            UI.toast(`"${t.description}" se repetirá ${FREQ[r.freq].toLowerCase()}.${posted.length ? ` Se registraron ${posted.length} pendiente${posted.length === 1 ? '' : 's'}.` : ''}`);
+        },
+        'rec.auto': (el) => {
+            const r = (Store.state.recurring || []).find(x => x.id === Number(el.dataset.id));
+            if (!r) return;
+            r.auto = el.checked;
+            if (r.auto) postDue([r.id]);
+            App.changed({ structural: true, step: true });
+        },
+        'rec.freq': (el) => {
+            const r = (Store.state.recurring || []).find(x => x.id === Number(el.dataset.id));
+            if (!r) return;
+            r.frequency = el.value;
+            App.changed({ structural: true, step: true });
+        },
+        'rec.postNow': (el) => {
+            const posted = postDue([Number(el.dataset.id)]);
+            App.changed({ structural: true, step: true });
+            UI.toast(`${posted.length} movimiento${posted.length === 1 ? '' : 's'} registrado${posted.length === 1 ? '' : 's'}.`);
+        },
+        'rec.delete': (el) => {
+            const id = Number(el.dataset.id);
+            const r = (Store.state.recurring || []).find(x => x.id === id);
+            if (!r) return;
+            // Past transactions stay; it just stops repeating.
+            App.undoable(`"${r.description}" ya no se repite`, () => { Store.state.recurring = Store.state.recurring.filter(x => x.id !== id); });
+        },
+        'trash.restore': (el) => {
+            const s = Store.state;
+            const i = (s.trash || []).findIndex(t => t.id === Number(el.dataset.id) && t.deletedAt === el.dataset.deleted);
+            if (i < 0) return;
+            const t = Object.assign({}, s.trash[i]);
+            delete t.deletedAt;
+            if (s.transactions.some(x => x.id === t.id)) t.id = Store.nextId(s.transactions);
+            s.transactions.push(t);
+            s.trash.splice(i, 1);
+            App.changed({ structural: true, step: true });
+            UI.toast(`"${t.description}" recuperada.`);
+        },
+        'trash.purge': (el) => {
+            const s = Store.state;
+            s.trash = (s.trash || []).filter(t => !(t.id === Number(el.dataset.id) && t.deletedAt === el.dataset.deleted));
+            App.changed({ structural: true, step: true });
+        },
+        'trash.empty': () => {
+            App.undoable('Papelera vaciada', () => { Store.state.trash = []; });
+        },
         'txn.search': (el) => { Store.ui.txnSearch = el.value; App.update(); },
         'trend.period': (el) => { Store.ui.trend.period = el.dataset.period; Store.ui.trend.count = DEFAULT_COUNT[el.dataset.period]; App.update(); },
         'trend.count': (el) => { Store.ui.trend.count = Number(el.value); App.update(); },
@@ -5309,10 +5574,30 @@ input[type="file"].hidden { display: none; }
                 if (row) { row.scrollIntoView({ block: 'center' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1600); }
                 return;
             }
+            const repeat = get('txn-repeat').value;
+            const todayISO = Engine.isoDate(new Date());
+            if (repeat) {
+                // A repeating movement: posted now if it's for today or earlier, otherwise scheduled.
+                const recs = s.recurring || (s.recurring = []);
+                const rec = Object.assign({ id: Store.nextId(recs), frequency: repeat, startDate: values.date, auto: true }, values);
+                delete rec.date;
+                recs.push(rec);
+                get('txn-repeat').value = '';
+                if (values.date > todayISO) {
+                    clearForm();
+                    App.changed({ structural: true, step: true });
+                    UI.toast(`Programado: "${description}" el ${values.date} y luego ${FREQ[repeat].toLowerCase()}.`);
+                    return;
+                }
+                rec.lastPosted = values.date;
+                values.recurringId = rec.id;
+            } else if (values.date > todayISO) {
+                UI.toast('Registrada con fecha futura. Para que se repita, elige una opción en "Repetir".', 'warn');
+            }
             s.transactions.push(Object.assign({ id: Store.nextId(s.transactions) }, values));
             clearForm();
             App.changed({ structural: true, step: true });
-            UI.toast(`Transacción de ${money(amount)} registrada`);
+            UI.toast(repeat ? `"${description}" registrada y programada ${FREQ[repeat].toLowerCase()}.` : `Transacción de ${money(amount)} registrada`);
             get('txn-description').focus();
         },
         'txn.edit': (el) => {
@@ -5344,7 +5629,12 @@ input[type="file"].hidden { display: none; }
         'txn.delete': (el) => {
             const id = Number(el.dataset.id);
             if (Store.ui.txnEditing === id) { setEditing(null); clearForm(); }
-            App.undoable('Transacción eliminada', () => { Store.state.transactions = Store.state.transactions.filter(t => t.id !== id); });
+            App.undoable('Transacción eliminada (está en "Eliminadas recientemente")', () => {
+                const s = Store.state;
+                const t = s.transactions.find(x => x.id === id);
+                if (t) (s.trash || (s.trash = [])).push(Object.assign({}, t, { deletedAt: new Date().toISOString() }));
+                s.transactions = s.transactions.filter(x => x.id !== id);
+            });
         },
         'txn.renderCategories': () => renderCategories(),
         'txn.addParent': async () => {
@@ -5731,6 +6021,157 @@ input[type="file"].hidden { display: none; }
     window.ImportSession = { get: () => session, start: startSession, resolve };
 })();
 </script>
+<script>/* js/views/reportes.js */
+/* Presupuesto → Reportes: group transactions any way over any period; export CSV or print. */
+(function () {
+    'use strict';
+    const { money, esc } = Fmt;
+
+    const BY_LABEL = { category: 'Categoría', sub: 'Subcategoría', line: 'Rubro del presupuesto', member: 'Persona', month: 'Mes', week: 'Semana', store: 'Lugar / comercio', payment: 'Forma de pago' };
+    const opts = () => (Store.ui.report = Object.assign({ range: 'this-month', type: 'Gasto', by: 'category', from: '', to: '' }, Store.ui.report));
+
+    // Period presets → [from, to] as ISO dates.
+    function period(o, today) {
+        const t = new Date(today), y = t.getFullYear(), m = t.getMonth();
+        const iso = Engine.isoDate;
+        switch (o.range) {
+            case 'last-month': return [iso(new Date(y, m - 1, 1)), iso(new Date(y, m, 0))];
+            case '3m': return [iso(new Date(y, m - 2, 1)), iso(t)];
+            case '6m': return [iso(new Date(y, m - 5, 1)), iso(t)];
+            case 'this-year': return [`${y}-01-01`, iso(t)];
+            case 'last-year': return [`${y - 1}-01-01`, `${y - 1}-12-31`];
+            case 'all': return ['0000-01-01', '9999-12-31'];
+            case 'custom': return [o.from || '0000-01-01', o.to || '9999-12-31'];
+            default: return [iso(new Date(y, m, 1)), iso(new Date(y, m + 1, 0))];
+        }
+    }
+
+    // Budget line of each expense (same rule as the budget), cached per month.
+    function lineNamer() {
+        const cache = {};
+        return (t) => {
+            if ((t.type || 'Gasto') === 'Ingreso') {
+                const yd = Store.state.years[Number(t.date.slice(0, 4))];
+                const line = t.incomeId && yd && (yd.otherIncomes || []).find(x => x.id === t.incomeId);
+                return line ? line.name : Engine.isPayrollTxn(t) ? 'Sueldo' : 'Ingreso extra';
+            }
+            const y = Number(t.date.slice(0, 4)), m = String(Number(t.date.slice(5, 7)));
+            const key = y + '-' + m;
+            if (!cache[key]) {
+                const items = Engine.monthItems(Store.effective(y), m);
+                const spend = Engine.lineSpend(items, Store.state.transactions, y, m);
+                const byTxn = {};
+                Object.keys(spend.byLine).forEach(id => { const it = items.find(i => String(i.id) === id); spend.byLine[id].txns.forEach(x => { byTxn[x.id] = it ? it.name : id; }); });
+                cache[key] = byTxn;
+            }
+            return cache[key][t.id] || 'Sin rubro';
+        };
+    }
+
+    function build(ctx) {
+        const o = opts();
+        const [from, to] = period(o, ctx.today);
+        const members = ctx.state.members || [];
+        const lineOf = o.by === 'line' ? lineNamer() : null;
+        const keyOf = (t) => {
+            switch (o.by) {
+                case 'sub': return `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`;
+                case 'line': return lineOf(t);
+                case 'member': { const p = members.find(x => x.id === t.memberId); return p ? p.name : 'Sin persona'; }
+                case 'month': return t.date.slice(0, 7);
+                case 'week': return Engine.isoDate(Engine.periodStart(new Date(t.date + 'T00:00:00'), 'week'));
+                case 'store': return (t.store || t.description || '—').trim();
+                case 'payment': return t.paymentType || '—';
+                default: return t.parentCategory || 'Otros';
+            }
+        };
+        const list = ctx.state.transactions.filter(t => t.date >= from && t.date <= to && (o.type === 'both' || (t.type || 'Gasto') === o.type));
+        const groups = {};
+        list.forEach(t => {
+            const k = keyOf(t);
+            const g = groups[k] || (groups[k] = { key: k, count: 0, income: 0, expense: 0 });
+            g.count++;
+            if ((t.type || 'Gasto') === 'Ingreso') g.income += Number(t.amount) || 0; else g.expense += Number(t.amount) || 0;
+        });
+        const signed = (g) => o.type === 'Ingreso' ? g.income : o.type === 'Gasto' ? g.expense : g.income - g.expense;
+        const rows = Object.values(groups).map(g => Object.assign(g, { total: signed(g) }));
+        const timeBased = o.by === 'month' || o.by === 'week';
+        rows.sort((a, b) => timeBased ? a.key.localeCompare(b.key) : Math.abs(b.total) - Math.abs(a.total));
+        const total = rows.reduce((a, r) => a + r.total, 0);
+        const absTotal = rows.reduce((a, r) => a + Math.abs(r.total), 0);
+        return { o, from, to, list, rows, total, absTotal };
+    }
+
+    const label = (o, key) => {
+        if (o.by === 'month') { const [y, m] = key.split('-'); return `${Fmt.MONTH_NAMES[Number(m) - 1]} ${y}`; }
+        if (o.by === 'week') { const d = new Date(key + 'T00:00:00'); return `Semana del ${d.getDate()} ${Fmt.MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`; }
+        return key;
+    };
+
+    function render(ctx) {
+        const o = opts();
+        ['range', 'type', 'by'].forEach(k => { document.getElementById('rep-' + k).value = o[k]; });
+        UI.show('rep-from-field', o.range === 'custom');
+        UI.show('rep-to-field', o.range === 'custom');
+        document.getElementById('rep-from').value = o.from;
+        document.getElementById('rep-to').value = o.to;
+        const r = build(ctx);
+        UI.text('rep-group-head', BY_LABEL[o.by]);
+        const what = o.type === 'Ingreso' ? 'Ingresos' : o.type === 'Gasto' ? 'Gastos' : 'Neto (ingresos − gastos)';
+        const range = o.range === 'all' ? 'todo el historial' : `${r.from} a ${r.to}`;
+        UI.html('rep-kpis', `
+            <div class="kpi tone-slate"><span class="kpi-label">${what}</span><span class="kpi-value">${money(r.total)}</span><span class="kpi-note">${esc(range)}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Movimientos</span><span class="kpi-value">${r.list.length}</span><span class="kpi-note">en ${r.rows.length} grupo${r.rows.length === 1 ? '' : 's'}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Promedio por movimiento</span><span class="kpi-value">${money(r.list.length ? r.total / r.list.length : 0)}</span></div>`);
+        const max = Math.max(...r.rows.map(x => Math.abs(x.total)), 1);
+        UI.html('rep-body', r.rows.length ? r.rows.map(g => `<tr>
+                <td class="font-semibold">${esc(label(o, g.key))}</td>
+                <td class="num">${g.count}</td>
+                <td class="num font-bold ${g.total < 0 ? 'text-red-600' : ''}">${money(g.total)}</td>
+                <td><div class="flex items-center gap-2"><div class="mini-bar flex-1"><span style="width:${(Math.abs(g.total) / max * 100).toFixed(1)}%;background:#2a78d6"></span></div><span class="text-[11px] text-slate-500 w-9 text-right">${r.absTotal ? Math.round(Math.abs(g.total) / r.absTotal * 100) : 0}%</span></div></td>
+                <td class="num text-xs">${money(g.total / g.count)}</td>
+            </tr>`).join('') + `<tr class="font-bold"><td>Total</td><td class="num">${r.list.length}</td><td class="num">${money(r.total)}</td><td></td><td></td></tr>`
+            : '<tr class="empty-row"><td colspan="5">No hay movimientos en este período.</td></tr>');
+    }
+
+    function download(name, text) {
+        const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+        const a = document.createElement('a');
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    UI.register({
+        'rep.set': (el) => {
+            const o = opts();
+            o[el.dataset.key] = el.value;
+            if (el.dataset.key === 'range' && el.value === 'custom' && !o.from) {
+                const [f, t] = period({ range: 'this-month' }, new Date());
+                o.from = f; o.to = t;
+            }
+            App.render();
+        },
+        'rep.csv': () => {
+            const r = build(App.buildContext());
+            const rows = [[BY_LABEL[r.o.by], 'Movimientos', 'Total', '% del total', 'Promedio']]
+                .concat(r.rows.map(g => [label(r.o, g.key), g.count, g.total, r.absTotal ? Math.round(Math.abs(g.total) / r.absTotal * 1000) / 10 : 0, g.total / g.count]))
+                .concat([['Total', r.list.length, r.total, 100, '']]);
+            download(`reporte_${r.o.by}_${r.from.replace('0000-01-01', 'inicio')}_${r.to.replace('9999-12-31', 'hoy')}.csv`, Importers.toCSV(rows));
+        },
+        'rep.txns': () => {
+            const r = build(App.buildContext());
+            const members = Store.state.members || [];
+            const rows = [['Fecha', 'Tipo', 'Descripción', 'Lugar', 'Categoría', 'Subcategoría', 'Monto', 'Forma de pago', 'Persona']]
+                .concat(r.list.slice().sort((a, b) => a.date.localeCompare(b.date)).map(t => [t.date, t.type || 'Gasto', t.description, t.store || '', t.parentCategory, t.category || '', ((t.type || 'Gasto') === 'Ingreso' ? 1 : -1) * (Number(t.amount) || 0), t.paymentType || '', ((members.find(p => p.id === t.memberId) || {}).name) || '']));
+            download(`transacciones_${r.from.replace('0000-01-01', 'inicio')}_${r.to.replace('9999-12-31', 'hoy')}.csv`, Importers.toCSV(rows));
+        }
+    });
+
+    App.defineView('presupuesto/reportes', { render, update: render });
+    window.Reports = { build };
+})();
+</script>
 <script>/* js/views/metas.js */
 /* Deudas y Metas: Baby Steps progress, emergency fund, debt payoff plan and savings goals. */
 (function () {
@@ -5756,15 +6197,16 @@ input[type="file"].hidden { display: none; }
         return `<tr data-row="${g.id}">
             <td><input class="cell-input" value="${esc(g.name)}" data-change="goal.set" data-id="${g.id}" data-field="name" aria-label="Nombre de la meta"></td>
             ${cell('target', 100)}${cell('current', 100)}${cell('monthly', 10).replace('cell-input num', 'cell-input num money')}${cell('rate', 0.1)}
-            <td class="text-center" data-cell="time"></td>
-            <td class="text-center"><button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td><input type="month" class="cell-input" value="${esc(g.targetDate || '')}" data-change="goal.set" data-id="${g.id}" data-field="targetDate" aria-label="Fecha meta"></td>
+            <td data-cell="time"></td>
+            <td class="text-center whitespace-nowrap"><button class="mini-btn" data-action="goal.deposit" data-id="${g.id}" title="Sumar un depósito a lo ahorrado">Depositar</button> <button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 
     function render(ctx) {
         const s = ctx.state;
         UI.html('debt-body', s.debts.length ? s.debts.map(debtRow).join('') : '<tr class="empty-row"><td colspan="9">¡Sin deudas registradas! Si tienes alguna, agrégala para armar tu plan.</td></tr>');
-        UI.html('goal-body', s.goals.length ? s.goals.map(goalRow).join('') : '<tr class="empty-row"><td colspan="7">Agrega una meta: un carro, un terreno, la universidad…</td></tr>');
+        UI.html('goal-body', s.goals.length ? s.goals.map(goalRow).join('') : '<tr class="empty-row"><td colspan="8">Agrega una meta: un carro, un terreno, la universidad…</td></tr>');
         update(ctx);
     }
 
@@ -5823,9 +6265,17 @@ input[type="file"].hidden { display: none; }
             const cell = document.querySelector(`#goal-body tr[data-row="${g.id}"] [data-cell="time"]`);
             if (!cell) return;
             const r = Engine.goalMonths(g);
-            cell.innerHTML = r.status === 'reached' ? '<span class="badge badge-ok">¡Meta alcanzada!</span>'
+            const sch = Engine.goalSchedule(g, ctx.today);
+            const pct = Number(g.target) > 0 ? Math.min(1, (Number(g.current) || 0) / Number(g.target)) : 0;
+            const eta = r.status === 'reached' ? '<span class="badge badge-ok">¡Meta alcanzada!</span>'
                 : r.status === 'never' ? '<span class="badge badge-bad">Sin aporte en tu presupuesto</span>'
-                : `<span class="badge badge-purple">${r.months} meses (${(r.months / 12).toFixed(1)} años)</span><span class="block text-[10px] text-slate-500 mt-0.5">${Fmt.monthYear(Engine.addMonths(ctx.today, r.months))}</span>`;
+                : `<span class="badge badge-purple">Lista en ${Fmt.monthYear(Engine.addMonths(ctx.today, r.months))}</span>`;
+            const track = !sch || r.status === 'reached' ? ''
+                : sch.onTrack ? '<span class="badge badge-ok">A tiempo</span>'
+                : `<span class="badge badge-bad" title="Para llegar a tiempo">Atrasada: necesitas ${Fmt.money0(sch.required)}/mes</span>`;
+            cell.innerHTML = `<div class="flex justify-between text-[10px] text-slate-500"><span>${Fmt.money0(g.current)} de ${Fmt.money0(g.target)}</span><strong>${Math.round(pct * 100)}%</strong></div>
+                <div class="mini-bar"><span style="width:${(pct * 100).toFixed(1)}%;background:#7c3aed"></span></div>
+                <div class="flex flex-wrap gap-1 mt-1">${eta}${track}</div>`;
         });
     }
 
@@ -5863,7 +6313,7 @@ input[type="file"].hidden { display: none; }
             const g = find(Store.state.goals, el);
             if (!g) return;
             const f = el.dataset.field;
-            g[f] = f === 'name' ? el.value : Math.max(0, parseNum(el.value, 0));
+            g[f] = f === 'name' || f === 'targetDate' ? el.value : Math.max(0, parseNum(el.value, 0));
             App.changed();
         },
         'goal.add': () => {
@@ -5874,6 +6324,31 @@ input[type="file"].hidden { display: none; }
             UI.toast('Meta agregada al Ahorro de tu presupuesto. Asígnale un monto mensual.');
             const input = document.querySelector(`#goal-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
+        },
+        // A deposit adds to what's saved; optionally it's also logged as a transfer to savings.
+        'goal.deposit': async (el) => {
+            const g = find(Store.state.goals, el);
+            if (!g) return;
+            const r = await UI.form({
+                title: `Depositar en "${g.name}"`,
+                fields: [
+                    { name: 'amount', label: 'Monto', type: 'number', min: 0, step: '0.01', value: Number(g.monthly) || '' },
+                    { name: 'log', label: '¿Registrarlo también como movimiento?', options: [{ value: 'yes', label: 'Sí, en Transacciones (cuenta en su línea del presupuesto)' }, { value: 'no', label: 'No, solo sumar a lo ahorrado' }] }
+                ],
+                confirmText: 'Depositar',
+                validate: v => Number(v.amount) > 0 ? null : 'Escribe un monto mayor a 0.'
+            });
+            if (!r) return;
+            const amount = Math.round(Number(r.amount) * 100) / 100;
+            g.current = Math.round(((Number(g.current) || 0) + amount) * 100) / 100;
+            if (r.log === 'yes') {
+                const txns = Store.state.transactions;
+                const tax = Store.state.taxonomy.expense;
+                const cat = tax['Ahorro e Inversión'] ? 'Ahorro e Inversión' : 'Otros';
+                txns.push({ id: Store.nextId(txns), type: 'Gasto', description: `Depósito: ${g.name}`, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date: Engine.isoDate(new Date()), paymentType: 'Transferencia', budgetLine: 'goal-' + g.id });
+            }
+            App.changed({ structural: true, step: true });
+            UI.toast(`${Fmt.money(amount)} depositados en "${g.name}". Llevas ${Fmt.money0(g.current)} de ${Fmt.money0(g.target)}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         },
         'goal.delete': (el) => {
             const g = find(Store.state.goals, el);

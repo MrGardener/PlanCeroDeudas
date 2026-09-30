@@ -22,15 +22,16 @@
         return `<tr data-row="${g.id}">
             <td><input class="cell-input" value="${esc(g.name)}" data-change="goal.set" data-id="${g.id}" data-field="name" aria-label="Nombre de la meta"></td>
             ${cell('target', 100)}${cell('current', 100)}${cell('monthly', 10).replace('cell-input num', 'cell-input num money')}${cell('rate', 0.1)}
-            <td class="text-center" data-cell="time"></td>
-            <td class="text-center"><button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td><input type="month" class="cell-input" value="${esc(g.targetDate || '')}" data-change="goal.set" data-id="${g.id}" data-field="targetDate" aria-label="Fecha meta"></td>
+            <td data-cell="time"></td>
+            <td class="text-center whitespace-nowrap"><button class="mini-btn" data-action="goal.deposit" data-id="${g.id}" title="Sumar un depósito a lo ahorrado">Depositar</button> <button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 
     function render(ctx) {
         const s = ctx.state;
         UI.html('debt-body', s.debts.length ? s.debts.map(debtRow).join('') : '<tr class="empty-row"><td colspan="9">¡Sin deudas registradas! Si tienes alguna, agrégala para armar tu plan.</td></tr>');
-        UI.html('goal-body', s.goals.length ? s.goals.map(goalRow).join('') : '<tr class="empty-row"><td colspan="7">Agrega una meta: un carro, un terreno, la universidad…</td></tr>');
+        UI.html('goal-body', s.goals.length ? s.goals.map(goalRow).join('') : '<tr class="empty-row"><td colspan="8">Agrega una meta: un carro, un terreno, la universidad…</td></tr>');
         update(ctx);
     }
 
@@ -89,9 +90,17 @@
             const cell = document.querySelector(`#goal-body tr[data-row="${g.id}"] [data-cell="time"]`);
             if (!cell) return;
             const r = Engine.goalMonths(g);
-            cell.innerHTML = r.status === 'reached' ? '<span class="badge badge-ok">¡Meta alcanzada!</span>'
+            const sch = Engine.goalSchedule(g, ctx.today);
+            const pct = Number(g.target) > 0 ? Math.min(1, (Number(g.current) || 0) / Number(g.target)) : 0;
+            const eta = r.status === 'reached' ? '<span class="badge badge-ok">¡Meta alcanzada!</span>'
                 : r.status === 'never' ? '<span class="badge badge-bad">Sin aporte en tu presupuesto</span>'
-                : `<span class="badge badge-purple">${r.months} meses (${(r.months / 12).toFixed(1)} años)</span><span class="block text-[10px] text-slate-500 mt-0.5">${Fmt.monthYear(Engine.addMonths(ctx.today, r.months))}</span>`;
+                : `<span class="badge badge-purple">Lista en ${Fmt.monthYear(Engine.addMonths(ctx.today, r.months))}</span>`;
+            const track = !sch || r.status === 'reached' ? ''
+                : sch.onTrack ? '<span class="badge badge-ok">A tiempo</span>'
+                : `<span class="badge badge-bad" title="Para llegar a tiempo">Atrasada: necesitas ${Fmt.money0(sch.required)}/mes</span>`;
+            cell.innerHTML = `<div class="flex justify-between text-[10px] text-slate-500"><span>${Fmt.money0(g.current)} de ${Fmt.money0(g.target)}</span><strong>${Math.round(pct * 100)}%</strong></div>
+                <div class="mini-bar"><span style="width:${(pct * 100).toFixed(1)}%;background:#7c3aed"></span></div>
+                <div class="flex flex-wrap gap-1 mt-1">${eta}${track}</div>`;
         });
     }
 
@@ -129,7 +138,7 @@
             const g = find(Store.state.goals, el);
             if (!g) return;
             const f = el.dataset.field;
-            g[f] = f === 'name' ? el.value : Math.max(0, parseNum(el.value, 0));
+            g[f] = f === 'name' || f === 'targetDate' ? el.value : Math.max(0, parseNum(el.value, 0));
             App.changed();
         },
         'goal.add': () => {
@@ -140,6 +149,31 @@
             UI.toast('Meta agregada al Ahorro de tu presupuesto. Asígnale un monto mensual.');
             const input = document.querySelector(`#goal-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
+        },
+        // A deposit adds to what's saved; optionally it's also logged as a transfer to savings.
+        'goal.deposit': async (el) => {
+            const g = find(Store.state.goals, el);
+            if (!g) return;
+            const r = await UI.form({
+                title: `Depositar en "${g.name}"`,
+                fields: [
+                    { name: 'amount', label: 'Monto', type: 'number', min: 0, step: '0.01', value: Number(g.monthly) || '' },
+                    { name: 'log', label: '¿Registrarlo también como movimiento?', options: [{ value: 'yes', label: 'Sí, en Transacciones (cuenta en su línea del presupuesto)' }, { value: 'no', label: 'No, solo sumar a lo ahorrado' }] }
+                ],
+                confirmText: 'Depositar',
+                validate: v => Number(v.amount) > 0 ? null : 'Escribe un monto mayor a 0.'
+            });
+            if (!r) return;
+            const amount = Math.round(Number(r.amount) * 100) / 100;
+            g.current = Math.round(((Number(g.current) || 0) + amount) * 100) / 100;
+            if (r.log === 'yes') {
+                const txns = Store.state.transactions;
+                const tax = Store.state.taxonomy.expense;
+                const cat = tax['Ahorro e Inversión'] ? 'Ahorro e Inversión' : 'Otros';
+                txns.push({ id: Store.nextId(txns), type: 'Gasto', description: `Depósito: ${g.name}`, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date: Engine.isoDate(new Date()), paymentType: 'Transferencia', budgetLine: 'goal-' + g.id });
+            }
+            App.changed({ structural: true, step: true });
+            UI.toast(`${Fmt.money(amount)} depositados en "${g.name}". Llevas ${Fmt.money0(g.current)} de ${Fmt.money0(g.target)}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         },
         'goal.delete': (el) => {
             const g = find(Store.state.goals, el);

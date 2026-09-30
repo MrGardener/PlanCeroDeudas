@@ -1,7 +1,7 @@
 /* Presupuesto → Transacciones: log individual purchases/income and see trends. */
 (function () {
     'use strict';
-    const { money, esc } = Fmt;
+    const { money, money0, esc } = Fmt;
 
     const taxonomyFor = (type) => type === 'Ingreso' ? Store.state.taxonomy.income : Store.state.taxonomy.expense;
 
@@ -32,6 +32,7 @@
         card.classList.toggle('editing', !!t);
         UI.text('txn-form-title', t ? 'Editar Transacción' : 'Registrar Transacción');
         UI.show('txn-cancel', !!t);
+        UI.show('txn-repeat-field', !t);
         document.getElementById('txn-submit').innerHTML = t ? '<i class="fa-solid fa-check"></i> Guardar cambios' : '<i class="fa-solid fa-plus"></i> Agregar Transacción';
         UI.$$('#txn-body [data-row]').forEach(r => r.classList.toggle('row-editing', !!t && Number(r.dataset.row) === t.id));
     }
@@ -195,7 +196,7 @@
                 </div>
                 <div class="txn-amt ${inc ? 'inc' : ''}">${inc ? '+' : '−'}${money(t.amount)}</div>
                 <div class="txn-chip">${chip}</div>
-                <div class="txn-actions"><button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Editar" aria-label="Editar"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></div>
+                <div class="txn-actions">${t.recurringId ? '<span class="text-purple-500 text-xs px-1" title="Se repite"><i class="fa-solid fa-repeat"></i></span>' : `<button class="row-edit" data-action="txn.repeat" data-id="${t.id}" title="Repetir cada mes/semana/año" aria-label="Repetir"><i class="fa-solid fa-repeat"></i></button>`}<button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Editar" aria-label="Editar"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></div>
             </div>`;
     }
 
@@ -231,6 +232,78 @@
         UI.html('txn-unassigned-note', pending ? `<i class="fa-solid fa-circle-exclamation text-amber-600"></i> ${pending} gasto${pending === 1 ? '' : 's'} sin rubro: elige su rubro en el botón punteado para que cuenten en tu presupuesto.` : '');
 
         updateTrend(ctx);
+        renderRecurring(ctx);
+        renderTrash(ctx);
+    }
+
+    // ------------------------------------------------------------------ recurring
+    const FREQ = { weekly: 'Cada semana', biweekly: 'Cada 2 semanas', monthly: 'Cada mes', yearly: 'Cada año' };
+    const isSubscription = (r) => /suscrip/i.test(r.parentCategory || '') || /netflix|spotify|disney|hbo|prime|youtube|icloud|google one|apple/i.test(r.description || '');
+
+    function renderRecurring(ctx) {
+        const recs = (ctx.state.recurring || []).map(r => ({ r, next: Engine.nextOccurrence(r, ctx.today), due: Engine.dueOccurrences(r, ctx.today) }))
+            .sort((a, b) => String(a.next).localeCompare(String(b.next)));
+        const exp = recs.filter(x => (x.r.type || 'Gasto') === 'Gasto');
+        const subs = exp.filter(x => isSubscription(x.r));
+        const inc = recs.filter(x => x.r.type === 'Ingreso');
+        const per = (list) => list.reduce((a, x) => a + Engine.monthlyCost(x.r), 0);
+        UI.html('rec-kpis', `
+            <div class="kpi tone-slate"><span class="kpi-label">Gastos programados</span><span class="kpi-value">${money(per(exp))}<span class="text-xs font-semibold text-slate-500">/mes</span></span><span class="kpi-note">${exp.length} movimiento${exp.length === 1 ? '' : 's'}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Suscripciones</span><span class="kpi-value">${money(per(subs))}<span class="text-xs font-semibold text-slate-500">/mes</span></span><span class="kpi-note">${money0(per(subs) * 12)} al año</span></div>
+            <div class="kpi tone-emerald"><span class="kpi-label">Ingresos programados</span><span class="kpi-value">${money(per(inc))}<span class="text-xs font-semibold text-slate-500">/mes</span></span><span class="kpi-note">${inc.length} movimiento${inc.length === 1 ? '' : 's'}</span></div>`);
+        UI.html('rec-body', recs.length ? recs.map(({ r, next, due }) => `<tr>
+                <td class="whitespace-nowrap text-xs">${next ? esc(next) : '<span class="text-slate-400">Terminó</span>'}${due.length && r.auto === false ? `<span class="block"><button type="button" class="mini-btn" data-action="rec.postNow" data-id="${r.id}">Registrar ${due.length} pendiente${due.length === 1 ? '' : 's'}</button></span>` : ''}</td>
+                <td><div class="font-semibold text-xs">${esc(r.description)}${isSubscription(r) ? ' <span class="badge badge-purple">Suscripción</span>' : ''}</div><div class="text-[10px] text-slate-500">${esc(r.parentCategory)}</div></td>
+                <td><select class="cell-input text-xs" data-change="rec.freq" data-id="${r.id}">${Object.keys(FREQ).map(k => `<option value="${k}" ${k === r.frequency ? 'selected' : ''}>${FREQ[k]}</option>`).join('')}</select></td>
+                <td class="num font-bold ${r.type === 'Ingreso' ? 'text-emerald-700' : ''}">${r.type === 'Ingreso' ? '+' : '−'}${money(r.amount)}</td>
+                <td class="num text-xs">${money(Engine.monthlyCost(r))}</td>
+                <td class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="rec.auto" data-id="${r.id}" ${r.auto === false ? '' : 'checked'} title="Registrar automáticamente"></td>
+                <td class="text-center"><button class="row-del" data-action="rec.delete" data-id="${r.id}" title="Dejar de repetir" aria-label="Dejar de repetir"><i class="fa-solid fa-trash-can"></i></button></td>
+            </tr>`).join('') : '<tr class="empty-row"><td colspan="7">Nada programado. Ejemplos: arriendo el 5 de cada mes, Netflix, tu sueldo quincenal.</td></tr>');
+    }
+
+    // Post every repeating movement that's due (only those set to automatic unless `ids` given).
+    function postDue(ids) {
+        const s = Store.state;
+        const today = new Date();
+        const posted = [];
+        (s.recurring || []).forEach(r => {
+            if (ids ? !ids.includes(r.id) : r.auto === false) return;
+            const dates = Engine.dueOccurrences(r, today);
+            dates.forEach(date => {
+                const t = Object.assign({}, r, { id: Store.nextId(s.transactions), date, recurringId: r.id });
+                ['frequency', 'startDate', 'endDate', 'lastPosted', 'auto'].forEach(k => delete t[k]);
+                s.transactions.push(t);
+                posted.push(t);
+            });
+            if (dates.length) r.lastPosted = dates[dates.length - 1];
+        });
+        return posted;
+    }
+
+    // Opening the app: post what came due, and forget deleted items older than 60 days.
+    function maintain() {
+        const s = Store.state;
+        const cutoff = Date.now() - 60 * 86400000;
+        const before = (s.trash || []).length;
+        s.trash = (s.trash || []).filter(t => !t.deletedAt || new Date(t.deletedAt).getTime() >= cutoff);
+        const posted = postDue();
+        if (posted.length || s.trash.length !== before) App.changed({ structural: true, step: true });
+        if (posted.length) {
+            const names = [...new Set(posted.map(t => t.description))].slice(0, 3).join(', ');
+            UI.toast(`Se registraron ${posted.length} movimiento${posted.length === 1 ? '' : 's'} programado${posted.length === 1 ? '' : 's'}: ${names}${posted.length > 3 ? '…' : ''}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        }
+    }
+    window.Recurring = { maintain, postDue };
+
+    // ------------------------------------------------------------------ deleted bin
+    function renderTrash(ctx) {
+        const trash = (ctx.state.trash || []).slice().sort((a, b) => String(b.deletedAt).localeCompare(String(a.deletedAt)));
+        UI.text('trash-count', trash.length);
+        UI.html('trash-body', trash.length ? `<div class="space-y-1">${trash.map(t => `<div class="flex items-center justify-between gap-2 text-xs bg-white rounded-lg px-2 py-1.5">
+                <span class="min-w-0 truncate"><strong>${esc(t.description)}</strong> · ${esc(t.date)} · ${(t.type || 'Gasto') === 'Ingreso' ? '+' : '−'}${money(t.amount)}</span>
+                <span class="flex gap-2 shrink-0"><button type="button" class="mini-btn" data-action="trash.restore" data-id="${t.id}" data-deleted="${esc(t.deletedAt)}">Recuperar</button><button type="button" class="mini-btn text-red-600" data-action="trash.purge" data-id="${t.id}" data-deleted="${esc(t.deletedAt)}">Borrar</button></span>
+            </div>`).join('')}</div><button type="button" class="mini-btn text-red-600 mt-2" data-action="trash.empty">Vaciar</button>` : '<p class="help">Nada por aquí.</p>');
     }
 
     // ------------------------------------------------------------------ trend
@@ -317,6 +390,65 @@
         },
         'txn.typeChanged': () => fillCategorySelects(),
         'txn.parentChanged': () => { fillSubSelect(); fillLineSelect(); },
+        'txn.repeat': async (el) => {
+            const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
+            if (!t) return;
+            const r = await UI.form({ title: `Repetir "${t.description}"`, message: `Desde el ${t.date}. Se registrará sola cada vez que toque.`, fields: [{ name: 'freq', label: 'Frecuencia', options: Object.keys(FREQ).map(k => ({ value: k, label: FREQ[k] })) }], confirmText: 'Repetir' });
+            if (!r) return;
+            const recs = Store.state.recurring || (Store.state.recurring = []);
+            const rec = Object.assign({}, t, { id: Store.nextId(recs), frequency: r.freq, startDate: t.date, lastPosted: t.date, auto: true });
+            ['date', 'recurringId', 'invoice', 'source'].forEach(k => delete rec[k]);
+            recs.push(rec);
+            t.recurringId = rec.id;
+            const posted = postDue([rec.id]);
+            App.changed({ structural: true, step: true });
+            UI.toast(`"${t.description}" se repetirá ${FREQ[r.freq].toLowerCase()}.${posted.length ? ` Se registraron ${posted.length} pendiente${posted.length === 1 ? '' : 's'}.` : ''}`);
+        },
+        'rec.auto': (el) => {
+            const r = (Store.state.recurring || []).find(x => x.id === Number(el.dataset.id));
+            if (!r) return;
+            r.auto = el.checked;
+            if (r.auto) postDue([r.id]);
+            App.changed({ structural: true, step: true });
+        },
+        'rec.freq': (el) => {
+            const r = (Store.state.recurring || []).find(x => x.id === Number(el.dataset.id));
+            if (!r) return;
+            r.frequency = el.value;
+            App.changed({ structural: true, step: true });
+        },
+        'rec.postNow': (el) => {
+            const posted = postDue([Number(el.dataset.id)]);
+            App.changed({ structural: true, step: true });
+            UI.toast(`${posted.length} movimiento${posted.length === 1 ? '' : 's'} registrado${posted.length === 1 ? '' : 's'}.`);
+        },
+        'rec.delete': (el) => {
+            const id = Number(el.dataset.id);
+            const r = (Store.state.recurring || []).find(x => x.id === id);
+            if (!r) return;
+            // Past transactions stay; it just stops repeating.
+            App.undoable(`"${r.description}" ya no se repite`, () => { Store.state.recurring = Store.state.recurring.filter(x => x.id !== id); });
+        },
+        'trash.restore': (el) => {
+            const s = Store.state;
+            const i = (s.trash || []).findIndex(t => t.id === Number(el.dataset.id) && t.deletedAt === el.dataset.deleted);
+            if (i < 0) return;
+            const t = Object.assign({}, s.trash[i]);
+            delete t.deletedAt;
+            if (s.transactions.some(x => x.id === t.id)) t.id = Store.nextId(s.transactions);
+            s.transactions.push(t);
+            s.trash.splice(i, 1);
+            App.changed({ structural: true, step: true });
+            UI.toast(`"${t.description}" recuperada.`);
+        },
+        'trash.purge': (el) => {
+            const s = Store.state;
+            s.trash = (s.trash || []).filter(t => !(t.id === Number(el.dataset.id) && t.deletedAt === el.dataset.deleted));
+            App.changed({ structural: true, step: true });
+        },
+        'trash.empty': () => {
+            App.undoable('Papelera vaciada', () => { Store.state.trash = []; });
+        },
         'txn.search': (el) => { Store.ui.txnSearch = el.value; App.update(); },
         'trend.period': (el) => { Store.ui.trend.period = el.dataset.period; Store.ui.trend.count = DEFAULT_COUNT[el.dataset.period]; App.update(); },
         'trend.count': (el) => { Store.ui.trend.count = Number(el.value); App.update(); },
@@ -378,10 +510,30 @@
                 if (row) { row.scrollIntoView({ block: 'center' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1600); }
                 return;
             }
+            const repeat = get('txn-repeat').value;
+            const todayISO = Engine.isoDate(new Date());
+            if (repeat) {
+                // A repeating movement: posted now if it's for today or earlier, otherwise scheduled.
+                const recs = s.recurring || (s.recurring = []);
+                const rec = Object.assign({ id: Store.nextId(recs), frequency: repeat, startDate: values.date, auto: true }, values);
+                delete rec.date;
+                recs.push(rec);
+                get('txn-repeat').value = '';
+                if (values.date > todayISO) {
+                    clearForm();
+                    App.changed({ structural: true, step: true });
+                    UI.toast(`Programado: "${description}" el ${values.date} y luego ${FREQ[repeat].toLowerCase()}.`);
+                    return;
+                }
+                rec.lastPosted = values.date;
+                values.recurringId = rec.id;
+            } else if (values.date > todayISO) {
+                UI.toast('Registrada con fecha futura. Para que se repita, elige una opción en "Repetir".', 'warn');
+            }
             s.transactions.push(Object.assign({ id: Store.nextId(s.transactions) }, values));
             clearForm();
             App.changed({ structural: true, step: true });
-            UI.toast(`Transacción de ${money(amount)} registrada`);
+            UI.toast(repeat ? `"${description}" registrada y programada ${FREQ[repeat].toLowerCase()}.` : `Transacción de ${money(amount)} registrada`);
             get('txn-description').focus();
         },
         'txn.edit': (el) => {
@@ -413,7 +565,12 @@
         'txn.delete': (el) => {
             const id = Number(el.dataset.id);
             if (Store.ui.txnEditing === id) { setEditing(null); clearForm(); }
-            App.undoable('Transacción eliminada', () => { Store.state.transactions = Store.state.transactions.filter(t => t.id !== id); });
+            App.undoable('Transacción eliminada (está en "Eliminadas recientemente")', () => {
+                const s = Store.state;
+                const t = s.transactions.find(x => x.id === id);
+                if (t) (s.trash || (s.trash = [])).push(Object.assign({}, t, { deletedAt: new Date().toISOString() }));
+                s.transactions = s.transactions.filter(x => x.id !== id);
+            });
         },
         'txn.renderCategories': () => renderCategories(),
         'txn.addParent': async () => {

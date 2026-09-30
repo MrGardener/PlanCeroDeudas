@@ -37,6 +37,10 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ✅ Invoice / receipt photo (OCR) | Best effort in the browser (Tesseract.js, needs internet the first time); prefills the form for review |
 | ✅ Household members | Configuración → Tu hogar; "¿Quién?" on each transaction, filter by person, "Aportes del hogar" (income/expense share per person). Real-time sharing between phones still needs hosting (below) |
 | ✅ This-month dashboard | Spent vs. last month (daily curve + plan), cash flow with ▲▼ vs. last month, top expenses, "Puedes gastar hoy" (daily limit from flexible lines), next payday (Ingresos → Días de pago), insights: projected month-end spend, where most money goes, biggest jump / drop |
+| ✅ Repeating / scheduled transactions, subscriptions list | "Repetir" when registering (future date = scheduled) or the repeat button on a transaction; posted automatically when due (on opening the app), undoable; monthly cost of subscriptions and scheduled income |
+| ✅ Deleted transactions bin | Kept 60 days; restore or delete for good |
+| ✅ Goals with a target date (sinking funds) | Monthly needed to arrive on time (with DPF interest), "A tiempo" / "Atrasada", progress bar, "Depositar" (optionally logged on the goal's budget line) |
+| ✅ Custom reports + export | Presupuesto → Reportes: any period, group by category / subcategory / budget line / person / month / week / place / payment; CSV (Excel/Sheets, re-importable) and print to PDF |
 | ✅ Investments: ETF / stocks / funds | Ticker + units; price from Finnhub or Alpha Vantage with the user's free key, or typed by hand; flows into net worth. The key never goes into backups |
 
 ## Phase 3 — planned (works without a server)
@@ -46,14 +50,10 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | 📋 Custom budget groups (Dar, Vivienda, Comida…) and nested groups | EveryDollar desktop, "Car Money" style |
 | 📋 Per-line detail: monthly history vs. limit, its transactions | MoneyCoach budget detail |
 | 📋 Split a transaction across budget lines | EveryDollar "Add a split" |
-| 📋 Sinking funds / goals with target date, ahead/behind, "Depositar" | MoneyCoach, family app goals |
 | 📋 Baby Steps roadmap: net worth today vs. projected, debt-free date, debt paid progress | EveryDollar roadmap |
-| 📋 Scheduled / repeating transactions and subscriptions list | Rocket Money recurring, macOS budget app |
 | 📋 Accounts with balances (checking, savings, card, cash) | Rocket Money / Empower |
-| 📋 Deleted transactions bin | EveryDollar |
 | 📋 Quick entry (amount keypad + category tags) | Nudget |
 | 📋 History grouped by week/month with category totals | Nudget history |
-| 📋 Custom reports + export (CSV / print to PDF) | Quicken / Empower |
 | 📋 Dark mode | Nudget settings |
 | 📋 Share a read-only report (file / print) | Until hosting allows real sharing |
 | 📋 Streaks / motivation | EveryDollar streaks (logging every day) |

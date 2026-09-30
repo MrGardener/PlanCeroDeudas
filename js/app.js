@@ -20,7 +20,8 @@
             { id: 'plan', label: 'Presupuesto del Mes', icon: 'fa-table-list' },
             { id: 'ingresos', label: 'Ingresos e Impuestos', icon: 'fa-receipt' },
             { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping' },
-            { id: 'importar', label: 'Importar', icon: 'fa-file-import' }
+            { id: 'importar', label: 'Importar', icon: 'fa-file-import' },
+            { id: 'reportes', label: 'Reportes', icon: 'fa-chart-pie' }
         ] },
         { id: 'metas', label: 'Deudas y Metas', icon: 'fa-bullseye' },
         { id: 'ahorro', label: 'Ahorro DPF', icon: 'fa-piggy-bank', subviews: [
@@ -348,6 +349,9 @@
         document.addEventListener('visibilitychange', () => { if (document.hidden) Store.saveNow(); });
         window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== currentKey()) go(h, { scroll: false }); });
         go(location.hash.slice(1) || 'resumen', { scroll: false });
+        // Post repeating transactions that came due since the app was last opened.
+        if (window.Recurring) window.Recurring.maintain();
+        document.addEventListener('visibilitychange', () => { if (!document.hidden && window.Recurring) window.Recurring.maintain(); });
         renderSaveStatus({ lastSavedAt: new Date(), error: null });
     }
 

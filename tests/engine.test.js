@@ -424,3 +424,34 @@ test('household members: income and expense share per person', () => {
     assert.equal(r.rows[2].name, 'Sin asignar');
     assert.equal(r.rows[2].expense, 50);
 });
+
+test('recurring: monthly keeps the day (clamped), weekly/biweekly/yearly, due since last posted', () => {
+    const m = { frequency: 'monthly', startDate: '2026-01-31' };
+    assert.deepEqual(E.occurrences(m, '2026-01-01', '2026-04-30'), ['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30']);
+    assert.deepEqual(E.occurrences({ frequency: 'weekly', startDate: '2026-09-01' }, '2026-09-01', '2026-09-22'), ['2026-09-01', '2026-09-08', '2026-09-15', '2026-09-22']);
+    assert.deepEqual(E.occurrences({ frequency: 'biweekly', startDate: '2026-09-01' }, '2026-09-10', '2026-10-01'), ['2026-09-15', '2026-09-29']);
+    assert.deepEqual(E.occurrences({ frequency: 'yearly', startDate: '2024-02-29' }, '2024-01-01', '2026-12-31'), ['2024-02-29', '2025-02-28', '2026-02-28']);
+    assert.deepEqual(E.occurrences({ frequency: 'monthly', startDate: '2026-01-10', endDate: '2026-03-01' }, '2026-01-01', '2026-12-31'), ['2026-01-10', '2026-02-10']);
+    const rec = { frequency: 'monthly', startDate: '2026-06-05', lastPosted: '2026-07-05' };
+    assert.deepEqual(E.dueOccurrences(rec, new Date(2026, 8, 10)), ['2026-08-05', '2026-09-05']);
+    assert.deepEqual(E.dueOccurrences({ frequency: 'monthly', startDate: '2026-10-01' }, new Date(2026, 8, 10)), []);
+    assert.equal(E.nextOccurrence(rec, new Date(2026, 8, 10)), '2026-10-05');
+    assert.ok(Math.abs(E.monthlyCost({ frequency: 'yearly', amount: 120 }) - 10) < 1e-9);
+    assert.ok(Math.abs(E.monthlyCost({ frequency: 'weekly', amount: 12 }) - 52) < 1e-9);
+});
+
+test('goal schedule: monthly needed for a target date, on track or behind', () => {
+    const today = new Date(2026, 8, 15);
+    const g = { target: 1200, current: 0, monthly: 100, rate: 0, targetDate: '2027-09-01' };
+    const s = E.goalSchedule(g, today);
+    assert.equal(s.months, 12);
+    assert.equal(s.required, 100);
+    assert.equal(s.onTrack, true);
+    const behind = E.goalSchedule({ ...g, monthly: 60 }, today);
+    assert.equal(behind.onTrack, false);
+    assert.equal(behind.gap, 40);
+    const withRate = E.goalSchedule({ ...g, rate: 8.5 }, today);
+    assert.ok(withRate.required < 100 && withRate.required > 90);     // interest helps
+    assert.equal(E.goalSchedule({ ...g, targetDate: '' }, today), null);
+    assert.equal(E.goalSchedule({ ...g, current: 1500 }, today).onTrack, true);
+});

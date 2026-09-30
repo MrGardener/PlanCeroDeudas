@@ -479,6 +479,47 @@
         return { income: ti, expense: te, rows: all.map(r => Object.assign(r, { incomeShare: ti ? r.income / ti : 0, expenseShare: te ? r.expense / te : 0 })) };
     }
 
+    // ------------------------------------------------------------ recurring
+    // A repeating transaction: { frequency: 'weekly'|'biweekly'|'monthly'|'yearly',
+    // startDate, endDate?, lastPosted? }. Monthly/yearly keep the start's day of month
+    // (clamped to short months: the 31st becomes the 30th/28th).
+    const parseISO = (s) => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
+    function occurrences(rec, fromISO, toISO) {
+        if (!rec || !rec.startDate) return [];
+        const start = parseISO(rec.startDate), from = parseISO(fromISO), to = parseISO(toISO);
+        const end = rec.endDate ? parseISO(rec.endDate) : null;
+        const out = [];
+        const day = start.getDate();
+        for (let i = 0; i < 1000; i++) {
+            let d;
+            if (rec.frequency === 'weekly') { d = new Date(start); d.setDate(start.getDate() + 7 * i); }
+            else if (rec.frequency === 'biweekly') { d = new Date(start); d.setDate(start.getDate() + 14 * i); }
+            else if (rec.frequency === 'yearly') { const y = start.getFullYear() + i; d = new Date(y, start.getMonth(), Math.min(day, new Date(y, start.getMonth() + 1, 0).getDate())); }
+            else { const mm = start.getMonth() + i; d = new Date(start.getFullYear(), mm, Math.min(day, new Date(start.getFullYear(), mm + 1, 0).getDate())); }
+            if (d > to || (end && d > end)) break;
+            if (d >= from) out.push(isoDate(d));
+        }
+        return out;
+    }
+
+    // Dates that should have been posted by `today` and weren't yet.
+    function dueOccurrences(rec, today) {
+        const t = isoDate(new Date(today));
+        const after = rec.lastPosted ? isoDate(new Date(parseISO(rec.lastPosted).getTime() + 86400000)) : rec.startDate;
+        return after > t ? [] : occurrences(rec, after, t);
+    }
+
+    function nextOccurrence(rec, today) {
+        const t = new Date(today);
+        const from = rec.lastPosted && rec.lastPosted >= isoDate(t) ? isoDate(new Date(parseISO(rec.lastPosted).getTime() + 86400000)) : isoDate(t);
+        const horizon = new Date(t.getFullYear() + 2, t.getMonth(), t.getDate());
+        return occurrences(rec, from, isoDate(horizon))[0] || null;
+    }
+
+    // Cost per month of a repeating amount (weekly ≈ 52/12 per month).
+    const PER_MONTH = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, yearly: 1 / 12 };
+    const monthlyCost = (rec) => num(rec.amount) * (PER_MONTH[rec.frequency] || 1);
+
     // ------------------------------------------------------------ investments
     // Market value of stock / ETF / fund holdings: shares × last known price.
     const holdingValue = (h) => Math.max(0, num(h.shares)) * Math.max(0, num(h.price));
@@ -660,6 +701,24 @@
         if (monthly + current * r <= 0) return { status: 'never', months: null };
         const months = Math.log((target * r + monthly) / (current * r + monthly)) / Math.log(1 + r);
         return Number.isFinite(months) ? { status: 'ok', months: Math.ceil(months) } : { status: 'never', months: null };
+    }
+
+    // Monthly amount needed to reach a goal by its target date (with the DPF rate), and
+    // whether what's budgeted keeps it on track: { months, required, onTrack, gap }.
+    function goalSchedule(goal, today) {
+        const target = num(goal.target), current = num(goal.current), monthly = num(goal.monthly);
+        if (!goal.targetDate) return null;
+        const t = new Date(today);
+        const [y, m] = String(goal.targetDate).split('-').map(Number);
+        const months = Math.max(0, (y - t.getFullYear()) * 12 + (m - 1 - t.getMonth()));
+        const remaining = Math.max(0, target - current);
+        if (remaining <= 0) return { months, required: 0, onTrack: true, gap: 0 };
+        if (months === 0) return { months, required: remaining, onTrack: false, gap: remaining };
+        const r = num(goal.rate) / 1200;
+        const grown = current * Math.pow(1 + r, months);
+        const need = Math.max(0, target - grown);
+        const required = r === 0 ? need / months : need * r / (Math.pow(1 + r, months) - 1);
+        return { months, required, onTrack: monthly + 0.005 >= required, gap: Math.max(0, required - monthly) };
     }
 
     // ----------------------------------------------------------------- mortgage
@@ -872,7 +931,8 @@
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
-        monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
+        occurrences, dueOccurrences, nextOccurrence, monthlyCost,
+        goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,

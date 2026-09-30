@@ -263,7 +263,21 @@
         return { total, date: dateMatch ? parseDate(dateMatch[1], 'dmy') : null, ruc, merchant: merchant.slice(0, 60) };
     }
 
-    const Importers = { detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    // ------------------------------------------------------------------ export
+    // Rows (arrays) → CSV text that Excel/Sheets open correctly (BOM, quotes, CRLF). Text that
+    // starts like a formula (=, +, -, @) is prefixed with ' so spreadsheets don't run it.
+    function toCSV(rows, delimiter = ',') {
+        const cell = (v) => {
+            if (v === null || v === undefined) return '';
+            if (typeof v === 'number') return String(Math.round(v * 100) / 100);
+            let s = String(v);
+            if (/^[=+\-@]/.test(s)) s = "'" + s;
+            return /[",;\n\r\t']/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        return '﻿' + rows.map(r => r.map(cell).join(delimiter)).join('\r\n') + '\r\n';
+    }
+
+    const Importers = { toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
     if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
     else root.Importers = Importers;
 })(this);
