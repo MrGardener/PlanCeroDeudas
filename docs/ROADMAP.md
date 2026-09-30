@@ -51,6 +51,7 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ✅ Logging streak | Resumen → Hoy: days in a row with something logged, this week's dots |
 | ✅ Dark mode | Configuración → Este dispositivo (Claro / Oscuro / Automático) or the moon button in the header; charts follow |
 | ✅ App lock with a PIN | Configuración → Este dispositivo. Salted PBKDF2 hash, 5 tries then a 30 s wait, locks again after 5 min in the background. Honest caveat shown: it hides the screen, it does not encrypt the data (encryption at rest → stage B). Forgot PIN = wipe this browser and load a backup |
+| ✅ Import: change many rows at once | Review step: one description / category / subcategory / budget line for every checked row, each row still editable (own description too); remembered for files with the same layout. Decimal separator decided by the whole column ("273.841" next to "173.94" is 273.84). Imported rows keep a fingerprint so re-importing is detected even after renaming |
 
 ## Phase 3 — planned (works without a server)
 
@@ -59,6 +60,23 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | 📋 Nested budget groups (a group inside a group) | "Car Money → Transportation / Maintenance" |
 | 📋 History grouped by week/month with category totals | Nudget history. Partly covered: Reportes groups by week/month with totals; a timeline view in Transacciones is still to do |
 | 📋 Share a read-only report (file / print) | Until hosting allows real sharing. Today: Reportes → CSV / print to PDF. Next: a single-file read-only snapshot |
+
+## 🔍 Under analysis — no decision yet (requested 2026-09-30)
+
+Assessed only; nothing built. "Now" = works in the offline file; "Hosting" = needs stage A/B/C below.
+
+| Idea | Can it be done? | What already exists | Missing / effort |
+|---|---|---|---|
+| Frictionless entry widget (lock screen / 2-second shortcut) | Partly now, fully only as a native app | Floating "+" quick entry | Now: open quick entry straight from a link/bookmark (`#rapido`) and a keyboard key. Hosting A (PWA): home-screen icon + Android long-press shortcut "Registrar gasto"; iPhone via the Shortcuts app. A real lock-screen widget needs a native iOS/Android app ⛔ for now |
+| "What if" overspending sandbox | Yes, now | Budget, goals, debt plan, projections, undo | Medium: a copy of the plan where you add a purchase and see which lines/goals get starved, new debt-free date, emergency-fund months; nothing saved unless applied |
+| Safe-to-spend | Yes, now (as good as the balances you enter) | Accounts, bills with due dates, paydays, scheduled transactions, goals, "Puedes gastar hoy" | Small–medium: cash balance − bills and scheduled payments before next payday − goal money still to set aside − buffer. Shown as a big number + bar (a dial reads worse). "Pending checks" can't be known without the bank: logged as scheduled items |
+| Calendar bill forecast with low-cash days | Yes, now | Same data as above | Medium: month grid with paydays, bills, projected balance per day, days below your buffer highlighted |
+| Smart manual fallback when a bank connection breaks | The fallback is already the only mode (no bank connections in Ecuador yet) | CSV import with remembered mappings | Small now: a downloadable CSV template that imports with no mapping; "last import per account" reminder. The automatic switch belongs to stage C |
+| Merchant alias rules ("SQ *COZ" → "Cozy Coffee", Dining Out) | Yes, now | Rules: "contains X → category / budget line" | Small: add "rename to" to rules; offer "create rule" from an edited transaction |
+| Pitfall: irregular / annual bills | Yes, now | Goals with a target date (sinking funds), yearly/semiannual repeats | Small: "gastos anuales" list that turns into a monthly set-aside line; Ecuador items (matrícula vehicular, predial) and irregular income (décimo tercero / cuarto) |
+| Pitfall: drop-off | Partly now | Streak, alerts | Small: weekly review checklist (unassigned, uncategorized, over-budget, next bills). Reminders need hosting |
+| Pitfall: cash-flow blindness | Yes, now | Emergency fund steps | Covered by safe-to-spend + calendar + a "one month ahead" buffer goal |
+| Gap found during this analysis: manual entry + later bank import = double counting | Yes, now | Duplicate check needs same date, amount and similar text | Small–medium: match same amount within ±3 days regardless of text and ask "¿Es la misma que registraste a mano?" |
 
 ## Needs hosting / a server 🌐
 

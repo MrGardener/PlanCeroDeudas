@@ -93,6 +93,22 @@
         return neg ? -n : n;
     }
 
+    // The decimal separator of a whole column. One value alone can be ambiguous ("273.841" is
+    // 273.841 or 273,841?), but the column rarely is: "208.33900000000003" or "173.94" settle
+    // it for every row. Returns '.' or ',', or 'auto' when no value decides (each value is then
+    // read on its own).
+    function detectDecimal(values) {
+        let dot = 0, comma = 0;
+        (values || []).forEach(v => {
+            const s = String(v || '').replace(/[^\d.,]/g, '');
+            const lastDot = s.lastIndexOf('.'), lastComma = s.lastIndexOf(',');
+            if (lastDot >= 0 && lastComma >= 0) { if (lastDot > lastComma) dot++; else comma++; }
+            else if (lastDot >= 0) { if ((s.match(/\./g) || []).length > 1) comma++; else if (!/\.\d{3}$/.test(s)) dot++; }
+            else if (lastComma >= 0) { if ((s.match(/,/g) || []).length > 1) dot++; else if (!/,\d{3}$/.test(s)) comma++; }
+        });
+        return dot === comma ? 'auto' : (dot > comma ? '.' : ',');
+    }
+
     const MONTHS_ES = { ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6, jul: 7, ago: 8, sep: 9, set: 9, oct: 10, nov: 11, dic: 12,
         jan: 1, apr: 4, aug: 8, dec: 12 };
 
@@ -174,7 +190,12 @@
     // { date, description, store, category?, amount>0, type 'Gasto'|'Ingreso', error? }
     function buildRows(table, mapping) {
         const { mode = 'single', date, description, amount, debit, credit, category, store, balance,
-            dateFormat = 'auto', decimal = 'auto', expensesAre = 'negative' } = mapping;
+            dateFormat = 'auto', expensesAre = 'negative' } = mapping;
+        let decimal = mapping.decimal || 'auto';
+        if (decimal === 'auto') {
+            const cols = [amount, debit, credit, balance].filter(c => c !== undefined && c !== null && c >= 0);
+            decimal = detectDecimal([].concat(...table.map(r => cols.map(c => r[c]))));
+        }
         return table.map((cells, i) => {
             const get = (idx) => (idx !== undefined && idx !== null && idx >= 0 ? cells[idx] : '');
             const out = { index: i, date: parseDate(get(date), dateFormat), description: get(description) || '', store: get(store) || '', category: get(category) || '' };
@@ -203,6 +224,10 @@
         return (transactions || []).some(t => t.date === row.date && Math.abs(Number(t.amount) - row.amount) < 0.005
             && (t.type || 'Gasto') === row.type && (norm(t.description).slice(0, 12) === d || !d));
     }
+
+    // A fingerprint of the row as it came in the file, kept on the imported transaction so the
+    // same row is recognized next time even if you gave it your own description.
+    const importRef = (row) => `${row.date}|${Math.round(Number(row.amount) * 100)}|${row.type || 'Gasto'}|${norm(row.description).slice(0, 24)}`;
 
     // First rule whose text appears in the description (or place) wins.
     function applyRules(rules, text) {
@@ -290,7 +315,7 @@
         return '﻿' + rows.map(r => r.map(cell).join(delimiter)).join('\r\n') + '\r\n';
     }
 
-    const Importers = { latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    const Importers = { importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
     if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
     else root.Importers = Importers;
 })(this);

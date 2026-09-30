@@ -28,6 +28,17 @@ test('amounts in any style', () => {
     assert.equal(I.parseAmount('abc'), null);
 });
 
+test('decimal separator decided by the whole column, not one value', () => {
+    assert.equal(I.detectDecimal(['208.33900000000003', '189.464', '273.841', '173.94']), '.');
+    assert.equal(I.detectDecimal(['1.254,50', '45,50', '1.200']), ',');
+    assert.equal(I.detectDecimal(['1.200', '45']), 'auto');
+    const m = { mode: 'single', date: 0, description: 1, amount: 2, expensesAre: 'positive' };
+    const rows = I.buildRows([['2023-06-18', 'Luz', '220.38099999999997'], ['2023-07-18', 'Luz', '273.841'], ['2023-08-16', 'Luz', '248.71']], m);
+    assert.deepEqual(rows.map(r => r.amount), [220.38, 273.84, 248.71]);
+    // A file with only thousands-style values keeps reading them as thousands.
+    assert.equal(I.buildRows([['2023-06-18', 'Casa', '1.200']], m)[0].amount, 1200);
+});
+
 test('dates: Ecuador day-first by default, ISO, month names', () => {
     assert.equal(I.parseDate('05/09/2026'), '2026-09-05');
     assert.equal(I.parseDate('09/25/2026'), '2026-09-25');          // 25 can't be a month
@@ -58,6 +69,7 @@ test('column guess, rows and duplicates', () => {
     assert.deepEqual([pos[0].type, pos[0].amount, pos[0].category], ['Gasto', 4.5, 'Food']);
     assert.ok(I.isDuplicate(rows[0], [{ type: 'Gasto', date: '2026-09-01', amount: 45.5, description: 'SUPERMAXI' }]));
     assert.ok(!I.isDuplicate(rows[0], [{ type: 'Gasto', date: '2026-09-02', amount: 45.5, description: 'Supermaxi' }]));
+    assert.equal(I.importRef(rows[0]), '2026-09-01|4550|Gasto|supermaxi');
 });
 
 test('running balance column gives the account balance after the latest movement', () => {

@@ -35,17 +35,31 @@
     function resolve(row, catMap) {
         const tax = row.type === 'Ingreso' ? incomeTax() : expenseTax();
         const rule = Importers.applyRules(Store.state.rules, `${row.description} ${row.store}`);
-        if (rule && tax[rule.category]) return { category: rule.category, sub: rule.sub && (tax[rule.category] || []).includes(rule.sub) ? rule.sub : firstSub(tax, rule.category), budgetLine: rule.budgetLine || '', why: `regla «${rule.contains}»` };
+        if (rule && tax[rule.category]) return { category: rule.category, sub: rule.sub && (tax[rule.category] || []).includes(rule.sub) ? rule.sub : firstSub(tax, rule.category), budgetLine: rule.budgetLine || '', why: `Por la regla «${rule.contains}»` };
         const mapped = row.category && catMap ? catMap[row.category] : null;
-        if (mapped && tax[mapped]) return { category: mapped, sub: firstSub(tax, mapped), why: 'categoría del archivo' };
-        if (row.category && tax[row.category]) return { category: row.category, sub: firstSub(tax, row.category), why: 'categoría del archivo' };
+        if (mapped && tax[mapped]) return { category: mapped, sub: firstSub(tax, mapped), why: 'Por la categoría del archivo' };
+        if (row.category && tax[row.category]) return { category: row.category, sub: firstSub(tax, row.category), why: 'Por la categoría del archivo' };
         if (row.type !== 'Ingreso') {
             const hay = Importers.norm(`${row.description} ${row.store}`);
             const k = KEYWORDS.find(([re, cat]) => re.test(hay) && tax[cat]);
-            if (k) return { category: k[1], sub: firstSub(tax, k[1]), why: 'comercio conocido' };
+            if (k) return { category: k[1], sub: firstSub(tax, k[1]), why: 'Por el comercio' };
         }
         const fallback = row.type === 'Ingreso' ? (tax['Otros Ingresos'] ? 'Otros Ingresos' : Object.keys(tax)[0]) : (tax.Otros ? 'Otros' : Object.keys(tax)[0]);
         return { category: fallback, sub: firstSub(tax, fallback), why: '' };
+    }
+
+    const NO_DESC = '(sin descripción)';
+    function editRow(i, change) {
+        const e = session.edits[i] || (session.edits[i] = {});
+        Object.keys(change).forEach(k => { if (change[k] === undefined) delete e[k]; else e[k] = change[k]; });
+    }
+    function lineItems() { return Engine.monthItems(Store.effective(Store.state.activeYear), 'base').filter(i => i.type !== 'Ingreso'); }
+    function bulkLabel(d) {
+        return [d.description ? `«${d.description}»` : '', d.category ? d.category + (d.sub ? ` › ${d.sub}` : '') : '', d.budgetLine ? `rubro ${lineName(d.budgetLine)}` : ''].filter(Boolean).join(', ');
+    }
+    function detectedDecimal(s) {
+        const m = s.mapping, cols = [m.amount, m.debit, m.credit, m.balance].filter(c => c !== undefined && c >= 0);
+        return Importers.detectDecimal([].concat(...s.table.map(r => cols.map(c => r[c]))));
     }
 
     // Read a text file, trying UTF-8 first and falling back to Windows-1252 (common in bank exports).
@@ -80,7 +94,7 @@
         const parsed = Importers.parseCSV(text);
         if (parsed.rows.length < 2) { UI.toast('No encontramos filas en ese archivo. ¿Es un CSV?', 'error'); return; }
         const headerRow = guessHeaderRow(parsed.rows);
-        session = { source: 'csv', name, all: parsed.rows, headerRow, include: {}, catOverride: {} };
+        session = { source: 'csv', name, all: parsed.rows, headerRow, include: {}, edits: {}, remember: true };
         applyHeader();
     }
 
@@ -94,6 +108,8 @@
         s.mapping = Object.assign({ dateFormat: 'auto', decimal: 'auto', expensesAre: 'negative' }, Importers.guessMapping(s.headers), saved ? saved.mapping : {});
         s.catMap = Object.assign({}, saved ? saved.catMap : {});
         s.fromProfile = !!saved;
+        // What was applied to every row last time (e.g. "Luz eléctrica" → Servicios básicos).
+        s.defaults = saved && saved.defaults ? Object.assign({}, saved.defaults) : null;
         recompute();
         renderSetup();
     }
@@ -102,13 +118,22 @@
         const s = session;
         let rows;
         if (s.source === 'csv') rows = Importers.buildRows(s.table, s.mapping);
-        else rows = s.rows;
+        else rows = s.base || s.rows;
         s.rows = rows.map((r, i) => {
-            const res = r.error ? { category: '', sub: '' } : resolve(r, s.catMap);
-            const override = s.catOverride[i];
-            const dup = !r.error && (!!r.dupKey || Importers.isDuplicate(r, Store.state.transactions));
+            const out = Object.assign({}, r, r.error ? { category: '', sub: '' } : resolve(r, s.catMap));
+            // Your changes: the ones for every row (saved for this kind of file) and then this row's own.
+            const e = Object.assign({}, s.defaults || {}, s.edits[i] || {});
+            const tax = r.type === 'Ingreso' ? incomeTax() : expenseTax();
+            if (!r.error) {
+                if (e.category && tax[e.category]) Object.assign(out, { category: e.category, sub: firstSub(tax, e.category), why: 'Elegida por ti' });
+                if (e.sub && (tax[out.category] || []).includes(e.sub)) out.sub = e.sub;
+                if (e.description) out.description = e.description;
+                if (e.budgetLine !== undefined && r.type !== 'Ingreso') out.budgetLine = e.budgetLine;
+            }
+            out.ref = r.error ? '' : Importers.importRef(r);
+            const dup = !r.error && (!!r.dupKey || Importers.isDuplicate(out, Store.state.transactions) || Importers.isDuplicate(r, Store.state.transactions) || Store.state.transactions.some(t => t.importRef === out.ref));
             const include = s.include[i] !== undefined ? s.include[i] : !r.error && !dup;
-            return Object.assign({}, r, res, override ? { category: override, sub: firstSub(r.type === 'Ingreso' ? incomeTax() : expenseTax(), override), why: 'elegida por ti' } : {}, { dup, include: !r.error && include });
+            return Object.assign(out, { dup, include: !r.error && include });
         });
         renderPreview();
     }
@@ -117,7 +142,7 @@
         const s = session;
         UI.show('imp-setup', s.source === 'csv');
         if (s.source !== 'csv') return;
-        UI.html('imp-profile-note', s.fromProfile ? '<i class="fa-solid fa-circle-check text-emerald-600"></i> Usamos la configuración que guardaste para archivos como este. Puedes cambiarla.' : 'Revisamos los títulos y adivinamos lo que pudimos. Corrige lo que haga falta: la vista previa se actualiza sola.');
+        UI.html('imp-profile-note', s.fromProfile ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> Usamos la configuración que guardaste para archivos como este${s.defaults ? ` (y a todas las filas: ${esc(bulkLabel(s.defaults))})` : ''}. Puedes cambiarla.` : 'Revisamos los títulos y adivinamos lo que pudimos. Corrige lo que haga falta: la vista previa se actualiza sola.');
         const colOpts = (sel) => `<option value="-1">— Ninguna —</option>` + s.headers.map((h, i) => `<option value="${i}" ${Number(sel) === i ? 'selected' : ''}>${esc(h)}</option>`).join('');
         const m = s.mapping;
         const field = (f) => (f.mode && f.mode !== m.mode) ? '' : `<label class="field"><span class="field-label">${f.label}${f.required ? ' *' : ''}</span><select class="input" data-change="imp.map" data-key="${f.key}">${colOpts(m[f.key])}</select></label>`;
@@ -128,7 +153,7 @@
             ...FIELDS.map(field),
             m.mode === 'single' ? sel('expensesAre', 'En esa columna los gastos son…', [['negative', 'Negativos (−45.50)'], ['positive', 'Positivos (todo es gasto)']]) : '',
             sel('dateFormat', 'Formato de fecha', [['auto', 'Detectar (día primero)'], ['dmy', 'Día/Mes/Año'], ['mdy', 'Mes/Día/Año'], ['ymd', 'Año-Mes-Día']]),
-            sel('decimal', 'Separador decimal', [['auto', 'Detectar'], ['.', 'Punto (1,234.50)'], [',', 'Coma (1.234,50)']]),
+            sel('decimal', 'Separador decimal', [['auto', `Detectar (${{ '.': 'punto', ',': 'coma' }[detectedDecimal(s)] || 'fila por fila'})`], ['.', 'Punto (1,234.50)'], [',', 'Coma (1.234,50)']]),
             m.balance >= 0 ? `<label class="field"><span class="field-label">Actualizar el saldo de</span><select class="input" data-change="imp.account">${[['', 'No actualizar ninguna cuenta'], ['new', 'Una cuenta nueva']].concat((Store.state.accounts || []).map(a => [String(a.id), a.name])).map(([v, l]) => `<option value="${v}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>` : ''
         ].join(''));
         // First rows as they are in the file, so the columns are easy to recognize.
@@ -155,18 +180,47 @@
         const ms = document.getElementById('imp-member');
         UI.show(ms, members.length > 0);
         if (members.length && !ms.options.length) ms.innerHTML = `<option value="">¿De quién? (nadie)</option>` + members.map(p => `<option value="${p.id}">De ${esc(p.name)}</option>`).join('');
+        renderBulk(ok.length);
         const catOptions = (r) => Object.keys(r.type === 'Ingreso' ? incomeTax() : expenseTax()).map(c => `<option ${c === r.category ? 'selected' : ''}>${esc(c)}</option>`).join('');
         UI.html('imp-rows', s.rows.slice(0, 500).map((r, i) => `<tr class="${r.error ? 'opacity-60' : ''}">
                 <td class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggle" data-i="${i}" ${r.include ? 'checked' : ''} ${r.error ? 'disabled' : ''}></td>
                 <td class="whitespace-nowrap text-xs">${esc(r.date || '—')}</td>
-                <td><div class="font-semibold text-xs">${esc(r.description)}</div>${r.store ? `<div class="text-[10px] text-slate-500">${esc(r.store)}</div>` : ''}${r.items && r.items.length ? `<div class="text-[10px] text-slate-500">${r.items.length} producto${r.items.length === 1 ? '' : 's'}${r.iva ? ` · IVA ${money(r.iva)}` : ''}</div>` : ''}</td>
-                <td>${r.error ? '—' : `<select class="cell-input text-xs" data-change="imp.cat" data-i="${i}">${catOptions(r)}</select>${r.why ? `<div class="text-[10px] text-slate-400">por ${esc(r.why)}</div>` : ''}`}</td>
+                <td>${r.error ? `<div class="font-semibold text-xs">${esc(r.description)}</div>` : `<input class="cell-input text-xs font-semibold imp-desc" value="${r.description === NO_DESC ? '' : esc(r.description)}" placeholder="Sin descripción: escribe una" data-change="imp.desc" data-i="${i}" aria-label="Descripción">`}${r.store ? `<div class="text-[10px] text-slate-500">${esc(r.store)}</div>` : ''}${r.items && r.items.length ? `<div class="text-[10px] text-slate-500">${r.items.length} producto${r.items.length === 1 ? '' : 's'}${r.iva ? ` · IVA ${money(r.iva)}` : ''}</div>` : ''}</td>
+                <td>${r.error ? '—' : `<select class="cell-input text-xs" data-change="imp.cat" data-i="${i}">${catOptions(r)}</select>${r.why ? `<div class="text-[10px] text-slate-400">${esc(r.why)}</div>` : ''}${r.budgetLine && r.type !== 'Ingreso' ? `<div class="text-[10px] text-blue-600">Rubro: ${esc(lineName(r.budgetLine))}</div>` : ''}`}</td>
                 <td class="num font-bold ${r.type === 'Ingreso' ? 'text-emerald-700' : ''}">${r.error ? '' : (r.type === 'Ingreso' ? '+' : '−') + money(r.amount)}</td>
                 <td class="text-xs">${r.error ? `<span class="badge badge-bad">${esc(r.error)}</span>` : r.dup ? '<span class="badge badge-warn">Ya existe</span>' : '<span class="badge badge-ok">Nueva</span>'}</td>
             </tr>`).join('') + (s.rows.length > 500 ? `<tr><td colspan="6" class="text-xs text-slate-500">Mostrando 500 de ${s.rows.length}; se importan todas las marcadas.</td></tr>` : ''));
     }
 
+    // One change for every checked row: category, budget line and/or your own description.
+    function renderBulk(n) {
+        const s = session;
+        const host = document.getElementById('imp-bulk');
+        if (!host.dataset.ready || host.dataset.session !== s.name) {
+            const cats = (tax, pre) => Object.keys(tax).map(c => `<option value="${pre}|${esc(c)}">${esc(c)}</option>`).join('');
+            host.innerHTML = `
+                <div class="section-label"><i class="fa-solid fa-layer-group text-blue-600"></i> Cambiar todas las filas marcadas a la vez</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                    <label class="field"><span class="field-label">Descripción</span><input id="imp-bulk-desc" class="input" placeholder="Ej: Luz eléctrica" autocomplete="off" maxlength="120"></label>
+                    <label class="field"><span class="field-label">Categoría</span><select id="imp-bulk-cat" class="input" data-change="imp.bulkCat"><option value="">— Sin cambio —</option><optgroup label="Gastos">${cats(expenseTax(), 'G')}</optgroup><optgroup label="Ingresos">${cats(incomeTax(), 'I')}</optgroup></select></label>
+                    <label class="field"><span class="field-label">Subcategoría</span><select id="imp-bulk-sub" class="input" disabled><option value="">— Elige categoría —</option></select></label>
+                    <label class="field"><span class="field-label">Rubro del presupuesto</span><select id="imp-bulk-line" class="input"><option value="-">— Sin cambio —</option><option value="">Automático (según la categoría)</option>${lineItems().map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join('')}</select></label>
+                </div>
+                <div class="flex flex-wrap items-center gap-3 mt-2">
+                    <button type="button" class="btn btn-primary btn-sm" data-action="imp.bulkApply" id="imp-bulk-apply"></button>
+                    ${s.source === 'csv' ? `<label class="check text-xs"><input type="checkbox" data-change="imp.remember" ${s.remember ? 'checked' : ''}> Recordar para archivos como este</label>` : ''}
+                    <span class="help">Luego puedes cambiar cualquier fila por separado.</span>
+                </div>`;
+            host.dataset.ready = '1';
+            host.dataset.session = s.name;
+        }
+        document.getElementById('imp-bulk-apply').innerHTML = `<i class="fa-solid fa-check-double"></i> Aplicar a ${n} fila${n === 1 ? '' : 's'} marcada${n === 1 ? '' : 's'}`;
+        document.getElementById('imp-bulk-apply').disabled = n === 0;
+    }
+
     function endSession() {
+        const bulk = document.getElementById('imp-bulk');
+        if (bulk) { bulk.innerHTML = ''; delete bulk.dataset.ready; }
         session = null;
         UI.html('imp-member', '');
         ['imp-file', 'imp-xml'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -220,7 +274,7 @@
         'imp.headerRow': (el) => {
             if (!session) return;
             session.headerRow = Math.max(0, Math.min(session.all.length - 2, (parseInt(el.value, 10) || 1) - 1));
-            session.include = {}; session.catOverride = {};
+            session.include = {}; session.edits = {};
             applyHeader();
         },
         'imp.map': (el) => {
@@ -237,7 +291,41 @@
             recompute();
         },
         'imp.account': (el) => { if (session) session.account = el.value; },
-        'imp.cat': (el) => { if (!session) return; session.catOverride[Number(el.dataset.i)] = el.value; recompute(); },
+        'imp.cat': (el) => { if (!session) return; editRow(Number(el.dataset.i), { category: el.value, sub: undefined }); recompute(); },
+        'imp.desc': (el) => { if (!session) return; editRow(Number(el.dataset.i), { description: el.value.trim().slice(0, 120) }); recompute(); },
+        'imp.bulkCat': (el) => {
+            const sub = document.getElementById('imp-bulk-sub');
+            const cat = el.value.slice(2), tax = el.value.startsWith('I|') ? incomeTax() : expenseTax();
+            sub.innerHTML = `<option value="">${cat ? 'La primera' : '— Elige categoría —'}</option>` + (tax[cat] || []).map(c => `<option>${esc(c)}</option>`).join('');
+            sub.disabled = !cat;
+        },
+        'imp.bulkApply': () => {
+            if (!session) return;
+            const s = session;
+            const catVal = document.getElementById('imp-bulk-cat').value;
+            const change = {};
+            if (catVal) { change.category = catVal.slice(2); change.sub = document.getElementById('imp-bulk-sub').value || undefined; }
+            const line = document.getElementById('imp-bulk-line').value;
+            if (line !== '-') change.budgetLine = line;
+            const desc = document.getElementById('imp-bulk-desc').value.trim().slice(0, 120);
+            if (desc) change.description = desc;
+            if (!Object.keys(change).length) { UI.toast('Elige una categoría, un rubro o escribe una descripción para aplicar.', 'error'); return; }
+            const targets = s.rows.map((r, i) => (r.include ? i : -1)).filter(i => i >= 0);
+            if (!targets.length) { UI.toast('Marca al menos una fila.', 'error'); return; }
+            let skipped = 0;
+            targets.forEach(i => {
+                const r = s.rows[i];
+                const tax = r.type === 'Ingreso' ? incomeTax() : expenseTax();
+                const c = Object.assign({}, change);
+                if (c.category && !tax[c.category]) { delete c.category; delete c.sub; skipped++; }
+                editRow(i, c);
+            });
+            // Kept for next time (only when it was applied to the whole file).
+            s.bulk = targets.length === s.rows.filter(r => !r.error).length ? Object.assign({}, s.bulk || {}, change) : null;
+            recompute();
+            UI.toast(`Aplicado a ${targets.length} fila${targets.length === 1 ? '' : 's'}.${skipped ? ` La categoría no se cambió en ${skipped} (${change.category} no es de ese tipo).` : ''}`);
+        },
+        'imp.remember': (el) => { if (session) session.remember = el.checked; },
         'imp.toggle': (el) => { if (!session) return; session.include[Number(el.dataset.i)] = el.checked; recompute(); },
         'imp.toggleAll': (el) => { if (!session) return; session.rows.forEach((r, i) => { if (!r.error) session.include[i] = el.checked; }); recompute(); },
         'imp.cancel': () => endSession(),
@@ -249,9 +337,11 @@
             let id = Store.nextId(txns);
             const memberId = Number(document.getElementById('imp-member').value) || undefined;
             rows.forEach(r => {
-                const t = { id: id++, type: r.type, description: r.description.slice(0, 120), store: (r.store || '').slice(0, 80), parentCategory: r.category, category: r.sub || '', amount: r.amount, date: r.date, paymentType: r.payment || 'Transferencia', source: s.source };
+                const desc = r.description && r.description !== NO_DESC ? r.description : (r.store || r.category);
+                const t = { id: id++, type: r.type, description: desc.slice(0, 120), store: (r.store || '').slice(0, 80), parentCategory: r.category, category: r.sub || '', amount: r.amount, date: r.date, paymentType: r.payment || 'Transferencia', source: s.source };
                 if (r.budgetLine && r.type !== 'Ingreso') t.budgetLine = String(r.budgetLine);
                 if (r.invoice) t.invoice = r.invoice;
+                if (r.ref) t.importRef = r.ref;
                 if (memberId) t.memberId = memberId;
                 txns.push(t);
             });
@@ -259,7 +349,11 @@
             if (s.source === 'csv') {
                 const profiles = Store.state.settings.importProfiles || (Store.state.settings.importProfiles = {});
                 const { date, description, amount, debit, credit, store, category, mode, dateFormat, decimal, expensesAre } = s.mapping;
+                const prev = profiles[s.signature];
+                const defaults = s.remember ? (s.bulk ? Object.assign({}, s.defaults || {}, s.bulk) : s.defaults) : null;
                 profiles[s.signature] = { mapping: { date, description, amount, debit, credit, store, category, mode, dateFormat, decimal, expensesAre }, catMap: s.catMap, name: s.name, savedAt: new Date().toISOString().slice(0, 10) };
+                if (defaults && Object.keys(defaults).length) profiles[s.signature].defaults = defaults;
+                else if (prev && prev.defaults && s.remember && !s.bulk) profiles[s.signature].defaults = prev.defaults;
             }
             // The statement's running balance updates the chosen account.
             let balanceNote = '';
@@ -290,7 +384,7 @@
             }
             if (bad.length) UI.toast(`No parece${bad.length === 1 ? '' : 'n'} factura${bad.length === 1 ? '' : 's'} del SRI: ${bad.join(', ')}`, 'error');
             if (!rows.length) { el.value = ''; return; }
-            session = { source: 'sri', name: `${rows.length} factura${rows.length === 1 ? '' : 's'} electrónica${rows.length === 1 ? '' : 's'}`, rows, include: {}, catOverride: {}, catMap: {} };
+            session = { source: 'sri', name: `${rows.length} factura${rows.length === 1 ? '' : 's'} electrónica${rows.length === 1 ? '' : 's'}`, rows, base: rows, include: {}, edits: {}, catMap: {} };
             // Same invoice twice → duplicate by its access key too.
             session.rows = rows.map(r => Object.assign(r, { dupKey: Store.state.transactions.some(t => t.invoice && t.invoice.accessKey && t.invoice.accessKey === r.invoice.accessKey) }));
             recompute();
