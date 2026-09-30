@@ -82,6 +82,20 @@ test('running balance column gives the account balance after the latest movement
     assert.equal(I.latestBalance(I.buildRows([['01/09/2026', 'A', '10', '']], { ...m, balance: -1 })), null);
 });
 
+test('a manual entry and the bank line for it are matched by amount and nearby date', () => {
+    const txns = [
+        { id: 1, type: 'Gasto', date: '2026-09-12', amount: 45.5, description: 'Supermaxi' },
+        { id: 2, type: 'Gasto', date: '2026-09-20', amount: 45.5, description: 'Otra compra' },
+        { id: 3, type: 'Ingreso', date: '2026-09-14', amount: 45.5, description: 'Reembolso' }
+    ];
+    const row = { type: 'Gasto', date: '2026-09-14', amount: 45.5, description: 'COMPRA SUPERMAXI EL BOSQUE' };
+    const m = I.findMatch(row, txns);
+    assert.equal(m.txn.id, 1); assert.equal(m.days, 2);
+    assert.equal(I.findMatch(row, txns, { exclude: new Set([1]) }), null);          // 20 sep is 6 days away
+    assert.equal(I.findMatch({ ...row, amount: 45.51 }, txns), null);
+    assert.equal(I.findMatch({ ...row, type: 'Ingreso' }, txns).txn.id, 3);
+});
+
 test('categorization rules match text regardless of case and accents', () => {
     const rules = [{ contains: 'farmacia', category: 'Salud' }, { contains: 'SUPERMAXI', category: 'Alimentación' }];
     assert.equal(I.applyRules(rules, 'Farmacia Fybeca').category, 'Salud');

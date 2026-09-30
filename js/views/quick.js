@@ -91,7 +91,7 @@
             s.transactions.push(t);
             state.sheet.close();
             App.changed({ structural: true, step: true });
-            UI.toast(`${state.type === 'Ingreso' ? '+' : '−'}${money(amount)} en ${cat} registrado.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            if (!TxnForm.warnIfImported(t)) UI.toast(`${state.type === 'Ingreso' ? '+' : '−'}${money(amount)} en ${cat} registrado.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         }
     });
 

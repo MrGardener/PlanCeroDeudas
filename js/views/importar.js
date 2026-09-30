@@ -119,6 +119,9 @@
         let rows;
         if (s.source === 'csv') rows = Importers.buildRows(s.table, s.mapping);
         else rows = s.base || s.rows;
+        // Transactions typed by hand (not from a file) can be the same money as a bank row.
+        const manual = Store.state.transactions.filter(t => !t.importRef && !t.invoice && t.source !== 'csv');
+        const used = new Set();
         s.rows = rows.map((r, i) => {
             const out = Object.assign({}, r, r.error ? { category: '', sub: '' } : resolve(r, s.catMap));
             // Your changes: the ones for every row (saved for this kind of file) and then this row's own.
@@ -132,8 +135,13 @@
             }
             out.ref = r.error ? '' : Importers.importRef(r);
             const dup = !r.error && (!!r.dupKey || Importers.isDuplicate(out, Store.state.transactions) || Importers.isDuplicate(r, Store.state.transactions) || Store.state.transactions.some(t => t.importRef === out.ref));
-            const include = s.include[i] !== undefined ? s.include[i] : !r.error && !dup;
-            return Object.assign(out, { dup, include: !r.error && include });
+            let match = null;
+            if (!r.error && !dup) {
+                const m = Importers.findMatch(out, manual, { exclude: used });
+                if (m) { used.add(m.txn.id); match = { id: m.txn.id, description: m.txn.description, date: m.txn.date, days: m.days }; }
+            }
+            const include = s.include[i] !== undefined ? s.include[i] : !r.error && !dup && !match;
+            return Object.assign(out, { dup, match, include: !r.error && include });
         });
         renderPreview();
     }
@@ -173,9 +181,10 @@
         if (!s) return;
         const ok = s.rows.filter(r => r.include);
         const dups = s.rows.filter(r => r.dup).length, errs = s.rows.filter(r => r.error).length;
-        UI.html('imp-summary', `<strong>${esc(s.name)}</strong>: ${s.rows.length} fila${s.rows.length === 1 ? '' : 's'} · <span class="text-emerald-700 font-bold">${ok.length} para importar</span>${dups ? ` · ${dups} ya registrada${dups === 1 ? '' : 's'} (desmarcada${dups === 1 ? '' : 's'})` : ''}${errs ? ` · <span class="text-red-600">${errs} con errores (se omiten)</span>` : ''}`);
-        document.getElementById('imp-commit').innerHTML = `<i class="fa-solid fa-file-import"></i> Importar ${ok.length}`;
-        document.getElementById('imp-commit').disabled = ok.length === 0;
+        const links = s.rows.filter(r => r.match && !r.include).length, matches = s.rows.filter(r => r.match).length;
+        UI.html('imp-summary', `<strong>${esc(s.name)}</strong>: ${s.rows.length} fila${s.rows.length === 1 ? '' : 's'} · <span class="text-emerald-700 font-bold">${ok.length} para importar</span>${dups ? ` · ${dups} ya registrada${dups === 1 ? '' : 's'} (desmarcada${dups === 1 ? '' : 's'})` : ''}${matches ? ` · <span class="text-amber-700 font-bold">${matches} parece${matches === 1 ? '' : 'n'} ser lo que ya anotaste a mano</span>` : ''}${errs ? ` · <span class="text-red-600">${errs} con errores (se omiten)</span>` : ''}`);
+        document.getElementById('imp-commit').innerHTML = `<i class="fa-solid fa-file-import"></i> Importar ${ok.length}${links ? ` · vincular ${links}` : ''}`;
+        document.getElementById('imp-commit').disabled = ok.length === 0 && links === 0;
         const members = Store.state.members || [];
         const ms = document.getElementById('imp-member');
         UI.show(ms, members.length > 0);
@@ -188,8 +197,17 @@
                 <td>${r.error ? `<div class="font-semibold text-xs">${esc(r.description)}</div>` : `<input class="cell-input text-xs font-semibold imp-desc" value="${r.description === NO_DESC ? '' : esc(r.description)}" placeholder="Sin descripción: escribe una" data-change="imp.desc" data-i="${i}" aria-label="Descripción">`}${r.store ? `<div class="text-[10px] text-slate-500">${esc(r.store)}</div>` : ''}${r.items && r.items.length ? `<div class="text-[10px] text-slate-500">${r.items.length} producto${r.items.length === 1 ? '' : 's'}${r.iva ? ` · IVA ${money(r.iva)}` : ''}</div>` : ''}</td>
                 <td>${r.error ? '—' : `<select class="cell-input text-xs" data-change="imp.cat" data-i="${i}">${catOptions(r)}</select>${r.why ? `<div class="text-[10px] text-slate-400">${esc(r.why)}</div>` : ''}${r.budgetLine && r.type !== 'Ingreso' ? `<div class="text-[10px] text-blue-600">Rubro: ${esc(lineName(r.budgetLine))}</div>` : ''}`}</td>
                 <td class="num font-bold ${r.type === 'Ingreso' ? 'text-emerald-700' : ''}">${r.error ? '' : (r.type === 'Ingreso' ? '+' : '−') + money(r.amount)}</td>
-                <td class="text-xs">${r.error ? `<span class="badge badge-bad">${esc(r.error)}</span>` : r.dup ? '<span class="badge badge-warn">Ya existe</span>' : '<span class="badge badge-ok">Nueva</span>'}</td>
+                <td class="text-xs">${r.error ? `<span class="badge badge-bad">${esc(r.error)}</span>` : r.dup ? '<span class="badge badge-warn">Ya existe</span>' : r.match ? matchCell(r, i) : '<span class="badge badge-ok">Nueva</span>'}</td>
             </tr>`).join('') + (s.rows.length > 500 ? `<tr><td colspan="6" class="text-xs text-slate-500">Mostrando 500 de ${s.rows.length}; se importan todas las marcadas.</td></tr>` : ''));
+    }
+
+    // A bank row that looks like something typed by hand: unchecked (it's the same money) until
+    // you say it's a different purchase.
+    function matchCell(r, i) {
+        const when = r.match.days === 0 ? 'el mismo día' : `${r.match.days} día${r.match.days === 1 ? '' : 's'} ${r.match.date < r.date ? 'antes' : 'después'}`;
+        return r.include
+            ? `<span class="badge badge-ok">Nueva</span><div class="text-[10px] text-slate-500 mt-1">Importarás las dos. <button type="button" class="link" data-action="imp.same" data-i="${i}">Es la misma</button></div>`
+            : `<span class="badge badge-warn" title="Mismo monto, ${when}">¿Ya la anotaste?</span><div class="text-[10px] text-slate-600 mt-1 imp-match">Igual a «${esc(r.match.description)}» (${esc(r.match.date)}, a mano). No se duplicará. <button type="button" class="link" data-action="imp.other" data-i="${i}">Es otro gasto</button></div>`;
     }
 
     // One change for every checked row: category, budget line and/or your own description.
@@ -326,6 +344,8 @@
             UI.toast(`Aplicado a ${targets.length} fila${targets.length === 1 ? '' : 's'}.${skipped ? ` La categoría no se cambió en ${skipped} (${change.category} no es de ese tipo).` : ''}`);
         },
         'imp.remember': (el) => { if (session) session.remember = el.checked; },
+        'imp.same': (el) => { if (!session) return; session.include[Number(el.dataset.i)] = false; recompute(); },
+        'imp.other': (el) => { if (!session) return; session.include[Number(el.dataset.i)] = true; recompute(); },
         'imp.toggle': (el) => { if (!session) return; session.include[Number(el.dataset.i)] = el.checked; recompute(); },
         'imp.toggleAll': (el) => { if (!session) return; session.rows.forEach((r, i) => { if (!r.error) session.include[i] = el.checked; }); recompute(); },
         'imp.cancel': () => endSession(),
@@ -365,10 +385,18 @@
                 a.balance = lb.balance; a.updatedAt = lb.date;
                 balanceNote = ` Saldo de "${a.name}": ${money(lb.balance)} (${lb.date}).`;
             }
-            const skipped = s.rows.length - rows.length;
+            // Rows that are the same money as a hand-typed transaction: nothing new is added, but the
+            // manual one remembers the bank row so the next statement recognizes it right away.
+            let linked = 0;
+            s.rows.forEach(r => {
+                if (r.include || !r.match) return;
+                const t = txns.find(x => x.id === r.match.id);
+                if (t && !t.importRef) { t.importRef = r.ref; if (r.invoice && !t.invoice) t.invoice = r.invoice; linked++; }
+            });
+            const skipped = s.rows.length - rows.length - linked;
             endSession();
             App.changed({ structural: true, step: true });
-            UI.toast(`${rows.length} movimiento${rows.length === 1 ? '' : 's'} importado${rows.length === 1 ? '' : 's'}${skipped ? ` (${skipped} omitido${skipped === 1 ? '' : 's'})` : ''}.${balanceNote} Revísalos en Transacciones.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`${rows.length} movimiento${rows.length === 1 ? '' : 's'} importado${rows.length === 1 ? '' : 's'}${skipped ? ` (${skipped} omitido${skipped === 1 ? '' : 's'})` : ''}.${linked ? ` ${linked} ya estaba${linked === 1 ? '' : 'n'} anotado${linked === 1 ? '' : 's'} a mano: no se duplicaron.` : ''}${balanceNote} Revísalos en Transacciones.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         },
         'imp.xml': async (el) => {
             const files = Array.from(el.files || []);

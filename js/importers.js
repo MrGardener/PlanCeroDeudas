@@ -225,6 +225,23 @@
             && (t.type || 'Gasto') === row.type && (norm(t.description).slice(0, 12) === d || !d));
     }
 
+    // The same money logged twice in different words: a purchase typed by hand ("Supermaxi",
+    // 12 sep) and the bank's line for it days later ("COMPRA SUPERMAXI EL BOSQUE", 14 sep).
+    // Same type and amount within `days` days, text ignored; the closest date wins. `exclude`
+    // (a Set of ids) keeps one transaction from matching two rows.
+    function findMatch(row, transactions, { days = 4, exclude } = {}) {
+        if (!row || !row.date || !(Number(row.amount) > 0)) return null;
+        const at = Date.parse(row.date);
+        let best = null;
+        (transactions || []).forEach(t => {
+            if (exclude && exclude.has(t.id)) return;
+            if ((t.type || 'Gasto') !== (row.type || 'Gasto') || Math.abs(Number(t.amount) - Number(row.amount)) >= 0.005 || !t.date) return;
+            const d = Math.abs(Math.round((Date.parse(t.date) - at) / 86400000));
+            if (d <= days && (!best || d < best.days)) best = { txn: t, days: d };
+        });
+        return best;
+    }
+
     // A fingerprint of the row as it came in the file, kept on the imported transaction so the
     // same row is recognized next time even if you gave it your own description.
     const importRef = (row) => `${row.date}|${Math.round(Number(row.amount) * 100)}|${row.type || 'Gasto'}|${norm(row.description).slice(0, 24)}`;
@@ -315,7 +332,7 @@
         return '﻿' + rows.map(r => r.map(cell).join(delimiter)).join('\r\n') + '\r\n';
     }
 
-    const Importers = { importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    const Importers = { findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
     if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
     else root.Importers = Importers;
 })(this);

@@ -374,7 +374,16 @@
         (v.amount ? get('txn-description') : get('txn-amount')).focus();
         UI.toast('Revisa los datos y toca "Agregar Transacción" para guardarla.');
     }
-    window.TxnForm = { prefill };
+    // Typed by hand but the bank file already brought it in? Say so right away, with undo.
+    function warnIfImported(t) {
+        const imported = Store.state.transactions.filter(x => x.id !== t.id && (x.importRef || x.source === 'csv' || x.source === 'sri'));
+        const m = Importers.findMatch(t, imported, { days: 4 });
+        if (!m) return false;
+        UI.toast(`Ojo: ya importaste ${money(m.txn.amount)} el ${m.txn.date} («${m.txn.description}»). Si es el mismo gasto, deshazlo para no contarlo dos veces.`, 'warn', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        return true;
+    }
+
+    window.TxnForm = { prefill, warnIfImported };
 
     UI.register({
         // A matching automatic rule picks the category (and line) while typing a new one.
@@ -531,10 +540,11 @@
             } else if (values.date > todayISO) {
                 UI.toast('Registrada con fecha futura. Para que se repita, elige una opción en "Repetir".', 'warn');
             }
-            s.transactions.push(Object.assign({ id: Store.nextId(s.transactions), createdAt: new Date().toISOString() }, values));
+            const added = Object.assign({ id: Store.nextId(s.transactions), createdAt: new Date().toISOString() }, values);
+            s.transactions.push(added);
             clearForm();
             App.changed({ structural: true, step: true });
-            UI.toast(repeat ? `"${description}" registrada y programada ${FREQ[repeat].toLowerCase()}.` : `Transacción de ${money(amount)} registrada`);
+            if (!warnIfImported(added)) UI.toast(repeat ? `"${description}" registrada y programada ${FREQ[repeat].toLowerCase()}.` : `Transacción de ${money(amount)} registrada`);
             get('txn-description').focus();
         },
         'txn.edit': (el) => {

@@ -52,6 +52,7 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ✅ Dark mode | Configuración → Este dispositivo (Claro / Oscuro / Automático) or the moon button in the header; charts follow |
 | ✅ App lock with a PIN | Configuración → Este dispositivo. Salted PBKDF2 hash, 5 tries then a 30 s wait, locks again after 5 min in the background. Honest caveat shown: it hides the screen, it does not encrypt the data (encryption at rest → stage B). Forgot PIN = wipe this browser and load a backup |
 | ✅ Import: change many rows at once | Review step: one description / category / subcategory / budget line for every checked row, each row still editable (own description too); remembered for files with the same layout. Decimal separator decided by the whole column ("273.841" next to "173.94" is 273.84). Imported rows keep a fingerprint so re-importing is detected even after renaming |
+| ✅ No double counting between hand-typed and imported | Import: a bank/SRI row with the same amount within 4 days of something typed by hand shows "¿Ya la anotaste?" and starts unchecked ("Es otro gasto" to import both); linking keeps your text and remembers the bank row (and the invoice). Typing something a file already brought in warns with Deshacer |
 
 ## Phase 3 — planned (works without a server)
 
@@ -76,7 +77,6 @@ Assessed only; nothing built. "Now" = works in the offline file; "Hosting" = nee
 | Pitfall: irregular / annual bills | Yes, now | Goals with a target date (sinking funds), yearly/semiannual repeats | Small: "gastos anuales" list that turns into a monthly set-aside line; Ecuador items (matrícula vehicular, predial) and irregular income (décimo tercero / cuarto) |
 | Pitfall: drop-off | Partly now | Streak, alerts | Small: weekly review checklist (unassigned, uncategorized, over-budget, next bills). Reminders need hosting |
 | Pitfall: cash-flow blindness | Yes, now | Emergency fund steps | Covered by safe-to-spend + calendar + a "one month ahead" buffer goal |
-| Gap found during this analysis: manual entry + later bank import = double counting | Yes, now | Duplicate check needs same date, amount and similar text | Small–medium: match same amount within ±3 days regardless of text and ask "¿Es la misma que registraste a mano?" |
 
 ## Needs hosting / a server 🌐
 
