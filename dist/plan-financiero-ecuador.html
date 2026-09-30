@@ -302,6 +302,16 @@ input[type="file"].hidden { display: none; }
 .bill-day b { font-size: .95rem; }
 .bill-item.overdue .bill-day { background: #fee2e2; color: #b91c1c; }
 .bill-item.paid .bill-day { background: #ecfdf5; color: #047857; }
+
+/* ---------------------------------------------------------------- household members */
+.member-chip { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .35rem .2rem .25rem; border: 1px solid #e2e8f0; border-radius: 999px; background: #fff; }
+.member-dot { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; border-radius: 999px; color: #fff; font-size: .72rem; font-weight: 800; flex: 0 0 auto; }
+.member-dot.sm { width: 1.15rem; height: 1.15rem; font-size: .6rem; margin-right: .35rem; vertical-align: text-bottom; }
+
+/* ---------------------------------------------------------------- dashboard: this month */
+.mini-bar { height: 6px; border-radius: 6px; background: #e2e8f0; overflow: hidden; margin-top: .25rem; }
+.mini-bar > span { display: block; height: 100%; border-radius: 6px; }
+.insight-ico { flex: 0 0 auto; width: 1.9rem; height: 1.9rem; border-radius: 999px; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -340,6 +350,38 @@ input[type="file"].hidden { display: none; }
     <div id="dash-hero" class="hero"></div>
     <div id="dash-steps" class="steps steps-compact"></div>
     <div id="dash-kpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4" id="dash-month">
+        <div class="card lg:col-span-2">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-chart-line text-blue-600"></i> Gastado este mes · <span id="dash-month-name"></span></div>
+                    <div class="card-sub" id="dash-curve-note"></div>
+                </div>
+                <span class="kpi-value" id="dash-spent">$0</span>
+            </div>
+            <div class="chart-box"><canvas id="dash-curve-chart"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-calendar-day text-emerald-600"></i> Hoy</div></div>
+            <div id="dash-today" class="space-y-3"></div>
+        </div>
+        <div class="card">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-arrow-right-arrow-left text-teal-600"></i> Flujo de caja del mes</div></div>
+            <div id="dash-cash"></div>
+        </div>
+        <div class="card">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-ranking-star text-amber-500"></i> Principales gastos</div><a href="#" class="link text-xs" data-goto="presupuesto/transacciones">Ver todo →</a></div>
+            <div id="dash-top"></div>
+        </div>
+        <div class="card">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-lightbulb text-purple-600"></i> Lo que dicen tus números</div></div>
+            <div id="dash-insights" class="space-y-3"></div>
+        </div>
+        <div class="card lg:col-span-3 hidden" id="dash-members-card">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-people-roof text-teal-600"></i> Aportes del hogar · <span id="dash-members-month"></span></div><a href="#" class="link text-xs" data-goto="config" data-focus="cfg-household">Personas →</a></div>
+            <div id="dash-members"></div>
+        </div>
+    </div>
     <div class="card" id="dash-bills-card">
         <div class="card-head">
             <div>
@@ -485,7 +527,7 @@ input[type="file"].hidden { display: none; }
                 </div>
                 <a href="#" class="link text-xs" data-goto="config" data-focus="cfg-legal">Parámetros legales (IESS, SBU, tabla SRI) →</a>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <label class="field field-box tone-amber">
                     <span class="field-label">Sueldo bruto mensual (<span class="cur">$</span>)</span>
                     <input type="number" class="input" step="50" min="0" data-bind="year.sueldo">
@@ -503,6 +545,11 @@ input[type="file"].hidden { display: none; }
                         <option value="sierra">Sierra y Amazonía (Agosto)</option>
                     </select>
                     <span class="help">Define en qué mes se suma al ingreso.</span>
+                </label>
+                <label class="field field-box tone-emerald">
+                    <span class="field-label">Días de pago</span>
+                    <input type="text" class="input" id="pay-days" data-change="pay.days" placeholder="Ej: 15, 30" inputmode="numeric">
+                    <span class="help">Qué día(s) del mes cobras. El Resumen te dice cuánto falta.</span>
                 </label>
                 <label class="field field-box tone-slate">
                     <span class="field-label">Cálculo anual de deducibles</span>
@@ -586,6 +633,8 @@ input[type="file"].hidden { display: none; }
                 <label class="field hidden" id="txn-income-field"><span class="field-label">¿Es de un ingreso de tu presupuesto?</span>
                     <select id="txn-income" class="input"></select>
                     <span class="help">Elígelo si este dinero es lo que esperabas de un ingreso mensual (así se marca como recibido). Si no, cuenta como ingreso extra del mes.</span></label>
+                <label class="field hidden" id="txn-member-field"><span class="field-label">¿Quién?</span>
+                    <select id="txn-member" class="input"></select></label>
                 <label class="field"><span class="field-label">Forma de pago</span>
                     <select id="txn-payment" class="input">
                         <option>Efectivo</option><option>Tarjeta de Débito</option><option>Tarjeta de Crédito</option><option>Transferencia</option>
@@ -655,6 +704,7 @@ input[type="file"].hidden { display: none; }
                         <option value="all">Ingresos y gastos</option><option value="Ingreso">Solo ingresos</option><option value="Gasto">Solo gastos</option>
                     </select>
                     <select id="txn-f-category" class="cell-input" style="width:auto" data-change="txn.filter"></select>
+                    <select id="txn-f-member" class="cell-input hidden" style="width:auto" data-change="txn.filter" aria-label="Persona"></select>
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-3 mb-4">
@@ -724,7 +774,8 @@ input[type="file"].hidden { display: none; }
                     <div class="card-title"><i class="fa-solid fa-list-check text-emerald-600"></i> Revisa antes de importar</div>
                     <div class="card-sub" id="imp-summary"></div>
                 </div>
-                <div class="flex flex-wrap gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                    <select id="imp-member" class="cell-input hidden" style="width:auto" aria-label="De quién son estos movimientos"></select>
                     <button class="btn btn-secondary" data-action="imp.cancel">Cancelar</button>
                     <button class="btn btn-primary" data-action="imp.commit" id="imp-commit"><i class="fa-solid fa-file-import"></i> Importar</button>
                 </div>
@@ -1172,6 +1223,12 @@ input[type="file"].hidden { display: none; }
             <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
         </summary>
         <div class="mt-5 space-y-4">
+            <div class="panel tone-slate" id="cfg-household">
+                <div class="section-label"><i class="fa-solid fa-people-roof text-teal-600"></i> Tu hogar</div>
+                <p class="help mb-3">Agrega a las personas que comparten el presupuesto (pareja, hijos que aportan…). En cada transacción podrás decir quién gastó o recibió, y el Resumen muestra cuánto aporta cada uno.</p>
+                <div id="cfg-members" class="flex flex-wrap gap-2 mb-2"></div>
+                <button class="btn btn-secondary btn-sm" data-action="member.add"><i class="fa-solid fa-user-plus"></i> Agregar persona</button>
+            </div>
             <div class="panel tone-slate" id="cfg-prices">
                 <div class="section-label"><i class="fa-solid fa-chart-line text-indigo-600"></i> Precios de inversiones</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
@@ -1496,11 +1553,13 @@ input[type="file"].hidden { display: none; }
                 { id: 3, type: 'Ingreso', description: 'Remesa mensual de mi hermano', store: 'Western Union', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: iso, paymentType: 'Tarjeta de Débito' }
             ],
             taxonomy: { expense: clone(EXPENSE_TAXONOMY), income: clone(INCOME_TAXONOMY) },
-            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '' },
+            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', paydays: [] },
             // "Description contains X → category / budget line", used on import and new transactions.
             rules: [],
             // Investments: { id, ticker, name, kind, shares, price, priceAt, auto }
             holdings: [],
+            // Household members: { id, name, color }. Transactions can say who (memberId).
+            members: [],
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -1901,6 +1960,110 @@ input[type="file"].hidden { display: none; }
         return rows;
     }
 
+    // ------------------------------------------------------------ this month: insights
+    const inMonth = (t, y, m) => { const d = txnDate(t); return d.getFullYear() === Number(y) && d.getMonth() + 1 === Number(m); };
+    const prevMonth = (y, m) => (Number(m) === 1 ? [Number(y) - 1, 12] : [Number(y), Number(m) - 1]);
+    const daysIn = (y, m) => new Date(Number(y), Number(m), 0).getDate();
+
+    // Cumulative spending by day of month, this month (up to `today`) and last month (whole).
+    function monthSpendCurve(transactions, today) {
+        const t = new Date(today);
+        const y = t.getFullYear(), m = t.getMonth() + 1;
+        const [py, pm] = prevMonth(y, m);
+        const build = (yy, mm, upto) => {
+            const days = daysIn(yy, mm);
+            const daily = new Array(days).fill(0);
+            (transactions || []).forEach(x => { if (txnType(x) === 'Gasto' && inMonth(x, yy, mm)) daily[txnDate(x).getDate() - 1] += num(x.amount); });
+            let acc = 0;
+            return daily.map((v, i) => { acc += v; return i < upto ? Math.round(acc * 100) / 100 : null; });
+        };
+        const current = build(y, m, t.getDate());
+        const previous = build(py, pm, daysIn(py, pm));
+        const today_ = current[t.getDate() - 1] || 0;
+        const sameDayLast = previous[Math.min(t.getDate(), previous.length) - 1] || 0;
+        return { current, previous, spent: today_, sameDayLast, diff: today_ - sameDayLast, lastTotal: previous[previous.length - 1] || 0 };
+    }
+
+    // Spending (or income) by category between two dates (inclusive), largest first.
+    function categoryBreakdown(transactions, { from, to, type = 'Gasto' }) {
+        const by = {};
+        let total = 0;
+        (transactions || []).forEach(x => {
+            if (txnType(x) !== type || x.date < from || x.date > to) return;
+            const k = x.parentCategory || 'Otros';
+            by[k] = by[k] || { category: k, amount: 0, count: 0 };
+            by[k].amount += num(x.amount); by[k].count++;
+            total += num(x.amount);
+        });
+        return { total, items: Object.values(by).sort((a, b) => b.amount - a.amount).map(r => Object.assign(r, { share: total ? r.amount / total : 0 })) };
+    }
+
+    function cashFlow(transactions, y, m) {
+        let income = 0, expense = 0;
+        (transactions || []).forEach(x => { if (!inMonth(x, y, m)) return; if (txnType(x) === 'Ingreso') income += num(x.amount); else expense += num(x.amount); });
+        return { income, expense, net: income - expense };
+    }
+
+    // Next payday from days of the month (e.g. [15, 30] for quincenal); 31 means "last day".
+    function nextPayday(paydays, today) {
+        const t = new Date(today);
+        const base = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+        const days = (paydays || []).map(Number).filter(d => d >= 1 && d <= 31);
+        if (!days.length) return null;
+        let best = null;
+        for (let add = 0; add <= 1; add++) {
+            const y = t.getFullYear(), m = t.getMonth() + add;
+            days.forEach(d => {
+                const last = new Date(y, m + 1, 0).getDate();
+                const date = new Date(y, m, Math.min(d, last));
+                if (date >= base && (!best || date < best)) best = date;
+            });
+        }
+        return { date: best, days: Math.round((best - base) / 86400000) };
+    }
+
+    // What can still be spent per day on flexible spending this month.
+    function dailyAllowance({ planned, spent, today }) {
+        const t = new Date(today);
+        const daysLeft = daysIn(t.getFullYear(), t.getMonth() + 1) - t.getDate() + 1;   // today included
+        const remaining = num(planned) - num(spent);
+        return { remaining, daysLeft, perDay: remaining > 0 ? remaining / daysLeft : 0 };
+    }
+
+    // Month-to-date insights: projected month-end spending, where most money goes, and the
+    // category that grew the most vs. the same days of last month.
+    function monthInsights(transactions, today) {
+        const t = new Date(today);
+        const y = t.getFullYear(), m = t.getMonth() + 1, day = t.getDate();
+        const [py, pm] = prevMonth(y, m);
+        const pad = (n) => String(n).padStart(2, '0');
+        const cur = categoryBreakdown(transactions, { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-${pad(day)}` });
+        const lastUpto = Math.min(day, daysIn(py, pm));
+        const prev = categoryBreakdown(transactions, { from: `${py}-${pad(pm)}-01`, to: `${py}-${pad(pm)}-${pad(lastUpto)}` });
+        const projected = day > 0 ? cur.total / day * daysIn(y, m) : 0;
+        const prevBy = Object.fromEntries(prev.items.map(r => [r.category, r.amount]));
+        const jumps = cur.items.map(r => ({ category: r.category, now: r.amount, before: prevBy[r.category] || 0, change: r.amount - (prevBy[r.category] || 0) }))
+            .filter(r => r.before > 0 && r.change > 0).sort((a, b) => b.change - a.change);
+        const drops = prev.items.map(r => ({ category: r.category, before: r.amount, now: (cur.items.find(c => c.category === r.category) || { amount: 0 }).amount }))
+            .map(r => Object.assign(r, { change: r.now - r.before })).filter(r => r.change < 0).sort((a, b) => a.change - b.change);
+        return { spent: cur.total, projected, top: cur.items[0] || null, jump: jumps[0] || null, drop: drops[0] || null, hasHistory: prev.total > 0 };
+    }
+
+    // Income and expenses per household member for a month; transactions with no member go
+    // to "Sin asignar".
+    function memberTotals(transactions, members, y, m) {
+        const rows = (members || []).map(p => ({ id: p.id, name: p.name, color: p.color, income: 0, expense: 0 }));
+        const none = { id: null, name: 'Sin asignar', income: 0, expense: 0 };
+        (transactions || []).forEach(x => {
+            if (!inMonth(x, y, m)) return;
+            const r = rows.find(p => p.id === x.memberId) || none;
+            if (txnType(x) === 'Ingreso') r.income += num(x.amount); else r.expense += num(x.amount);
+        });
+        const all = rows.concat(none.income || none.expense ? [none] : []);
+        const ti = sum(all, r => r.income), te = sum(all, r => r.expense);
+        return { income: ti, expense: te, rows: all.map(r => Object.assign(r, { incomeShare: ti ? r.income / ti : 0, expenseShare: te ? r.expense / te : 0 })) };
+    }
+
     // ------------------------------------------------------------ investments
     // Market value of stock / ETF / fund holdings: shares × last known price.
     const holdingValue = (h) => Math.max(0, num(h.shares)) * Math.max(0, num(h.price));
@@ -2294,6 +2457,7 @@ input[type="file"].hidden { display: none; }
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
+        monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
@@ -3589,6 +3753,113 @@ input[type="file"].hidden { display: none; }
         </div>`;
     }
 
+    // ---------------------------------------------------------------- this month
+    const bar = (share, color) => `<div class="mini-bar"><span style="width:${Math.max(0, Math.min(100, share * 100)).toFixed(1)}%;background:${color}"></span></div>`;
+    const pctChange = (now, before) => before > 0 ? (now - before) / before : null;
+
+    function monthDashboard(ctx) {
+        const s = ctx.state, t = ctx.today;
+        const y = t.getFullYear(), m = String(t.getMonth() + 1);
+        const [py, pm] = m === '1' ? [y - 1, '12'] : [y, String(Number(m) - 1)];
+        UI.text('dash-month-name', `${Fmt.MONTH_NAMES[m - 1]} ${y}`);
+        const txns = s.transactions;
+        const items = Engine.monthItems(Store.effective(y), m);
+        const plannedSpend = items.filter(i => !Engine.isSavingsItem(i)).reduce((a, i) => a + (Number(i.real) || 0), 0);
+
+        // Spending so far vs. last month, day by day.
+        const curve = Engine.monthSpendCurve(txns, t);
+        UI.text('dash-spent', money0(curve.spent));
+        UI.html('dash-curve-note', curve.sameDayLast > 0
+            ? (curve.diff <= 0 ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> Llevas <strong>${money0(-curve.diff)} menos</strong> que el mes pasado a esta fecha.` : `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> Llevas <strong>${money0(curve.diff)} más</strong> que el mes pasado a esta fecha.`)
+            : 'Registra tus gastos: el próximo mes verás la comparación con este.');
+        const days = curve.current.length;
+        const prev = Array.from({ length: days }, (_, i) => i < curve.previous.length ? curve.previous[i] : curve.previous[curve.previous.length - 1]);
+        UI.chart('dash-curve-chart', {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: days }, (_, i) => i + 1),
+                datasets: [
+                    { label: 'Este mes', data: curve.current, borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, fill: true, cubicInterpolationMode: 'monotone' },
+                    { label: 'Mes pasado', data: prev, borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, cubicInterpolationMode: 'monotone' },
+                    { label: 'Planeado', data: Array(days).fill(plannedSpend), borderColor: '#cbd5e1', borderDash: [2, 4], borderWidth: 2, pointRadius: 0, fill: false }
+                ]
+            },
+            options: { interaction: { mode: 'index', intersect: false } }
+        });
+
+        // Today: what's left per day for flexible spending, spent today, payday.
+        const spend = Engine.lineSpend(items, txns, y, m);
+        const flex = items.filter(i => i.type === 'Gasto Variable');
+        const flexPlanned = flex.reduce((a, i) => a + (Number(i.real) || 0), 0);
+        const flexSpent = flex.reduce((a, i) => a + ((spend.byLine[String(i.id)] || {}).spent || 0), 0);
+        const allow = Engine.dailyAllowance({ planned: flexPlanned, spent: flexSpent, today: t });
+        const iso = Engine.isoDate(t);
+        const spentToday = txns.filter(x => (x.type || 'Gasto') === 'Gasto' && x.date === iso).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+        const pay = Engine.nextPayday(s.settings.paydays, t);
+        UI.html('dash-today', `
+            <div class="kpi ${allow.perDay > 0 ? (spentToday > allow.perDay ? 'tone-amber' : 'tone-emerald') : 'tone-red'}">
+                <span class="kpi-label">Puedes gastar hoy</span>
+                <span class="kpi-value">${money0(allow.perDay)}</span>
+                <span class="kpi-note">${allow.perDay > 0 ? `Te quedan ${money0(allow.remaining)} de gastos variables para ${allow.daysLeft} día${allow.daysLeft === 1 ? '' : 's'}. Hoy llevas ${money0(spentToday)}.` : `Ya usaste tus gastos variables del mes (${money0(flexSpent)} de ${money0(flexPlanned)}).`}</span>
+            </div>
+            <div class="kpi tone-slate">
+                <span class="kpi-label">Próximo día de pago</span>
+                <span class="kpi-value">${pay ? (pay.days === 0 ? '¡Hoy!' : `En ${pay.days} día${pay.days === 1 ? '' : 's'}`) : '—'}</span>
+                <span class="kpi-note">${pay ? `${pay.date.getDate()} de ${Fmt.MONTH_NAMES[pay.date.getMonth()].toLowerCase()}` : '<a href="#" class="link" data-goto="presupuesto/ingresos">Dinos qué días cobras</a>'}</span>
+            </div>`);
+
+        // Cash flow: money in vs. out this month, compared with last month.
+        const cf = Engine.cashFlow(txns, y, m), cfp = Engine.cashFlow(txns, py, pm);
+        const mx = Math.max(cf.income, cf.expense, 1);
+        const chg = (now, before, goodUp) => { const c = pctChange(now, before); if (c === null) return ''; const up = c > 0; return `<span class="text-[11px] font-bold ${up === goodUp ? 'text-emerald-700' : 'text-red-600'}">${up ? '▲' : '▼'} ${Math.abs(Math.round(c * 100))}%</span>`; };
+        UI.html('dash-cash', `
+            <div class="space-y-3 text-xs">
+                <div><div class="flex justify-between"><span class="font-semibold text-slate-600">Entró</span><span><strong class="text-slate-900">${money0(cf.income)}</strong> ${chg(cf.income, cfp.income, true)}</span></div>${bar(cf.income / mx, '#1baf7a')}</div>
+                <div><div class="flex justify-between"><span class="font-semibold text-slate-600">Salió</span><span><strong class="text-slate-900">${money0(cf.expense)}</strong> ${chg(cf.expense, cfp.expense, false)}</span></div>${bar(cf.expense / mx, '#2a78d6')}</div>
+                <div class="flex justify-between border-t border-slate-100 pt-2"><span class="font-semibold text-slate-600">Balance</span><strong class="${cf.net < 0 ? 'text-red-600' : 'text-emerald-700'}">${cf.net < 0 ? '−' : '+'}${money0(Math.abs(cf.net))}</strong></div>
+                <p class="help">Según tus transacciones registradas. ▲▼ comparado con ${Fmt.MONTH_NAMES[pm - 1].toLowerCase()}.</p>
+            </div>`);
+
+        // Where the money went.
+        const pad = (n) => String(n).padStart(2, '0');
+        const br = Engine.categoryBreakdown(txns, { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-31` });
+        const top = br.items.slice(0, 5);
+        const rest = br.items.slice(5).reduce((a, r) => a + r.amount, 0);
+        UI.html('dash-top', br.total ? `<div class="space-y-2.5 text-xs">${top.map(r => `<div><div class="flex justify-between gap-2"><span class="font-semibold text-slate-700 truncate">${esc(r.category)}</span><span class="whitespace-nowrap"><strong>${money0(r.amount)}</strong> <span class="text-slate-400">${Math.round(r.share * 100)}%</span></span></div>${bar(r.amount / top[0].amount, '#2a78d6')}</div>`).join('')}
+            ${rest ? `<div class="flex justify-between text-slate-500"><span>Otras categorías</span><span>${money0(rest)}</span></div>` : ''}
+            <p class="help">Total: ${money0(br.total)} en ${Fmt.MONTH_NAMES[m - 1].toLowerCase()}.</p></div>` : '<p class="help">Aún no registras gastos este mes.</p>');
+
+        // Insights
+        const ins = Engine.monthInsights(txns, t);
+        const out = [];
+        const tip = (icon, color, title, text) => out.push(`<div class="flex gap-2.5"><span class="insight-ico" style="background:${color}"><i class="fa-solid ${icon}"></i></span><div class="text-xs"><div class="font-bold text-slate-800">${title}</div><div class="text-slate-600">${text}</div></div></div>`);
+        if (ins.spent > 0) {
+            const over = plannedSpend > 0 && ins.projected > plannedSpend;
+            tip(over ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down', over ? '#dc2626' : '#059669', over ? 'Vas a pasarte' : 'Vas bien', `A este ritmo terminarás el mes con <strong>${money0(ins.projected)}</strong> en gastos${plannedSpend ? ` (planeaste ${money0(plannedSpend)})` : ''}.`);
+        }
+        if (ins.top) tip('fa-arrow-up', '#7c3aed', 'Donde más gastas', `<strong>${esc(ins.top.category)}</strong>: ${money0(ins.top.amount)}, el ${Math.round(ins.top.share * 100)}% de lo que gastaste este mes.`);
+        if (ins.jump) tip('fa-circle-exclamation', '#ea580c', 'Mayor aumento', `<strong>${esc(ins.jump.category)}</strong>: +${money0(ins.jump.change)} frente a los mismos días del mes pasado.`);
+        if (ins.drop) tip('fa-circle-minus', '#0891b2', 'Mayor baja', `<strong>${esc(ins.drop.category)}</strong>: ${money0(-ins.drop.change)} menos que el mes pasado a esta fecha.`);
+        if (!ins.hasHistory && ins.spent > 0) out.push('<p class="help">Con un mes más de datos verás qué subió y qué bajó.</p>');
+        UI.html('dash-insights', out.join('') || '<p class="help">Registra algunos gastos y aquí verás proyecciones y comparaciones.</p>');
+
+        // Household contributions
+        const members = s.members || [];
+        UI.show('dash-members-card', members.length > 0);
+        if (members.length) {
+            UI.text('dash-members-month', `${Fmt.MONTH_NAMES[m - 1]} ${y}`);
+            const mt = Engine.memberTotals(txns, members, y, m);
+            UI.html('dash-members', `<div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div class="kpi tone-slate"><span class="kpi-label">Ingresos del hogar</span><span class="kpi-value">${money0(mt.income)}</span><span class="kpi-note">Gastos: ${money0(mt.expense)}</span></div>
+                <div class="md:col-span-2 space-y-3">${mt.rows.map(r => `<div class="grid grid-cols-[auto_1fr_1fr] gap-3 items-center">
+                    <span class="flex items-center gap-2 font-bold text-slate-800 min-w-[6rem]"><span class="member-dot" style="background:${r.color || '#94a3b8'}">${esc((r.name || '?').charAt(0).toUpperCase())}</span>${esc(r.name)}</span>
+                    <div><div class="flex justify-between"><span class="text-emerald-700 font-bold">+${money0(r.income)}</span><span class="text-slate-400">${Math.round(r.incomeShare * 100)}%</span></div>${bar(r.incomeShare, '#1baf7a')}</div>
+                    <div><div class="flex justify-between"><span class="font-bold">−${money0(r.expense)}</span><span class="text-slate-400">${Math.round(r.expenseShare * 100)}%</span></div>${bar(r.expenseShare, '#2a78d6')}</div>
+                </div>`).join('')}
+                <p class="help">Según quién registraste en cada transacción. Barras: parte de los ingresos (verde) y de los gastos (azul) del hogar.</p></div></div>`);
+        }
+    }
+
     // This month's bills with a due date: overdue first, then upcoming, then paid.
     function billsHTML(ctx) {
         const s = ctx.state;
@@ -3659,6 +3930,7 @@ input[type="file"].hidden { display: none; }
     function update(ctx) {
         const s = ctx.state;
         UI.html('dash-bills', billsHTML(ctx));
+        monthDashboard(ctx);
         const welcome = document.getElementById('dash-welcome');
         UI.show(welcome, !s.settings.welcomeDismissed);
         if (!s.settings.welcomeDismissed) {
@@ -4610,6 +4882,8 @@ input[type="file"].hidden { display: none; }
 
     function update(ctx) {
         const yd = ctx.year, p = ctx.pay;
+        const pd = document.getElementById('pay-days');
+        if (pd && pd !== document.activeElement) pd.value = (ctx.state.settings.paydays || []).join(', ');
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
             ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],
@@ -4642,6 +4916,15 @@ input[type="file"].hidden { display: none; }
         box.innerHTML = `<div class="text-xs font-bold text-slate-900"><i class="fa-solid ${icon}"></i> ${title}</div><p class="text-[11px] text-slate-700 mt-1">${text}</p>`;
     }
 
+    UI.register({
+        'pay.days': (el) => {
+            const days = [...new Set(String(el.value).split(/[^\d]+/).map(Number).filter(d => d >= 1 && d <= 31))].sort((a, b) => a - b);
+            Store.state.settings.paydays = days;
+            el.value = days.join(', ');
+            App.changed({ step: true });
+        }
+    });
+
     App.defineView('presupuesto/ingresos', { update });
 })();
 </script>
@@ -4666,6 +4949,7 @@ input[type="file"].hidden { display: none; }
         parentSel.innerHTML = Views.selectOptions(opts, opts.includes(prev) ? prev : first);
         fillIncomeSelect();
         fillLineSelect();
+        fillMemberSelect();
         fillSubSelect();
     }
 
@@ -4697,6 +4981,19 @@ input[type="file"].hidden { display: none; }
         const sel = document.getElementById('txn-income');
         const prev = keep !== undefined ? String(keep || '') : sel.value;
         sel.innerHTML = Views.selectOptions([{ value: '', label: 'No: es un ingreso extra' }].concat(lines.map(x => ({ value: String(x.id), label: `Sí: ${x.name}` }))), lines.some(x => String(x.id) === prev) ? prev : '');
+    }
+
+    function fillMemberSelect(keep) {
+        const list = Store.state.members || [];
+        UI.show('txn-member-field', list.length > 0);
+        const sel = document.getElementById('txn-member');
+        const prev = keep !== undefined ? String(keep || '') : (sel.value || String(Store.ui.lastMember || ''));
+        sel.innerHTML = `<option value="">—</option>` + list.map(p => `<option value="${p.id}" ${String(p.id) === prev ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+    }
+
+    function memberBadge(t) {
+        const p = t.memberId && (Store.state.members || []).find(x => x.id === t.memberId);
+        return p ? `<span class="member-dot sm" style="background:${esc(p.color)}" title="${esc(p.name)}">${esc(p.name.charAt(0).toUpperCase())}</span>` : '';
     }
 
     // Budget lines of the transaction's month (its date decides which month's budget).
@@ -4823,7 +5120,7 @@ input[type="file"].hidden { display: none; }
         return `<div class="txn-item ${Store.ui.txnEditing === t.id ? 'row-editing' : ''}" data-row="${t.id}" ${inc ? '' : `draggable="true" data-txn="${t.id}"`}>
                 <div class="txn-date ${inc ? 'inc' : 'exp'} ${pending ? 'pending' : ''}"><span>${Fmt.MONTH_SHORT[d.getMonth()]}</span><b>${d.getDate()}</b></div>
                 <div class="txn-main">
-                    <div class="txn-desc">${esc(t.description)}</div>
+                    <div class="txn-desc">${memberBadge(t)}${esc(t.description)}</div>
                     <div class="txn-meta">${[t.store, `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`, t.paymentType].filter(Boolean).map(esc).join(' · ')}</div>
                     ${notes.length ? `<div class="txn-notes">${notes.join(' ')}</div>` : ''}
                 </div>
@@ -4838,7 +5135,12 @@ input[type="file"].hidden { display: none; }
         const q = (Store.ui.txnSearch || '').trim();
         const search = document.getElementById('txn-search');
         if (search && search !== document.activeElement) search.value = q;
-        const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q))
+        const members = ctx.state.members || [];
+        const mf = document.getElementById('txn-f-member');
+        UI.show(mf, members.length > 0);
+        if (members.length) mf.innerHTML = Views.selectOptions([{ value: 'all', label: 'Todas las personas' }].concat(members.map(p => ({ value: String(p.id), label: p.name })), [{ value: 'none', label: 'Sin persona' }]), f.member || 'all');
+        const byMember = (t) => !f.member || f.member === 'all' || (f.member === 'none' ? !t.memberId : String(t.memberId) === f.member);
+        const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q) && byMember(t))
             .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
         const assignOf = assignments(ctx);
         // Grouped by month, newest first.
@@ -4964,7 +5266,8 @@ input[type="file"].hidden { display: none; }
                 year: document.getElementById('txn-f-year').value,
                 month: document.getElementById('txn-f-month').value,
                 type: document.getElementById('txn-f-type').value,
-                category: document.getElementById('txn-f-category').value
+                category: document.getElementById('txn-f-category').value,
+                member: document.getElementById('txn-f-member').value || 'all'
             };
             App.update();
         },
@@ -4988,13 +5291,16 @@ input[type="file"].hidden { display: none; }
                 date: get('txn-date').value || new Date().toISOString().slice(0, 10),
                 paymentType: get('txn-payment').value,
                 incomeId: get('txn-type').value === 'Ingreso' && get('txn-income').value ? Number(get('txn-income').value) : undefined,
-                budgetLine: get('txn-type').value !== 'Ingreso' && get('txn-line').value ? get('txn-line').value : undefined
+                budgetLine: get('txn-type').value !== 'Ingreso' && get('txn-line').value ? get('txn-line').value : undefined,
+                memberId: get('txn-member').value ? Number(get('txn-member').value) : undefined
             };
+            Store.ui.lastMember = values.memberId || null;
             const editing = s.transactions.find(t => t.id === Store.ui.txnEditing);
             if (editing) {
                 Object.assign(editing, values);
                 if (!values.incomeId) delete editing.incomeId;
                 if (!values.budgetLine) delete editing.budgetLine;
+                if (!values.memberId) delete editing.memberId;
                 setEditing(null);
                 clearForm();
                 App.changed({ structural: true, step: true });
@@ -5019,6 +5325,7 @@ input[type="file"].hidden { display: none; }
             fillIncomeSelect(t.incomeId);
             get('txn-date').value = t.date || '';
             fillLineSelect(t.budgetLine);
+            fillMemberSelect(t.memberId);
             get('txn-description').value = t.description || '';
             get('txn-store').value = t.store || '';
             get('txn-amount').value = Number(t.amount) || '';
@@ -5240,6 +5547,10 @@ input[type="file"].hidden { display: none; }
         UI.html('imp-summary', `<strong>${esc(s.name)}</strong>: ${s.rows.length} fila${s.rows.length === 1 ? '' : 's'} · <span class="text-emerald-700 font-bold">${ok.length} para importar</span>${dups ? ` · ${dups} ya registrada${dups === 1 ? '' : 's'} (desmarcada${dups === 1 ? '' : 's'})` : ''}${errs ? ` · <span class="text-red-600">${errs} con errores (se omiten)</span>` : ''}`);
         document.getElementById('imp-commit').innerHTML = `<i class="fa-solid fa-file-import"></i> Importar ${ok.length}`;
         document.getElementById('imp-commit').disabled = ok.length === 0;
+        const members = Store.state.members || [];
+        const ms = document.getElementById('imp-member');
+        UI.show(ms, members.length > 0);
+        if (members.length && !ms.options.length) ms.innerHTML = `<option value="">¿De quién? (nadie)</option>` + members.map(p => `<option value="${p.id}">De ${esc(p.name)}</option>`).join('');
         const catOptions = (r) => Object.keys(r.type === 'Ingreso' ? incomeTax() : expenseTax()).map(c => `<option ${c === r.category ? 'selected' : ''}>${esc(c)}</option>`).join('');
         UI.html('imp-rows', s.rows.slice(0, 500).map((r, i) => `<tr class="${r.error ? 'opacity-60' : ''}">
                 <td class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggle" data-i="${i}" ${r.include ? 'checked' : ''} ${r.error ? 'disabled' : ''}></td>
@@ -5253,6 +5564,7 @@ input[type="file"].hidden { display: none; }
 
     function endSession() {
         session = null;
+        UI.html('imp-member', '');
         ['imp-file', 'imp-xml'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         UI.show('imp-setup', false);
         UI.show('imp-preview-card', false);
@@ -5330,10 +5642,12 @@ input[type="file"].hidden { display: none; }
             const rows = s.rows.filter(r => r.include);
             const txns = Store.state.transactions;
             let id = Store.nextId(txns);
+            const memberId = Number(document.getElementById('imp-member').value) || undefined;
             rows.forEach(r => {
                 const t = { id: id++, type: r.type, description: r.description.slice(0, 120), store: (r.store || '').slice(0, 80), parentCategory: r.category, category: r.sub || '', amount: r.amount, date: r.date, paymentType: r.payment || 'Transferencia', source: s.source };
                 if (r.budgetLine && r.type !== 'Ingreso') t.budgetLine = String(r.budgetLine);
                 if (r.invoice) t.invoice = r.invoice;
+                if (memberId) t.memberId = memberId;
                 txns.push(t);
             });
             // Remember how this kind of file maps (not the file): next time it's automatic.
@@ -6174,6 +6488,7 @@ input[type="file"].hidden { display: none; }
     function render(ctx) {
         const s = ctx.state, yd = ctx.year;
         UI.html('cfg-guide-body', Views.guideHTML());
+        renderMembers();
         const curSel = document.getElementById('cfg-currency');
         if (!curSel.options.length) curSel.innerHTML = Views.selectOptions(Fmt.CURRENCIES.map(c => ({ value: c.code, label: c.label })), s.settings.currency || 'USD');
         curSel.value = s.settings.currency || 'USD';
@@ -6202,7 +6517,43 @@ input[type="file"].hidden { display: none; }
             </td></tr>`).join('') : '<tr class="empty-row"><td colspan="3">Aún no hay baselines.</td></tr>');
     }
 
+    // Household members: fixed colors in the order they're added (color follows the person).
+    const MEMBER_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+    function renderMembers() {
+        const list = Store.state.members || [];
+        UI.html('cfg-members', list.length ? list.map(p => `<span class="member-chip"><span class="member-dot" style="background:${esc(p.color)}">${esc((p.name || '?').charAt(0).toUpperCase())}</span>
+            <button type="button" class="link text-xs" data-action="member.rename" data-id="${p.id}" title="Cambiar nombre">${esc(p.name)}</button>
+            <button type="button" class="row-del" data-action="member.delete" data-id="${p.id}" title="Quitar" aria-label="Quitar ${esc(p.name)}"><i class="fa-solid fa-xmark"></i></button></span>`).join('')
+            : '<span class="help">Solo tú por ahora.</span>');
+    }
+
     UI.register({
+        'member.add': async () => {
+            const r = await UI.form({ title: 'Agregar persona', fields: [{ name: 'name', label: 'Nombre', placeholder: 'Ej: Ana' }], confirmText: 'Agregar', validate: v => v.name.trim() ? null : 'Escribe un nombre.' });
+            if (!r) return;
+            const list = Store.state.members || (Store.state.members = []);
+            const used = new Set(list.map(p => p.color));
+            list.push({ id: Store.nextId(list), name: r.name.trim().slice(0, 30), color: MEMBER_COLORS.find(c => !used.has(c)) || MEMBER_COLORS[list.length % MEMBER_COLORS.length] });
+            App.changed({ structural: true, step: true });
+        },
+        'member.rename': async (el) => {
+            const p = (Store.state.members || []).find(x => x.id === Number(el.dataset.id));
+            if (!p) return;
+            const r = await UI.form({ title: 'Cambiar nombre', fields: [{ name: 'name', label: 'Nombre', value: p.name }], confirmText: 'Guardar', validate: v => v.name.trim() ? null : 'Escribe un nombre.' });
+            if (!r) return;
+            p.name = r.name.trim().slice(0, 30);
+            App.changed({ structural: true, step: true });
+        },
+        'member.delete': (el) => {
+            const id = Number(el.dataset.id);
+            const p = (Store.state.members || []).find(x => x.id === id);
+            if (!p) return;
+            // Their transactions stay; they just no longer say who.
+            App.undoable(`${p.name} ya no está en tu hogar`, () => {
+                Store.state.members = Store.state.members.filter(x => x.id !== id);
+                Store.state.transactions.forEach(t => { if (t.memberId === id) delete t.memberId; });
+            });
+        },
         'cfg.bracket': (el) => {
             const b = Store.active().sriBrackets[Number(el.dataset.idx)];
             const v = parseNum(el.value, 0);

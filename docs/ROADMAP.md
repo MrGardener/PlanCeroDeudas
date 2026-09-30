@@ -35,18 +35,14 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ✅ Automatic categorization rules | "Contains X → category / budget line"; applied on import and while typing a new transaction |
 | ✅ SRI electronic invoice import (XML) | Supplier, RUC, number, date, total, IVA, items, payment type; the same invoice twice is detected by its access key |
 | ✅ Invoice / receipt photo (OCR) | Best effort in the browser (Tesseract.js, needs internet the first time); prefills the form for review |
+| ✅ Household members | Configuración → Tu hogar; "¿Quién?" on each transaction, filter by person, "Aportes del hogar" (income/expense share per person). Real-time sharing between phones still needs hosting (below) |
+| ✅ This-month dashboard | Spent vs. last month (daily curve + plan), cash flow with ▲▼ vs. last month, top expenses, "Puedes gastar hoy" (daily limit from flexible lines), next payday (Ingresos → Días de pago), insights: projected month-end spend, where most money goes, biggest jump / drop |
 | ✅ Investments: ETF / stocks / funds | Ticker + units; price from Finnhub or Alpha Vantage with the user's free key, or typed by hand; flows into net worth. The key never goes into backups |
 
 ## Phase 3 — planned (works without a server)
 
 | Feature | Source / notes |
 |---|---|
-| 📋 Household members | Who spent/earned each transaction; contribution per person (income/expense share); per-person budget use. Single device; shared via backup until hosting. |
-| 📋 Dashboard: spent this month vs. last month curve | Rocket Money |
-| 📋 Payday countdown | Rocket Money ("Payday in 8 days") |
-| 📋 Daily spending limit ("you can spend $X today") | MoneyCoach / Nudget |
-| 📋 Insights: projected month-end spend, most spent category, biggest jump/drop | Nudget |
-| 📋 Category breakdown (share of spending) and top expenses | Empower / category breakdown screens |
 | 📋 Custom budget groups (Dar, Vivienda, Comida…) and nested groups | EveryDollar desktop, "Car Money" style |
 | 📋 Per-line detail: monthly history vs. limit, its transactions | MoneyCoach budget detail |
 | 📋 Split a transaction across budget lines | EveryDollar "Add a split" |

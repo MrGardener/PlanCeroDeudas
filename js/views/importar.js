@@ -149,6 +149,10 @@
         UI.html('imp-summary', `<strong>${esc(s.name)}</strong>: ${s.rows.length} fila${s.rows.length === 1 ? '' : 's'} · <span class="text-emerald-700 font-bold">${ok.length} para importar</span>${dups ? ` · ${dups} ya registrada${dups === 1 ? '' : 's'} (desmarcada${dups === 1 ? '' : 's'})` : ''}${errs ? ` · <span class="text-red-600">${errs} con errores (se omiten)</span>` : ''}`);
         document.getElementById('imp-commit').innerHTML = `<i class="fa-solid fa-file-import"></i> Importar ${ok.length}`;
         document.getElementById('imp-commit').disabled = ok.length === 0;
+        const members = Store.state.members || [];
+        const ms = document.getElementById('imp-member');
+        UI.show(ms, members.length > 0);
+        if (members.length && !ms.options.length) ms.innerHTML = `<option value="">¿De quién? (nadie)</option>` + members.map(p => `<option value="${p.id}">De ${esc(p.name)}</option>`).join('');
         const catOptions = (r) => Object.keys(r.type === 'Ingreso' ? incomeTax() : expenseTax()).map(c => `<option ${c === r.category ? 'selected' : ''}>${esc(c)}</option>`).join('');
         UI.html('imp-rows', s.rows.slice(0, 500).map((r, i) => `<tr class="${r.error ? 'opacity-60' : ''}">
                 <td class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggle" data-i="${i}" ${r.include ? 'checked' : ''} ${r.error ? 'disabled' : ''}></td>
@@ -162,6 +166,7 @@
 
     function endSession() {
         session = null;
+        UI.html('imp-member', '');
         ['imp-file', 'imp-xml'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         UI.show('imp-setup', false);
         UI.show('imp-preview-card', false);
@@ -239,10 +244,12 @@
             const rows = s.rows.filter(r => r.include);
             const txns = Store.state.transactions;
             let id = Store.nextId(txns);
+            const memberId = Number(document.getElementById('imp-member').value) || undefined;
             rows.forEach(r => {
                 const t = { id: id++, type: r.type, description: r.description.slice(0, 120), store: (r.store || '').slice(0, 80), parentCategory: r.category, category: r.sub || '', amount: r.amount, date: r.date, paymentType: r.payment || 'Transferencia', source: s.source };
                 if (r.budgetLine && r.type !== 'Ingreso') t.budgetLine = String(r.budgetLine);
                 if (r.invoice) t.invoice = r.invoice;
+                if (memberId) t.memberId = memberId;
                 txns.push(t);
             });
             // Remember how this kind of file maps (not the file): next time it's automatic.

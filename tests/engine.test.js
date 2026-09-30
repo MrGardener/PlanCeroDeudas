@@ -358,3 +358,69 @@ test('currency is display-only and formats per currency', () => {
     F.setCurrency('XXX');                           // unknown → back to USD
     assert.equal(F.money(1), '$1.00');
 });
+
+test('this month: spend curve vs last month, breakdown, cash flow', () => {
+    const txns = [
+        { type: 'Gasto', amount: 10, date: '2026-09-01', parentCategory: 'Alimentación' },
+        { type: 'Gasto', amount: 30, date: '2026-09-05', parentCategory: 'Transporte' },
+        { type: 'Gasto', amount: 99, date: '2026-09-20', parentCategory: 'Transporte' },   // after "today"
+        { type: 'Gasto', amount: 50, date: '2026-08-03', parentCategory: 'Alimentación' },
+        { type: 'Gasto', amount: 20, date: '2026-08-25', parentCategory: 'Transporte' },
+        { type: 'Ingreso', amount: 900, date: '2026-09-02', parentCategory: 'Ingresos Laborales' }
+    ];
+    const c = E.monthSpendCurve(txns, new Date(2026, 8, 10));
+    assert.equal(c.current.length, 30);
+    assert.equal(c.current[9], 40);
+    assert.equal(c.current[10], null);            // no line into the future
+    assert.equal(c.sameDayLast, 50);
+    assert.equal(c.diff, -10);
+    assert.equal(c.lastTotal, 70);
+    const b = E.categoryBreakdown(txns, { from: '2026-09-01', to: '2026-09-30' });
+    assert.equal(b.total, 139);
+    assert.equal(b.items[0].category, 'Transporte');
+    assert.ok(Math.abs(b.items[0].share - 129 / 139) < 1e-9);
+    assert.deepEqual(E.cashFlow(txns, 2026, 9), { income: 900, expense: 139, net: 761 });
+});
+
+test('payday, daily allowance and month insights', () => {
+    const p = E.nextPayday([15, 31], new Date(2026, 8, 20));
+    assert.equal(p.days, 10);                     // 31 → last day (30 Sep)
+    assert.equal(E.nextPayday([15], new Date(2026, 8, 20)).date.getMonth(), 9);   // next month
+    assert.equal(E.nextPayday([15], new Date(2026, 8, 15)).days, 0);
+    assert.equal(E.nextPayday([], new Date()), null);
+    const a = E.dailyAllowance({ planned: 300, spent: 100, today: new Date(2026, 8, 21) });
+    assert.equal(a.daysLeft, 10);
+    assert.equal(a.perDay, 20);
+    assert.equal(E.dailyAllowance({ planned: 100, spent: 150, today: new Date(2026, 8, 21) }).perDay, 0);
+    const txns = [
+        { type: 'Gasto', amount: 100, date: '2026-09-05', parentCategory: 'Ocio' },
+        { type: 'Gasto', amount: 20, date: '2026-09-06', parentCategory: 'Comida' },
+        { type: 'Gasto', amount: 30, date: '2026-08-05', parentCategory: 'Ocio' },
+        { type: 'Gasto', amount: 80, date: '2026-08-06', parentCategory: 'Comida' },
+        { type: 'Gasto', amount: 500, date: '2026-08-28', parentCategory: 'Ocio' }   // after the same day
+    ];
+    const i = E.monthInsights(txns, new Date(2026, 8, 10));
+    assert.equal(i.spent, 120);
+    assert.equal(i.projected, 360);
+    assert.equal(i.top.category, 'Ocio');
+    assert.deepEqual([i.jump.category, i.jump.change], ['Ocio', 70]);
+    assert.deepEqual([i.drop.category, i.drop.change], ['Comida', -60]);
+});
+
+test('household members: income and expense share per person', () => {
+    const members = [{ id: 1, name: 'Allen' }, { id: 2, name: 'Emma' }];
+    const txns = [
+        { type: 'Ingreso', amount: 4750, date: '2026-10-01', memberId: 1 },
+        { type: 'Ingreso', amount: 3200, date: '2026-10-01', memberId: 2 },
+        { type: 'Gasto', amount: 2420, date: '2026-10-02', memberId: 1 },
+        { type: 'Gasto', amount: 730, date: '2026-10-03', memberId: 2 },
+        { type: 'Gasto', amount: 50, date: '2026-10-03' },
+        { type: 'Gasto', amount: 999, date: '2026-09-03', memberId: 1 }
+    ];
+    const r = E.memberTotals(txns, members, 2026, 10);
+    assert.equal(r.income, 7950);
+    assert.equal(r.expense, 3200);
+    assert.ok(Math.abs(r.rows[0].incomeShare - 0.5975) < 0.001);
+    assert.equal(r.rows[2].name, 'Sin asignar');
+    assert.equal(r.rows[2].expense, 50);
+});

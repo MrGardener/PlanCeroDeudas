@@ -6,6 +6,7 @@
     function render(ctx) {
         const s = ctx.state, yd = ctx.year;
         UI.html('cfg-guide-body', Views.guideHTML());
+        renderMembers();
         const curSel = document.getElementById('cfg-currency');
         if (!curSel.options.length) curSel.innerHTML = Views.selectOptions(Fmt.CURRENCIES.map(c => ({ value: c.code, label: c.label })), s.settings.currency || 'USD');
         curSel.value = s.settings.currency || 'USD';
@@ -34,7 +35,43 @@
             </td></tr>`).join('') : '<tr class="empty-row"><td colspan="3">Aún no hay baselines.</td></tr>');
     }
 
+    // Household members: fixed colors in the order they're added (color follows the person).
+    const MEMBER_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+    function renderMembers() {
+        const list = Store.state.members || [];
+        UI.html('cfg-members', list.length ? list.map(p => `<span class="member-chip"><span class="member-dot" style="background:${esc(p.color)}">${esc((p.name || '?').charAt(0).toUpperCase())}</span>
+            <button type="button" class="link text-xs" data-action="member.rename" data-id="${p.id}" title="Cambiar nombre">${esc(p.name)}</button>
+            <button type="button" class="row-del" data-action="member.delete" data-id="${p.id}" title="Quitar" aria-label="Quitar ${esc(p.name)}"><i class="fa-solid fa-xmark"></i></button></span>`).join('')
+            : '<span class="help">Solo tú por ahora.</span>');
+    }
+
     UI.register({
+        'member.add': async () => {
+            const r = await UI.form({ title: 'Agregar persona', fields: [{ name: 'name', label: 'Nombre', placeholder: 'Ej: Ana' }], confirmText: 'Agregar', validate: v => v.name.trim() ? null : 'Escribe un nombre.' });
+            if (!r) return;
+            const list = Store.state.members || (Store.state.members = []);
+            const used = new Set(list.map(p => p.color));
+            list.push({ id: Store.nextId(list), name: r.name.trim().slice(0, 30), color: MEMBER_COLORS.find(c => !used.has(c)) || MEMBER_COLORS[list.length % MEMBER_COLORS.length] });
+            App.changed({ structural: true, step: true });
+        },
+        'member.rename': async (el) => {
+            const p = (Store.state.members || []).find(x => x.id === Number(el.dataset.id));
+            if (!p) return;
+            const r = await UI.form({ title: 'Cambiar nombre', fields: [{ name: 'name', label: 'Nombre', value: p.name }], confirmText: 'Guardar', validate: v => v.name.trim() ? null : 'Escribe un nombre.' });
+            if (!r) return;
+            p.name = r.name.trim().slice(0, 30);
+            App.changed({ structural: true, step: true });
+        },
+        'member.delete': (el) => {
+            const id = Number(el.dataset.id);
+            const p = (Store.state.members || []).find(x => x.id === id);
+            if (!p) return;
+            // Their transactions stay; they just no longer say who.
+            App.undoable(`${p.name} ya no está en tu hogar`, () => {
+                Store.state.members = Store.state.members.filter(x => x.id !== id);
+                Store.state.transactions.forEach(t => { if (t.memberId === id) delete t.memberId; });
+            });
+        },
         'cfg.bracket': (el) => {
             const b = Store.active().sriBrackets[Number(el.dataset.idx)];
             const v = parseNum(el.value, 0);

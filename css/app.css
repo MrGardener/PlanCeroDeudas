@@ -291,3 +291,13 @@ input[type="file"].hidden { display: none; }
 .bill-day b { font-size: .95rem; }
 .bill-item.overdue .bill-day { background: #fee2e2; color: #b91c1c; }
 .bill-item.paid .bill-day { background: #ecfdf5; color: #047857; }
+
+/* ---------------------------------------------------------------- household members */
+.member-chip { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .35rem .2rem .25rem; border: 1px solid #e2e8f0; border-radius: 999px; background: #fff; }
+.member-dot { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; border-radius: 999px; color: #fff; font-size: .72rem; font-weight: 800; flex: 0 0 auto; }
+.member-dot.sm { width: 1.15rem; height: 1.15rem; font-size: .6rem; margin-right: .35rem; vertical-align: text-bottom; }
+
+/* ---------------------------------------------------------------- dashboard: this month */
+.mini-bar { height: 6px; border-radius: 6px; background: #e2e8f0; overflow: hidden; margin-top: .25rem; }
+.mini-bar > span { display: block; height: 100%; border-radius: 6px; }
+.insight-ico { flex: 0 0 auto; width: 1.9rem; height: 1.9rem; border-radius: 999px; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; }

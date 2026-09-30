@@ -375,6 +375,110 @@
         return rows;
     }
 
+    // ------------------------------------------------------------ this month: insights
+    const inMonth = (t, y, m) => { const d = txnDate(t); return d.getFullYear() === Number(y) && d.getMonth() + 1 === Number(m); };
+    const prevMonth = (y, m) => (Number(m) === 1 ? [Number(y) - 1, 12] : [Number(y), Number(m) - 1]);
+    const daysIn = (y, m) => new Date(Number(y), Number(m), 0).getDate();
+
+    // Cumulative spending by day of month, this month (up to `today`) and last month (whole).
+    function monthSpendCurve(transactions, today) {
+        const t = new Date(today);
+        const y = t.getFullYear(), m = t.getMonth() + 1;
+        const [py, pm] = prevMonth(y, m);
+        const build = (yy, mm, upto) => {
+            const days = daysIn(yy, mm);
+            const daily = new Array(days).fill(0);
+            (transactions || []).forEach(x => { if (txnType(x) === 'Gasto' && inMonth(x, yy, mm)) daily[txnDate(x).getDate() - 1] += num(x.amount); });
+            let acc = 0;
+            return daily.map((v, i) => { acc += v; return i < upto ? Math.round(acc * 100) / 100 : null; });
+        };
+        const current = build(y, m, t.getDate());
+        const previous = build(py, pm, daysIn(py, pm));
+        const today_ = current[t.getDate() - 1] || 0;
+        const sameDayLast = previous[Math.min(t.getDate(), previous.length) - 1] || 0;
+        return { current, previous, spent: today_, sameDayLast, diff: today_ - sameDayLast, lastTotal: previous[previous.length - 1] || 0 };
+    }
+
+    // Spending (or income) by category between two dates (inclusive), largest first.
+    function categoryBreakdown(transactions, { from, to, type = 'Gasto' }) {
+        const by = {};
+        let total = 0;
+        (transactions || []).forEach(x => {
+            if (txnType(x) !== type || x.date < from || x.date > to) return;
+            const k = x.parentCategory || 'Otros';
+            by[k] = by[k] || { category: k, amount: 0, count: 0 };
+            by[k].amount += num(x.amount); by[k].count++;
+            total += num(x.amount);
+        });
+        return { total, items: Object.values(by).sort((a, b) => b.amount - a.amount).map(r => Object.assign(r, { share: total ? r.amount / total : 0 })) };
+    }
+
+    function cashFlow(transactions, y, m) {
+        let income = 0, expense = 0;
+        (transactions || []).forEach(x => { if (!inMonth(x, y, m)) return; if (txnType(x) === 'Ingreso') income += num(x.amount); else expense += num(x.amount); });
+        return { income, expense, net: income - expense };
+    }
+
+    // Next payday from days of the month (e.g. [15, 30] for quincenal); 31 means "last day".
+    function nextPayday(paydays, today) {
+        const t = new Date(today);
+        const base = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+        const days = (paydays || []).map(Number).filter(d => d >= 1 && d <= 31);
+        if (!days.length) return null;
+        let best = null;
+        for (let add = 0; add <= 1; add++) {
+            const y = t.getFullYear(), m = t.getMonth() + add;
+            days.forEach(d => {
+                const last = new Date(y, m + 1, 0).getDate();
+                const date = new Date(y, m, Math.min(d, last));
+                if (date >= base && (!best || date < best)) best = date;
+            });
+        }
+        return { date: best, days: Math.round((best - base) / 86400000) };
+    }
+
+    // What can still be spent per day on flexible spending this month.
+    function dailyAllowance({ planned, spent, today }) {
+        const t = new Date(today);
+        const daysLeft = daysIn(t.getFullYear(), t.getMonth() + 1) - t.getDate() + 1;   // today included
+        const remaining = num(planned) - num(spent);
+        return { remaining, daysLeft, perDay: remaining > 0 ? remaining / daysLeft : 0 };
+    }
+
+    // Month-to-date insights: projected month-end spending, where most money goes, and the
+    // category that grew the most vs. the same days of last month.
+    function monthInsights(transactions, today) {
+        const t = new Date(today);
+        const y = t.getFullYear(), m = t.getMonth() + 1, day = t.getDate();
+        const [py, pm] = prevMonth(y, m);
+        const pad = (n) => String(n).padStart(2, '0');
+        const cur = categoryBreakdown(transactions, { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-${pad(day)}` });
+        const lastUpto = Math.min(day, daysIn(py, pm));
+        const prev = categoryBreakdown(transactions, { from: `${py}-${pad(pm)}-01`, to: `${py}-${pad(pm)}-${pad(lastUpto)}` });
+        const projected = day > 0 ? cur.total / day * daysIn(y, m) : 0;
+        const prevBy = Object.fromEntries(prev.items.map(r => [r.category, r.amount]));
+        const jumps = cur.items.map(r => ({ category: r.category, now: r.amount, before: prevBy[r.category] || 0, change: r.amount - (prevBy[r.category] || 0) }))
+            .filter(r => r.before > 0 && r.change > 0).sort((a, b) => b.change - a.change);
+        const drops = prev.items.map(r => ({ category: r.category, before: r.amount, now: (cur.items.find(c => c.category === r.category) || { amount: 0 }).amount }))
+            .map(r => Object.assign(r, { change: r.now - r.before })).filter(r => r.change < 0).sort((a, b) => a.change - b.change);
+        return { spent: cur.total, projected, top: cur.items[0] || null, jump: jumps[0] || null, drop: drops[0] || null, hasHistory: prev.total > 0 };
+    }
+
+    // Income and expenses per household member for a month; transactions with no member go
+    // to "Sin asignar".
+    function memberTotals(transactions, members, y, m) {
+        const rows = (members || []).map(p => ({ id: p.id, name: p.name, color: p.color, income: 0, expense: 0 }));
+        const none = { id: null, name: 'Sin asignar', income: 0, expense: 0 };
+        (transactions || []).forEach(x => {
+            if (!inMonth(x, y, m)) return;
+            const r = rows.find(p => p.id === x.memberId) || none;
+            if (txnType(x) === 'Ingreso') r.income += num(x.amount); else r.expense += num(x.amount);
+        });
+        const all = rows.concat(none.income || none.expense ? [none] : []);
+        const ti = sum(all, r => r.income), te = sum(all, r => r.expense);
+        return { income: ti, expense: te, rows: all.map(r => Object.assign(r, { incomeShare: ti ? r.income / ti : 0, expenseShare: te ? r.expense / te : 0 })) };
+    }
+
     // ------------------------------------------------------------ investments
     // Market value of stock / ETF / fund holdings: shares × last known price.
     const holdingValue = (h) => Math.max(0, num(h.shares)) * Math.max(0, num(h.price));
@@ -768,6 +872,7 @@
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
+        monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,

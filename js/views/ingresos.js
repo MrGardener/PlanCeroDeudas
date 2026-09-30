@@ -5,6 +5,8 @@
 
     function update(ctx) {
         const yd = ctx.year, p = ctx.pay;
+        const pd = document.getElementById('pay-days');
+        if (pd && pd !== document.activeElement) pd.value = (ctx.state.settings.paydays || []).join(', ');
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
             ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],
@@ -36,6 +38,15 @@
         box.className = `panel ${tone}`;
         box.innerHTML = `<div class="text-xs font-bold text-slate-900"><i class="fa-solid ${icon}"></i> ${title}</div><p class="text-[11px] text-slate-700 mt-1">${text}</p>`;
     }
+
+    UI.register({
+        'pay.days': (el) => {
+            const days = [...new Set(String(el.value).split(/[^\d]+/).map(Number).filter(d => d >= 1 && d <= 31))].sort((a, b) => a - b);
+            Store.state.settings.paydays = days;
+            el.value = days.join(', ');
+            App.changed({ step: true });
+        }
+    });
 
     App.defineView('presupuesto/ingresos', { update });
 })();

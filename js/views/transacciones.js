@@ -18,6 +18,7 @@
         parentSel.innerHTML = Views.selectOptions(opts, opts.includes(prev) ? prev : first);
         fillIncomeSelect();
         fillLineSelect();
+        fillMemberSelect();
         fillSubSelect();
     }
 
@@ -49,6 +50,19 @@
         const sel = document.getElementById('txn-income');
         const prev = keep !== undefined ? String(keep || '') : sel.value;
         sel.innerHTML = Views.selectOptions([{ value: '', label: 'No: es un ingreso extra' }].concat(lines.map(x => ({ value: String(x.id), label: `Sí: ${x.name}` }))), lines.some(x => String(x.id) === prev) ? prev : '');
+    }
+
+    function fillMemberSelect(keep) {
+        const list = Store.state.members || [];
+        UI.show('txn-member-field', list.length > 0);
+        const sel = document.getElementById('txn-member');
+        const prev = keep !== undefined ? String(keep || '') : (sel.value || String(Store.ui.lastMember || ''));
+        sel.innerHTML = `<option value="">—</option>` + list.map(p => `<option value="${p.id}" ${String(p.id) === prev ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+    }
+
+    function memberBadge(t) {
+        const p = t.memberId && (Store.state.members || []).find(x => x.id === t.memberId);
+        return p ? `<span class="member-dot sm" style="background:${esc(p.color)}" title="${esc(p.name)}">${esc(p.name.charAt(0).toUpperCase())}</span>` : '';
     }
 
     // Budget lines of the transaction's month (its date decides which month's budget).
@@ -175,7 +189,7 @@
         return `<div class="txn-item ${Store.ui.txnEditing === t.id ? 'row-editing' : ''}" data-row="${t.id}" ${inc ? '' : `draggable="true" data-txn="${t.id}"`}>
                 <div class="txn-date ${inc ? 'inc' : 'exp'} ${pending ? 'pending' : ''}"><span>${Fmt.MONTH_SHORT[d.getMonth()]}</span><b>${d.getDate()}</b></div>
                 <div class="txn-main">
-                    <div class="txn-desc">${esc(t.description)}</div>
+                    <div class="txn-desc">${memberBadge(t)}${esc(t.description)}</div>
                     <div class="txn-meta">${[t.store, `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`, t.paymentType].filter(Boolean).map(esc).join(' · ')}</div>
                     ${notes.length ? `<div class="txn-notes">${notes.join(' ')}</div>` : ''}
                 </div>
@@ -190,7 +204,12 @@
         const q = (Store.ui.txnSearch || '').trim();
         const search = document.getElementById('txn-search');
         if (search && search !== document.activeElement) search.value = q;
-        const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q))
+        const members = ctx.state.members || [];
+        const mf = document.getElementById('txn-f-member');
+        UI.show(mf, members.length > 0);
+        if (members.length) mf.innerHTML = Views.selectOptions([{ value: 'all', label: 'Todas las personas' }].concat(members.map(p => ({ value: String(p.id), label: p.name })), [{ value: 'none', label: 'Sin persona' }]), f.member || 'all');
+        const byMember = (t) => !f.member || f.member === 'all' || (f.member === 'none' ? !t.memberId : String(t.memberId) === f.member);
+        const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q) && byMember(t))
             .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
         const assignOf = assignments(ctx);
         // Grouped by month, newest first.
@@ -316,7 +335,8 @@
                 year: document.getElementById('txn-f-year').value,
                 month: document.getElementById('txn-f-month').value,
                 type: document.getElementById('txn-f-type').value,
-                category: document.getElementById('txn-f-category').value
+                category: document.getElementById('txn-f-category').value,
+                member: document.getElementById('txn-f-member').value || 'all'
             };
             App.update();
         },
@@ -340,13 +360,16 @@
                 date: get('txn-date').value || new Date().toISOString().slice(0, 10),
                 paymentType: get('txn-payment').value,
                 incomeId: get('txn-type').value === 'Ingreso' && get('txn-income').value ? Number(get('txn-income').value) : undefined,
-                budgetLine: get('txn-type').value !== 'Ingreso' && get('txn-line').value ? get('txn-line').value : undefined
+                budgetLine: get('txn-type').value !== 'Ingreso' && get('txn-line').value ? get('txn-line').value : undefined,
+                memberId: get('txn-member').value ? Number(get('txn-member').value) : undefined
             };
+            Store.ui.lastMember = values.memberId || null;
             const editing = s.transactions.find(t => t.id === Store.ui.txnEditing);
             if (editing) {
                 Object.assign(editing, values);
                 if (!values.incomeId) delete editing.incomeId;
                 if (!values.budgetLine) delete editing.budgetLine;
+                if (!values.memberId) delete editing.memberId;
                 setEditing(null);
                 clearForm();
                 App.changed({ structural: true, step: true });
@@ -371,6 +394,7 @@
             fillIncomeSelect(t.incomeId);
             get('txn-date').value = t.date || '';
             fillLineSelect(t.budgetLine);
+            fillMemberSelect(t.memberId);
             get('txn-description').value = t.description || '';
             get('txn-store').value = t.store || '';
             get('txn-amount').value = Number(t.amount) || '';

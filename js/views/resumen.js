@@ -39,6 +39,113 @@
         </div>`;
     }
 
+    // ---------------------------------------------------------------- this month
+    const bar = (share, color) => `<div class="mini-bar"><span style="width:${Math.max(0, Math.min(100, share * 100)).toFixed(1)}%;background:${color}"></span></div>`;
+    const pctChange = (now, before) => before > 0 ? (now - before) / before : null;
+
+    function monthDashboard(ctx) {
+        const s = ctx.state, t = ctx.today;
+        const y = t.getFullYear(), m = String(t.getMonth() + 1);
+        const [py, pm] = m === '1' ? [y - 1, '12'] : [y, String(Number(m) - 1)];
+        UI.text('dash-month-name', `${Fmt.MONTH_NAMES[m - 1]} ${y}`);
+        const txns = s.transactions;
+        const items = Engine.monthItems(Store.effective(y), m);
+        const plannedSpend = items.filter(i => !Engine.isSavingsItem(i)).reduce((a, i) => a + (Number(i.real) || 0), 0);
+
+        // Spending so far vs. last month, day by day.
+        const curve = Engine.monthSpendCurve(txns, t);
+        UI.text('dash-spent', money0(curve.spent));
+        UI.html('dash-curve-note', curve.sameDayLast > 0
+            ? (curve.diff <= 0 ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> Llevas <strong>${money0(-curve.diff)} menos</strong> que el mes pasado a esta fecha.` : `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> Llevas <strong>${money0(curve.diff)} más</strong> que el mes pasado a esta fecha.`)
+            : 'Registra tus gastos: el próximo mes verás la comparación con este.');
+        const days = curve.current.length;
+        const prev = Array.from({ length: days }, (_, i) => i < curve.previous.length ? curve.previous[i] : curve.previous[curve.previous.length - 1]);
+        UI.chart('dash-curve-chart', {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: days }, (_, i) => i + 1),
+                datasets: [
+                    { label: 'Este mes', data: curve.current, borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, fill: true, cubicInterpolationMode: 'monotone' },
+                    { label: 'Mes pasado', data: prev, borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, cubicInterpolationMode: 'monotone' },
+                    { label: 'Planeado', data: Array(days).fill(plannedSpend), borderColor: '#cbd5e1', borderDash: [2, 4], borderWidth: 2, pointRadius: 0, fill: false }
+                ]
+            },
+            options: { interaction: { mode: 'index', intersect: false } }
+        });
+
+        // Today: what's left per day for flexible spending, spent today, payday.
+        const spend = Engine.lineSpend(items, txns, y, m);
+        const flex = items.filter(i => i.type === 'Gasto Variable');
+        const flexPlanned = flex.reduce((a, i) => a + (Number(i.real) || 0), 0);
+        const flexSpent = flex.reduce((a, i) => a + ((spend.byLine[String(i.id)] || {}).spent || 0), 0);
+        const allow = Engine.dailyAllowance({ planned: flexPlanned, spent: flexSpent, today: t });
+        const iso = Engine.isoDate(t);
+        const spentToday = txns.filter(x => (x.type || 'Gasto') === 'Gasto' && x.date === iso).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+        const pay = Engine.nextPayday(s.settings.paydays, t);
+        UI.html('dash-today', `
+            <div class="kpi ${allow.perDay > 0 ? (spentToday > allow.perDay ? 'tone-amber' : 'tone-emerald') : 'tone-red'}">
+                <span class="kpi-label">Puedes gastar hoy</span>
+                <span class="kpi-value">${money0(allow.perDay)}</span>
+                <span class="kpi-note">${allow.perDay > 0 ? `Te quedan ${money0(allow.remaining)} de gastos variables para ${allow.daysLeft} día${allow.daysLeft === 1 ? '' : 's'}. Hoy llevas ${money0(spentToday)}.` : `Ya usaste tus gastos variables del mes (${money0(flexSpent)} de ${money0(flexPlanned)}).`}</span>
+            </div>
+            <div class="kpi tone-slate">
+                <span class="kpi-label">Próximo día de pago</span>
+                <span class="kpi-value">${pay ? (pay.days === 0 ? '¡Hoy!' : `En ${pay.days} día${pay.days === 1 ? '' : 's'}`) : '—'}</span>
+                <span class="kpi-note">${pay ? `${pay.date.getDate()} de ${Fmt.MONTH_NAMES[pay.date.getMonth()].toLowerCase()}` : '<a href="#" class="link" data-goto="presupuesto/ingresos">Dinos qué días cobras</a>'}</span>
+            </div>`);
+
+        // Cash flow: money in vs. out this month, compared with last month.
+        const cf = Engine.cashFlow(txns, y, m), cfp = Engine.cashFlow(txns, py, pm);
+        const mx = Math.max(cf.income, cf.expense, 1);
+        const chg = (now, before, goodUp) => { const c = pctChange(now, before); if (c === null) return ''; const up = c > 0; return `<span class="text-[11px] font-bold ${up === goodUp ? 'text-emerald-700' : 'text-red-600'}">${up ? '▲' : '▼'} ${Math.abs(Math.round(c * 100))}%</span>`; };
+        UI.html('dash-cash', `
+            <div class="space-y-3 text-xs">
+                <div><div class="flex justify-between"><span class="font-semibold text-slate-600">Entró</span><span><strong class="text-slate-900">${money0(cf.income)}</strong> ${chg(cf.income, cfp.income, true)}</span></div>${bar(cf.income / mx, '#1baf7a')}</div>
+                <div><div class="flex justify-between"><span class="font-semibold text-slate-600">Salió</span><span><strong class="text-slate-900">${money0(cf.expense)}</strong> ${chg(cf.expense, cfp.expense, false)}</span></div>${bar(cf.expense / mx, '#2a78d6')}</div>
+                <div class="flex justify-between border-t border-slate-100 pt-2"><span class="font-semibold text-slate-600">Balance</span><strong class="${cf.net < 0 ? 'text-red-600' : 'text-emerald-700'}">${cf.net < 0 ? '−' : '+'}${money0(Math.abs(cf.net))}</strong></div>
+                <p class="help">Según tus transacciones registradas. ▲▼ comparado con ${Fmt.MONTH_NAMES[pm - 1].toLowerCase()}.</p>
+            </div>`);
+
+        // Where the money went.
+        const pad = (n) => String(n).padStart(2, '0');
+        const br = Engine.categoryBreakdown(txns, { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-31` });
+        const top = br.items.slice(0, 5);
+        const rest = br.items.slice(5).reduce((a, r) => a + r.amount, 0);
+        UI.html('dash-top', br.total ? `<div class="space-y-2.5 text-xs">${top.map(r => `<div><div class="flex justify-between gap-2"><span class="font-semibold text-slate-700 truncate">${esc(r.category)}</span><span class="whitespace-nowrap"><strong>${money0(r.amount)}</strong> <span class="text-slate-400">${Math.round(r.share * 100)}%</span></span></div>${bar(r.amount / top[0].amount, '#2a78d6')}</div>`).join('')}
+            ${rest ? `<div class="flex justify-between text-slate-500"><span>Otras categorías</span><span>${money0(rest)}</span></div>` : ''}
+            <p class="help">Total: ${money0(br.total)} en ${Fmt.MONTH_NAMES[m - 1].toLowerCase()}.</p></div>` : '<p class="help">Aún no registras gastos este mes.</p>');
+
+        // Insights
+        const ins = Engine.monthInsights(txns, t);
+        const out = [];
+        const tip = (icon, color, title, text) => out.push(`<div class="flex gap-2.5"><span class="insight-ico" style="background:${color}"><i class="fa-solid ${icon}"></i></span><div class="text-xs"><div class="font-bold text-slate-800">${title}</div><div class="text-slate-600">${text}</div></div></div>`);
+        if (ins.spent > 0) {
+            const over = plannedSpend > 0 && ins.projected > plannedSpend;
+            tip(over ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down', over ? '#dc2626' : '#059669', over ? 'Vas a pasarte' : 'Vas bien', `A este ritmo terminarás el mes con <strong>${money0(ins.projected)}</strong> en gastos${plannedSpend ? ` (planeaste ${money0(plannedSpend)})` : ''}.`);
+        }
+        if (ins.top) tip('fa-arrow-up', '#7c3aed', 'Donde más gastas', `<strong>${esc(ins.top.category)}</strong>: ${money0(ins.top.amount)}, el ${Math.round(ins.top.share * 100)}% de lo que gastaste este mes.`);
+        if (ins.jump) tip('fa-circle-exclamation', '#ea580c', 'Mayor aumento', `<strong>${esc(ins.jump.category)}</strong>: +${money0(ins.jump.change)} frente a los mismos días del mes pasado.`);
+        if (ins.drop) tip('fa-circle-minus', '#0891b2', 'Mayor baja', `<strong>${esc(ins.drop.category)}</strong>: ${money0(-ins.drop.change)} menos que el mes pasado a esta fecha.`);
+        if (!ins.hasHistory && ins.spent > 0) out.push('<p class="help">Con un mes más de datos verás qué subió y qué bajó.</p>');
+        UI.html('dash-insights', out.join('') || '<p class="help">Registra algunos gastos y aquí verás proyecciones y comparaciones.</p>');
+
+        // Household contributions
+        const members = s.members || [];
+        UI.show('dash-members-card', members.length > 0);
+        if (members.length) {
+            UI.text('dash-members-month', `${Fmt.MONTH_NAMES[m - 1]} ${y}`);
+            const mt = Engine.memberTotals(txns, members, y, m);
+            UI.html('dash-members', `<div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div class="kpi tone-slate"><span class="kpi-label">Ingresos del hogar</span><span class="kpi-value">${money0(mt.income)}</span><span class="kpi-note">Gastos: ${money0(mt.expense)}</span></div>
+                <div class="md:col-span-2 space-y-3">${mt.rows.map(r => `<div class="grid grid-cols-[auto_1fr_1fr] gap-3 items-center">
+                    <span class="flex items-center gap-2 font-bold text-slate-800 min-w-[6rem]"><span class="member-dot" style="background:${r.color || '#94a3b8'}">${esc((r.name || '?').charAt(0).toUpperCase())}</span>${esc(r.name)}</span>
+                    <div><div class="flex justify-between"><span class="text-emerald-700 font-bold">+${money0(r.income)}</span><span class="text-slate-400">${Math.round(r.incomeShare * 100)}%</span></div>${bar(r.incomeShare, '#1baf7a')}</div>
+                    <div><div class="flex justify-between"><span class="font-bold">−${money0(r.expense)}</span><span class="text-slate-400">${Math.round(r.expenseShare * 100)}%</span></div>${bar(r.expenseShare, '#2a78d6')}</div>
+                </div>`).join('')}
+                <p class="help">Según quién registraste en cada transacción. Barras: parte de los ingresos (verde) y de los gastos (azul) del hogar.</p></div></div>`);
+        }
+    }
+
     // This month's bills with a due date: overdue first, then upcoming, then paid.
     function billsHTML(ctx) {
         const s = ctx.state;
@@ -109,6 +216,7 @@
     function update(ctx) {
         const s = ctx.state;
         UI.html('dash-bills', billsHTML(ctx));
+        monthDashboard(ctx);
         const welcome = document.getElementById('dash-welcome');
         UI.show(welcome, !s.settings.welcomeDismissed);
         if (!s.settings.welcomeDismissed) {

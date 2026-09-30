@@ -46,6 +46,38 @@
     <div id="dash-hero" class="hero"></div>
     <div id="dash-steps" class="steps steps-compact"></div>
     <div id="dash-kpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4" id="dash-month">
+        <div class="card lg:col-span-2">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-chart-line text-blue-600"></i> Gastado este mes · <span id="dash-month-name"></span></div>
+                    <div class="card-sub" id="dash-curve-note"></div>
+                </div>
+                <span class="kpi-value" id="dash-spent">$0</span>
+            </div>
+            <div class="chart-box"><canvas id="dash-curve-chart"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-calendar-day text-emerald-600"></i> Hoy</div></div>
+            <div id="dash-today" class="space-y-3"></div>
+        </div>
+        <div class="card">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-arrow-right-arrow-left text-teal-600"></i> Flujo de caja del mes</div></div>
+            <div id="dash-cash"></div>
+        </div>
+        <div class="card">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-ranking-star text-amber-500"></i> Principales gastos</div><a href="#" class="link text-xs" data-goto="presupuesto/transacciones">Ver todo →</a></div>
+            <div id="dash-top"></div>
+        </div>
+        <div class="card">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-lightbulb text-purple-600"></i> Lo que dicen tus números</div></div>
+            <div id="dash-insights" class="space-y-3"></div>
+        </div>
+        <div class="card lg:col-span-3 hidden" id="dash-members-card">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-people-roof text-teal-600"></i> Aportes del hogar · <span id="dash-members-month"></span></div><a href="#" class="link text-xs" data-goto="config" data-focus="cfg-household">Personas →</a></div>
+            <div id="dash-members"></div>
+        </div>
+    </div>
     <div class="card" id="dash-bills-card">
         <div class="card-head">
             <div>
@@ -191,7 +223,7 @@
                 </div>
                 <a href="#" class="link text-xs" data-goto="config" data-focus="cfg-legal">Parámetros legales (IESS, SBU, tabla SRI) →</a>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <label class="field field-box tone-amber">
                     <span class="field-label">Sueldo bruto mensual (<span class="cur">$</span>)</span>
                     <input type="number" class="input" step="50" min="0" data-bind="year.sueldo">
@@ -209,6 +241,11 @@
                         <option value="sierra">Sierra y Amazonía (Agosto)</option>
                     </select>
                     <span class="help">Define en qué mes se suma al ingreso.</span>
+                </label>
+                <label class="field field-box tone-emerald">
+                    <span class="field-label">Días de pago</span>
+                    <input type="text" class="input" id="pay-days" data-change="pay.days" placeholder="Ej: 15, 30" inputmode="numeric">
+                    <span class="help">Qué día(s) del mes cobras. El Resumen te dice cuánto falta.</span>
                 </label>
                 <label class="field field-box tone-slate">
                     <span class="field-label">Cálculo anual de deducibles</span>
@@ -292,6 +329,8 @@
                 <label class="field hidden" id="txn-income-field"><span class="field-label">¿Es de un ingreso de tu presupuesto?</span>
                     <select id="txn-income" class="input"></select>
                     <span class="help">Elígelo si este dinero es lo que esperabas de un ingreso mensual (así se marca como recibido). Si no, cuenta como ingreso extra del mes.</span></label>
+                <label class="field hidden" id="txn-member-field"><span class="field-label">¿Quién?</span>
+                    <select id="txn-member" class="input"></select></label>
                 <label class="field"><span class="field-label">Forma de pago</span>
                     <select id="txn-payment" class="input">
                         <option>Efectivo</option><option>Tarjeta de Débito</option><option>Tarjeta de Crédito</option><option>Transferencia</option>
@@ -361,6 +400,7 @@
                         <option value="all">Ingresos y gastos</option><option value="Ingreso">Solo ingresos</option><option value="Gasto">Solo gastos</option>
                     </select>
                     <select id="txn-f-category" class="cell-input" style="width:auto" data-change="txn.filter"></select>
+                    <select id="txn-f-member" class="cell-input hidden" style="width:auto" data-change="txn.filter" aria-label="Persona"></select>
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-3 mb-4">
@@ -430,7 +470,8 @@
                     <div class="card-title"><i class="fa-solid fa-list-check text-emerald-600"></i> Revisa antes de importar</div>
                     <div class="card-sub" id="imp-summary"></div>
                 </div>
-                <div class="flex flex-wrap gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                    <select id="imp-member" class="cell-input hidden" style="width:auto" aria-label="De quién son estos movimientos"></select>
                     <button class="btn btn-secondary" data-action="imp.cancel">Cancelar</button>
                     <button class="btn btn-primary" data-action="imp.commit" id="imp-commit"><i class="fa-solid fa-file-import"></i> Importar</button>
                 </div>
@@ -878,6 +919,12 @@
             <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
         </summary>
         <div class="mt-5 space-y-4">
+            <div class="panel tone-slate" id="cfg-household">
+                <div class="section-label"><i class="fa-solid fa-people-roof text-teal-600"></i> Tu hogar</div>
+                <p class="help mb-3">Agrega a las personas que comparten el presupuesto (pareja, hijos que aportan…). En cada transacción podrás decir quién gastó o recibió, y el Resumen muestra cuánto aporta cada uno.</p>
+                <div id="cfg-members" class="flex flex-wrap gap-2 mb-2"></div>
+                <button class="btn btn-secondary btn-sm" data-action="member.add"><i class="fa-solid fa-user-plus"></i> Agregar persona</button>
+            </div>
             <div class="panel tone-slate" id="cfg-prices">
                 <div class="section-label"><i class="fa-solid fa-chart-line text-indigo-600"></i> Precios de inversiones</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
