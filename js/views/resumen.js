@@ -83,7 +83,7 @@
         const allow = Engine.dailyAllowance({ planned: flexPlanned, spent: flexSpent, today: t });
         const iso = Engine.isoDate(t);
         const spentToday = txns.filter(x => (x.type || 'Gasto') === 'Gasto' && x.date === iso).reduce((a, x) => a + (Number(x.amount) || 0), 0);
-        const pay = Engine.nextPayday(s.settings.paydays, t);
+        const pay = Engine.nextPayday(Cash.paySchedule(), t);
         const streak = Engine.loggingStreak(txns, t);
         const DOW = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
         UI.html('dash-today', `
@@ -95,7 +95,7 @@
             <div class="kpi tone-slate">
                 <span class="kpi-label">Próximo día de pago</span>
                 <span class="kpi-value">${pay ? (pay.days === 0 ? '¡Hoy!' : `En ${pay.days} día${pay.days === 1 ? '' : 's'}`) : '—'}</span>
-                <span class="kpi-note">${pay ? `${pay.date.getDate()} de ${Fmt.MONTH_NAMES[pay.date.getMonth()].toLowerCase()}` : '<a href="#" class="link" data-goto="presupuesto/ingresos">Dinos qué días cobras</a>'}</span>
+                <span class="kpi-note">${pay ? `${pay.date.getDate()} de ${Fmt.MONTH_NAMES[pay.date.getMonth()].toLowerCase()}` : '<a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-schedule">Dinos cómo te pagan</a>'}</span>
             </div>
             <div class="kpi ${streak.days >= 3 ? 'tone-amber' : 'tone-slate'}">
                 <span class="kpi-label">${streak.days ? '🔥 Racha registrando' : 'Registra hoy'}</span>

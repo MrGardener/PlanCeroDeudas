@@ -431,22 +431,99 @@
         return { income, expense, net: income - expense };
     }
 
-    // Next payday from days of the month (e.g. [15, 30] for quincenal); 31 means "last day".
-    function nextPayday(paydays, today) {
+    // ------------------------------------------------------------------ pay schedule
+    // How the salary arrives. { freq, ... }:
+    //   'monthly'  days: [15, 30] (31 = last day), interval: 1 | 2 | 3 | 6 | 12 months counted
+    //              from `anchor`'s month, weekend: 'same' | 'before' | 'after' (payday moved to
+    //              Friday before / Monday after when it falls on a weekend)
+    //   'weekly'   weekday (0 = Sunday … 6 = Saturday), interval 1 | 2 (every 2 weeks from `anchor`)
+    //   'nth'      weekday + nths: [2, 4] ("2nd and 4th Friday"), -1 = the last one of the month
+    //   'daily'    businessDays: true = Monday to Friday
+    //   amount     optional: what each payment is (otherwise the net salary is spread over them)
+    // A plain array of days (the old "días de pago") means monthly on those days.
+    function normalizeSchedule(sch) {
+        if (Array.isArray(sch)) sch = { freq: 'monthly', days: sch };
+        if (!sch || !sch.freq) return null;
+        const wd = Number(sch.weekday);
+        const out = { freq: sch.freq, interval: Math.max(1, Number(sch.interval) || 1), amount: num(sch.amount) > 0 ? num(sch.amount) : 0 };
+        if (sch.anchor) out.anchor = String(sch.anchor);
+        if (sch.freq === 'monthly') {
+            out.days = [...new Set((sch.days || []).map(Number).filter(d => d >= 1 && d <= 31))].sort((a, b) => a - b);
+            out.weekend = ['before', 'after'].includes(sch.weekend) ? sch.weekend : 'same';
+            if (!out.days.length) return null;
+        } else if (sch.freq === 'weekly' || sch.freq === 'nth') {
+            if (!(wd >= 0 && wd <= 6)) return null;
+            out.weekday = wd;
+            if (sch.freq === 'nth') {
+                out.nths = [...new Set((sch.nths || []).map(Number).filter(n => n === -1 || (n >= 1 && n <= 5)))].sort((a, b) => (a === -1) - (b === -1) || a - b);
+                if (!out.nths.length) return null;
+            }
+        } else if (sch.freq === 'daily') out.businessDays = !!sch.businessDays;
+        else return null;
+        return out;
+    }
+
+    const mod = (a, n) => ((a % n) + n) % n;
+
+    // Every payday between two ISO dates (inclusive), in order.
+    function payDates(schedule, fromISO, toISO) {
+        const sch = normalizeSchedule(schedule);
+        if (!sch || !fromISO || !toISO || fromISO > toISO) return [];
+        const from = parseISO(fromISO), to = parseISO(toISO);
+        const out = new Set();
+        const add = (d) => { const x = isoDate(d); if (x >= fromISO && x <= toISO) out.add(x); };
+        const anchor = sch.anchor ? parseISO(sch.anchor) : null;
+        // Every-2-weeks counts from the payday weekday on or after the date given.
+        if (anchor && sch.freq === 'weekly') anchor.setDate(anchor.getDate() + mod(sch.weekday - anchor.getDay(), 7));
+        if (sch.freq === 'monthly') {
+            const a = anchor ? anchor.getFullYear() * 12 + anchor.getMonth() : null;
+            // Start a month early: a payday moved "after" a weekend can land in the next month.
+            for (let d = new Date(from.getFullYear(), from.getMonth() - 1, 1); d <= to; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+                if (sch.interval > 1 && a !== null && mod(d.getFullYear() * 12 + d.getMonth() - a, sch.interval) !== 0) continue;
+                const last = daysIn(d.getFullYear(), d.getMonth() + 1);
+                sch.days.forEach(day => {
+                    const p = new Date(d.getFullYear(), d.getMonth(), Math.min(day, last));
+                    const w = p.getDay();
+                    if (sch.weekend === 'before' && (w === 6 || w === 0)) p.setDate(p.getDate() - (w === 6 ? 1 : 2));
+                    if (sch.weekend === 'after' && (w === 6 || w === 0)) p.setDate(p.getDate() + (w === 6 ? 2 : 1));
+                    add(p);
+                });
+            }
+        } else if (sch.freq === 'weekly') {
+            const d = new Date(from);
+            d.setDate(d.getDate() + mod(sch.weekday - d.getDay(), 7));
+            for (; d <= to; d.setDate(d.getDate() + 7)) {
+                if (sch.interval > 1 && anchor && mod(Math.round((d - anchor) / (7 * 86400000)), sch.interval) !== 0) continue;
+                add(d);
+            }
+        } else if (sch.freq === 'nth') {
+            for (let d = new Date(from.getFullYear(), from.getMonth(), 1); d <= to; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+                const first = 1 + mod(sch.weekday - d.getDay(), 7);
+                const last = daysIn(d.getFullYear(), d.getMonth() + 1);
+                const count = Math.floor((last - first) / 7) + 1;
+                sch.nths.forEach(n => {
+                    const k = n === -1 ? count : n;
+                    if (k >= 1 && k <= count) add(new Date(d.getFullYear(), d.getMonth(), first + 7 * (k - 1)));
+                });
+            }
+        } else if (sch.freq === 'daily') {
+            for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+                if (!sch.businessDays || (d.getDay() !== 0 && d.getDay() !== 6)) add(d);
+            }
+        }
+        return [...out].sort();
+    }
+
+    const paymentsPerYear = (schedule, year) => payDates(schedule, `${year}-01-01`, `${year}-12-31`).length;
+
+    // Next payday on or after `today` (a schedule, or the old array of days of the month).
+    function nextPayday(schedule, today) {
         const t = new Date(today);
         const base = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-        const days = (paydays || []).map(Number).filter(d => d >= 1 && d <= 31);
-        if (!days.length) return null;
-        let best = null;
-        for (let add = 0; add <= 1; add++) {
-            const y = t.getFullYear(), m = t.getMonth() + add;
-            days.forEach(d => {
-                const last = new Date(y, m + 1, 0).getDate();
-                const date = new Date(y, m, Math.min(d, last));
-                if (date >= base && (!best || date < best)) best = date;
-            });
-        }
-        return { date: best, days: Math.round((best - base) / 86400000) };
+        const next = payDates(schedule, isoDate(base), isoDate(new Date(base.getFullYear() + 1, base.getMonth(), base.getDate() + 1)))[0];
+        if (!next) return null;
+        const date = parseISO(next);
+        return { date, days: Math.round((date - base) / 86400000) };
     }
 
     // What can still be spent per day on flexible spending this month.
@@ -495,6 +572,7 @@
     // A repeating transaction: { frequency: 'weekly'|'biweekly'|'monthly'|'yearly',
     // startDate, endDate?, lastPosted? }. Monthly/yearly keep the start's day of month
     // (clamped to short months: the 31st becomes the 30th/28th).
+    const MONTH_STEP = { monthly: 1, quarterly: 3, semiannual: 6 };
     const parseISO = (s) => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
     function occurrences(rec, fromISO, toISO) {
         if (!rec || !rec.startDate) return [];
@@ -507,7 +585,7 @@
             if (rec.frequency === 'weekly') { d = new Date(start); d.setDate(start.getDate() + 7 * i); }
             else if (rec.frequency === 'biweekly') { d = new Date(start); d.setDate(start.getDate() + 14 * i); }
             else if (rec.frequency === 'yearly') { const y = start.getFullYear() + i; d = new Date(y, start.getMonth(), Math.min(day, new Date(y, start.getMonth() + 1, 0).getDate())); }
-            else { const mm = start.getMonth() + i; d = new Date(start.getFullYear(), mm, Math.min(day, new Date(start.getFullYear(), mm + 1, 0).getDate())); }
+            else { const mm = start.getMonth() + i * (MONTH_STEP[rec.frequency] || 1); d = new Date(start.getFullYear(), mm, Math.min(day, new Date(start.getFullYear(), mm + 1, 0).getDate())); }
             if (d > to || (end && d > end)) break;
             if (d >= from) out.push(isoDate(d));
         }
@@ -529,7 +607,7 @@
     }
 
     // Cost per month of a repeating amount (weekly ≈ 52/12 per month).
-    const PER_MONTH = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, yearly: 1 / 12 };
+    const PER_MONTH = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, quarterly: 1 / 3, semiannual: 1 / 6, yearly: 1 / 12 };
     const monthlyCost = (rec) => num(rec.amount) * (PER_MONTH[rec.frequency] || 1);
 
     // ------------------------------------------------------------ investments
@@ -998,7 +1076,7 @@
     // transactions, and paydays (net salary split between them).
     // months: [{ year, month, items, spend }] covering the range (current month may include
     // overdue unpaid bills, dated before `from`).
-    function cashEvents({ from, to, months, recurring, paydays, payPerMonth = 0 }) {
+    function cashEvents({ from, to, months, recurring, paydays, schedule, payPerMonth = 0, payBase }) {
         const out = [];
         const billLines = new Set();
         const billCats = new Set();
@@ -1011,29 +1089,43 @@
                 out.push({ date, kind: 'bill', name: b.item.name, amount: -b.remaining, planned: b.planned, paid: b.paid, lineId: String(b.item.id) });
             });
         });
-        const days = (paydays || []).map(Number).filter(d => d >= 1 && d <= 31);
+        const sch = normalizeSchedule(schedule || paydays);
         (recurring || []).forEach(r => {
             if (r.auto === false) return;
             const inc = (r.type || 'Gasto') === 'Ingreso';
             // Already counted: a bill's line, or the salary when paydays are set.
             if (!inc && ((r.budgetLine && billLines.has(String(r.budgetLine))) || (!r.budgetLine && billCats.has(r.parentCategory)))) return;
-            if (inc && days.length && isPayrollTxn(r)) return;
+            if (inc && sch && isPayrollTxn(r)) return;
             const after = r.lastPosted && r.lastPosted >= from ? isoDate(new Date(parseISO(r.lastPosted).getTime() + 86400000)) : from;
             occurrences(r, after, to).forEach(date => out.push({ date, kind: inc ? 'income' : 'scheduled', name: r.description, amount: (inc ? 1 : -1) * num(r.amount) }));
         });
-        // payPerMonth: one amount, or { 'YYYY-MM': amount } (months with décimo pay more).
-        const payFor = (key) => (payPerMonth && typeof payPerMonth === 'object' ? num(payPerMonth[key]) : num(payPerMonth));
-        if (days.length) {
-            const start = parseISO(from), end = parseISO(to);
-            for (let d = new Date(start.getFullYear(), start.getMonth(), 1); d <= end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
-                const last = daysIn(d.getFullYear(), d.getMonth() + 1);
-                const each = payFor(`${d.getFullYear()}-${pad2(d.getMonth() + 1)}`) / days.length;
-                if (!(each > 0)) continue;
-                [...new Set(days.map(x => Math.min(x, last)))].forEach(x => {
-                    const date = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(x)}`;
-                    if (date >= from && date <= to) out.push({ date, kind: 'payday', name: 'Día de pago', amount: each * days.filter(y => Math.min(y, last) === x).length });
-                });
-            }
+        // payPerMonth: the month's net pay, one amount or { 'YYYY-MM': amount } (months with a
+        // décimo pay more); payBase: the same without bonuses (defaults to payPerMonth).
+        const pick = (v, key) => (v && typeof v === 'object' ? num(v[key]) : num(v));
+        if (sch) {
+            const byMonth = {};
+            payDates(sch, from, to).forEach(date => { (byMonth[date.slice(0, 7)] = byMonth[date.slice(0, 7)] || []).push(date); });
+            // Fixed days every month: that month's pay split between them (as before). Any other
+            // rhythm: each payment is the stated amount, or the yearly net pay over the payments
+            // of the year; bonuses (décimos) arrive with the month's first payment.
+            const split = sch.freq === 'monthly' && sch.interval === 1 && !sch.amount;
+            const perYear = {};
+            Object.keys(byMonth).forEach(key => {
+                const dates = byMonth[key];
+                const total = pick(payPerMonth, key);
+                const base = payBase === undefined ? total : pick(payBase, key);
+                if (split) {
+                    // Split by all of the month's paydays, even when the range ends mid-month.
+                    const all = payDates(sch, `${key}-01`, `${key}-${pad2(daysIn(Number(key.slice(0, 4)), Number(key.slice(5))))}`).filter(d => d.startsWith(key)).length || dates.length;
+                    if (total > 0) dates.forEach(date => out.push({ date, kind: 'payday', name: 'Día de pago', amount: total / all }));
+                    return;
+                }
+                const y = key.slice(0, 4);
+                const n = perYear[y] || (perYear[y] = paymentsPerYear(sch, y));
+                const each = sch.amount || (n ? base * 12 / n : 0);
+                if (each > 0) dates.forEach(date => out.push({ date, kind: 'payday', name: 'Día de pago', amount: each }));
+                if (total - base > 0.004) out.push({ date: dates[0], kind: 'payday', name: 'Décimo / bono', amount: total - base });
+            });
         }
         return out.sort((a, b) => a.date.localeCompare(b.date) || a.amount - b.amount);
     }
@@ -1098,7 +1190,7 @@
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
-        occurrences, dueOccurrences, nextOccurrence, monthlyCost,
+        occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear,
         cashNow, cashEvents, safeToSpend, cashForecast, starveLines,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,

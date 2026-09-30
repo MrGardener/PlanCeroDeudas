@@ -519,3 +519,9 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
 .wi-change .num { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 html[data-theme="dark"] .wi-col { background: var(--surface); border-color: var(--line); }
 html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi-change { color: #cbd5e1; }
+
+/* pay schedule preview */
+.pay-next { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: .3rem .9rem; font-size: .8rem; }
+.pay-next li { display: flex; justify-content: space-between; gap: .5rem; border-bottom: 1px dashed #e2e8f0; padding: .2rem 0; color: #334155; }
+.pay-next .num { color: #047857; font-variant-numeric: tabular-nums; }
+html[data-theme="dark"] .pay-next li { border-bottom-color: var(--line); color: #cbd5e1; } html[data-theme="dark"] .pay-next .num { color: #34d399; }

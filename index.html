@@ -277,11 +277,12 @@
                     </select>
                     <span class="help">Define en qué mes se suma al ingreso.</span>
                 </label>
-                <label class="field field-box tone-emerald">
-                    <span class="field-label">Días de pago</span>
-                    <input type="text" class="input" id="pay-days" data-change="pay.days" placeholder="Ej: 15, 30" inputmode="numeric">
-                    <span class="help">Qué día(s) del mes cobras. El Resumen te dice cuánto falta.</span>
-                </label>
+                <div class="field field-box tone-emerald" id="pay-schedule">
+                    <span class="field-label">¿Cómo te pagan?</span>
+                    <div id="pay-summary" class="text-sm font-bold text-slate-800"></div>
+                    <button type="button" class="btn btn-secondary btn-sm mt-1 self-start" data-action="pay.edit" id="pay-edit"><i class="fa-regular fa-calendar"></i> Configurar</button>
+                    <span class="help">Cada semana, cada 2 semanas, días fijos, 2.º y 4.º viernes, a diario… El calendario y "Seguro para gastar" lo usan.</span>
+                </div>
                 <label class="field field-box tone-slate">
                     <span class="field-label">Cálculo anual de deducibles</span>
                     <select class="input" data-bind="year.annualMode">
@@ -376,7 +377,7 @@
                     <input type="date" id="txn-date" class="input" data-change="txn.dateChanged"></label>
                 <label class="field" id="txn-repeat-field"><span class="field-label">Repetir</span>
                     <select id="txn-repeat" class="input">
-                        <option value="">No se repite</option><option value="monthly">Cada mes</option><option value="biweekly">Cada 2 semanas</option><option value="weekly">Cada semana</option><option value="yearly">Cada año</option>
+                        <option value="">No se repite</option><option value="monthly">Cada mes</option><option value="biweekly">Cada 2 semanas</option><option value="weekly">Cada semana</option><option value="quarterly">Cada 3 meses</option><option value="semiannual">Cada 6 meses</option><option value="yearly">Cada año</option>
                     </select>
                     <span class="help">Se registrará sola cada vez (arriendo, Netflix, sueldo…). Con fecha futura queda programada.</span></label>
                 <div class="lg:col-span-3 flex items-end justify-end">

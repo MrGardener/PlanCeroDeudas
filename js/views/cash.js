@@ -12,13 +12,17 @@
 
     // Budget lines, what was spent on them and the net pay, for one month (null if that year
     // isn't part of the plan).
+    // A year not set up yet borrows the closest configured year's plan and salary.
     function monthData(y, m) {
-        if (!Store.state.years[y]) return null;
-        const yd = Store.effective(y);
+        const years = Object.keys(Store.state.years).map(Number).filter(Boolean);
+        if (!years.length) return null;
+        const src = Store.state.years[y] ? y : years.reduce((a, b) => (Math.abs(b - y) < Math.abs(a - y) ? b : a));
+        const yd = Store.effective(src);
         const items = Engine.monthItems(yd, String(m));
         const spend = Engine.lineSpend(items, Store.state.transactions, y, String(m));
-        const pay = Engine.monthBudget(yd, String(m), Engine.payroll(yd)).salary;
-        return { year: y, month: m, items, spend, pay };
+        const payroll = Engine.payroll(yd);
+        const pay = Engine.monthBudget(yd, String(m), payroll).salary;
+        return { year: y, month: m, items, spend, pay, payBase: payroll.netoM };
     }
 
     // Months touched by [from, to], each with its data.
@@ -32,12 +36,15 @@
         return out;
     }
 
+    // How the salary arrives (Ingresos → ¿Cómo te pagan?); older data only had days of the month.
+    const paySchedule = () => Engine.normalizeSchedule(Store.state.settings.paySchedule || Store.state.settings.paydays);
+
     function events(fromISO, toISO) {
         const s = Store.state;
         const months = monthsBetween(fromISO, toISO);
-        const pay = {};
-        months.forEach(d => { pay[`${d.year}-${String(d.month).padStart(2, '0')}`] = d.pay; });
-        return { months, list: Engine.cashEvents({ from: fromISO, to: toISO, months, recurring: s.recurring, paydays: s.settings.paydays, payPerMonth: pay }) };
+        const pay = {}, base = {};
+        months.forEach(d => { const k = `${d.year}-${String(d.month).padStart(2, '0')}`; pay[k] = d.pay; base[k] = d.payBase; });
+        return { months, list: Engine.cashEvents({ from: fromISO, to: toISO, months, recurring: s.recurring, schedule: paySchedule(), payPerMonth: pay, payBase: base }) };
     }
 
     // Savings and goal lines of this month: what they still need.
@@ -69,7 +76,7 @@
         const cash = Engine.cashNow(s.accounts, s.transactions, t);
         // Until the next payday after today (today's pay is assumed to be in the balance already).
         const tomorrow = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1);
-        const pd = Engine.nextPayday(s.settings.paydays, tomorrow);
+        const pd = Engine.nextPayday(paySchedule(), tomorrow);
         const until = pd ? pd.date : lastOfMonth(t.getFullYear(), t.getMonth() + 1);
         const ev = events(iso(new Date(t.getFullYear(), t.getMonth(), 1)), iso(until));
         const cur = ev.months.find(d => d.year === t.getFullYear() && d.month === t.getMonth() + 1);
@@ -108,7 +115,7 @@
                     <p class="text-sm text-slate-600 mt-1">${neg
                         ? `Lo que tienes no alcanza para lo que debe salir hasta el ${untilLabel}. Mueve dinero de ahorros, pospón un gasto o baja tu colchón.`
                         : `≈ <strong>${money0(r.perDay)} por día</strong> hasta ${c.hasPaydays ? `tu cobro del ${untilLabel}` : `el ${untilLabel} (fin de mes)`}.`}</p>
-                    ${c.hasPaydays ? '' : '<p class="help mt-1"><a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-days">Dinos qué días cobras</a> para calcular hasta tu próximo sueldo.</p>'}
+                    ${c.hasPaydays ? '' : '<p class="help mt-1"><a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-schedule">Dinos cómo te pagan</a> para calcular hasta tu próximo sueldo.</p>'}
                 </div>
                 <div class="lg:col-span-3">
                     <div class="safe-bar" role="img" aria-label="Cómo se reparte tu efectivo">${parts.map(p => seg(p[0], p[2])).join('')}${seg('safe', Math.max(0, r.safe))}</div>
@@ -144,7 +151,7 @@
             const date = iso(new Date(first.getFullYear(), first.getMonth(), d));
             days.push({ day: d, date, events: evBy[date] || [], f: byDay[date] || null, past: date < iso(t), today: date === iso(t) });
         }
-        return { first, last, days, cash, buffer, lead: (first.getDay() + 6) % 7, hasPaydays: (Store.state.settings.paydays || []).length > 0 };
+        return { first, last, days, cash, buffer, lead: (first.getDay() + 6) % 7, hasPaydays: !!paySchedule() };
     }
 
     function renderCalendar(today) {
@@ -176,7 +183,7 @@
                 ${cells.join('')}
             </div>
             <div class="cal-legend"><span><i class="cal-sw in"></i>Ingreso</span><span><i class="cal-sw out"></i>Pago</span><span><i class="cal-sw paid"></i>Pagado</span>${c.cash ? `<span><i class="cal-sw low"></i>Bajo tu colchón${c.buffer ? ` (${money0(c.buffer)})` : ''}</span><span><i class="cal-sw short"></i>Sin dinero</span><span class="help">Número de abajo: saldo proyectado, contando tus gastos del día a día repartidos por igual.</span>` : ''}</div>
-            ${c.hasPaydays ? '' : '<p class="help mt-2">Sin días de pago no vemos tu sueldo llegar: <a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-days">dinos qué días cobras</a>.</p>'}
+            ${c.hasPaydays ? '' : '<p class="help mt-2">Sin tus días de pago no vemos tu sueldo llegar: <a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-schedule">dinos cómo te pagan</a>.</p>'}
             ${agenda.length ? `<details class="mt-3" ${window.innerWidth < 640 ? 'open' : ''}><summary class="link text-xs">Lista del mes (${agenda.length} día${agenda.length === 1 ? '' : 's'})</summary>
                 <table class="table mt-2"><thead><tr><th>Día</th><th>Movimiento</th><th class="num">Monto</th><th class="num">Saldo proyectado</th></tr></thead><tbody>${agenda.map(d => `<tr class="${d.f && d.f.status !== 'ok' ? 'highlight' : ''}"><td>${d.day}</td><td>${d.events.map(e => esc(e.name) + (e.paid ? ' ✓' : '')).join(', ') || '—'}</td><td class="num">${d.events.map(e => (e.amount > 0 ? '+' : '−') + money(e.paid ? e.planned : Math.abs(e.amount))).join(', ')}</td><td class="num">${d.f ? money(d.f.balance) : '—'}</td></tr>`).join('')}</tbody></table></details>` : ''}`;
         UI.$$('[data-action="cal.move"]').forEach(b => { b.disabled = (Number(b.dataset.step) < 0 && offset === 0) || (Number(b.dataset.step) > 0 && offset === 2); });
@@ -196,5 +203,5 @@
         'safe.buffer': (el) => { Store.state.settings.cashBuffer = Math.max(0, Fmt.parseNum(el.value, 0)); App.changed({ structural: true, step: true }); }
     });
 
-    window.Cash = { safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar };
+    window.Cash = { paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar };
 })();

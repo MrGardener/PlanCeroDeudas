@@ -564,3 +564,49 @@ test('what if: a purchase takes from free money, its line, variable lines, then 
     assert.ok(!r.takes.some(t => t.name === 'Arriendo'));
     assert.deepEqual(E.starveLines({ items, spend, amount: 20, lineId: 4 }).takes.map(t => t.name), ['Ropa']);
 });
+
+test('pay schedules: days of the month, weekly, every 2 weeks, 2nd/4th Friday, daily, quarterly', () => {
+    const d = (sch, a, b) => E.payDates(sch, a, b);
+    // Old style: days of the month; 31 = last day.
+    assert.deepEqual(d([15, 31], '2026-02-01', '2026-02-28'), ['2026-02-15', '2026-02-28']);
+    // Weekend rule: 15 Aug 2026 is a Saturday.
+    assert.deepEqual(d({ freq: 'monthly', days: [15], weekend: 'before' }, '2026-08-01', '2026-08-31'), ['2026-08-14']);
+    assert.deepEqual(d({ freq: 'monthly', days: [15], weekend: 'after' }, '2026-08-01', '2026-08-31'), ['2026-08-17']);
+    // Every Friday (5) of October 2026.
+    assert.deepEqual(d({ freq: 'weekly', weekday: 5 }, '2026-10-01', '2026-10-31'), ['2026-10-02', '2026-10-09', '2026-10-16', '2026-10-23', '2026-10-30']);
+    // Every 2 weeks on Thursday, counted from 8 Oct.
+    assert.deepEqual(d({ freq: 'weekly', weekday: 4, interval: 2, anchor: '2026-10-08' }, '2026-10-01', '2026-11-10'), ['2026-10-08', '2026-10-22', '2026-11-05']);
+    // 2nd and 4th Friday; last Friday.
+    assert.deepEqual(d({ freq: 'nth', weekday: 5, nths: [2, 4] }, '2026-10-01', '2026-11-30'), ['2026-10-09', '2026-10-23', '2026-11-13', '2026-11-27']);
+    assert.deepEqual(d({ freq: 'nth', weekday: 5, nths: [-1] }, '2026-10-01', '2026-10-31'), ['2026-10-30']);
+    // Daily, Monday to Friday.
+    assert.equal(d({ freq: 'daily', businessDays: true }, '2026-10-01', '2026-10-31').length, 22);
+    assert.equal(d({ freq: 'daily' }, '2026-10-01', '2026-10-31').length, 31);
+    // Quarterly on the 10th, from January.
+    assert.deepEqual(d({ freq: 'monthly', days: [10], interval: 3, anchor: '2026-01-10' }, '2026-01-01', '2026-12-31'), ['2026-01-10', '2026-04-10', '2026-07-10', '2026-10-10']);
+    assert.equal(E.paymentsPerYear({ freq: 'weekly', weekday: 5 }, 2026), 52);
+    assert.equal(E.nextPayday({ freq: 'weekly', weekday: 5 }, new Date(2026, 9, 3)).days, 6);
+    assert.equal(E.normalizeSchedule({ freq: 'nth', weekday: 5, nths: [] }), null);
+});
+
+test('weekly pay spreads the yearly net pay over the paychecks; décimos come on top', () => {
+    const ev = E.cashEvents({ from: '2026-12-01', to: '2026-12-31', months: [], recurring: [], schedule: { freq: 'weekly', weekday: 5 }, payPerMonth: { '2026-12': 2300 }, payBase: 1300 });
+    const pays = ev.filter(e => e.name === 'Día de pago');
+    assert.equal(pays.length, 4);                                       // 4, 11, 18, 25 Dec
+    assert.ok(Math.abs(pays[0].amount - 1300 * 12 / 52) < 1e-9);
+    const bonus = ev.find(e => e.name === 'Décimo / bono');
+    assert.equal(bonus.date, '2026-12-04'); assert.equal(bonus.amount, 1000);
+    const fixed = E.cashEvents({ from: '2026-12-01', to: '2026-12-31', months: [], recurring: [], schedule: { freq: 'daily', businessDays: true, amount: 40 }, payPerMonth: 1300 });
+    assert.ok(fixed.filter(e => e.name === 'Día de pago').every(e => e.amount === 40));
+});
+
+test('repeating transactions every 3 and 6 months', () => {
+    assert.deepEqual(E.occurrences({ startDate: '2026-01-31', frequency: 'quarterly' }, '2026-01-01', '2026-12-31'), ['2026-01-31', '2026-04-30', '2026-07-31', '2026-10-31']);
+    assert.deepEqual(E.occurrences({ startDate: '2026-03-05', frequency: 'semiannual' }, '2026-01-01', '2027-12-31'), ['2026-03-05', '2026-09-05', '2027-03-05', '2027-09-05']);
+    assert.equal(E.monthlyCost({ amount: 300, frequency: 'quarterly' }), 100);
+});
+
+test('every 2 weeks works even when the date given is not the payday weekday', () => {
+    // 6 Oct 2026 is a Tuesday → counted from Thursday 8 Oct.
+    assert.deepEqual(E.payDates({ freq: 'weekly', weekday: 4, interval: 2, anchor: '2026-10-06' }, '2026-10-01', '2026-11-10'), ['2026-10-08', '2026-10-22', '2026-11-05']);
+});

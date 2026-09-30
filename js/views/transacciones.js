@@ -238,7 +238,7 @@
     }
 
     // ------------------------------------------------------------------ recurring
-    const FREQ = { weekly: 'Cada semana', biweekly: 'Cada 2 semanas', monthly: 'Cada mes', yearly: 'Cada año' };
+    const FREQ = { weekly: 'Cada semana', biweekly: 'Cada 2 semanas', monthly: 'Cada mes', quarterly: 'Cada 3 meses', semiannual: 'Cada 6 meses', yearly: 'Cada año' };
     const isSubscription = (r) => /suscrip/i.test(r.parentCategory || '') || /netflix|spotify|disney|hbo|prime|youtube|icloud|google one|apple/i.test(r.description || '');
 
     function renderRecurring(ctx) {

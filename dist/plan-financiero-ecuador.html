@@ -534,6 +534,12 @@ html[data-theme="dark"] .cal-cell.low .cal-bal { color: #fbbf24; } html[data-the
 .wi-change .num { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 html[data-theme="dark"] .wi-col { background: var(--surface); border-color: var(--line); }
 html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi-change { color: #cbd5e1; }
+
+/* pay schedule preview */
+.pay-next { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: .3rem .9rem; font-size: .8rem; }
+.pay-next li { display: flex; justify-content: space-between; gap: .5rem; border-bottom: 1px dashed #e2e8f0; padding: .2rem 0; color: #334155; }
+.pay-next .num { color: #047857; font-variant-numeric: tabular-nums; }
+html[data-theme="dark"] .pay-next li { border-bottom-color: var(--line); color: #cbd5e1; } html[data-theme="dark"] .pay-next .num { color: #34d399; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -799,11 +805,12 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
                     </select>
                     <span class="help">Define en qué mes se suma al ingreso.</span>
                 </label>
-                <label class="field field-box tone-emerald">
-                    <span class="field-label">Días de pago</span>
-                    <input type="text" class="input" id="pay-days" data-change="pay.days" placeholder="Ej: 15, 30" inputmode="numeric">
-                    <span class="help">Qué día(s) del mes cobras. El Resumen te dice cuánto falta.</span>
-                </label>
+                <div class="field field-box tone-emerald" id="pay-schedule">
+                    <span class="field-label">¿Cómo te pagan?</span>
+                    <div id="pay-summary" class="text-sm font-bold text-slate-800"></div>
+                    <button type="button" class="btn btn-secondary btn-sm mt-1 self-start" data-action="pay.edit" id="pay-edit"><i class="fa-regular fa-calendar"></i> Configurar</button>
+                    <span class="help">Cada semana, cada 2 semanas, días fijos, 2.º y 4.º viernes, a diario… El calendario y "Seguro para gastar" lo usan.</span>
+                </div>
                 <label class="field field-box tone-slate">
                     <span class="field-label">Cálculo anual de deducibles</span>
                     <select class="input" data-bind="year.annualMode">
@@ -898,7 +905,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
                     <input type="date" id="txn-date" class="input" data-change="txn.dateChanged"></label>
                 <label class="field" id="txn-repeat-field"><span class="field-label">Repetir</span>
                     <select id="txn-repeat" class="input">
-                        <option value="">No se repite</option><option value="monthly">Cada mes</option><option value="biweekly">Cada 2 semanas</option><option value="weekly">Cada semana</option><option value="yearly">Cada año</option>
+                        <option value="">No se repite</option><option value="monthly">Cada mes</option><option value="biweekly">Cada 2 semanas</option><option value="weekly">Cada semana</option><option value="quarterly">Cada 3 meses</option><option value="semiannual">Cada 6 meses</option><option value="yearly">Cada año</option>
                     </select>
                     <span class="help">Se registrará sola cada vez (arriendo, Netflix, sueldo…). Con fecha futura queda programada.</span></label>
                 <div class="lg:col-span-3 flex items-end justify-end">
@@ -2033,7 +2040,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
                 { id: 3, type: 'Ingreso', description: 'Remesa mensual de mi hermano', store: 'Western Union', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: iso, paymentType: 'Tarjeta de Débito' }
             ],
             taxonomy: { expense: clone(EXPENSE_TAXONOMY), income: clone(INCOME_TAXONOMY) },
-            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', paydays: [], cashBuffer: 0 },
+            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', paydays: [], paySchedule: null, cashBuffer: 0 },
             // "Description contains X → category / budget line", used on import and new transactions.
             rules: [],
             // Investments: { id, ticker, name, kind, shares, price, priceAt, auto }
@@ -2503,22 +2510,99 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
         return { income, expense, net: income - expense };
     }
 
-    // Next payday from days of the month (e.g. [15, 30] for quincenal); 31 means "last day".
-    function nextPayday(paydays, today) {
+    // ------------------------------------------------------------------ pay schedule
+    // How the salary arrives. { freq, ... }:
+    //   'monthly'  days: [15, 30] (31 = last day), interval: 1 | 2 | 3 | 6 | 12 months counted
+    //              from `anchor`'s month, weekend: 'same' | 'before' | 'after' (payday moved to
+    //              Friday before / Monday after when it falls on a weekend)
+    //   'weekly'   weekday (0 = Sunday … 6 = Saturday), interval 1 | 2 (every 2 weeks from `anchor`)
+    //   'nth'      weekday + nths: [2, 4] ("2nd and 4th Friday"), -1 = the last one of the month
+    //   'daily'    businessDays: true = Monday to Friday
+    //   amount     optional: what each payment is (otherwise the net salary is spread over them)
+    // A plain array of days (the old "días de pago") means monthly on those days.
+    function normalizeSchedule(sch) {
+        if (Array.isArray(sch)) sch = { freq: 'monthly', days: sch };
+        if (!sch || !sch.freq) return null;
+        const wd = Number(sch.weekday);
+        const out = { freq: sch.freq, interval: Math.max(1, Number(sch.interval) || 1), amount: num(sch.amount) > 0 ? num(sch.amount) : 0 };
+        if (sch.anchor) out.anchor = String(sch.anchor);
+        if (sch.freq === 'monthly') {
+            out.days = [...new Set((sch.days || []).map(Number).filter(d => d >= 1 && d <= 31))].sort((a, b) => a - b);
+            out.weekend = ['before', 'after'].includes(sch.weekend) ? sch.weekend : 'same';
+            if (!out.days.length) return null;
+        } else if (sch.freq === 'weekly' || sch.freq === 'nth') {
+            if (!(wd >= 0 && wd <= 6)) return null;
+            out.weekday = wd;
+            if (sch.freq === 'nth') {
+                out.nths = [...new Set((sch.nths || []).map(Number).filter(n => n === -1 || (n >= 1 && n <= 5)))].sort((a, b) => (a === -1) - (b === -1) || a - b);
+                if (!out.nths.length) return null;
+            }
+        } else if (sch.freq === 'daily') out.businessDays = !!sch.businessDays;
+        else return null;
+        return out;
+    }
+
+    const mod = (a, n) => ((a % n) + n) % n;
+
+    // Every payday between two ISO dates (inclusive), in order.
+    function payDates(schedule, fromISO, toISO) {
+        const sch = normalizeSchedule(schedule);
+        if (!sch || !fromISO || !toISO || fromISO > toISO) return [];
+        const from = parseISO(fromISO), to = parseISO(toISO);
+        const out = new Set();
+        const add = (d) => { const x = isoDate(d); if (x >= fromISO && x <= toISO) out.add(x); };
+        const anchor = sch.anchor ? parseISO(sch.anchor) : null;
+        // Every-2-weeks counts from the payday weekday on or after the date given.
+        if (anchor && sch.freq === 'weekly') anchor.setDate(anchor.getDate() + mod(sch.weekday - anchor.getDay(), 7));
+        if (sch.freq === 'monthly') {
+            const a = anchor ? anchor.getFullYear() * 12 + anchor.getMonth() : null;
+            // Start a month early: a payday moved "after" a weekend can land in the next month.
+            for (let d = new Date(from.getFullYear(), from.getMonth() - 1, 1); d <= to; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+                if (sch.interval > 1 && a !== null && mod(d.getFullYear() * 12 + d.getMonth() - a, sch.interval) !== 0) continue;
+                const last = daysIn(d.getFullYear(), d.getMonth() + 1);
+                sch.days.forEach(day => {
+                    const p = new Date(d.getFullYear(), d.getMonth(), Math.min(day, last));
+                    const w = p.getDay();
+                    if (sch.weekend === 'before' && (w === 6 || w === 0)) p.setDate(p.getDate() - (w === 6 ? 1 : 2));
+                    if (sch.weekend === 'after' && (w === 6 || w === 0)) p.setDate(p.getDate() + (w === 6 ? 2 : 1));
+                    add(p);
+                });
+            }
+        } else if (sch.freq === 'weekly') {
+            const d = new Date(from);
+            d.setDate(d.getDate() + mod(sch.weekday - d.getDay(), 7));
+            for (; d <= to; d.setDate(d.getDate() + 7)) {
+                if (sch.interval > 1 && anchor && mod(Math.round((d - anchor) / (7 * 86400000)), sch.interval) !== 0) continue;
+                add(d);
+            }
+        } else if (sch.freq === 'nth') {
+            for (let d = new Date(from.getFullYear(), from.getMonth(), 1); d <= to; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+                const first = 1 + mod(sch.weekday - d.getDay(), 7);
+                const last = daysIn(d.getFullYear(), d.getMonth() + 1);
+                const count = Math.floor((last - first) / 7) + 1;
+                sch.nths.forEach(n => {
+                    const k = n === -1 ? count : n;
+                    if (k >= 1 && k <= count) add(new Date(d.getFullYear(), d.getMonth(), first + 7 * (k - 1)));
+                });
+            }
+        } else if (sch.freq === 'daily') {
+            for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+                if (!sch.businessDays || (d.getDay() !== 0 && d.getDay() !== 6)) add(d);
+            }
+        }
+        return [...out].sort();
+    }
+
+    const paymentsPerYear = (schedule, year) => payDates(schedule, `${year}-01-01`, `${year}-12-31`).length;
+
+    // Next payday on or after `today` (a schedule, or the old array of days of the month).
+    function nextPayday(schedule, today) {
         const t = new Date(today);
         const base = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-        const days = (paydays || []).map(Number).filter(d => d >= 1 && d <= 31);
-        if (!days.length) return null;
-        let best = null;
-        for (let add = 0; add <= 1; add++) {
-            const y = t.getFullYear(), m = t.getMonth() + add;
-            days.forEach(d => {
-                const last = new Date(y, m + 1, 0).getDate();
-                const date = new Date(y, m, Math.min(d, last));
-                if (date >= base && (!best || date < best)) best = date;
-            });
-        }
-        return { date: best, days: Math.round((best - base) / 86400000) };
+        const next = payDates(schedule, isoDate(base), isoDate(new Date(base.getFullYear() + 1, base.getMonth(), base.getDate() + 1)))[0];
+        if (!next) return null;
+        const date = parseISO(next);
+        return { date, days: Math.round((date - base) / 86400000) };
     }
 
     // What can still be spent per day on flexible spending this month.
@@ -2567,6 +2651,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
     // A repeating transaction: { frequency: 'weekly'|'biweekly'|'monthly'|'yearly',
     // startDate, endDate?, lastPosted? }. Monthly/yearly keep the start's day of month
     // (clamped to short months: the 31st becomes the 30th/28th).
+    const MONTH_STEP = { monthly: 1, quarterly: 3, semiannual: 6 };
     const parseISO = (s) => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
     function occurrences(rec, fromISO, toISO) {
         if (!rec || !rec.startDate) return [];
@@ -2579,7 +2664,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
             if (rec.frequency === 'weekly') { d = new Date(start); d.setDate(start.getDate() + 7 * i); }
             else if (rec.frequency === 'biweekly') { d = new Date(start); d.setDate(start.getDate() + 14 * i); }
             else if (rec.frequency === 'yearly') { const y = start.getFullYear() + i; d = new Date(y, start.getMonth(), Math.min(day, new Date(y, start.getMonth() + 1, 0).getDate())); }
-            else { const mm = start.getMonth() + i; d = new Date(start.getFullYear(), mm, Math.min(day, new Date(start.getFullYear(), mm + 1, 0).getDate())); }
+            else { const mm = start.getMonth() + i * (MONTH_STEP[rec.frequency] || 1); d = new Date(start.getFullYear(), mm, Math.min(day, new Date(start.getFullYear(), mm + 1, 0).getDate())); }
             if (d > to || (end && d > end)) break;
             if (d >= from) out.push(isoDate(d));
         }
@@ -2601,7 +2686,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
     }
 
     // Cost per month of a repeating amount (weekly ≈ 52/12 per month).
-    const PER_MONTH = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, yearly: 1 / 12 };
+    const PER_MONTH = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, quarterly: 1 / 3, semiannual: 1 / 6, yearly: 1 / 12 };
     const monthlyCost = (rec) => num(rec.amount) * (PER_MONTH[rec.frequency] || 1);
 
     // ------------------------------------------------------------ investments
@@ -3070,7 +3155,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
     // transactions, and paydays (net salary split between them).
     // months: [{ year, month, items, spend }] covering the range (current month may include
     // overdue unpaid bills, dated before `from`).
-    function cashEvents({ from, to, months, recurring, paydays, payPerMonth = 0 }) {
+    function cashEvents({ from, to, months, recurring, paydays, schedule, payPerMonth = 0, payBase }) {
         const out = [];
         const billLines = new Set();
         const billCats = new Set();
@@ -3083,29 +3168,43 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
                 out.push({ date, kind: 'bill', name: b.item.name, amount: -b.remaining, planned: b.planned, paid: b.paid, lineId: String(b.item.id) });
             });
         });
-        const days = (paydays || []).map(Number).filter(d => d >= 1 && d <= 31);
+        const sch = normalizeSchedule(schedule || paydays);
         (recurring || []).forEach(r => {
             if (r.auto === false) return;
             const inc = (r.type || 'Gasto') === 'Ingreso';
             // Already counted: a bill's line, or the salary when paydays are set.
             if (!inc && ((r.budgetLine && billLines.has(String(r.budgetLine))) || (!r.budgetLine && billCats.has(r.parentCategory)))) return;
-            if (inc && days.length && isPayrollTxn(r)) return;
+            if (inc && sch && isPayrollTxn(r)) return;
             const after = r.lastPosted && r.lastPosted >= from ? isoDate(new Date(parseISO(r.lastPosted).getTime() + 86400000)) : from;
             occurrences(r, after, to).forEach(date => out.push({ date, kind: inc ? 'income' : 'scheduled', name: r.description, amount: (inc ? 1 : -1) * num(r.amount) }));
         });
-        // payPerMonth: one amount, or { 'YYYY-MM': amount } (months with décimo pay more).
-        const payFor = (key) => (payPerMonth && typeof payPerMonth === 'object' ? num(payPerMonth[key]) : num(payPerMonth));
-        if (days.length) {
-            const start = parseISO(from), end = parseISO(to);
-            for (let d = new Date(start.getFullYear(), start.getMonth(), 1); d <= end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
-                const last = daysIn(d.getFullYear(), d.getMonth() + 1);
-                const each = payFor(`${d.getFullYear()}-${pad2(d.getMonth() + 1)}`) / days.length;
-                if (!(each > 0)) continue;
-                [...new Set(days.map(x => Math.min(x, last)))].forEach(x => {
-                    const date = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(x)}`;
-                    if (date >= from && date <= to) out.push({ date, kind: 'payday', name: 'Día de pago', amount: each * days.filter(y => Math.min(y, last) === x).length });
-                });
-            }
+        // payPerMonth: the month's net pay, one amount or { 'YYYY-MM': amount } (months with a
+        // décimo pay more); payBase: the same without bonuses (defaults to payPerMonth).
+        const pick = (v, key) => (v && typeof v === 'object' ? num(v[key]) : num(v));
+        if (sch) {
+            const byMonth = {};
+            payDates(sch, from, to).forEach(date => { (byMonth[date.slice(0, 7)] = byMonth[date.slice(0, 7)] || []).push(date); });
+            // Fixed days every month: that month's pay split between them (as before). Any other
+            // rhythm: each payment is the stated amount, or the yearly net pay over the payments
+            // of the year; bonuses (décimos) arrive with the month's first payment.
+            const split = sch.freq === 'monthly' && sch.interval === 1 && !sch.amount;
+            const perYear = {};
+            Object.keys(byMonth).forEach(key => {
+                const dates = byMonth[key];
+                const total = pick(payPerMonth, key);
+                const base = payBase === undefined ? total : pick(payBase, key);
+                if (split) {
+                    // Split by all of the month's paydays, even when the range ends mid-month.
+                    const all = payDates(sch, `${key}-01`, `${key}-${pad2(daysIn(Number(key.slice(0, 4)), Number(key.slice(5))))}`).filter(d => d.startsWith(key)).length || dates.length;
+                    if (total > 0) dates.forEach(date => out.push({ date, kind: 'payday', name: 'Día de pago', amount: total / all }));
+                    return;
+                }
+                const y = key.slice(0, 4);
+                const n = perYear[y] || (perYear[y] = paymentsPerYear(sch, y));
+                const each = sch.amount || (n ? base * 12 / n : 0);
+                if (each > 0) dates.forEach(date => out.push({ date, kind: 'payday', name: 'Día de pago', amount: each }));
+                if (total - base > 0.004) out.push({ date: dates[0], kind: 'payday', name: 'Décimo / bono', amount: total - base });
+            });
         }
         return out.sort((a, b) => a.date.localeCompare(b.date) || a.amount - b.amount);
     }
@@ -3170,7 +3269,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
-        occurrences, dueOccurrences, nextOccurrence, monthlyCost,
+        occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear,
         cashNow, cashEvents, safeToSpend, cashForecast, starveLines,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
@@ -4629,7 +4728,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
         const allow = Engine.dailyAllowance({ planned: flexPlanned, spent: flexSpent, today: t });
         const iso = Engine.isoDate(t);
         const spentToday = txns.filter(x => (x.type || 'Gasto') === 'Gasto' && x.date === iso).reduce((a, x) => a + (Number(x.amount) || 0), 0);
-        const pay = Engine.nextPayday(s.settings.paydays, t);
+        const pay = Engine.nextPayday(Cash.paySchedule(), t);
         const streak = Engine.loggingStreak(txns, t);
         const DOW = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
         UI.html('dash-today', `
@@ -4641,7 +4740,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
             <div class="kpi tone-slate">
                 <span class="kpi-label">Próximo día de pago</span>
                 <span class="kpi-value">${pay ? (pay.days === 0 ? '¡Hoy!' : `En ${pay.days} día${pay.days === 1 ? '' : 's'}`) : '—'}</span>
-                <span class="kpi-note">${pay ? `${pay.date.getDate()} de ${Fmt.MONTH_NAMES[pay.date.getMonth()].toLowerCase()}` : '<a href="#" class="link" data-goto="presupuesto/ingresos">Dinos qué días cobras</a>'}</span>
+                <span class="kpi-note">${pay ? `${pay.date.getDate()} de ${Fmt.MONTH_NAMES[pay.date.getMonth()].toLowerCase()}` : '<a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-schedule">Dinos cómo te pagan</a>'}</span>
             </div>
             <div class="kpi ${streak.days >= 3 ? 'tone-amber' : 'tone-slate'}">
                 <span class="kpi-label">${streak.days ? '🔥 Racha registrando' : 'Registra hoy'}</span>
@@ -5854,12 +5953,138 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
 /* Presupuesto → Ingresos e Impuestos: payroll (IESS + SRI), décimos and deductions. */
 (function () {
     'use strict';
-    const { money, pct } = Fmt;
+    const { money, pct, esc } = Fmt;
+
+    // ------------------------------------------------------------------ how you get paid
+    const WD = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const WD_PL = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
+    const ORD = { 1: '1.º', 2: '2.º', 3: '3.º', 4: '4.º', 5: '5.º', '-1': 'último' };
+    const EVERY = { 1: 'cada mes', 2: 'cada 2 meses', 3: 'cada 3 meses (trimestral)', 6: 'cada 6 meses (semestral)', 12: 'una vez al año' };
+    const list = (xs) => xs.length > 1 ? `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}` : xs.join('');
+    const dayLabel = (iso) => { const d = new Date(iso + 'T12:00'); return `${WD[d.getDay()].slice(0, 3)} ${d.getDate()} ${Fmt.MONTH_SHORT[d.getMonth()].toLowerCase()}`; };
+
+    function describe(sch) {
+        if (!sch) return 'Sin configurar';
+        if (sch.freq === 'monthly') {
+            const wk = sch.weekend === 'before' ? ' (si cae en fin de semana, el viernes antes)' : sch.weekend === 'after' ? ' (si cae en fin de semana, el lunes después)' : '';
+            const days = sch.days.length === 1
+                ? (sch.days[0] === 31 ? 'El último día' : `El día ${sch.days[0]}`)
+                : `Los días ${list(sch.days.map(d => d === 31 ? 'el último' : String(d)))}`;
+            return `${days}, ${EVERY[sch.interval] || `cada ${sch.interval} meses`}${wk}`;
+        }
+        if (sch.freq === 'weekly') return sch.interval === 2 ? `Cada 2 semanas, los ${WD_PL[sch.weekday]}` : `Cada ${WD[sch.weekday]}`;
+        if (sch.freq === 'nth') return `El ${list(sch.nths.map(n => ORD[n]))} ${WD[sch.weekday]} de cada mes`;
+        if (sch.freq === 'daily') return sch.businessDays ? 'Cada día laborable (lunes a viernes)' : 'Todos los días';
+        return '';
+    }
+
+    function renderSummary() {
+        const sch = Cash.paySchedule();
+        const next = sch ? Engine.nextPayday(sch, new Date()) : null;
+        UI.html('pay-summary', sch ? `${esc(describe(sch))}${next ? `<div class="text-xs font-normal text-slate-600">Próximo: ${esc(dayLabel(Engine.isoDate(next.date)))}${next.days === 0 ? ' (hoy)' : ` (en ${next.days} día${next.days === 1 ? '' : 's'})`}</div>` : ''}` : '<span class="text-slate-500 font-normal">Sin configurar</span>');
+    }
+
+    // The editor works on a draft; nothing changes until "Guardar".
+    let draft = null, sheet = null;
+
+    function draftFrom(sch) {
+        const today = new Date();
+        const d = { freq: 'monthly', days: '15, 30', interval: 1, anchor: Engine.isoDate(today), weekend: 'same', weekday: 5, nths: [2, 4], businessDays: true, amount: '' };
+        if (!sch) return d;
+        Object.assign(d, { freq: sch.freq === 'weekly' && sch.interval === 2 ? 'biweekly' : sch.freq, interval: sch.interval || 1, amount: sch.amount || '' });
+        if (sch.days) d.days = sch.days.join(', ');
+        if (sch.anchor) d.anchor = sch.anchor;
+        if (sch.weekend) d.weekend = sch.weekend;
+        if (sch.weekday !== undefined) d.weekday = sch.weekday;
+        if (sch.nths) d.nths = sch.nths;
+        if (sch.businessDays !== undefined) d.businessDays = sch.businessDays;
+        return d;
+    }
+
+    function scheduleFrom(d) {
+        const amount = Fmt.parseNum(d.amount, 0);
+        if (d.freq === 'monthly') return Engine.normalizeSchedule({ freq: 'monthly', days: String(d.days).split(/[^\d]+/).map(Number), interval: Number(d.interval), anchor: Number(d.interval) > 1 ? d.anchor : undefined, weekend: d.weekend, amount });
+        if (d.freq === 'weekly' || d.freq === 'biweekly') return Engine.normalizeSchedule({ freq: 'weekly', weekday: Number(d.weekday), interval: d.freq === 'biweekly' ? 2 : 1, anchor: d.freq === 'biweekly' ? d.anchor : undefined, amount });
+        if (d.freq === 'nth') return Engine.normalizeSchedule({ freq: 'nth', weekday: Number(d.weekday), nths: d.nths, amount });
+        return Engine.normalizeSchedule({ freq: 'daily', businessDays: d.businessDays, amount });
+    }
+
+    // First paydays a year ahead with their amounts, from this draft.
+    function previewHTML(sch) {
+        if (!sch) return '<p class="text-sm text-red-600">Completa los datos: faltan los días o el día de la semana.</p>';
+        const t = new Date();
+        const from = Engine.isoDate(t), to = Engine.isoDate(new Date(t.getFullYear() + 1, t.getMonth(), t.getDate() - 1));
+        const months = Cash.monthsBetween(from, to);
+        const pay = {}, base = {};
+        months.forEach(m => { const k = `${m.year}-${String(m.month).padStart(2, '0')}`; pay[k] = m.pay; base[k] = m.payBase; });
+        const ev = Engine.cashEvents({ from, to, months: [], recurring: [], schedule: sch, payPerMonth: pay, payBase: base });
+        const pays = ev.filter(e => e.name === 'Día de pago');
+        const total = ev.reduce((a, e) => a + e.amount, 0);
+        const perYear = Engine.paymentsPerYear(sch, t.getFullYear());
+        const each = pays.length ? pays[0].amount : 0;
+        return `<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+                <div class="kpi tone-emerald"><span class="kpi-label">Pagos al año</span><span class="kpi-value" id="pay-per-year">${perYear}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">Cada pago</span><span class="kpi-value">${money(each)}</span><span class="kpi-note">${sch.amount ? 'El monto que escribiste' : 'Tu sueldo neto repartido'}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">En 12 meses</span><span class="kpi-value">${money(total)}</span><span class="kpi-note">≈ ${money(total / 12)} al mes${ev.some(e => e.name !== 'Día de pago') ? ', décimos incluidos' : ''}</span></div>
+            </div>
+            <div class="section-label">Próximos pagos</div>
+            <ul class="pay-next" id="pay-next">${ev.slice(0, 8).map(e => `<li><span>${esc(dayLabel(e.date))}${e.name !== 'Día de pago' ? ` <span class="badge badge-info">${esc(e.name)}</span>` : ''}</span><strong class="num">+${money(e.amount)}</strong></li>`).join('') || '<li class="help">Sin pagos en los próximos 12 meses.</li>'}</ul>
+            ${sch.amount ? '<p class="help mt-2">El presupuesto sigue usando tu sueldo de esta pestaña; este monto solo cambia el calendario y "Seguro para gastar".</p>' : ''}`;
+    }
+
+    function editorHTML() {
+        const d = draft;
+        const wdSel = `<label class="field"><span class="field-label">Día de la semana</span><select class="input" id="ps-weekday" data-change="pay.field">${[1, 2, 3, 4, 5, 6, 0].map(i => `<option value="${i}" ${Number(d.weekday) === i ? 'selected' : ''}>${WD[i].charAt(0).toUpperCase() + WD[i].slice(1)}</option>`).join('')}</select></label>`;
+        let extra = '';
+        if (d.freq === 'monthly') extra = `
+            <label class="field"><span class="field-label">Días del mes</span><input class="input" id="ps-days" data-change="pay.field" value="${esc(d.days)}" placeholder="Ej: 15, 30  (31 = último día)" inputmode="numeric"></label>
+            <label class="field"><span class="field-label">Cada cuánto</span><select class="input" id="ps-interval" data-change="pay.field">${[1, 2, 3, 6, 12].map(n => `<option value="${n}" ${Number(d.interval) === n ? 'selected' : ''}>${EVERY[n].charAt(0).toUpperCase() + EVERY[n].slice(1)}</option>`).join('')}</select></label>
+            ${Number(d.interval) > 1 ? `<label class="field"><span class="field-label">Un mes en que cobras</span><input type="month" class="input" id="ps-anchor-month" data-change="pay.field" value="${esc(String(d.anchor).slice(0, 7))}"></label>` : ''}
+            <label class="field"><span class="field-label">Si cae en sábado o domingo</span><select class="input" id="ps-weekend" data-change="pay.field"><option value="same" ${d.weekend === 'same' ? 'selected' : ''}>Se paga ese mismo día</option><option value="before" ${d.weekend === 'before' ? 'selected' : ''}>Se adelanta al viernes</option><option value="after" ${d.weekend === 'after' ? 'selected' : ''}>Pasa al lunes</option></select></label>`;
+        else if (d.freq === 'weekly') extra = wdSel;
+        else if (d.freq === 'biweekly') extra = wdSel + `<label class="field"><span class="field-label">Una fecha en que cobraste o cobrarás</span><input type="date" class="input" id="ps-anchor" data-change="pay.field" value="${esc(d.anchor)}"><span class="help">Para saber cuál semana sí y cuál no.</span></label>`;
+        else if (d.freq === 'nth') extra = wdSel + `<div class="field"><span class="field-label">¿Cuáles del mes?</span><div class="flex flex-wrap gap-3 pt-1">${[1, 2, 3, 4, -1].map(n => `<label class="check"><input type="checkbox" class="ps-nth" data-n="${n}" data-change="pay.field" ${d.nths.map(Number).includes(n) ? 'checked' : ''}> ${ORD[n]}</label>`).join('')}</div></div>`;
+        else extra = `<label class="check pt-6"><input type="checkbox" id="ps-business" data-change="pay.field" ${d.businessDays ? 'checked' : ''}> Solo de lunes a viernes</label>`;
+        const sch = scheduleFrom(d);
+        return `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <label class="field"><span class="field-label">Frecuencia</span><select class="input" id="ps-freq" data-change="pay.field">
+                    <option value="monthly" ${d.freq === 'monthly' ? 'selected' : ''}>Días fijos del mes</option>
+                    <option value="weekly" ${d.freq === 'weekly' ? 'selected' : ''}>Cada semana</option>
+                    <option value="biweekly" ${d.freq === 'biweekly' ? 'selected' : ''}>Cada 2 semanas</option>
+                    <option value="nth" ${d.freq === 'nth' ? 'selected' : ''}>Semanas del mes</option>
+                    <option value="daily" ${d.freq === 'daily' ? 'selected' : ''}>Todos los días</option>
+                </select><span class="help">${{ monthly: 'Ej: 15 y 30, fin de mes, trimestral.', weekly: 'Ej: todos los viernes.', biweekly: 'Ej: un jueves sí y otro no.', nth: 'Ej: el 2.º y 4.º viernes.', daily: 'Ej: jornal diario.' }[d.freq] || ''}</span></label>
+                ${extra}
+                <label class="field"><span class="field-label"><span>Monto de cada pago (<span class="cur">${esc(Fmt.currency().symbol)}</span>)</span></span><input class="input" id="ps-amount" data-change="pay.field" inputmode="decimal" value="${esc(String(d.amount || ''))}" placeholder="Automático: tu sueldo neto repartido"><span class="help">Déjalo vacío si cobras tu sueldo de esta pestaña.</span></label>
+            </div>
+            <div class="bs-banner ok mt-3" id="pay-describe"><i class="fa-regular fa-calendar-check"></i> ${esc(describe(sch))}</div>
+            <div class="mt-3">${previewHTML(sch)}</div>
+            <div class="flex flex-wrap justify-between gap-2 mt-4">
+                <button type="button" class="btn btn-ghost btn-sm" data-action="pay.clear">Quitar</button>
+                <button type="button" class="btn btn-primary" data-action="pay.save" id="pay-save" ${sch ? '' : 'disabled'}><i class="fa-solid fa-check"></i> Guardar</button>
+            </div>`;
+    }
+
+    function readDraft() {
+        const v = (id) => { const el = document.getElementById(id); return el ? el.value : undefined; };
+        const freq = v('ps-freq');
+        if (freq !== draft.freq) { draft.freq = freq; return; }
+        if (v('ps-days') !== undefined) draft.days = v('ps-days');
+        if (v('ps-interval') !== undefined) draft.interval = Number(v('ps-interval'));
+        if (v('ps-anchor-month')) draft.anchor = v('ps-anchor-month') + '-01';
+        if (v('ps-anchor')) draft.anchor = v('ps-anchor');
+        if (v('ps-weekend') !== undefined) draft.weekend = v('ps-weekend');
+        if (v('ps-weekday') !== undefined) draft.weekday = Number(v('ps-weekday'));
+        const nth = UI.$$('.ps-nth');
+        if (nth.length) draft.nths = nth.filter(x => x.checked).map(x => Number(x.dataset.n));
+        const b = document.getElementById('ps-business');
+        if (b) draft.businessDays = b.checked;
+        draft.amount = v('ps-amount') || '';
+    }
 
     function update(ctx) {
         const yd = ctx.year, p = ctx.pay;
-        const pd = document.getElementById('pay-days');
-        if (pd && pd !== document.activeElement) pd.value = (ctx.state.settings.paydays || []).join(', ');
+        renderSummary();
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
             ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],
@@ -5893,11 +6118,35 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
     }
 
     UI.register({
-        'pay.days': (el) => {
-            const days = [...new Set(String(el.value).split(/[^\d]+/).map(Number).filter(d => d >= 1 && d <= 31))].sort((a, b) => a - b);
-            Store.state.settings.paydays = days;
-            el.value = days.join(', ');
-            App.changed({ step: true });
+        'pay.edit': () => {
+            draft = draftFrom(Cash.paySchedule());
+            // A sensible "one payday" for every-2-weeks: the next such weekday.
+            if (!(Cash.paySchedule() || {}).anchor) { const t = new Date(); t.setDate(t.getDate() + ((Number(draft.weekday) - t.getDay() + 7) % 7)); draft.anchor = Engine.isoDate(t); }
+            sheet = UI.sheet({ title: '¿Cómo te pagan?', icon: 'fa-money-check-dollar', wide: true, html: editorHTML(), onClose: () => { sheet = null; draft = null; } });
+        },
+        'pay.field': () => {
+            if (!draft || !sheet) return;
+            readDraft();
+            sheet.body.innerHTML = editorHTML();
+        },
+        'pay.save': () => {
+            if (!draft) return;
+            readDraft();
+            const sch = scheduleFrom(draft);
+            if (!sch) return;
+            const st = Store.state.settings;
+            st.paySchedule = sch;
+            st.paydays = sch.freq === 'monthly' && sch.interval === 1 ? sch.days : [];
+            sheet.close();
+            App.changed({ structural: true, step: true });
+            UI.toast(`Guardado: ${describe(sch).toLowerCase()}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        },
+        'pay.clear': () => {
+            const st = Store.state.settings;
+            st.paySchedule = null;
+            st.paydays = [];
+            if (sheet) sheet.close();
+            App.changed({ structural: true, step: true });
         }
     });
 
@@ -6145,7 +6394,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
     }
 
     // ------------------------------------------------------------------ recurring
-    const FREQ = { weekly: 'Cada semana', biweekly: 'Cada 2 semanas', monthly: 'Cada mes', yearly: 'Cada año' };
+    const FREQ = { weekly: 'Cada semana', biweekly: 'Cada 2 semanas', monthly: 'Cada mes', quarterly: 'Cada 3 meses', semiannual: 'Cada 6 meses', yearly: 'Cada año' };
     const isSubscription = (r) => /suscrip/i.test(r.parentCategory || '') || /netflix|spotify|disney|hbo|prime|youtube|icloud|google one|apple/i.test(r.description || '');
 
     function renderRecurring(ctx) {
@@ -7202,13 +7451,17 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
 
     // Budget lines, what was spent on them and the net pay, for one month (null if that year
     // isn't part of the plan).
+    // A year not set up yet borrows the closest configured year's plan and salary.
     function monthData(y, m) {
-        if (!Store.state.years[y]) return null;
-        const yd = Store.effective(y);
+        const years = Object.keys(Store.state.years).map(Number).filter(Boolean);
+        if (!years.length) return null;
+        const src = Store.state.years[y] ? y : years.reduce((a, b) => (Math.abs(b - y) < Math.abs(a - y) ? b : a));
+        const yd = Store.effective(src);
         const items = Engine.monthItems(yd, String(m));
         const spend = Engine.lineSpend(items, Store.state.transactions, y, String(m));
-        const pay = Engine.monthBudget(yd, String(m), Engine.payroll(yd)).salary;
-        return { year: y, month: m, items, spend, pay };
+        const payroll = Engine.payroll(yd);
+        const pay = Engine.monthBudget(yd, String(m), payroll).salary;
+        return { year: y, month: m, items, spend, pay, payBase: payroll.netoM };
     }
 
     // Months touched by [from, to], each with its data.
@@ -7222,12 +7475,15 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
         return out;
     }
 
+    // How the salary arrives (Ingresos → ¿Cómo te pagan?); older data only had days of the month.
+    const paySchedule = () => Engine.normalizeSchedule(Store.state.settings.paySchedule || Store.state.settings.paydays);
+
     function events(fromISO, toISO) {
         const s = Store.state;
         const months = monthsBetween(fromISO, toISO);
-        const pay = {};
-        months.forEach(d => { pay[`${d.year}-${String(d.month).padStart(2, '0')}`] = d.pay; });
-        return { months, list: Engine.cashEvents({ from: fromISO, to: toISO, months, recurring: s.recurring, paydays: s.settings.paydays, payPerMonth: pay }) };
+        const pay = {}, base = {};
+        months.forEach(d => { const k = `${d.year}-${String(d.month).padStart(2, '0')}`; pay[k] = d.pay; base[k] = d.payBase; });
+        return { months, list: Engine.cashEvents({ from: fromISO, to: toISO, months, recurring: s.recurring, schedule: paySchedule(), payPerMonth: pay, payBase: base }) };
     }
 
     // Savings and goal lines of this month: what they still need.
@@ -7259,7 +7515,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
         const cash = Engine.cashNow(s.accounts, s.transactions, t);
         // Until the next payday after today (today's pay is assumed to be in the balance already).
         const tomorrow = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1);
-        const pd = Engine.nextPayday(s.settings.paydays, tomorrow);
+        const pd = Engine.nextPayday(paySchedule(), tomorrow);
         const until = pd ? pd.date : lastOfMonth(t.getFullYear(), t.getMonth() + 1);
         const ev = events(iso(new Date(t.getFullYear(), t.getMonth(), 1)), iso(until));
         const cur = ev.months.find(d => d.year === t.getFullYear() && d.month === t.getMonth() + 1);
@@ -7298,7 +7554,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
                     <p class="text-sm text-slate-600 mt-1">${neg
                         ? `Lo que tienes no alcanza para lo que debe salir hasta el ${untilLabel}. Mueve dinero de ahorros, pospón un gasto o baja tu colchón.`
                         : `≈ <strong>${money0(r.perDay)} por día</strong> hasta ${c.hasPaydays ? `tu cobro del ${untilLabel}` : `el ${untilLabel} (fin de mes)`}.`}</p>
-                    ${c.hasPaydays ? '' : '<p class="help mt-1"><a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-days">Dinos qué días cobras</a> para calcular hasta tu próximo sueldo.</p>'}
+                    ${c.hasPaydays ? '' : '<p class="help mt-1"><a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-schedule">Dinos cómo te pagan</a> para calcular hasta tu próximo sueldo.</p>'}
                 </div>
                 <div class="lg:col-span-3">
                     <div class="safe-bar" role="img" aria-label="Cómo se reparte tu efectivo">${parts.map(p => seg(p[0], p[2])).join('')}${seg('safe', Math.max(0, r.safe))}</div>
@@ -7334,7 +7590,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
             const date = iso(new Date(first.getFullYear(), first.getMonth(), d));
             days.push({ day: d, date, events: evBy[date] || [], f: byDay[date] || null, past: date < iso(t), today: date === iso(t) });
         }
-        return { first, last, days, cash, buffer, lead: (first.getDay() + 6) % 7, hasPaydays: (Store.state.settings.paydays || []).length > 0 };
+        return { first, last, days, cash, buffer, lead: (first.getDay() + 6) % 7, hasPaydays: !!paySchedule() };
     }
 
     function renderCalendar(today) {
@@ -7366,7 +7622,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
                 ${cells.join('')}
             </div>
             <div class="cal-legend"><span><i class="cal-sw in"></i>Ingreso</span><span><i class="cal-sw out"></i>Pago</span><span><i class="cal-sw paid"></i>Pagado</span>${c.cash ? `<span><i class="cal-sw low"></i>Bajo tu colchón${c.buffer ? ` (${money0(c.buffer)})` : ''}</span><span><i class="cal-sw short"></i>Sin dinero</span><span class="help">Número de abajo: saldo proyectado, contando tus gastos del día a día repartidos por igual.</span>` : ''}</div>
-            ${c.hasPaydays ? '' : '<p class="help mt-2">Sin días de pago no vemos tu sueldo llegar: <a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-days">dinos qué días cobras</a>.</p>'}
+            ${c.hasPaydays ? '' : '<p class="help mt-2">Sin tus días de pago no vemos tu sueldo llegar: <a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-schedule">dinos cómo te pagan</a>.</p>'}
             ${agenda.length ? `<details class="mt-3" ${window.innerWidth < 640 ? 'open' : ''}><summary class="link text-xs">Lista del mes (${agenda.length} día${agenda.length === 1 ? '' : 's'})</summary>
                 <table class="table mt-2"><thead><tr><th>Día</th><th>Movimiento</th><th class="num">Monto</th><th class="num">Saldo proyectado</th></tr></thead><tbody>${agenda.map(d => `<tr class="${d.f && d.f.status !== 'ok' ? 'highlight' : ''}"><td>${d.day}</td><td>${d.events.map(e => esc(e.name) + (e.paid ? ' ✓' : '')).join(', ') || '—'}</td><td class="num">${d.events.map(e => (e.amount > 0 ? '+' : '−') + money(e.paid ? e.planned : Math.abs(e.amount))).join(', ')}</td><td class="num">${d.f ? money(d.f.balance) : '—'}</td></tr>`).join('')}</tbody></table></details>` : ''}`;
         UI.$$('[data-action="cal.move"]').forEach(b => { b.disabled = (Number(b.dataset.step) < 0 && offset === 0) || (Number(b.dataset.step) > 0 && offset === 2); });
@@ -7386,7 +7642,7 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
         'safe.buffer': (el) => { Store.state.settings.cashBuffer = Math.max(0, Fmt.parseNum(el.value, 0)); App.changed({ structural: true, step: true }); }
     });
 
-    window.Cash = { safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar };
+    window.Cash = { paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar };
 })();
 </script>
 <script>/* js/views/whatif.js */
