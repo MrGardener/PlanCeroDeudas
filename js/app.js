@@ -19,7 +19,8 @@
         { id: 'presupuesto', label: 'Presupuesto', icon: 'fa-wallet', subviews: [
             { id: 'plan', label: 'Presupuesto del Mes', icon: 'fa-table-list' },
             { id: 'ingresos', label: 'Ingresos e Impuestos', icon: 'fa-receipt' },
-            { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping' }
+            { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping' },
+            { id: 'importar', label: 'Importar', icon: 'fa-file-import' }
         ] },
         { id: 'metas', label: 'Deudas y Metas', icon: 'fa-bullseye' },
         { id: 'ahorro', label: 'Ahorro DPF', icon: 'fa-piggy-bank', subviews: [

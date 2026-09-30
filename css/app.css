@@ -245,6 +245,9 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 .bs-row.drop-target { background: #eff6ff; outline: 2px dashed #3b82f6; outline-offset: 2px; border-radius: .5rem; }
 body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1px dashed #bfdbfe; outline-offset: 1px; border-radius: .5rem; }
 .bud-layout { flex: 0 0 auto; }
+/* File pickers are opened through their label/button; never show the raw input (even if the
+   Tailwind CDN didn't load, e.g. offline). */
+input[type="file"].hidden { display: none; }
 
 /* Budget-line chip on a transaction: dashed while unassigned, solid once assigned. */
 .chip-select { appearance: none; -webkit-appearance: none; font-size: .72rem; font-weight: 700; color: #1d4ed8; background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 999px; padding: .2rem .8rem; max-width: 13rem; text-overflow: ellipsis; cursor: pointer; }

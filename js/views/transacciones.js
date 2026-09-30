@@ -265,7 +265,37 @@
         UI.html('trend-table', rows.slice().reverse().map((r, i) => `<tr><td>${labels[rows.length - 1 - i]}</td><td class="num">${money(r.income)}</td><td class="num">${money(r.expense)}</td><td class="num ${r.income - r.expense < 0 ? 'text-red-600' : ''}">${money(r.income - r.expense)}</td></tr>`).join(''));
     }
 
+    // Fill the form from elsewhere (e.g. a receipt photo) and let the person review it.
+    function prefill(v) {
+        App.go('presupuesto/transacciones');
+        const get = (id) => document.getElementById(id);
+        setEditing(null);
+        get('txn-type').value = v.type || 'Gasto';
+        fillCategorySelects(v.parent);
+        fillSubSelect(v.sub);
+        if (v.description !== undefined) get('txn-description').value = v.description;
+        if (v.store !== undefined) get('txn-store').value = v.store;
+        if (v.amount !== undefined) get('txn-amount').value = v.amount;
+        if (v.date) { get('txn-date').value = v.date; fillLineSelect(); }
+        get('txn-form-card').scrollIntoView({ block: 'start' });
+        (v.amount ? get('txn-description') : get('txn-amount')).focus();
+        UI.toast('Revisa los datos y toca "Agregar Transacción" para guardarla.');
+    }
+    window.TxnForm = { prefill };
+
     UI.register({
+        // A matching automatic rule picks the category (and line) while typing a new one.
+        'txn.descChanged': () => {
+            if (Store.ui.txnEditing) return;
+            const get = (id) => document.getElementById(id);
+            const rule = Importers.applyRules(Store.state.rules, `${get('txn-description').value} ${get('txn-store').value}`);
+            if (!rule) return;
+            const tax = taxonomyFor(get('txn-type').value);
+            if (!tax[rule.category]) return;
+            fillCategorySelects(rule.category);
+            if (rule.budgetLine && get('txn-type').value !== 'Ingreso') fillLineSelect(rule.budgetLine);
+            UI.toast(`Regla «${rule.contains}»: categoría ${rule.category}.`);
+        },
         'txn.typeChanged': () => fillCategorySelects(),
         'txn.parentChanged': () => { fillSubSelect(); fillLineSelect(); },
         'txn.search': (el) => { Store.ui.txnSearch = el.value; App.update(); },

@@ -375,6 +375,11 @@
         return rows;
     }
 
+    // ------------------------------------------------------------ investments
+    // Market value of stock / ETF / fund holdings: shares × last known price.
+    const holdingValue = (h) => Math.max(0, num(h.shares)) * Math.max(0, num(h.price));
+    const holdingsValue = (holdings) => sum(holdings || [], holdingValue);
+
     // ------------------------------------------------------------ bills
     // Lines with a due day in a given month: paid once what was spent on the line covers
     // what's planned; otherwise overdue (day passed), due soon (within `soonDays`) or later.
@@ -763,7 +768,7 @@
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
-        lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
+        holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,

@@ -256,6 +256,9 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 .bs-row.drop-target { background: #eff6ff; outline: 2px dashed #3b82f6; outline-offset: 2px; border-radius: .5rem; }
 body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1px dashed #bfdbfe; outline-offset: 1px; border-radius: .5rem; }
 .bud-layout { flex: 0 0 auto; }
+/* File pickers are opened through their label/button; never show the raw input (even if the
+   Tailwind CDN didn't load, e.g. offline). */
+input[type="file"].hidden { display: none; }
 
 /* Budget-line chip on a transaction: dashed while unassigned, solid once assigned. */
 .chip-select { appearance: none; -webkit-appearance: none; font-size: .72rem; font-weight: 700; color: #1d4ed8; background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 999px; padding: .2rem .8rem; max-width: 13rem; text-overflow: ellipsis; cursor: pointer; }
@@ -569,7 +572,7 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
                         <option value="Ingreso">Ingreso (sueldo, remesas…)</option>
                     </select></label>
                 <label class="field lg:col-span-2"><span class="field-label">Descripción</span>
-                    <input type="text" id="txn-description" class="input" placeholder="Ej: Compras de la semana / Remesa de mi hermano"></label>
+                    <input type="text" id="txn-description" data-change="txn.descChanged" class="input" placeholder="Ej: Compras de la semana / Remesa de mi hermano"></label>
                 <label class="field"><span class="field-label">Lugar / Fuente</span>
                     <input type="text" id="txn-store" class="input" placeholder="Ej: Supermaxi / Western Union"></label>
                 <label class="field"><span class="field-label"><span>Categoría</span><button type="button" class="mini-btn" data-action="txn.addParent">+ Nueva</button></span>
@@ -661,6 +664,83 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
             </div>
             <p class="help mb-2" id="txn-unassigned-note"></p>
             <div id="txn-body" class="txn-list"></div>
+        </div>
+    </div>
+    <div data-view="importar" class="space-y-5 hidden">
+        <div class="card" id="imp-csv-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-file-csv text-emerald-600"></i> Importar movimientos de tu banco u otra app (CSV)</div>
+                    <div class="card-sub">Descarga tu estado de cuenta en <strong>CSV</strong> (o exporta tus datos de otra app), elígelo aquí y dinos qué columna es qué. <i class="fa-solid fa-shield-halved text-emerald-600"></i> El archivo se lee solo en este navegador y se descarta: no se guarda ni se envía a ningún lado.</div>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <label class="btn btn-primary cursor-pointer"><i class="fa-solid fa-folder-open"></i> Elegir archivo CSV
+                    <input type="file" id="imp-file" accept=".csv,.txt,.tsv,text/csv,text/plain" class="hidden" data-change="imp.file"></label>
+                <span class="help" id="imp-file-name">¿Tu banco solo da Excel (.xlsx)? Ábrelo y usa "Guardar como → CSV".</span>
+            </div>
+            <div id="imp-setup" class="hidden mt-5 space-y-4">
+                <div class="panel tone-slate">
+                    <div class="section-label"><i class="fa-solid fa-table-columns text-blue-600"></i> 1. Dinos qué columna es qué</div>
+                    <p class="help mb-3" id="imp-profile-note"></p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" id="imp-map"></div>
+                    <div class="table-wrap mt-3"><table class="table" id="imp-raw"></table></div>
+                </div>
+                <div class="panel tone-slate hidden" id="imp-cats-panel">
+                    <div class="section-label"><i class="fa-solid fa-tags text-purple-600"></i> 2. Sus categorías → tus categorías</div>
+                    <p class="help mb-3">El archivo trae sus propias categorías. Elige a cuál de las tuyas corresponde cada una (se recuerda para la próxima vez).</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="imp-cats"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="card">
+                <div class="card-head">
+                    <div>
+                        <div class="card-title"><i class="fa-solid fa-file-invoice text-blue-600"></i> Factura electrónica del SRI (XML)</div>
+                        <div class="card-sub">Las facturas que te llegan por correo traen un archivo <strong>.xml</strong>. Elige uno o varios: leemos el comercio, la fecha, el total y el IVA exactos.</div>
+                    </div>
+                </div>
+                <label class="btn btn-secondary cursor-pointer"><i class="fa-solid fa-file-code"></i> Elegir facturas XML
+                    <input type="file" id="imp-xml" accept=".xml,text/xml,application/xml" multiple class="hidden" data-change="imp.xml"></label>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <div>
+                        <div class="card-title"><i class="fa-solid fa-camera text-amber-600"></i> Foto de una factura o recibo</div>
+                        <div class="card-sub">Toma una foto (en el celular) o elige una imagen. Intentamos leer el total, la fecha y el comercio; siempre revisas antes de guardar. Necesita internet la primera vez.</div>
+                    </div>
+                </div>
+                <label class="btn btn-secondary cursor-pointer"><i class="fa-solid fa-camera"></i> Tomar o elegir foto
+                    <input type="file" id="imp-photo" accept="image/*" capture="environment" class="hidden" data-change="imp.photo"></label>
+                <p class="help mt-2" id="imp-photo-status"></p>
+            </div>
+        </div>
+
+        <div class="card hidden" id="imp-preview-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-list-check text-emerald-600"></i> Revisa antes de importar</div>
+                    <div class="card-sub" id="imp-summary"></div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button class="btn btn-secondary" data-action="imp.cancel">Cancelar</button>
+                    <button class="btn btn-primary" data-action="imp.commit" id="imp-commit"><i class="fa-solid fa-file-import"></i> Importar</button>
+                </div>
+            </div>
+            <div class="table-wrap tall"><table class="table"><thead><tr><th class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggleAll" id="imp-all" checked aria-label="Todas"></th><th>Fecha</th><th>Descripción</th><th>Categoría</th><th class="num">Monto</th><th>Estado</th></tr></thead><tbody id="imp-rows"></tbody></table></div>
+        </div>
+
+        <div class="card" id="imp-rules-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i> Reglas automáticas</div>
+                    <div class="card-sub">Si la descripción contiene cierto texto, la transacción recibe la categoría (y el rubro) que digas. Se aplican al importar y al registrar a mano.</div>
+                </div>
+                <button class="btn btn-primary" data-action="rule.add"><i class="fa-solid fa-plus"></i> Nueva regla</button>
+            </div>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Si contiene</th><th>Categoría</th><th>Rubro del presupuesto</th><th></th></tr></thead><tbody id="rule-body"></tbody></table></div>
         </div>
     </div>
 </section>
@@ -984,7 +1064,7 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
                 <div class="card-title"><i class="fa-solid fa-scale-balanced text-teal-600"></i> Patrimonio Neto · <span class="active-year"></span></div>
                 <div class="card-sub">Activos − Pasivos: el número más importante a seguir en el tiempo. Cada saldo se mantiene igual año a año hasta que lo edites para un año posterior.</div>
             </div>
-            <button class="btn btn-secondary" data-action="nw.prefill" title="Inversiones = pólizas; cada deuda en su tipo"><i class="fa-solid fa-arrows-rotate"></i> Traer pólizas y deudas registradas</button>
+            <button class="btn btn-secondary" data-action="nw.prefill" title="Inversiones = pólizas + acciones/ETF; cada deuda en su tipo"><i class="fa-solid fa-arrows-rotate"></i> Traer pólizas, inversiones y deudas</button>
         </div>
         <div id="nw-sync-hint" class="panel tone-blue mb-4 hidden flex flex-wrap items-center justify-between gap-2 text-xs text-blue-900"></div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -1002,6 +1082,22 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
             <span class="text-4xl font-black block my-1" id="nw-value">$0</span>
             <p class="text-sm font-bold" id="nw-verdict"></p>
         </div>
+    </div>
+
+    <div class="card" id="nw-holdings">
+        <div class="card-head">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-chart-line text-indigo-600"></i> Inversiones: ETF, acciones y fondos</div>
+                <div class="card-sub">Escribe el símbolo (ticker, ej. VOO, AAPL) y cuántas unidades tienes. El valor total entra a tu patrimonio con "Traer pólizas, inversiones y deudas". <span id="hold-key-note"></span></div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button class="btn btn-secondary" data-action="hold.refresh"><i class="fa-solid fa-arrows-rotate"></i> Actualizar precios</button>
+                <button class="btn btn-primary" data-action="hold.add"><i class="fa-solid fa-plus"></i> Agregar inversión</button>
+            </div>
+        </div>
+        <div class="table-wrap"><table class="table"><thead><tr><th>Símbolo</th><th>Nombre</th><th>Tipo</th><th style="width:7rem">Unidades</th><th style="width:8rem">Precio (<span class="cur">$</span>)</th><th class="num">Valor</th><th>Precio de</th><th></th></tr></thead>
+            <tbody id="hold-body"></tbody>
+            <tfoot><tr><td colspan="5">Total en inversiones</td><td class="num" id="hold-total"></td><td colspan="2"></td></tr></tfoot></table></div>
     </div>
 
     <div class="card">
@@ -1076,6 +1172,16 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
             <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
         </summary>
         <div class="mt-5 space-y-4">
+            <div class="panel tone-slate" id="cfg-prices">
+                <div class="section-label"><i class="fa-solid fa-chart-line text-indigo-600"></i> Precios de inversiones</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
+                    <label class="field"><span class="field-label">Proveedor</span>
+                        <select class="input" data-bind="settings.priceProvider"><option value="finnhub">Finnhub (acciones y ETF de EE.UU.)</option><option value="alphavantage">Alpha Vantage (incluye fondos mutuos)</option></select></label>
+                    <label class="field"><span class="field-label">Tu clave gratuita (API key)</span>
+                        <input type="password" class="input" autocomplete="off" data-bind="settings.priceKey" placeholder="Pega aquí tu clave"></label>
+                </div>
+                <p class="help mt-2">Crea una clave gratis en <a class="link" href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a> o <a class="link" href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">alphavantage.co</a>. Se guarda solo en este navegador (no va en la copia de respaldo) y solo se usa para pedir precios.</p>
+            </div>
             <div class="panel tone-slate">
                 <div class="section-label"><i class="fa-solid fa-coins text-amber-600"></i> Moneda</div>
                 <label class="field max-w-md"><span class="field-label">Mostrar los montos en</span>
@@ -1390,7 +1496,11 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
                 { id: 3, type: 'Ingreso', description: 'Remesa mensual de mi hermano', store: 'Western Union', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: iso, paymentType: 'Tarjeta de Débito' }
             ],
             taxonomy: { expense: clone(EXPENSE_TAXONOMY), income: clone(INCOME_TAXONOMY) },
-            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD' },
+            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '' },
+            // "Description contains X → category / budget line", used on import and new transactions.
+            rules: [],
+            // Investments: { id, ticker, name, kind, shares, price, priceAt, auto }
+            holdings: [],
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -1403,7 +1513,7 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
     // (taxonomies, cooperativas) because they are configuration, not personal data.
     function emptyState(today) {
         const s = newState(today);
-        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = [];
+        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = [];
         return s;
     }
 
@@ -1790,6 +1900,11 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
         });
         return rows;
     }
+
+    // ------------------------------------------------------------ investments
+    // Market value of stock / ETF / fund holdings: shares × last known price.
+    const holdingValue = (h) => Math.max(0, num(h.shares)) * Math.max(0, num(h.price));
+    const holdingsValue = (holdings) => sum(holdings || [], holdingValue);
 
     // ------------------------------------------------------------ bills
     // Lines with a due day in a given month: paid once what was spent on the line covers
@@ -2179,7 +2294,7 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
-        lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
+        holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
@@ -2192,6 +2307,277 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
 
     if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
     else root.Engine = Engine;
+})(this);
+</script>
+<script>/* js/importers.js */
+/*
+ * Importers — turn files from elsewhere into transactions. Pure functions, no DOM, so they
+ * run in Node tests too:
+ *   - CSV/TXT exports from any bank or app (delimiter, dates and amounts detected; the
+ *     person maps the columns);
+ *   - SRI electronic invoices (XML "comprobante" / "autorización");
+ *   - text read from a receipt photo (OCR) — best effort, always reviewed.
+ * Files are only read in memory: nothing here stores them.
+ */
+(function (root) {
+    'use strict';
+
+    // ------------------------------------------------------------------ CSV
+    function detectDelimiter(text) {
+        const lines = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 15);
+        const candidates = [',', ';', '\t', '|'];
+        let best = ',', bestScore = -1;
+        candidates.forEach(d => {
+            const counts = lines.map(l => splitLine(l, d).length);
+            if (!counts.length) return;
+            const common = mode(counts);
+            const consistent = counts.filter(c => c === common).length;
+            const score = common > 1 ? consistent * common : 0;
+            if (score > bestScore) { bestScore = score; best = d; }
+        });
+        return best;
+    }
+
+    function mode(arr) {
+        const m = new Map();
+        arr.forEach(x => m.set(x, (m.get(x) || 0) + 1));
+        return [...m.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];
+    }
+
+    // One line, honoring double quotes ("a, b" and "" escapes).
+    function splitLine(line, d) {
+        const out = [];
+        let cur = '', q = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (q) {
+                if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+                else if (ch === '"') q = false;
+                else cur += ch;
+            } else if (ch === '"') q = true;
+            else if (ch === d) { out.push(cur); cur = ''; }
+            else cur += ch;
+        }
+        out.push(cur);
+        return out.map(c => c.trim());
+    }
+
+    // Whole file → rows (quoted fields may contain line breaks).
+    function parseCSV(text, delimiter) {
+        text = String(text || '').replace(/^﻿/, '');
+        const d = delimiter || detectDelimiter(text);
+        const rows = [];
+        let buf = null;
+        // Blank lines are kept (as empty rows) so row numbers match what a spreadsheet shows.
+        text.split(/\r?\n/).forEach(line => {
+            buf = buf === null ? line : buf + '\n' + line;
+            const quotes = (buf.match(/"/g) || []).length;
+            if (quotes % 2 === 1) return;            // inside a quoted field: keep reading
+            rows.push(buf.trim() ? splitLine(buf, d) : ['']);
+            buf = null;
+        });
+        if (buf !== null && buf.trim()) rows.push(splitLine(buf, d));
+        while (rows.length && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === '') rows.pop();
+        return { delimiter: d, rows };
+    }
+
+    // "1.234,56" / "1,234.56" / "(45.00)" / "-$ 12,5" / "12.50-" → number
+    function parseAmount(v, decimal) {
+        if (typeof v === 'number') return v;
+        let s = String(v || '').trim();
+        if (!s) return null;
+        let neg = false;
+        if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+        if (/-$/.test(s)) { neg = true; s = s.slice(0, -1); }
+        if (/^-/.test(s.replace(/[^\d\-.,]/g, '').trim()) || /^\s*-/.test(s)) neg = true;
+        s = s.replace(/[^\d.,]/g, '');
+        if (!s) return null;
+        let dec = decimal;
+        if (!dec || dec === 'auto') {
+            const lastDot = s.lastIndexOf('.'), lastComma = s.lastIndexOf(',');
+            if (lastDot >= 0 && lastComma >= 0) dec = lastDot > lastComma ? '.' : ',';
+            else if (lastComma >= 0) dec = /,\d{1,2}$/.test(s) ? ',' : '.';
+            else dec = '.';
+            if (dec === '.' && lastDot >= 0 && lastComma < 0 && /^\d{1,3}(\.\d{3})+$/.test(s)) dec = ',';   // 1.234.567
+        }
+        const n = dec === ',' ? parseFloat(s.replace(/\./g, '').replace(',', '.')) : parseFloat(s.replace(/,/g, ''));
+        if (!Number.isFinite(n)) return null;
+        return neg ? -n : n;
+    }
+
+    const MONTHS_ES = { ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6, jul: 7, ago: 8, sep: 9, set: 9, oct: 10, nov: 11, dic: 12,
+        jan: 1, apr: 4, aug: 8, dec: 12 };
+
+    // Many date styles → 'YYYY-MM-DD' (or null). `format`: 'auto' | 'dmy' | 'mdy' | 'ymd'.
+    function parseDate(v, format) {
+        const s = String(v || '').trim();
+        if (!s) return null;
+        const iso = (y, m, d) => {
+            y = Number(y); m = Number(m); d = Number(d);
+            if (y < 100) y += 2000;
+            if (!(m >= 1 && m <= 12 && d >= 1 && d <= 31)) return null;
+            const dt = new Date(y, m - 1, d);
+            if (dt.getMonth() !== m - 1) return null;
+            return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        };
+        let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+        if (m) return iso(m[1], m[2], m[3]);
+        m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+        if (m) {
+            const a = Number(m[1]), b = Number(m[2]);
+            const f = format && format !== 'auto' ? format : (a > 12 ? 'dmy' : b > 12 ? 'mdy' : 'dmy');   // Ecuador: day first
+            return f === 'mdy' ? iso(m[3], a, b) : iso(m[3], b, a);
+        }
+        m = s.match(/^(\d{1,2})[\s\-/.]+([A-Za-zÁÉÍÓÚáéíóú]{3,})[\s\-/.,]+(\d{2,4})/);
+        if (m) { const mm = MONTHS_ES[m[2].slice(0, 3).toLowerCase()]; return mm ? iso(m[3], mm, m[1]) : null; }
+        return null;
+    }
+
+    const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    const HEADER_HINTS = {
+        date: ['fecha', 'date', 'fecha transaccion', 'fecha de transaccion', 'fecha valor', 'fecha operacion'],
+        description: ['descripcion', 'concepto', 'detalle', 'description', 'referencia', 'transaccion', 'movimiento', 'glosa', 'memo', 'payee', 'beneficiario'],
+        amount: ['monto', 'valor', 'importe', 'amount', 'cantidad', 'total'],
+        debit: ['debito', 'debitos', 'cargo', 'cargos', 'retiro', 'retiros', 'egreso', 'egresos', 'debit', 'withdrawal'],
+        credit: ['credito', 'creditos', 'abono', 'abonos', 'deposito', 'depositos', 'ingreso', 'ingresos', 'credit', 'deposit'],
+        category: ['categoria', 'category', 'rubro', 'tipo de gasto'],
+        store: ['lugar', 'comercio', 'establecimiento', 'merchant', 'tienda', 'oficina', 'agencia']
+    };
+
+    // Best guess of which column holds what, from the header names.
+    function guessMapping(headers) {
+        const h = headers.map(norm);
+        const find = (key, taken) => {
+            const hints = HEADER_HINTS[key];
+            let idx = h.findIndex((x, i) => !taken.has(i) && hints.includes(x));
+            if (idx < 0) idx = h.findIndex((x, i) => !taken.has(i) && hints.some(k => x.includes(k)));
+            return idx;
+        };
+        const taken = new Set();
+        const map = {};
+        ['date', 'debit', 'credit', 'description', 'category', 'store', 'amount'].forEach(k => {
+            const i = find(k, taken);
+            map[k] = i;
+            if (i >= 0) taken.add(i);
+        });
+        map.mode = map.debit >= 0 && map.credit >= 0 ? 'split' : 'single';
+        if (map.mode === 'single' && map.amount < 0) {
+            // A single debit or credit column still works as the amount column.
+            map.amount = map.debit >= 0 ? map.debit : map.credit;
+        }
+        return map;
+    }
+
+    const headerSignature = (headers) => headers.map(norm).join('|');
+
+    // Rows of the table (after the header) → candidate transactions, using the mapping:
+    // { date, description, store, category?, amount>0, type 'Gasto'|'Ingreso', error? }
+    function buildRows(table, mapping) {
+        const { mode = 'single', date, description, amount, debit, credit, category, store,
+            dateFormat = 'auto', decimal = 'auto', expensesAre = 'negative' } = mapping;
+        return table.map((cells, i) => {
+            const get = (idx) => (idx !== undefined && idx !== null && idx >= 0 ? cells[idx] : '');
+            const out = { index: i, date: parseDate(get(date), dateFormat), description: get(description) || '', store: get(store) || '', category: get(category) || '' };
+            let value = null;
+            if (mode === 'split') {
+                const d = parseAmount(get(debit), decimal), c = parseAmount(get(credit), decimal);
+                if (d) value = -Math.abs(d);
+                else if (c) value = Math.abs(c);
+            } else {
+                value = parseAmount(get(amount), decimal);
+                if (value !== null && expensesAre === 'positive') value = -value;
+            }
+            if (!out.date) out.error = 'Fecha no reconocida';
+            else if (value === null || value === 0) out.error = 'Sin monto';
+            else if (!out.description.trim()) out.description = out.store || '(sin descripción)';
+            out.amount = value === null ? 0 : Math.round(Math.abs(value) * 100) / 100;
+            out.type = value !== null && value > 0 ? 'Ingreso' : 'Gasto';
+            return out;
+        });
+    }
+
+    // Same date, same amount and a similar description → most likely already registered.
+    function isDuplicate(row, transactions) {
+        const d = norm(row.description).slice(0, 12);
+        return (transactions || []).some(t => t.date === row.date && Math.abs(Number(t.amount) - row.amount) < 0.005
+            && (t.type || 'Gasto') === row.type && (norm(t.description).slice(0, 12) === d || !d));
+    }
+
+    // First rule whose text appears in the description (or place) wins.
+    function applyRules(rules, text) {
+        const hay = norm(text);
+        if (!hay) return null;
+        return (rules || []).find(r => r.contains && hay.includes(norm(r.contains))) || null;
+    }
+
+    // ------------------------------------------------------------------ SRI XML
+    const decodeEntities = (s) => String(s).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, '&');
+    const tag = (xml, name) => { const m = xml.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`)); return m ? m[1].trim() : ''; };
+    const tagsAll = (xml, name) => { const out = []; const re = new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, 'g'); let m; while ((m = re.exec(xml))) out.push(m[1]); return out; };
+
+    // SRI "formaPago" codes → the app's payment types.
+    const SRI_PAYMENT = { '01': 'Efectivo', '15': 'Transferencia', '16': 'Tarjeta de Débito', '17': 'Transferencia', '18': 'Transferencia', '19': 'Tarjeta de Crédito', '20': 'Transferencia', '21': 'Transferencia' };
+
+    // An SRI electronic invoice (factura) as the authorization file or the bare comprobante.
+    function parseSriXml(text) {
+        let xml = String(text || '');
+        const inner = xml.match(/<comprobante>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/comprobante>/);
+        if (inner) xml = inner[1];
+        else if (/<comprobante>/.test(xml)) xml = decodeEntities(tag(xml, 'comprobante'));
+        if (!/<factura[\s>]/.test(xml) && !/<notaCredito[\s>]/.test(xml)) return null;
+        const it = tag(xml, 'infoTributaria');
+        const inf = tag(xml, 'infoFactura') || tag(xml, 'infoNotaCredito');
+        const razon = decodeEntities(tag(it, 'razonSocial'));
+        const comercial = decodeEntities(tag(it, 'nombreComercial'));
+        const iva = tagsAll(tag(inf, 'totalConImpuestos'), 'totalImpuesto')
+            .filter(t => tag(t, 'codigo') === '2').reduce((s, t) => s + (parseFloat(tag(t, 'valor')) || 0), 0);
+        const items = tagsAll(tag(xml, 'detalles'), 'detalle').map(d => ({
+            description: decodeEntities(tag(d, 'descripcion')),
+            quantity: parseFloat(tag(d, 'cantidad')) || 1,
+            total: parseFloat(tag(d, 'precioTotalSinImpuesto')) || 0
+        }));
+        const pay = tag(tag(inf, 'pagos'), 'formaPago');
+        return {
+            kind: /<notaCredito[\s>]/.test(xml) ? 'notaCredito' : 'factura',
+            supplier: comercial || razon,
+            legalName: razon,
+            ruc: tag(it, 'ruc'),
+            number: [tag(it, 'estab'), tag(it, 'ptoEmi'), tag(it, 'secuencial')].filter(Boolean).join('-'),
+            accessKey: tag(it, 'claveAcceso'),
+            date: parseDate(tag(inf, 'fechaEmision'), 'dmy'),
+            subtotal: parseFloat(tag(inf, 'totalSinImpuestos')) || 0,
+            iva: Math.round(iva * 100) / 100,
+            total: parseFloat(tag(inf, 'importeTotal') || tag(inf, 'valorModificacion')) || 0,
+            payment: SRI_PAYMENT[pay] || '',
+            items
+        };
+    }
+
+    // ------------------------------------------------------------------ receipt text (OCR)
+    // Pulls the likely total, date, RUC and store name out of text read from a photo.
+    function parseReceiptText(text) {
+        const lines = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const amountsIn = (l) => (l.match(/\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\b/g) || []).map(x => parseAmount(x)).filter(x => x !== null);
+        let total = null;
+        const totalRe = /(importe\s+total|valor\s+total|total\s+a\s+pagar|total\s+pagar|total\s+usd|^total\b|\btotal\b)/i;
+        const skip = /(sub\s*-?\s*total|subtotal|total\s+descuento|total\s+iva|total\s+sin|base)/i;
+        for (let i = 0; i < lines.length && total === null; i++) {
+            const l = lines[i];
+            if (totalRe.test(l) && !skip.test(l)) {
+                const a = amountsIn(l).concat(i + 1 < lines.length ? amountsIn(lines[i + 1]) : []);
+                if (a.length) total = a[0];
+            }
+        }
+        if (total === null) { const all = lines.flatMap(amountsIn); if (all.length) total = Math.max(...all); }
+        const dateMatch = String(text).match(/\b(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{2}-\d{2})\b/);
+        const ruc = (String(text).match(/\b(\d{13})\b/) || [])[1] || '';
+        const merchant = lines.find(l => /[A-Za-zÁÉÍÓÚÑáéíóúñ]{3,}/.test(l) && !/(ruc|factura|fecha|autoriz|direcci|matriz|telf|tel[eé]fono)/i.test(l)) || '';
+        return { total, date: dateMatch ? parseDate(dateMatch[1], 'dmy') : null, ruc, merchant: merchant.slice(0, 60) };
+    }
+
+    const Importers = { detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
+    else root.Importers = Importers;
 })(this);
 </script>
 <script>/* js/store.js */
@@ -2414,6 +2800,7 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
             this.state = migrate(raw);
             if (prev) {
                 if (prev.welcomeDismissed) this.state.settings.welcomeDismissed = true;
+                if (prev.priceKey && !this.state.settings.priceKey) this.state.settings.priceKey = prev.priceKey;
                 if (prev.lastBackupAt && (!this.state.settings.lastBackupAt || prev.lastBackupAt > this.state.settings.lastBackupAt)) this.state.settings.lastBackupAt = prev.lastBackupAt;
             }
             this.year(this.state.activeYear);
@@ -2683,7 +3070,8 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
         { id: 'presupuesto', label: 'Presupuesto', icon: 'fa-wallet', subviews: [
             { id: 'plan', label: 'Presupuesto del Mes', icon: 'fa-table-list' },
             { id: 'ingresos', label: 'Ingresos e Impuestos', icon: 'fa-receipt' },
-            { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping' }
+            { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping' },
+            { id: 'importar', label: 'Importar', icon: 'fa-file-import' }
         ] },
         { id: 'metas', label: 'Deudas y Metas', icon: 'fa-bullseye' },
         { id: 'ahorro', label: 'Ahorro DPF', icon: 'fa-piggy-bank', subviews: [
@@ -3108,7 +3496,8 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
         const s = ctx.state;
         if (s.activeYear !== ctx.today.getFullYear()) return null;
         const f = ctx.netWorth.fields;
-        const expected = { investments: ctx.polizasCapital };
+        const holdings = Engine.holdingsValue(s.holdings);
+        const expected = { investments: ctx.polizasCapital + holdings };
         Engine.DEBT_KINDS.forEach(k => { expected[k.netWorthField] = 0; });
         s.debts.forEach(d => {
             const k = Engine.DEBT_KINDS.find(x => x.id === d.kind) || Engine.DEBT_KINDS[4];
@@ -3116,7 +3505,7 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
         });
         const off = Object.keys(expected).filter(k => Math.abs((f[k] || 0) - expected[k]) > 1);
         const debtTotal = s.debts.reduce((t, d) => t + Math.max(0, Number(d.balance) || 0), 0);
-        return off.length ? { polizas: ctx.polizasCapital, debts: debtTotal } : null;
+        return off.length ? { polizas: ctx.polizasCapital, holdings, debts: debtTotal } : null;
     }
 
     // The "how this works" guide: shown as a welcome on first use and kept in Configuración.
@@ -4524,7 +4913,37 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
         UI.html('trend-table', rows.slice().reverse().map((r, i) => `<tr><td>${labels[rows.length - 1 - i]}</td><td class="num">${money(r.income)}</td><td class="num">${money(r.expense)}</td><td class="num ${r.income - r.expense < 0 ? 'text-red-600' : ''}">${money(r.income - r.expense)}</td></tr>`).join(''));
     }
 
+    // Fill the form from elsewhere (e.g. a receipt photo) and let the person review it.
+    function prefill(v) {
+        App.go('presupuesto/transacciones');
+        const get = (id) => document.getElementById(id);
+        setEditing(null);
+        get('txn-type').value = v.type || 'Gasto';
+        fillCategorySelects(v.parent);
+        fillSubSelect(v.sub);
+        if (v.description !== undefined) get('txn-description').value = v.description;
+        if (v.store !== undefined) get('txn-store').value = v.store;
+        if (v.amount !== undefined) get('txn-amount').value = v.amount;
+        if (v.date) { get('txn-date').value = v.date; fillLineSelect(); }
+        get('txn-form-card').scrollIntoView({ block: 'start' });
+        (v.amount ? get('txn-description') : get('txn-amount')).focus();
+        UI.toast('Revisa los datos y toca "Agregar Transacción" para guardarla.');
+    }
+    window.TxnForm = { prefill };
+
     UI.register({
+        // A matching automatic rule picks the category (and line) while typing a new one.
+        'txn.descChanged': () => {
+            if (Store.ui.txnEditing) return;
+            const get = (id) => document.getElementById(id);
+            const rule = Importers.applyRules(Store.state.rules, `${get('txn-description').value} ${get('txn-store').value}`);
+            if (!rule) return;
+            const tax = taxonomyFor(get('txn-type').value);
+            if (!tax[rule.category]) return;
+            fillCategorySelects(rule.category);
+            if (rule.budgetLine && get('txn-type').value !== 'Ingreso') fillLineSelect(rule.budgetLine);
+            UI.toast(`Regla «${rule.contains}»: categoría ${rule.category}.`);
+        },
         'txn.typeChanged': () => fillCategorySelects(),
         'txn.parentChanged': () => { fillSubSelect(); fillLineSelect(); },
         'txn.search': (el) => { Store.ui.txnSearch = el.value; App.update(); },
@@ -4667,6 +5086,335 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
     });
 
     App.defineView('presupuesto/transacciones', { render, update });
+})();
+</script>
+<script>/* js/views/importar.js */
+/*
+ * Presupuesto → Importar: bring transactions in from files.
+ *  - CSV from any bank or app: the person maps the columns (and the file's categories to
+ *    theirs), reviews a preview, duplicates are skipped. The mapping is remembered per file
+ *    layout (by its header row); the file itself is never stored.
+ *  - SRI electronic invoices (XML): exact data, same preview.
+ *  - Receipt photo: OCR in the browser (best effort) → prefilled transaction form.
+ *  - Automatic rules ("contains X → category / line").
+ */
+(function () {
+    'use strict';
+    const { money, esc } = Fmt;
+
+    // The file being imported lives only here, in memory, until import or cancel.
+    let session = null;
+
+    // Common Ecuadorian merchants → category, when no rule or mapping says otherwise.
+    const KEYWORDS = [
+        [/supermaxi|megamaxi|mi comisariato|\btia\b|santa maria|coral|\baki\b|gran aki|tuti|mercado|panaderia/, 'Alimentación'],
+        [/farmacia|fybeca|sana sana|cruz azul|pharmacy|medicit|clinica|hospital|laboratorio/, 'Salud'],
+        [/gasolinera|primax|petroecuador|terpel|mobil|shell|uber|cabify|indriver|peaje|taxi|metro de quito/, 'Transporte'],
+        [/netflix|spotify|disney|hbo|max\b|prime video|youtube|apple\.com|google play/, 'Suscripciones y Entretenimiento Digital'],
+        [/\bcnt\b|claro|movistar|tuenti|netlife|puntonet|empresa electrica|\beeq\b|cnel|epmaps|agua potable|interagua/, 'Servicios Básicos y Comunicación'],
+        [/kfc|mcdonald|burger|pizza|restaurante|cafe|starbucks|sweet ?& ?coffee|juan valdez/, 'Entretenimiento y Ocio'],
+        [/de prati|etafashion|rm\b|pycca|marathon|zara|h&m/, 'Vestimenta'],
+        [/arriendo|alquiler|condominio|alicuota/, 'Vivienda']
+    ];
+
+    const expenseTax = () => Store.state.taxonomy.expense;
+    const incomeTax = () => Store.state.taxonomy.income;
+    const firstSub = (tax, cat) => (tax[cat] || [])[0] || '';
+
+    // Category (and optional budget line) for an imported row: rule → file's category mapped
+    // by the person → merchant keywords → "Otros".
+    function resolve(row, catMap) {
+        const tax = row.type === 'Ingreso' ? incomeTax() : expenseTax();
+        const rule = Importers.applyRules(Store.state.rules, `${row.description} ${row.store}`);
+        if (rule && tax[rule.category]) return { category: rule.category, sub: rule.sub && (tax[rule.category] || []).includes(rule.sub) ? rule.sub : firstSub(tax, rule.category), budgetLine: rule.budgetLine || '', why: `regla «${rule.contains}»` };
+        const mapped = row.category && catMap ? catMap[row.category] : null;
+        if (mapped && tax[mapped]) return { category: mapped, sub: firstSub(tax, mapped), why: 'categoría del archivo' };
+        if (row.category && tax[row.category]) return { category: row.category, sub: firstSub(tax, row.category), why: 'categoría del archivo' };
+        if (row.type !== 'Ingreso') {
+            const hay = Importers.norm(`${row.description} ${row.store}`);
+            const k = KEYWORDS.find(([re, cat]) => re.test(hay) && tax[cat]);
+            if (k) return { category: k[1], sub: firstSub(tax, k[1]), why: 'comercio conocido' };
+        }
+        const fallback = row.type === 'Ingreso' ? (tax['Otros Ingresos'] ? 'Otros Ingresos' : Object.keys(tax)[0]) : (tax.Otros ? 'Otros' : Object.keys(tax)[0]);
+        return { category: fallback, sub: firstSub(tax, fallback), why: '' };
+    }
+
+    // Read a text file, trying UTF-8 first and falling back to Windows-1252 (common in bank exports).
+    function readText(file) {
+        return file.arrayBuffer().then(buf => {
+            try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { return new TextDecoder('windows-1252').decode(buf); }
+        });
+    }
+
+    // ------------------------------------------------------------------ CSV mapping
+    const FIELDS = [
+        { key: 'date', label: 'Fecha', required: true },
+        { key: 'description', label: 'Descripción', required: true },
+        { key: 'amount', label: 'Monto (una columna)', mode: 'single' },
+        { key: 'debit', label: 'Débito / cargos (gastos)', mode: 'split' },
+        { key: 'credit', label: 'Crédito / abonos (ingresos)', mode: 'split' },
+        { key: 'store', label: 'Lugar / comercio (opcional)' },
+        { key: 'category', label: 'Categoría (opcional)' }
+    ];
+
+    function guessHeaderRow(rows) {
+        // First row, among the first 15, that looks like titles: several cells, mostly text.
+        for (let i = 0; i < Math.min(rows.length, 15); i++) {
+            const cells = rows[i].filter(c => c !== '');
+            if (cells.length >= 2 && cells.filter(c => /[A-Za-zÁÉÍÓÚáéíóú]/.test(c) && !Importers.parseDate(c) && Importers.parseAmount(c) === null).length >= Math.ceil(cells.length * 0.6)) return i;
+        }
+        return 0;
+    }
+
+    function startSession(name, text) {
+        const parsed = Importers.parseCSV(text);
+        if (parsed.rows.length < 2) { UI.toast('No encontramos filas en ese archivo. ¿Es un CSV?', 'error'); return; }
+        const headerRow = guessHeaderRow(parsed.rows);
+        session = { source: 'csv', name, all: parsed.rows, headerRow, include: {}, catOverride: {} };
+        applyHeader();
+    }
+
+    function applyHeader() {
+        const s = session;
+        s.headers = s.all[s.headerRow].map((h, i) => h || `Columna ${i + 1}`);
+        const width = s.headers.length;
+        s.table = s.all.slice(s.headerRow + 1).filter(r => r.length >= Math.min(2, width) && r.some(c => c !== ''));
+        s.signature = Importers.headerSignature(s.headers);
+        const saved = (Store.state.settings.importProfiles || {})[s.signature];
+        s.mapping = Object.assign({ dateFormat: 'auto', decimal: 'auto', expensesAre: 'negative' }, Importers.guessMapping(s.headers), saved ? saved.mapping : {});
+        s.catMap = Object.assign({}, saved ? saved.catMap : {});
+        s.fromProfile = !!saved;
+        recompute();
+        renderSetup();
+    }
+
+    function recompute() {
+        const s = session;
+        let rows;
+        if (s.source === 'csv') rows = Importers.buildRows(s.table, s.mapping);
+        else rows = s.rows;
+        s.rows = rows.map((r, i) => {
+            const res = r.error ? { category: '', sub: '' } : resolve(r, s.catMap);
+            const override = s.catOverride[i];
+            const dup = !r.error && (!!r.dupKey || Importers.isDuplicate(r, Store.state.transactions));
+            const include = s.include[i] !== undefined ? s.include[i] : !r.error && !dup;
+            return Object.assign({}, r, res, override ? { category: override, sub: firstSub(r.type === 'Ingreso' ? incomeTax() : expenseTax(), override), why: 'elegida por ti' } : {}, { dup, include: !r.error && include });
+        });
+        renderPreview();
+    }
+
+    function renderSetup() {
+        const s = session;
+        UI.show('imp-setup', s.source === 'csv');
+        if (s.source !== 'csv') return;
+        UI.html('imp-profile-note', s.fromProfile ? '<i class="fa-solid fa-circle-check text-emerald-600"></i> Usamos la configuración que guardaste para archivos como este. Puedes cambiarla.' : 'Revisamos los títulos y adivinamos lo que pudimos. Corrige lo que haga falta: la vista previa se actualiza sola.');
+        const colOpts = (sel) => `<option value="-1">— Ninguna —</option>` + s.headers.map((h, i) => `<option value="${i}" ${Number(sel) === i ? 'selected' : ''}>${esc(h)}</option>`).join('');
+        const m = s.mapping;
+        const field = (f) => (f.mode && f.mode !== m.mode) ? '' : `<label class="field"><span class="field-label">${f.label}${f.required ? ' *' : ''}</span><select class="input" data-change="imp.map" data-key="${f.key}">${colOpts(m[f.key])}</select></label>`;
+        const sel = (key, label, opts) => `<label class="field"><span class="field-label">${label}</span><select class="input" data-change="imp.map" data-key="${key}">${opts.map(([v, l]) => `<option value="${v}" ${String(m[key]) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
+        UI.html('imp-map', [
+            `<label class="field"><span class="field-label">Fila de los títulos</span><input type="number" class="input" min="1" max="${s.all.length}" value="${s.headerRow + 1}" data-change="imp.headerRow"></label>`,
+            sel('mode', 'Los montos vienen en…', [['single', 'Una columna (gastos con signo)'], ['split', 'Dos columnas: débito y crédito']]),
+            ...FIELDS.map(field),
+            m.mode === 'single' ? sel('expensesAre', 'En esa columna los gastos son…', [['negative', 'Negativos (−45.50)'], ['positive', 'Positivos (todo es gasto)']]) : '',
+            sel('dateFormat', 'Formato de fecha', [['auto', 'Detectar (día primero)'], ['dmy', 'Día/Mes/Año'], ['mdy', 'Mes/Día/Año'], ['ymd', 'Año-Mes-Día']]),
+            sel('decimal', 'Separador decimal', [['auto', 'Detectar'], ['.', 'Punto (1,234.50)'], [',', 'Coma (1.234,50)']])
+        ].join(''));
+        // First rows as they are in the file, so the columns are easy to recognize.
+        UI.html('imp-raw', `<thead><tr>${s.headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${s.table.slice(0, 4).map(r => `<tr>${s.headers.map((_, i) => `<td class="text-xs">${esc(r[i] || '')}</td>`).join('')}</tr>`).join('')}</tbody>`);
+        // The file's own categories → ours.
+        const values = m.category >= 0 ? [...new Set(s.table.map(r => r[m.category]).filter(Boolean))].slice(0, 60) : [];
+        UI.show('imp-cats-panel', values.length > 0);
+        if (values.length) {
+            const opts = (v) => `<option value="">Automática (reglas / comercio)</option>` + Object.keys(expenseTax()).concat(Object.keys(incomeTax())).map(c => `<option value="${esc(c)}" ${s.catMap[v] === c || (!s.catMap[v] && Importers.norm(c) === Importers.norm(v)) ? 'selected' : ''}>${esc(c)}</option>`).join('');
+            UI.html('imp-cats', values.map(v => `<label class="flex items-center gap-2 text-xs"><span class="flex-1 truncate font-semibold" title="${esc(v)}">${esc(v)}</span><i class="fa-solid fa-arrow-right text-slate-400"></i><select class="cell-input" style="width:14rem" data-change="imp.catMap" data-value="${esc(v)}">${opts(v)}</select></label>`).join(''));
+        }
+    }
+
+    function renderPreview() {
+        const s = session;
+        UI.show('imp-preview-card', !!s);
+        if (!s) return;
+        const ok = s.rows.filter(r => r.include);
+        const dups = s.rows.filter(r => r.dup).length, errs = s.rows.filter(r => r.error).length;
+        UI.html('imp-summary', `<strong>${esc(s.name)}</strong>: ${s.rows.length} fila${s.rows.length === 1 ? '' : 's'} · <span class="text-emerald-700 font-bold">${ok.length} para importar</span>${dups ? ` · ${dups} ya registrada${dups === 1 ? '' : 's'} (desmarcada${dups === 1 ? '' : 's'})` : ''}${errs ? ` · <span class="text-red-600">${errs} con errores (se omiten)</span>` : ''}`);
+        document.getElementById('imp-commit').innerHTML = `<i class="fa-solid fa-file-import"></i> Importar ${ok.length}`;
+        document.getElementById('imp-commit').disabled = ok.length === 0;
+        const catOptions = (r) => Object.keys(r.type === 'Ingreso' ? incomeTax() : expenseTax()).map(c => `<option ${c === r.category ? 'selected' : ''}>${esc(c)}</option>`).join('');
+        UI.html('imp-rows', s.rows.slice(0, 500).map((r, i) => `<tr class="${r.error ? 'opacity-60' : ''}">
+                <td class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggle" data-i="${i}" ${r.include ? 'checked' : ''} ${r.error ? 'disabled' : ''}></td>
+                <td class="whitespace-nowrap text-xs">${esc(r.date || '—')}</td>
+                <td><div class="font-semibold text-xs">${esc(r.description)}</div>${r.store ? `<div class="text-[10px] text-slate-500">${esc(r.store)}</div>` : ''}${r.items && r.items.length ? `<div class="text-[10px] text-slate-500">${r.items.length} producto${r.items.length === 1 ? '' : 's'}${r.iva ? ` · IVA ${money(r.iva)}` : ''}</div>` : ''}</td>
+                <td>${r.error ? '—' : `<select class="cell-input text-xs" data-change="imp.cat" data-i="${i}">${catOptions(r)}</select>${r.why ? `<div class="text-[10px] text-slate-400">por ${esc(r.why)}</div>` : ''}`}</td>
+                <td class="num font-bold ${r.type === 'Ingreso' ? 'text-emerald-700' : ''}">${r.error ? '' : (r.type === 'Ingreso' ? '+' : '−') + money(r.amount)}</td>
+                <td class="text-xs">${r.error ? `<span class="badge badge-bad">${esc(r.error)}</span>` : r.dup ? '<span class="badge badge-warn">Ya existe</span>' : '<span class="badge badge-ok">Nueva</span>'}</td>
+            </tr>`).join('') + (s.rows.length > 500 ? `<tr><td colspan="6" class="text-xs text-slate-500">Mostrando 500 de ${s.rows.length}; se importan todas las marcadas.</td></tr>` : ''));
+    }
+
+    function endSession() {
+        session = null;
+        ['imp-file', 'imp-xml'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        UI.show('imp-setup', false);
+        UI.show('imp-preview-card', false);
+        UI.text('imp-file-name', '¿Tu banco solo da Excel (.xlsx)? Ábrelo y usa "Guardar como → CSV".');
+    }
+
+    // ------------------------------------------------------------------ rules
+    function renderRules() {
+        const rules = Store.state.rules || [];
+        UI.html('rule-body', rules.length ? rules.map(r => `<tr>
+                <td class="font-semibold">“${esc(r.contains)}”</td>
+                <td>${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}</td>
+                <td class="text-xs">${r.budgetLine ? esc(lineName(r.budgetLine)) : '<span class="text-slate-400">Automático</span>'}</td>
+                <td class="text-center"><button class="row-del" data-action="rule.delete" data-id="${r.id}" title="Eliminar regla" aria-label="Eliminar regla"><i class="fa-solid fa-trash-can"></i></button></td>
+            </tr>`).join('') : '<tr class="empty-row"><td colspan="4">Sin reglas. Ejemplo: si contiene “supermaxi” → Alimentación.</td></tr>');
+    }
+
+    function lineName(id) {
+        const items = Engine.monthItems(Store.effective(Store.state.activeYear), 'base');
+        const it = items.find(i => String(i.id) === String(id));
+        return it ? it.name : `(rubro ${id})`;
+    }
+
+    function render() {
+        renderRules();
+        if (session) { renderSetup(); renderPreview(); } else { UI.show('imp-setup', false); UI.show('imp-preview-card', false); }
+    }
+
+    // ------------------------------------------------------------------ OCR
+    function loadTesseract() {
+        if (window.Tesseract) return Promise.resolve(window.Tesseract);
+        return new Promise((resolve, reject) => {
+            const sc = document.createElement('script');
+            sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+            sc.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('no Tesseract'));
+            sc.onerror = () => reject(new Error('sin conexión'));
+            document.head.appendChild(sc);
+        });
+    }
+
+    UI.register({
+        'imp.file': async (el) => {
+            const file = el.files && el.files[0];
+            if (!file) return;
+            if (/\.xlsx?$/i.test(file.name)) { UI.toast('Ese es un archivo de Excel. Ábrelo y guárdalo como CSV, luego elígelo aquí.', 'error'); el.value = ''; return; }
+            UI.text('imp-file-name', `${file.name} · ${file.size < 1024 ? file.size + ' bytes' : Math.round(file.size / 1024) + ' KB'}`);
+            startSession(file.name, await readText(file));
+        },
+        'imp.headerRow': (el) => {
+            if (!session) return;
+            session.headerRow = Math.max(0, Math.min(session.all.length - 2, (parseInt(el.value, 10) || 1) - 1));
+            session.include = {}; session.catOverride = {};
+            applyHeader();
+        },
+        'imp.map': (el) => {
+            if (!session) return;
+            const k = el.dataset.key;
+            session.mapping[k] = ['mode', 'dateFormat', 'decimal', 'expensesAre'].includes(k) ? el.value : Number(el.value);
+            session.include = {};
+            recompute();
+            renderSetup();
+        },
+        'imp.catMap': (el) => {
+            if (!session) return;
+            if (el.value) session.catMap[el.dataset.value] = el.value; else delete session.catMap[el.dataset.value];
+            recompute();
+        },
+        'imp.cat': (el) => { if (!session) return; session.catOverride[Number(el.dataset.i)] = el.value; recompute(); },
+        'imp.toggle': (el) => { if (!session) return; session.include[Number(el.dataset.i)] = el.checked; recompute(); },
+        'imp.toggleAll': (el) => { if (!session) return; session.rows.forEach((r, i) => { if (!r.error) session.include[i] = el.checked; }); recompute(); },
+        'imp.cancel': () => endSession(),
+        'imp.commit': () => {
+            if (!session) return;
+            const s = session;
+            const rows = s.rows.filter(r => r.include);
+            const txns = Store.state.transactions;
+            let id = Store.nextId(txns);
+            rows.forEach(r => {
+                const t = { id: id++, type: r.type, description: r.description.slice(0, 120), store: (r.store || '').slice(0, 80), parentCategory: r.category, category: r.sub || '', amount: r.amount, date: r.date, paymentType: r.payment || 'Transferencia', source: s.source };
+                if (r.budgetLine && r.type !== 'Ingreso') t.budgetLine = String(r.budgetLine);
+                if (r.invoice) t.invoice = r.invoice;
+                txns.push(t);
+            });
+            // Remember how this kind of file maps (not the file): next time it's automatic.
+            if (s.source === 'csv') {
+                const profiles = Store.state.settings.importProfiles || (Store.state.settings.importProfiles = {});
+                const { date, description, amount, debit, credit, store, category, mode, dateFormat, decimal, expensesAre } = s.mapping;
+                profiles[s.signature] = { mapping: { date, description, amount, debit, credit, store, category, mode, dateFormat, decimal, expensesAre }, catMap: s.catMap, name: s.name, savedAt: new Date().toISOString().slice(0, 10) };
+            }
+            const skipped = s.rows.length - rows.length;
+            endSession();
+            App.changed({ structural: true, step: true });
+            UI.toast(`${rows.length} movimiento${rows.length === 1 ? '' : 's'} importado${rows.length === 1 ? '' : 's'}${skipped ? ` (${skipped} omitido${skipped === 1 ? '' : 's'})` : ''}. Revísalos en Transacciones.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        },
+        'imp.xml': async (el) => {
+            const files = Array.from(el.files || []);
+            if (!files.length) return;
+            const rows = [];
+            const bad = [];
+            for (const f of files) {
+                const inv = Importers.parseSriXml(await readText(f));
+                if (!inv || !inv.date || !inv.total) { bad.push(f.name); continue; }
+                const credit = inv.kind === 'notaCredito';
+                rows.push({ date: inv.date, description: inv.supplier, store: inv.legalName !== inv.supplier ? inv.legalName : '', amount: Math.round(inv.total * 100) / 100, type: credit ? 'Ingreso' : 'Gasto', payment: inv.payment, items: inv.items, iva: inv.iva,
+                    invoice: { ruc: inv.ruc, number: inv.number, accessKey: inv.accessKey, iva: inv.iva, subtotal: inv.subtotal } });
+            }
+            if (bad.length) UI.toast(`No parece${bad.length === 1 ? '' : 'n'} factura${bad.length === 1 ? '' : 's'} del SRI: ${bad.join(', ')}`, 'error');
+            if (!rows.length) { el.value = ''; return; }
+            session = { source: 'sri', name: `${rows.length} factura${rows.length === 1 ? '' : 's'} electrónica${rows.length === 1 ? '' : 's'}`, rows, include: {}, catOverride: {}, catMap: {} };
+            // Same invoice twice → duplicate by its access key too.
+            session.rows = rows.map(r => Object.assign(r, { dupKey: Store.state.transactions.some(t => t.invoice && t.invoice.accessKey && t.invoice.accessKey === r.invoice.accessKey) }));
+            recompute();
+            session.rows.forEach((r, i) => { if (rows[i].dupKey) { r.dup = true; r.include = false; session.include[i] = false; } });
+            renderSetup();
+            renderPreview();
+            document.getElementById('imp-preview-card').scrollIntoView({ block: 'start', behavior: 'smooth' });
+        },
+        'imp.photo': async (el) => {
+            const file = el.files && el.files[0];
+            if (!file) return;
+            const status = (t) => UI.html('imp-photo-status', t);
+            status('<i class="fa-solid fa-spinner fa-spin"></i> Preparando el lector de texto…');
+            try {
+                const T = await loadTesseract();
+                const worker = await T.createWorker('spa', 1, { logger: m => { if (m.status === 'recognizing text') status(`<i class="fa-solid fa-spinner fa-spin"></i> Leyendo la foto… ${Math.round((m.progress || 0) * 100)}%`); } });
+                const { data } = await worker.recognize(file);
+                await worker.terminate();
+                const r = Importers.parseReceiptText(data.text);
+                const res = resolve({ type: 'Gasto', description: r.merchant, store: '' }, {});
+                status(r.total ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> Leímos ${r.merchant ? `<strong>${esc(r.merchant)}</strong>, ` : ''}total <strong>${money(r.total)}</strong>${r.date ? `, fecha ${esc(r.date)}` : ''}. Revisa y guarda.` : '<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> No encontramos el total en la foto. Completa los datos a mano.');
+                TxnForm.prefill({ type: 'Gasto', description: r.merchant || 'Factura', amount: r.total || '', date: r.date || '', parent: res.category, sub: res.sub });
+            } catch (e) {
+                status('<i class="fa-solid fa-triangle-exclamation text-red-600"></i> No se pudo leer la foto (se necesita internet la primera vez). Puedes registrar la factura a mano en Transacciones.');
+            } finally { el.value = ''; }
+        },
+        'rule.add': async () => {
+            const cats = Object.keys(expenseTax()).map(c => ({ value: 'G|' + c, label: c })).concat(Object.keys(incomeTax()).map(c => ({ value: 'I|' + c, label: `${c} (ingreso)` })));
+            const items = Engine.monthItems(Store.effective(Store.state.activeYear), 'base');
+            const r = await UI.form({
+                title: 'Nueva regla automática',
+                fields: [
+                    { name: 'contains', label: 'Si la descripción o el lugar contiene…', placeholder: 'Ej: supermaxi' },
+                    { name: 'cat', label: 'Poner la categoría', options: cats },
+                    { name: 'line', label: 'Y contar en el rubro (opcional)', options: [{ value: '', label: 'Automático (según la categoría)' }].concat(items.map(i => ({ value: String(i.id), label: i.name }))) }
+                ],
+                confirmText: 'Crear regla',
+                validate: v => v.contains.trim().length < 2 ? 'Escribe al menos 2 letras.' : null
+            });
+            if (!r) return;
+            const rules = Store.state.rules || (Store.state.rules = []);
+            rules.push({ id: Store.nextId(rules), contains: r.contains.trim(), category: r.cat.slice(2), budgetLine: r.line || undefined });
+            App.changed({ structural: true, step: true });
+        },
+        'rule.delete': (el) => {
+            const id = Number(el.dataset.id);
+            App.undoable('Regla eliminada', () => { Store.state.rules = Store.state.rules.filter(r => r.id !== id); });
+        }
+    });
+
+    App.defineView('presupuesto/importar', { render, update: render });
+    // For tests and for other views.
+    window.ImportSession = { get: () => session, start: startSession, resolve };
 })();
 </script>
 <script>/* js/views/metas.js */
@@ -5130,7 +5878,7 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
     const ASSET_FIELDS = [
         { field: 'checking', label: 'Cuentas corrientes', help: 'Saldo de hoy en tus cuentas corrientes.' },
         { field: 'savings', label: 'Cuentas de ahorro', help: 'También cuenta para tu fondo de emergencia.' },
-        { field: 'investments', label: 'Inversiones y pólizas DPF', help: 'Usa "Traer pólizas y deudas" para llenarlo con tus pólizas.' },
+        { field: 'investments', label: 'Inversiones y pólizas DPF', help: 'Usa "Traer pólizas, inversiones y deudas" para llenarlo con tus pólizas y acciones/ETF.' },
         { registry: 'Bienes Raíces', label: 'Bienes raíces' },
         { registry: 'Vehículo', label: 'Vehículos' },
         { registry: 'Otro', label: 'Otros bienes de valor' }
@@ -5177,6 +5925,7 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
     }
 
     function render(ctx) {
+        renderHoldings(ctx);
         UI.html('nw-asset-fields', ASSET_FIELDS.map(d => fieldHTML(d, 'emerald')).join(''));
         UI.html('nw-liability-fields', LIABILITY_FIELDS.map(d => fieldHTML(d, 'red')).join(''));
         const snap = ctx.netWorth.fields;
@@ -5194,6 +5943,7 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
     }
 
     function update(ctx) {
+        updateHoldings(ctx);
         const s = ctx.state, nw = ctx.netWorth, year = s.activeYear;
         UI.$$('[data-registry]').forEach(el => { el.textContent = money(nw.registry[el.dataset.registry] || 0); });
         UI.$$('[data-src]').forEach(el => {
@@ -5204,7 +5954,7 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
         });
         const sync = Views.netWorthSync(ctx);
         UI.show('nw-sync-hint', !!sync);
-        if (sync) UI.html('nw-sync-hint', `<span><i class="fa-solid fa-circle-info"></i> Tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas</a> suman <strong>${money0(sync.polizas)}</strong> y tus <a href="#" class="link" data-goto="metas" data-focus="metas-debts">deudas</a> <strong>${money0(sync.debts)}</strong>, pero tu patrimonio de ${year} no coincide.</span><button class="btn btn-blue btn-sm" data-action="nw.prefill">Actualizar ahora</button>`);
+        if (sync) UI.html('nw-sync-hint', `<span><i class="fa-solid fa-circle-info"></i> Tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas</a> suman <strong>${money0(sync.polizas)}</strong>${sync.holdings ? `, tus <a href="#" class="link" data-goto="patrimonio" data-focus="nw-holdings">inversiones</a> <strong>${money0(sync.holdings)}</strong>` : ''} y tus <a href="#" class="link" data-goto="metas" data-focus="metas-debts">deudas</a> <strong>${money0(sync.debts)}</strong>, pero tu patrimonio de ${year} no coincide.</span><button class="btn btn-blue btn-sm" data-action="nw.prefill">Actualizar ahora</button>`);
         UI.text('nw-assets', money0(nw.assets));
         UI.text('nw-liabilities', money0(nw.liabilities));
         UI.text('nw-value', money(nw.value));
@@ -5226,19 +5976,118 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
 
     const find = (el) => Store.state.assets.find(a => a.id === Number(el.dataset.id));
 
+    // ------------------------------------------------------------ investments
+    const KINDS = ['ETF', 'Acción', 'Fondo mutuo', 'Cripto', 'Otro'];
+
+    function holdingRow(h) {
+        return `<tr data-row="${h.id}">
+            <td><input class="cell-input font-bold uppercase" style="min-width:5.5rem" value="${esc(h.ticker)}" data-change="hold.set" data-id="${h.id}" data-field="ticker" aria-label="Símbolo" placeholder="VOO"></td>
+            <td><input class="cell-input" style="min-width:9rem" value="${esc(h.name)}" data-change="hold.set" data-id="${h.id}" data-field="name" aria-label="Nombre" placeholder="Vanguard S&P 500"></td>
+            <td><select class="cell-input" data-change="hold.set" data-id="${h.id}" data-field="kind">${Views.selectOptions(KINDS, h.kind)}</select></td>
+            <td><input type="number" class="cell-input num" min="0" step="any" value="${Number(h.shares) || 0}" data-input="hold.set" data-id="${h.id}" data-field="shares" aria-label="Cantidad"></td>
+            <td><input type="number" class="cell-input num money" min="0" step="any" value="${Number(h.price) || 0}" data-input="hold.set" data-id="${h.id}" data-field="price" aria-label="Precio"></td>
+            <td class="num font-bold" data-cell="value"></td>
+            <td class="text-[11px] text-slate-500" data-cell="when"></td>
+            <td class="text-center"><button class="row-del" data-action="hold.delete" data-id="${h.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></td>
+        </tr>`;
+    }
+
+    function renderHoldings(ctx) {
+        const list = ctx.state.holdings || [];
+        UI.html('hold-body', list.length ? list.map(holdingRow).join('') : '<tr class="empty-row"><td colspan="8">Agrega tus ETF, acciones o fondos: símbolo (ticker) y cuántas unidades tienes.</td></tr>');
+        updateHoldings(ctx);
+    }
+
+    function updateHoldings(ctx) {
+        const s = ctx.state;
+        (s.holdings || []).forEach(h => {
+            const row = document.querySelector(`#hold-body tr[data-row="${h.id}"]`);
+            if (!row) return;
+            row.querySelector('[data-cell="value"]').textContent = money(Engine.holdingValue(h));
+            row.querySelector('[data-cell="when"]').innerHTML = h.priceAt ? `${h.priceSource === 'manual' ? 'A mano' : 'Mercado'} · ${esc(new Date(h.priceAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">Sin precio</span>';
+        });
+        UI.text('hold-total', money0(Engine.holdingsValue(s.holdings)));
+        const key = (s.settings.priceKey || '').trim();
+        UI.html('hold-key-note', key ? `Precios de <strong>${s.settings.priceProvider === 'alphavantage' ? 'Alpha Vantage' : 'Finnhub'}</strong> con tu clave. Se actualizan cuando tocas el botón.`
+            : 'Para traer precios del mercado, pega tu clave gratuita en <a href="#" class="link" data-goto="config" data-focus="cfg-prices">Configuración → Precios</a>. Sin clave, escribe el precio a mano.');
+    }
+
+    // Last price of a symbol from the chosen provider (with the person's own free key).
+    async function fetchPrice(ticker, provider, key) {
+        const sym = encodeURIComponent(ticker.trim().toUpperCase());
+        if (provider === 'alphavantage') {
+            const r = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${sym}&apikey=${encodeURIComponent(key)}`);
+            const j = await r.json();
+            if (j.Note || j.Information) throw new Error('límite de consultas del plan gratuito');
+            const p = parseFloat(j['Global Quote'] && j['Global Quote']['05. price']);
+            if (!(p > 0)) throw new Error('símbolo no encontrado');
+            return p;
+        }
+        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${encodeURIComponent(key)}`);
+        if (r.status === 401 || r.status === 403) throw new Error('clave no válida');
+        if (r.status === 429) throw new Error('límite de consultas, intenta en un minuto');
+        const j = await r.json();
+        if (!(j.c > 0)) throw new Error('símbolo no encontrado');
+        return j.c;
+    }
+
     function touch(yd, field, value) {
         yd.netWorth[field] = value;
         yd.netWorthTouched[field] = true;
     }
 
     UI.register({
+        'hold.add': () => {
+            const list = Store.state.holdings || (Store.state.holdings = []);
+            const id = Store.nextId(list);
+            list.push({ id, ticker: '', name: '', kind: 'ETF', shares: 0, price: 0, priceAt: null, priceSource: 'manual' });
+            App.changed({ structural: true, step: true });
+            const input = document.querySelector(`#hold-body tr[data-row="${id}"] input`);
+            if (input) input.focus();
+        },
+        'hold.set': (el) => {
+            const h = (Store.state.holdings || []).find(x => x.id === Number(el.dataset.id));
+            if (!h) return;
+            const f = el.dataset.field;
+            if (f === 'shares' || f === 'price') h[f] = Math.max(0, parseNum(el.value, 0));
+            else h[f] = f === 'ticker' ? el.value.trim().toUpperCase() : el.value;
+            if (f === 'price') { h.priceAt = new Date().toISOString(); h.priceSource = 'manual'; }
+            App.changed();
+        },
+        'hold.delete': (el) => {
+            const id = Number(el.dataset.id);
+            const h = (Store.state.holdings || []).find(x => x.id === id);
+            App.undoable(`Inversión ${h && h.ticker ? h.ticker : ''} eliminada`, () => { Store.state.holdings = Store.state.holdings.filter(x => x.id !== id); });
+        },
+        'hold.refresh': async (el) => {
+            const s = Store.state;
+            const key = (s.settings.priceKey || '').trim();
+            if (!key) { UI.toast('Primero pega tu clave gratuita en Configuración → Precios.', 'error'); App.go('config', { focus: 'cfg-prices' }); return; }
+            const list = (s.holdings || []).filter(h => h.ticker);
+            if (!list.length) { UI.toast('Agrega al menos una inversión con su símbolo (ticker).', 'error'); return; }
+            el.disabled = true;
+            const failed = [];
+            let ok = 0;
+            for (const h of list) {
+                try {
+                    h.price = Math.round(await fetchPrice(h.ticker, s.settings.priceProvider, key) * 10000) / 10000;
+                    h.priceAt = new Date().toISOString();
+                    h.priceSource = s.settings.priceProvider || 'finnhub';
+                    ok++;
+                } catch (e) { failed.push(`${h.ticker} (${e.message || 'sin conexión'})`); }
+            }
+            el.disabled = false;
+            App.changed({ structural: true, step: true });
+            if (ok) UI.toast(`${ok} precio${ok === 1 ? '' : 's'} actualizado${ok === 1 ? '' : 's'}. Total: ${money0(Engine.holdingsValue(s.holdings))}.`);
+            if (failed.length) UI.toast(`No se pudo: ${failed.join(', ')}. Puedes escribir el precio a mano.`, 'error');
+        },
         'nw.set': (el) => {
             touch(Store.active(), el.dataset.field, Math.max(0, parseNum(el.value, 0)));
             App.changed();
         },
         'nw.prefill': () => {
             const s = Store.state, yd = Store.active();
-            const capital = Engine.polizasCapital(s.polizas);
+            const capital = Engine.polizasCapital(s.polizas) + Engine.holdingsValue(s.holdings);
             touch(yd, 'investments', capital);
             const byKind = {};
             Engine.DEBT_KINDS.forEach(k => { byKind[k.netWorthField] = 0; });
@@ -5361,7 +6210,10 @@ body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1p
             App.changed();
         },
         'cfg.download': () => {
-            const blob = new Blob([JSON.stringify(Store.state, null, 1)], { type: 'application/json' });
+            // The price API key is a credential: it stays in this browser, not in the file.
+            const data = JSON.parse(Store.serialize());
+            if (data.settings) delete data.settings.priceKey;
+            const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;

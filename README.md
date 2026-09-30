@@ -11,6 +11,11 @@ Dave Ramsey's Baby Steps.
 - Data is saved automatically in the browser (localStorage). Use *Configuración → Tus Datos*
   to download or load a backup `.json` (backups from the previous version load too).
 
+## Roadmap
+
+Every requested feature, what's done, what's next, and what waits for hosting (with the
+reason and what it needs) is logged in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
 ## Structure
 
 ```
@@ -20,6 +25,7 @@ js/format.js            money/percent formatting, HTML escaping
 js/defaults.js          default budget template, categories, sample data, new-year factory
 js/engine.js            ALL financial math — pure functions, no DOM (payroll/SRI, budget,
                         DPF projection, debts, goals, mortgage, retirement, net worth)
+js/importers.js         CSV / SRI invoice XML / receipt text parsing — pure, no DOM
 js/store.js             the single state object: autosave, migrations, baselines, reset
 js/ui/core.js           event delegation, dialogs, toasts, chart helper
 js/app.js               tab registry, router (#hash), bindings, render orchestration

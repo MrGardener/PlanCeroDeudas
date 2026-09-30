@@ -6,7 +6,7 @@
     const ASSET_FIELDS = [
         { field: 'checking', label: 'Cuentas corrientes', help: 'Saldo de hoy en tus cuentas corrientes.' },
         { field: 'savings', label: 'Cuentas de ahorro', help: 'También cuenta para tu fondo de emergencia.' },
-        { field: 'investments', label: 'Inversiones y pólizas DPF', help: 'Usa "Traer pólizas y deudas" para llenarlo con tus pólizas.' },
+        { field: 'investments', label: 'Inversiones y pólizas DPF', help: 'Usa "Traer pólizas, inversiones y deudas" para llenarlo con tus pólizas y acciones/ETF.' },
         { registry: 'Bienes Raíces', label: 'Bienes raíces' },
         { registry: 'Vehículo', label: 'Vehículos' },
         { registry: 'Otro', label: 'Otros bienes de valor' }
@@ -53,6 +53,7 @@
     }
 
     function render(ctx) {
+        renderHoldings(ctx);
         UI.html('nw-asset-fields', ASSET_FIELDS.map(d => fieldHTML(d, 'emerald')).join(''));
         UI.html('nw-liability-fields', LIABILITY_FIELDS.map(d => fieldHTML(d, 'red')).join(''));
         const snap = ctx.netWorth.fields;
@@ -70,6 +71,7 @@
     }
 
     function update(ctx) {
+        updateHoldings(ctx);
         const s = ctx.state, nw = ctx.netWorth, year = s.activeYear;
         UI.$$('[data-registry]').forEach(el => { el.textContent = money(nw.registry[el.dataset.registry] || 0); });
         UI.$$('[data-src]').forEach(el => {
@@ -80,7 +82,7 @@
         });
         const sync = Views.netWorthSync(ctx);
         UI.show('nw-sync-hint', !!sync);
-        if (sync) UI.html('nw-sync-hint', `<span><i class="fa-solid fa-circle-info"></i> Tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas</a> suman <strong>${money0(sync.polizas)}</strong> y tus <a href="#" class="link" data-goto="metas" data-focus="metas-debts">deudas</a> <strong>${money0(sync.debts)}</strong>, pero tu patrimonio de ${year} no coincide.</span><button class="btn btn-blue btn-sm" data-action="nw.prefill">Actualizar ahora</button>`);
+        if (sync) UI.html('nw-sync-hint', `<span><i class="fa-solid fa-circle-info"></i> Tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas</a> suman <strong>${money0(sync.polizas)}</strong>${sync.holdings ? `, tus <a href="#" class="link" data-goto="patrimonio" data-focus="nw-holdings">inversiones</a> <strong>${money0(sync.holdings)}</strong>` : ''} y tus <a href="#" class="link" data-goto="metas" data-focus="metas-debts">deudas</a> <strong>${money0(sync.debts)}</strong>, pero tu patrimonio de ${year} no coincide.</span><button class="btn btn-blue btn-sm" data-action="nw.prefill">Actualizar ahora</button>`);
         UI.text('nw-assets', money0(nw.assets));
         UI.text('nw-liabilities', money0(nw.liabilities));
         UI.text('nw-value', money(nw.value));
@@ -102,19 +104,118 @@
 
     const find = (el) => Store.state.assets.find(a => a.id === Number(el.dataset.id));
 
+    // ------------------------------------------------------------ investments
+    const KINDS = ['ETF', 'Acción', 'Fondo mutuo', 'Cripto', 'Otro'];
+
+    function holdingRow(h) {
+        return `<tr data-row="${h.id}">
+            <td><input class="cell-input font-bold uppercase" style="min-width:5.5rem" value="${esc(h.ticker)}" data-change="hold.set" data-id="${h.id}" data-field="ticker" aria-label="Símbolo" placeholder="VOO"></td>
+            <td><input class="cell-input" style="min-width:9rem" value="${esc(h.name)}" data-change="hold.set" data-id="${h.id}" data-field="name" aria-label="Nombre" placeholder="Vanguard S&P 500"></td>
+            <td><select class="cell-input" data-change="hold.set" data-id="${h.id}" data-field="kind">${Views.selectOptions(KINDS, h.kind)}</select></td>
+            <td><input type="number" class="cell-input num" min="0" step="any" value="${Number(h.shares) || 0}" data-input="hold.set" data-id="${h.id}" data-field="shares" aria-label="Cantidad"></td>
+            <td><input type="number" class="cell-input num money" min="0" step="any" value="${Number(h.price) || 0}" data-input="hold.set" data-id="${h.id}" data-field="price" aria-label="Precio"></td>
+            <td class="num font-bold" data-cell="value"></td>
+            <td class="text-[11px] text-slate-500" data-cell="when"></td>
+            <td class="text-center"><button class="row-del" data-action="hold.delete" data-id="${h.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></td>
+        </tr>`;
+    }
+
+    function renderHoldings(ctx) {
+        const list = ctx.state.holdings || [];
+        UI.html('hold-body', list.length ? list.map(holdingRow).join('') : '<tr class="empty-row"><td colspan="8">Agrega tus ETF, acciones o fondos: símbolo (ticker) y cuántas unidades tienes.</td></tr>');
+        updateHoldings(ctx);
+    }
+
+    function updateHoldings(ctx) {
+        const s = ctx.state;
+        (s.holdings || []).forEach(h => {
+            const row = document.querySelector(`#hold-body tr[data-row="${h.id}"]`);
+            if (!row) return;
+            row.querySelector('[data-cell="value"]').textContent = money(Engine.holdingValue(h));
+            row.querySelector('[data-cell="when"]').innerHTML = h.priceAt ? `${h.priceSource === 'manual' ? 'A mano' : 'Mercado'} · ${esc(new Date(h.priceAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">Sin precio</span>';
+        });
+        UI.text('hold-total', money0(Engine.holdingsValue(s.holdings)));
+        const key = (s.settings.priceKey || '').trim();
+        UI.html('hold-key-note', key ? `Precios de <strong>${s.settings.priceProvider === 'alphavantage' ? 'Alpha Vantage' : 'Finnhub'}</strong> con tu clave. Se actualizan cuando tocas el botón.`
+            : 'Para traer precios del mercado, pega tu clave gratuita en <a href="#" class="link" data-goto="config" data-focus="cfg-prices">Configuración → Precios</a>. Sin clave, escribe el precio a mano.');
+    }
+
+    // Last price of a symbol from the chosen provider (with the person's own free key).
+    async function fetchPrice(ticker, provider, key) {
+        const sym = encodeURIComponent(ticker.trim().toUpperCase());
+        if (provider === 'alphavantage') {
+            const r = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${sym}&apikey=${encodeURIComponent(key)}`);
+            const j = await r.json();
+            if (j.Note || j.Information) throw new Error('límite de consultas del plan gratuito');
+            const p = parseFloat(j['Global Quote'] && j['Global Quote']['05. price']);
+            if (!(p > 0)) throw new Error('símbolo no encontrado');
+            return p;
+        }
+        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${encodeURIComponent(key)}`);
+        if (r.status === 401 || r.status === 403) throw new Error('clave no válida');
+        if (r.status === 429) throw new Error('límite de consultas, intenta en un minuto');
+        const j = await r.json();
+        if (!(j.c > 0)) throw new Error('símbolo no encontrado');
+        return j.c;
+    }
+
     function touch(yd, field, value) {
         yd.netWorth[field] = value;
         yd.netWorthTouched[field] = true;
     }
 
     UI.register({
+        'hold.add': () => {
+            const list = Store.state.holdings || (Store.state.holdings = []);
+            const id = Store.nextId(list);
+            list.push({ id, ticker: '', name: '', kind: 'ETF', shares: 0, price: 0, priceAt: null, priceSource: 'manual' });
+            App.changed({ structural: true, step: true });
+            const input = document.querySelector(`#hold-body tr[data-row="${id}"] input`);
+            if (input) input.focus();
+        },
+        'hold.set': (el) => {
+            const h = (Store.state.holdings || []).find(x => x.id === Number(el.dataset.id));
+            if (!h) return;
+            const f = el.dataset.field;
+            if (f === 'shares' || f === 'price') h[f] = Math.max(0, parseNum(el.value, 0));
+            else h[f] = f === 'ticker' ? el.value.trim().toUpperCase() : el.value;
+            if (f === 'price') { h.priceAt = new Date().toISOString(); h.priceSource = 'manual'; }
+            App.changed();
+        },
+        'hold.delete': (el) => {
+            const id = Number(el.dataset.id);
+            const h = (Store.state.holdings || []).find(x => x.id === id);
+            App.undoable(`Inversión ${h && h.ticker ? h.ticker : ''} eliminada`, () => { Store.state.holdings = Store.state.holdings.filter(x => x.id !== id); });
+        },
+        'hold.refresh': async (el) => {
+            const s = Store.state;
+            const key = (s.settings.priceKey || '').trim();
+            if (!key) { UI.toast('Primero pega tu clave gratuita en Configuración → Precios.', 'error'); App.go('config', { focus: 'cfg-prices' }); return; }
+            const list = (s.holdings || []).filter(h => h.ticker);
+            if (!list.length) { UI.toast('Agrega al menos una inversión con su símbolo (ticker).', 'error'); return; }
+            el.disabled = true;
+            const failed = [];
+            let ok = 0;
+            for (const h of list) {
+                try {
+                    h.price = Math.round(await fetchPrice(h.ticker, s.settings.priceProvider, key) * 10000) / 10000;
+                    h.priceAt = new Date().toISOString();
+                    h.priceSource = s.settings.priceProvider || 'finnhub';
+                    ok++;
+                } catch (e) { failed.push(`${h.ticker} (${e.message || 'sin conexión'})`); }
+            }
+            el.disabled = false;
+            App.changed({ structural: true, step: true });
+            if (ok) UI.toast(`${ok} precio${ok === 1 ? '' : 's'} actualizado${ok === 1 ? '' : 's'}. Total: ${money0(Engine.holdingsValue(s.holdings))}.`);
+            if (failed.length) UI.toast(`No se pudo: ${failed.join(', ')}. Puedes escribir el precio a mano.`, 'error');
+        },
         'nw.set': (el) => {
             touch(Store.active(), el.dataset.field, Math.max(0, parseNum(el.value, 0)));
             App.changed();
         },
         'nw.prefill': () => {
             const s = Store.state, yd = Store.active();
-            const capital = Engine.polizasCapital(s.polizas);
+            const capital = Engine.polizasCapital(s.polizas) + Engine.holdingsValue(s.holdings);
             touch(yd, 'investments', capital);
             const byKind = {};
             Engine.DEBT_KINDS.forEach(k => { byKind[k.netWorthField] = 0; });

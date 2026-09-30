@@ -42,7 +42,10 @@
             App.changed();
         },
         'cfg.download': () => {
-            const blob = new Blob([JSON.stringify(Store.state, null, 1)], { type: 'application/json' });
+            // The price API key is a credential: it stays in this browser, not in the file.
+            const data = JSON.parse(Store.serialize());
+            if (data.settings) delete data.settings.priceKey;
+            const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;

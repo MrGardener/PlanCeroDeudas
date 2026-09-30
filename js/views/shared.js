@@ -82,7 +82,8 @@
         const s = ctx.state;
         if (s.activeYear !== ctx.today.getFullYear()) return null;
         const f = ctx.netWorth.fields;
-        const expected = { investments: ctx.polizasCapital };
+        const holdings = Engine.holdingsValue(s.holdings);
+        const expected = { investments: ctx.polizasCapital + holdings };
         Engine.DEBT_KINDS.forEach(k => { expected[k.netWorthField] = 0; });
         s.debts.forEach(d => {
             const k = Engine.DEBT_KINDS.find(x => x.id === d.kind) || Engine.DEBT_KINDS[4];
@@ -90,7 +91,7 @@
         });
         const off = Object.keys(expected).filter(k => Math.abs((f[k] || 0) - expected[k]) > 1);
         const debtTotal = s.debts.reduce((t, d) => t + Math.max(0, Number(d.balance) || 0), 0);
-        return off.length ? { polizas: ctx.polizasCapital, debts: debtTotal } : null;
+        return off.length ? { polizas: ctx.polizasCapital, holdings, debts: debtTotal } : null;
     }
 
     // The "how this works" guide: shown as a welcome on first use and kept in Configuración.

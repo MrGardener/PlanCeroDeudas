@@ -278,7 +278,7 @@
                         <option value="Ingreso">Ingreso (sueldo, remesas…)</option>
                     </select></label>
                 <label class="field lg:col-span-2"><span class="field-label">Descripción</span>
-                    <input type="text" id="txn-description" class="input" placeholder="Ej: Compras de la semana / Remesa de mi hermano"></label>
+                    <input type="text" id="txn-description" data-change="txn.descChanged" class="input" placeholder="Ej: Compras de la semana / Remesa de mi hermano"></label>
                 <label class="field"><span class="field-label">Lugar / Fuente</span>
                     <input type="text" id="txn-store" class="input" placeholder="Ej: Supermaxi / Western Union"></label>
                 <label class="field"><span class="field-label"><span>Categoría</span><button type="button" class="mini-btn" data-action="txn.addParent">+ Nueva</button></span>
@@ -370,6 +370,83 @@
             </div>
             <p class="help mb-2" id="txn-unassigned-note"></p>
             <div id="txn-body" class="txn-list"></div>
+        </div>
+    </div>
+    <div data-view="importar" class="space-y-5 hidden">
+        <div class="card" id="imp-csv-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-file-csv text-emerald-600"></i> Importar movimientos de tu banco u otra app (CSV)</div>
+                    <div class="card-sub">Descarga tu estado de cuenta en <strong>CSV</strong> (o exporta tus datos de otra app), elígelo aquí y dinos qué columna es qué. <i class="fa-solid fa-shield-halved text-emerald-600"></i> El archivo se lee solo en este navegador y se descarta: no se guarda ni se envía a ningún lado.</div>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <label class="btn btn-primary cursor-pointer"><i class="fa-solid fa-folder-open"></i> Elegir archivo CSV
+                    <input type="file" id="imp-file" accept=".csv,.txt,.tsv,text/csv,text/plain" class="hidden" data-change="imp.file"></label>
+                <span class="help" id="imp-file-name">¿Tu banco solo da Excel (.xlsx)? Ábrelo y usa "Guardar como → CSV".</span>
+            </div>
+            <div id="imp-setup" class="hidden mt-5 space-y-4">
+                <div class="panel tone-slate">
+                    <div class="section-label"><i class="fa-solid fa-table-columns text-blue-600"></i> 1. Dinos qué columna es qué</div>
+                    <p class="help mb-3" id="imp-profile-note"></p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" id="imp-map"></div>
+                    <div class="table-wrap mt-3"><table class="table" id="imp-raw"></table></div>
+                </div>
+                <div class="panel tone-slate hidden" id="imp-cats-panel">
+                    <div class="section-label"><i class="fa-solid fa-tags text-purple-600"></i> 2. Sus categorías → tus categorías</div>
+                    <p class="help mb-3">El archivo trae sus propias categorías. Elige a cuál de las tuyas corresponde cada una (se recuerda para la próxima vez).</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="imp-cats"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="card">
+                <div class="card-head">
+                    <div>
+                        <div class="card-title"><i class="fa-solid fa-file-invoice text-blue-600"></i> Factura electrónica del SRI (XML)</div>
+                        <div class="card-sub">Las facturas que te llegan por correo traen un archivo <strong>.xml</strong>. Elige uno o varios: leemos el comercio, la fecha, el total y el IVA exactos.</div>
+                    </div>
+                </div>
+                <label class="btn btn-secondary cursor-pointer"><i class="fa-solid fa-file-code"></i> Elegir facturas XML
+                    <input type="file" id="imp-xml" accept=".xml,text/xml,application/xml" multiple class="hidden" data-change="imp.xml"></label>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <div>
+                        <div class="card-title"><i class="fa-solid fa-camera text-amber-600"></i> Foto de una factura o recibo</div>
+                        <div class="card-sub">Toma una foto (en el celular) o elige una imagen. Intentamos leer el total, la fecha y el comercio; siempre revisas antes de guardar. Necesita internet la primera vez.</div>
+                    </div>
+                </div>
+                <label class="btn btn-secondary cursor-pointer"><i class="fa-solid fa-camera"></i> Tomar o elegir foto
+                    <input type="file" id="imp-photo" accept="image/*" capture="environment" class="hidden" data-change="imp.photo"></label>
+                <p class="help mt-2" id="imp-photo-status"></p>
+            </div>
+        </div>
+
+        <div class="card hidden" id="imp-preview-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-list-check text-emerald-600"></i> Revisa antes de importar</div>
+                    <div class="card-sub" id="imp-summary"></div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button class="btn btn-secondary" data-action="imp.cancel">Cancelar</button>
+                    <button class="btn btn-primary" data-action="imp.commit" id="imp-commit"><i class="fa-solid fa-file-import"></i> Importar</button>
+                </div>
+            </div>
+            <div class="table-wrap tall"><table class="table"><thead><tr><th class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggleAll" id="imp-all" checked aria-label="Todas"></th><th>Fecha</th><th>Descripción</th><th>Categoría</th><th class="num">Monto</th><th>Estado</th></tr></thead><tbody id="imp-rows"></tbody></table></div>
+        </div>
+
+        <div class="card" id="imp-rules-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i> Reglas automáticas</div>
+                    <div class="card-sub">Si la descripción contiene cierto texto, la transacción recibe la categoría (y el rubro) que digas. Se aplican al importar y al registrar a mano.</div>
+                </div>
+                <button class="btn btn-primary" data-action="rule.add"><i class="fa-solid fa-plus"></i> Nueva regla</button>
+            </div>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Si contiene</th><th>Categoría</th><th>Rubro del presupuesto</th><th></th></tr></thead><tbody id="rule-body"></tbody></table></div>
         </div>
     </div>
 </section>
@@ -693,7 +770,7 @@
                 <div class="card-title"><i class="fa-solid fa-scale-balanced text-teal-600"></i> Patrimonio Neto · <span class="active-year"></span></div>
                 <div class="card-sub">Activos − Pasivos: el número más importante a seguir en el tiempo. Cada saldo se mantiene igual año a año hasta que lo edites para un año posterior.</div>
             </div>
-            <button class="btn btn-secondary" data-action="nw.prefill" title="Inversiones = pólizas; cada deuda en su tipo"><i class="fa-solid fa-arrows-rotate"></i> Traer pólizas y deudas registradas</button>
+            <button class="btn btn-secondary" data-action="nw.prefill" title="Inversiones = pólizas + acciones/ETF; cada deuda en su tipo"><i class="fa-solid fa-arrows-rotate"></i> Traer pólizas, inversiones y deudas</button>
         </div>
         <div id="nw-sync-hint" class="panel tone-blue mb-4 hidden flex flex-wrap items-center justify-between gap-2 text-xs text-blue-900"></div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -711,6 +788,22 @@
             <span class="text-4xl font-black block my-1" id="nw-value">$0</span>
             <p class="text-sm font-bold" id="nw-verdict"></p>
         </div>
+    </div>
+
+    <div class="card" id="nw-holdings">
+        <div class="card-head">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-chart-line text-indigo-600"></i> Inversiones: ETF, acciones y fondos</div>
+                <div class="card-sub">Escribe el símbolo (ticker, ej. VOO, AAPL) y cuántas unidades tienes. El valor total entra a tu patrimonio con "Traer pólizas, inversiones y deudas". <span id="hold-key-note"></span></div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button class="btn btn-secondary" data-action="hold.refresh"><i class="fa-solid fa-arrows-rotate"></i> Actualizar precios</button>
+                <button class="btn btn-primary" data-action="hold.add"><i class="fa-solid fa-plus"></i> Agregar inversión</button>
+            </div>
+        </div>
+        <div class="table-wrap"><table class="table"><thead><tr><th>Símbolo</th><th>Nombre</th><th>Tipo</th><th style="width:7rem">Unidades</th><th style="width:8rem">Precio (<span class="cur">$</span>)</th><th class="num">Valor</th><th>Precio de</th><th></th></tr></thead>
+            <tbody id="hold-body"></tbody>
+            <tfoot><tr><td colspan="5">Total en inversiones</td><td class="num" id="hold-total"></td><td colspan="2"></td></tr></tfoot></table></div>
     </div>
 
     <div class="card">
@@ -785,6 +878,16 @@
             <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
         </summary>
         <div class="mt-5 space-y-4">
+            <div class="panel tone-slate" id="cfg-prices">
+                <div class="section-label"><i class="fa-solid fa-chart-line text-indigo-600"></i> Precios de inversiones</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
+                    <label class="field"><span class="field-label">Proveedor</span>
+                        <select class="input" data-bind="settings.priceProvider"><option value="finnhub">Finnhub (acciones y ETF de EE.UU.)</option><option value="alphavantage">Alpha Vantage (incluye fondos mutuos)</option></select></label>
+                    <label class="field"><span class="field-label">Tu clave gratuita (API key)</span>
+                        <input type="password" class="input" autocomplete="off" data-bind="settings.priceKey" placeholder="Pega aquí tu clave"></label>
+                </div>
+                <p class="help mt-2">Crea una clave gratis en <a class="link" href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a> o <a class="link" href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">alphavantage.co</a>. Se guarda solo en este navegador (no va en la copia de respaldo) y solo se usa para pedir precios.</p>
+            </div>
             <div class="panel tone-slate">
                 <div class="section-label"><i class="fa-solid fa-coins text-amber-600"></i> Moneda</div>
                 <label class="field max-w-md"><span class="field-label">Mostrar los montos en</span>
@@ -888,6 +991,7 @@
 <script src="js/format.js"></script>
 <script src="js/defaults.js"></script>
 <script src="js/engine.js"></script>
+<script src="js/importers.js"></script>
 <script src="js/store.js"></script>
 <script src="js/ui/core.js"></script>
 <script src="js/app.js"></script>
@@ -897,6 +1001,7 @@
 <script src="js/views/presupuesto.js"></script>
 <script src="js/views/ingresos.js"></script>
 <script src="js/views/transacciones.js"></script>
+<script src="js/views/importar.js"></script>
 <script src="js/views/metas.js"></script>
 <script src="js/views/ahorro.js"></script>
 <script src="js/views/hipoteca.js"></script>
