@@ -142,7 +142,7 @@
         chart(canvasId, config) {
             const canvas = document.getElementById(canvasId);
             if (!canvas || typeof Chart === 'undefined') return null;
-            const money = (v) => '$' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 });
+            const money = (v) => Fmt.money0(v);
             const base = {
                 responsive: true,
                 maintainAspectRatio: false,

@@ -108,7 +108,7 @@
     const Store = {
         KEY,
         state: null,
-        ui: { tab: 'resumen', sub: { presupuesto: 'plan', ahorro: 'proyeccion' }, month: 'base', txnFilters: { year: 'all', month: 'all', type: 'all', category: 'all' }, txnEditing: null },
+        ui: { tab: 'resumen', sub: { presupuesto: 'plan', ahorro: 'proyeccion' }, month: 'base', txnFilters: { year: 'all', month: 'all', type: 'all', category: 'all' }, txnEditing: null, txnSearch: '', budgetLayout: 'simple', budgetMode: null, trend: { period: 'month', count: 12 } },
         status: { lastSavedAt: null, error: null },
         listeners: [],
         _timer: null,
@@ -153,7 +153,7 @@
             this.state.debts.forEach(d => {
                 if (Number(d.balance) > 0.01 && (d.createdYear || 0) <= y) {
                     const m = Math.max(0, Number(d.monthly) || 0);
-                    rows.push({ id: 'debt-' + d.id, link: 'debt', refId: d.id, name: d.name, type: 'Deuda', isDeductible: false, prep: m, real: m, linkedCategory: 'Deudas', minPayment: Math.max(0, Number(d.minPayment) || 0) });
+                    rows.push({ id: 'debt-' + d.id, link: 'debt', refId: d.id, name: d.name, type: 'Deuda', isDeductible: false, prep: m, real: m, linkedCategory: 'Deudas', minPayment: Math.max(0, Number(d.minPayment) || 0), dueDay: d.dueDay });
                 }
             });
             this.state.goals.forEach(g => {

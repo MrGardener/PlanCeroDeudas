@@ -272,3 +272,89 @@ test('other income: recurring sources, logged income and the salary are each cou
     txns[2].countAsExtra = true;
     assert.equal(E.receivedIncome(txns, 2026)['9'].payroll.length, 0);
 });
+
+test('line spend: explicit assignment first, then the first line of the category, never twice', () => {
+    const items = [
+        { id: 1, name: 'Arriendo', linkedCategory: 'Vivienda', real: 350 },
+        { id: 2, name: 'Alícuotas', linkedCategory: 'Vivienda', real: 50 },
+        { id: 'debt-1', name: 'Tarjeta', linkedCategory: 'Deudas', real: 80 }
+    ];
+    const txns = [
+        { id: 1, type: 'Gasto', parentCategory: 'Vivienda', amount: 350, date: '2026-09-05' },
+        { id: 2, type: 'Gasto', parentCategory: 'Vivienda', amount: 50, date: '2026-09-06', budgetLine: '2' },
+        { id: 3, type: 'Gasto', parentCategory: 'Otros', amount: 20, date: '2026-09-07' },
+        { id: 4, type: 'Gasto', parentCategory: 'Otros', amount: 80, date: '2026-09-08', budgetLine: 'debt-1' },
+        { id: 5, type: 'Gasto', parentCategory: 'Vivienda', amount: 99, date: '2026-08-05' },
+        { id: 6, type: 'Ingreso', parentCategory: 'Vivienda', amount: 999, date: '2026-09-05' },
+        { id: 7, type: 'Gasto', parentCategory: 'Vivienda', amount: 5, date: '2026-09-09', budgetLine: 'gone' }
+    ];
+    const s = E.lineSpend(items, txns, 2026, '9');
+    assert.equal(s.byLine['1'].spent, 355);        // by category + an assignment to a line that no longer exists
+    assert.equal(s.byLine['2'].spent, 50);         // only what was assigned to it: no double count
+    assert.equal(s.byLine['debt-1'].spent, 80);
+    assert.deepEqual(s.unassigned.map(t => t.id), [3]);
+    assert.equal(E.lineSpend(items, txns, 2026, 'base').byLine['1'].spent, 355 + 99);  // year to date
+});
+
+test('trend series: every week/month/year in the window, income and expenses apart', () => {
+    const txns = [
+        { type: 'Gasto', amount: 10, date: '2026-09-29', parentCategory: 'A' },   // Tuesday
+        { type: 'Gasto', amount: 5, date: '2026-09-28', parentCategory: 'B' },    // Monday, same week
+        { type: 'Ingreso', amount: 100, date: '2026-09-15', parentCategory: 'A' },
+        { type: 'Gasto', amount: 7, date: '2025-02-01', parentCategory: 'A' }
+    ];
+    const end = new Date(2026, 8, 30);
+    const weeks = E.periodSeries(txns, { period: 'week', count: 4, end });
+    assert.equal(weeks.length, 4);
+    assert.equal(weeks[3].start, '2026-09-28');
+    assert.equal(weeks[3].expense, 15);
+    assert.equal(weeks[1].income, 100);
+    const months = E.periodSeries(txns, { period: 'month', count: 12, end, category: 'A' });
+    assert.equal(months[11].expense, 10);
+    assert.equal(months[0].start, '2025-10-01');
+    const years = E.periodSeries(txns, { period: 'year', count: 3, end });
+    assert.deepEqual(years.map(r => r.expense), [0, 7, 15]);
+});
+
+test('bills: paid when the line is covered, otherwise overdue / due soon / later', () => {
+    const items = [
+        { id: 1, name: 'Arriendo', real: 350, dueDay: 5 },
+        { id: 2, name: 'Internet', real: 35, dueDay: 12 },
+        { id: 3, name: 'Luz', real: 30, dueDay: 25 },
+        { id: 4, name: 'Sin fecha', real: 10 },
+        { id: 5, name: 'Febrero 31', real: 10, dueDay: 31 }
+    ];
+    const spend = { byLine: { 1: { spent: 350 }, 2: { spent: 10 } } };
+    const b = E.billsDue({ items, spend, year: 2026, month: '9', today: new Date(2026, 8, 14) });
+    const by = Object.fromEntries(b.map(x => [x.item.name, x]));
+    assert.equal(by.Arriendo.status, 'paid');
+    assert.equal(by.Internet.status, 'overdue');
+    assert.equal(by.Internet.remaining, 25);
+    assert.equal(by.Luz.status, 'later');
+    assert.equal(by['Febrero 31'].day, 30);          // clamped to the month's last day
+    assert.ok(!by['Sin fecha']);
+    const soon = E.billsDue({ items, spend, year: 2026, month: '9', today: new Date(2026, 8, 20) });
+    assert.equal(soon.find(x => x.item.name === 'Luz').status, 'soon');
+});
+
+test('overspending risk compares spending pace with the month elapsed', () => {
+    const at = (day) => new Date(2026, 8, day);
+    assert.equal(E.overspendRisk({ planned: 300, spent: 0, year: 2026, month: '9', today: at(10) }).level, 'none');
+    assert.equal(E.overspendRisk({ planned: 300, spent: 90, year: 2026, month: '9', today: at(15) }).level, 'low');
+    assert.equal(E.overspendRisk({ planned: 300, spent: 165, year: 2026, month: '9', today: at(15) }).level, 'medium');
+    assert.equal(E.overspendRisk({ planned: 300, spent: 250, year: 2026, month: '9', today: at(15) }).level, 'high');
+    assert.equal(E.overspendRisk({ planned: 300, spent: 310, year: 2026, month: '9', today: at(30) }).level, 'high');
+});
+
+test('currency is display-only and formats per currency', () => {
+    const F = require('../js/format.js');
+    assert.equal(F.money(1433.25), '$1,433.25');
+    assert.equal(F.money(-5), '-$5.00');
+    assert.equal(F.money(-0.001), '$0.00');
+    F.setCurrency('EUR');
+    assert.ok(F.money(1234.5).includes('€'));
+    F.setCurrency('COP');
+    assert.ok(!F.money(1234.5).includes(',50'));   // COP shows no cents
+    F.setCurrency('XXX');                           // unknown → back to USD
+    assert.equal(F.money(1), '$1.00');
+});

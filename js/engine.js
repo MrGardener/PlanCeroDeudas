@@ -296,17 +296,118 @@
         return { kind: 'ok', spent, target, ratio };
     }
 
+    // Which budget line each expense of a period belongs to. A transaction the person
+    // assigned to a line (t.budgetLine) counts there; otherwise it counts for the FIRST line
+    // linked to its category, so two lines sharing a category never count the same money
+    // twice. Anything that matches no line is "unassigned" (shown so it can be assigned).
+    function lineSpend(items, transactions, year, month) {
+        const byLine = {};
+        const firstByCat = {};
+        items.forEach(i => {
+            byLine[String(i.id)] = { spent: 0, txns: [] };
+            const c = i.linkedCategory;
+            if (c && c !== 'none' && !(c in firstByCat)) firstByCat[c] = String(i.id);
+        });
+        const unassigned = [];
+        (transactions || []).forEach(t => {
+            if (txnType(t) !== 'Gasto') return;
+            const d = txnDate(t);
+            if (d.getFullYear() !== Number(year)) return;
+            if (month !== 'base' && (d.getMonth() + 1) !== Number(month)) return;
+            const explicit = t.budgetLine !== undefined && t.budgetLine !== null && t.budgetLine !== '' && byLine[String(t.budgetLine)] ? String(t.budgetLine) : null;
+            const key = explicit || firstByCat[t.parentCategory] || null;
+            if (!key) { unassigned.push(t); return; }
+            byLine[key].spent += num(t.amount);
+            byLine[key].txns.push(t);
+        });
+        return { byLine, unassigned, unassignedTotal: sum(unassigned, t => num(t.amount)) };
+    }
+
+    // Planned spending vs. everything actually spent (all expense transactions), per month.
     function budgetVsActualByMonth(yd, transactions, year) {
         return MONTHS.map(m => {
-            const linked = monthItems(yd, m).filter(i => i.linkedCategory && i.linkedCategory !== 'none');
-            const cats = new Set(linked.map(i => i.linkedCategory));
             const actual = sum((transactions || []).filter(t => {
-                if (txnType(t) !== 'Gasto' || !cats.has(t.parentCategory)) return false;
+                if (txnType(t) !== 'Gasto') return false;
                 const d = txnDate(t);
-                return d.getFullYear() === year && (d.getMonth() + 1) === Number(m);
+                return d.getFullYear() === Number(year) && (d.getMonth() + 1) === Number(m);
             }), t => num(t.amount));
-            return { month: Number(m), budgeted: sum(linked, i => num(i.prep)), actual };
+            return { month: Number(m), budgeted: sum(monthItems(yd, m), i => num(i.real)), actual };
         });
+    }
+
+    // ------------------------------------------------------------ trends
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const isoDate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+    // Start of the week (Monday), month or year that contains a date.
+    function periodStart(d, period) {
+        if (period === 'year') return new Date(d.getFullYear(), 0, 1);
+        if (period === 'month') return new Date(d.getFullYear(), d.getMonth(), 1);
+        const s = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        s.setDate(s.getDate() - ((s.getDay() + 6) % 7));
+        return s;
+    }
+
+    function shiftPeriod(d, period, n) {
+        if (period === 'year') return new Date(d.getFullYear() + n, 0, 1);
+        if (period === 'month') return new Date(d.getFullYear(), d.getMonth() + n, 1);
+        const s = new Date(d); s.setDate(s.getDate() + 7 * n); return s;
+    }
+
+    // Income and expenses for the last `count` weeks/months/years up to `end` (included),
+    // optionally for one category. Every period is present, even with no transactions.
+    function periodSeries(transactions, { period = 'month', count = 12, end = new Date(), category = 'all' } = {}) {
+        const last = periodStart(new Date(end), period);
+        const rows = [];
+        for (let i = count - 1; i >= 0; i--) {
+            const start = shiftPeriod(last, period, -i);
+            rows.push({ key: isoDate(start), start: isoDate(start), income: 0, expense: 0, count: 0 });
+        }
+        const index = new Map(rows.map((r, i) => [r.key, i]));
+        (transactions || []).forEach(t => {
+            if (category !== 'all' && t.parentCategory !== category) return;
+            const k = isoDate(periodStart(txnDate(t), period));
+            if (!index.has(k)) return;
+            const r = rows[index.get(k)];
+            if (txnType(t) === 'Ingreso') r.income += num(t.amount); else r.expense += num(t.amount);
+            r.count++;
+        });
+        return rows;
+    }
+
+    // ------------------------------------------------------------ bills
+    // Lines with a due day in a given month: paid once what was spent on the line covers
+    // what's planned; otherwise overdue (day passed), due soon (within `soonDays`) or later.
+    function billsDue({ items, spend, year, month, today = new Date(), soonDays = 7 }) {
+        const t = new Date(today);
+        const y = Number(year), m = Number(month);
+        const isThisMonth = t.getFullYear() === y && t.getMonth() + 1 === m;
+        const isPast = !isThisMonth && new Date(y, m - 1, 1) < new Date(t.getFullYear(), t.getMonth(), 1);
+        const lastDay = new Date(y, m, 0).getDate();
+        return items.filter(i => Number(i.dueDay) >= 1 && num(i.real) > 0).map(i => {
+            const day = Math.min(Number(i.dueDay), lastDay);
+            const planned = num(i.real);
+            const spent = (spend.byLine[String(i.id)] || { spent: 0 }).spent;
+            const paid = spent + 0.005 >= planned;
+            const daysLeft = isThisMonth ? day - t.getDate() : isPast ? -1 : 99;
+            const status = paid ? 'paid' : daysLeft < 0 ? 'overdue' : daysLeft <= soonDays ? 'soon' : 'later';
+            return { item: i, day, planned, spent, remaining: Math.max(0, planned - spent), paid, daysLeft, status };
+        }).sort((a, b) => a.day - b.day);
+    }
+
+    // How likely this month's plan is to be overspent, from what's spent so far vs. how much
+    // of the month has passed: 'low' | 'medium' | 'high' (or 'none' before anything is logged).
+    function overspendRisk({ planned, spent, year, month, today = new Date() }) {
+        const t = new Date(today);
+        const y = Number(year), m = Number(month);
+        const days = new Date(y, m, 0).getDate();
+        const elapsed = t.getFullYear() === y && t.getMonth() + 1 === m ? t.getDate() / days
+            : new Date(y, m - 1, 1) < t ? 1 : 0;
+        if (planned <= 0) return { level: spent > 0 ? 'high' : 'none', ratio: 0, pace: 0 };
+        const ratio = spent / planned;
+        const pace = elapsed > 0 ? ratio / elapsed : ratio > 0 ? Infinity : 0;
+        const level = ratio > 1 || (elapsed < 1 && pace > 1.25) ? 'high' : pace > 1 ? 'medium' : spent > 0 ? 'low' : 'none';
+        return { level, ratio, pace, elapsed };
     }
 
     function filterTransactions(transactions, { year = 'all', month = 'all', type = 'all', category = 'all' } = {}) {
@@ -662,6 +763,7 @@
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
+        lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,

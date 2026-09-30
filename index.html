@@ -46,6 +46,16 @@
     <div id="dash-hero" class="hero"></div>
     <div id="dash-steps" class="steps steps-compact"></div>
     <div id="dash-kpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    <div class="card" id="dash-bills-card">
+        <div class="card-head">
+            <div>
+                <div class="card-title"><i class="fa-regular fa-calendar-check text-blue-600"></i> Próximos pagos · <span id="dash-bills-month"></span></div>
+                <div class="card-sub">Tus cuentas con fecha de pago. Se marcan pagadas cuando registras el gasto en su rubro.</div>
+            </div>
+            <a href="#" data-goto="presupuesto/plan" class="link text-xs">Fechas en el presupuesto →</a>
+        </div>
+        <div id="dash-bills" class="bills-list"></div>
+    </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="card lg:col-span-2">
             <div class="card-head">
@@ -76,14 +86,20 @@
                     <div class="card-title"><i class="fa-solid fa-scale-balanced text-emerald-600"></i> Presupuesto Base Cero · <span class="active-year"></span></div>
                     <div class="card-sub">Asigna cada dólar de tu ingreso a un rubro hasta que el balance por asignar sea $0.00.</div>
                 </div>
-                <label class="field w-full sm:w-72">
-                    <span class="field-label"><span><i class="fa-solid fa-calendar-days text-emerald-600"></i> Mes</span></span>
-                    <select id="budget-month" class="input" data-change="budget.setMonth"></select>
-                </label>
+                <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:items-end">
+                    <div class="segmented bud-layout" role="tablist" aria-label="Vista del presupuesto">
+                        <button type="button" data-action="budget.layout" data-layout="simple"><i class="fa-solid fa-table-cells-large"></i> Simple</button>
+                        <button type="button" data-action="budget.layout" data-layout="detailed"><i class="fa-solid fa-table-list"></i> Detallada</button>
+                    </div>
+                    <label class="field w-full sm:w-72">
+                        <span class="field-label"><span><i class="fa-solid fa-calendar-days text-emerald-600"></i> Mes</span></span>
+                        <select id="budget-month" class="input" data-change="budget.setMonth"></select>
+                    </label>
+                </div>
             </div>
             <p id="bud-month-note" class="text-xs text-slate-600 mb-4"></p>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
                 <div class="kpi tone-emerald">
                     <span class="kpi-label">Ingreso del período</span>
                     <span class="kpi-value" id="bud-income">$0.00</span>
@@ -99,6 +115,11 @@
                     <span class="kpi-value" id="bud-balance">$0.00</span>
                     <span class="kpi-note" id="bud-balance-note"></span>
                 </div>
+                <div class="kpi tone-slate" id="bud-risk-box">
+                    <span class="kpi-label">Riesgo de gastar de más</span>
+                    <span class="kpi-value" id="bud-risk">—</span>
+                    <span class="kpi-note" id="bud-risk-note"></span>
+                </div>
             </div>
 
             <div class="panel tone-emerald mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -111,6 +132,9 @@
                 <p class="text-[11px] text-blue-800 mt-1"><span id="bud-opp-list" class="font-semibold"></span>. Si de verdad no los necesitas, destínalos a tus <a href="#" class="link" data-goto="metas">Deudas y Metas</a> o a tu <a href="#" class="link" data-goto="jubilacion">Jubilación</a>.</p>
             </div>
 
+            <div id="bud-simple" class="hidden"></div>
+
+            <div id="bud-detailed">
             <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
                 <p class="text-xs text-slate-500 max-w-2xl">Arriba van <strong>todos tus ingresos</strong>: tu sueldo y cualquier otro (negocio, freelance, remesas). Abajo, los rubros: edita montos, marca los <strong>deducibles SRI</strong> y vincula cada rubro a una categoría de transacciones para comparar lo presupuestado con lo que realmente gastaste.</p>
                 <div class="flex flex-wrap gap-2">
@@ -142,16 +166,17 @@
                     </tfoot>
                 </table>
             </div>
+            </div>
         </div>
 
         <div class="card" id="bud-trend-card">
             <div class="card-head">
                 <div>
-                    <div class="card-title"><i class="fa-solid fa-chart-column text-amber-600"></i> Presupuestado vs. Real por Mes · <span class="active-year"></span></div>
-                    <div class="card-sub">Solo rubros vinculados a una categoría de transacciones. Vincula más rubros para ver el panorama completo.</div>
+                    <div class="card-title"><i class="fa-solid fa-chart-line text-blue-600"></i> Planeado vs. Gastado por Mes · <span class="active-year"></span></div>
+                    <div class="card-sub">Lo que planeaste gastar cada mes (línea punteada) frente a todo lo que registraste como gasto.</div>
                 </div>
             </div>
-            <div id="bud-trend-empty" class="text-xs text-slate-400 text-center py-8 hidden">Vincula al menos un rubro a una categoría (columna "Categoría vinculada") para ver esta comparación.</div>
+            <div id="bud-trend-empty" class="text-xs text-slate-400 text-center py-8 hidden">Aún no hay gastos registrados este año. Regístralos en Transacciones para ver la comparación.</div>
             <div class="chart-box"><canvas id="bud-trend-chart"></canvas></div>
         </div>
     </div>
@@ -168,7 +193,7 @@
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <label class="field field-box tone-amber">
-                    <span class="field-label">Sueldo bruto mensual ($)</span>
+                    <span class="field-label">Sueldo bruto mensual (<span class="cur">$</span>)</span>
                     <input type="number" class="input" step="50" min="0" data-bind="year.sueldo">
                     <span class="help">Sueldo unificado en relación de dependencia.</span>
                 </label>
@@ -261,6 +286,9 @@
                 <label class="field"><span class="field-label"><span>Subcategoría</span><button type="button" class="mini-btn" data-action="txn.addSub">+ Nueva</button></span>
                     <select id="txn-sub" class="input" data-change="txn.subChanged"></select>
                     <span id="txn-payroll-hint" class="help text-amber-700 hidden">Tu sueldo ya se cuenta desde "Tu Sueldo", así que esto no se suma a tu presupuesto. Si es un ingreso extra (ventas, trabajos), elige otra categoría.</span></label>
+                <label class="field" id="txn-line-field"><span class="field-label">Rubro del presupuesto</span>
+                    <select id="txn-line" class="input"></select>
+                    <span class="help">En qué rubro de tu presupuesto cuenta este gasto. "Automático" usa el primer rubro vinculado a su categoría.</span></label>
                 <label class="field hidden" id="txn-income-field"><span class="field-label">¿Es de un ingreso de tu presupuesto?</span>
                     <select id="txn-income" class="input"></select>
                     <span class="help">Elígelo si este dinero es lo que esperabas de un ingreso mensual (así se marca como recibido). Si no, cuenta como ingreso extra del mes.</span></label>
@@ -268,10 +296,10 @@
                     <select id="txn-payment" class="input">
                         <option>Efectivo</option><option>Tarjeta de Débito</option><option>Tarjeta de Crédito</option><option>Transferencia</option>
                     </select></label>
-                <label class="field"><span class="field-label">Monto ($)</span>
+                <label class="field"><span class="field-label">Monto (<span class="cur">$</span>)</span>
                     <input type="number" id="txn-amount" class="input" step="0.01" min="0" placeholder="Ej: 25.50"></label>
                 <label class="field"><span class="field-label">Fecha</span>
-                    <input type="date" id="txn-date" class="input"></label>
+                    <input type="date" id="txn-date" class="input" data-change="txn.dateChanged"></label>
                 <div class="lg:col-span-3 flex items-end justify-end">
                     <div class="flex flex-wrap gap-2 justify-end">
                         <button class="btn btn-secondary hidden" id="txn-cancel" data-action="txn.cancelEdit">Cancelar</button>
@@ -295,10 +323,38 @@
             </details>
         </div>
 
+        <div class="card" id="txn-trend-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-chart-line text-blue-600"></i> Tendencia de ingresos y gastos</div>
+                    <div class="card-sub">Elige el período: por semana, por mes o por año.</div>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+                <div class="segmented" role="tablist" aria-label="Período">
+                    <button type="button" data-action="trend.period" data-period="week">Semana</button>
+                    <button type="button" data-action="trend.period" data-period="month">Mes</button>
+                    <button type="button" data-action="trend.period" data-period="year">Año</button>
+                </div>
+                <select id="trend-count" class="cell-input" style="width:auto" data-change="trend.count" aria-label="Cuántos períodos"></select>
+                <select id="trend-show" class="cell-input" style="width:auto" data-change="trend.show" aria-label="Qué mostrar">
+                    <option value="both">Ingresos y gastos</option><option value="expense">Solo gastos</option><option value="income">Solo ingresos</option>
+                </select>
+                <select id="trend-category" class="cell-input" style="width:auto" data-change="trend.category" aria-label="Categoría"></select>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="trend-kpis"></div>
+            <div id="txn-trend-empty" class="text-xs text-slate-400 text-center py-8 hidden">No hay transacciones en este período.</div>
+            <div class="chart-box"><canvas id="txn-trend-chart"></canvas></div>
+            <details class="mt-3">
+                <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
+                <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Período</th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">Neto</th></tr></thead><tbody id="trend-table"></tbody></table></div>
+            </details>
+        </div>
         <div class="card">
             <div class="card-head">
                 <div class="card-title"><i class="fa-solid fa-list text-blue-600"></i> Historial</div>
                 <div class="flex flex-wrap gap-2">
+                    <label class="txn-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="txn-search" placeholder="Buscar descripción, lugar o monto" data-input="txn.search" aria-label="Buscar transacciones"></label>
                     <select id="txn-f-year" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-month" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-type" class="cell-input" style="width:auto" data-change="txn.filter">
@@ -312,21 +368,11 @@
                 <div class="kpi tone-red"><span class="kpi-label">Gastos</span><span class="kpi-value" id="txn-sum-exp">$0.00</span></div>
                 <div class="kpi tone-slate"><span class="kpi-label">Neto</span><span class="kpi-value" id="txn-sum-net">$0.00</span></div>
             </div>
-            <div class="mb-4">
-                <div class="section-label"><i class="fa-solid fa-chart-column text-blue-600"></i> Tendencia <span class="font-normal normal-case tracking-normal text-slate-400">(usa los filtros de año, tipo y categoría; por mes, o por año si hay más de 24 meses)</span></div>
-                <div id="txn-trend-empty" class="text-xs text-slate-400 text-center py-8 hidden">No hay transacciones para este filtro.</div>
-                <div class="chart-box"><canvas id="txn-trend-chart"></canvas></div>
-            </div>
-            <div class="table-wrap tall">
-                <table class="table">
-                    <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Lugar</th><th>Categoría</th><th>Subcategoría</th><th class="num">Monto</th><th>Pago</th><th></th></tr></thead>
-                    <tbody id="txn-body"></tbody>
-                </table>
-            </div>
+            <p class="help mb-2" id="txn-unassigned-note"></p>
+            <div id="txn-body" class="txn-list"></div>
         </div>
     </div>
 </section>
-
 <!-- ======================================================= DEUDAS Y METAS -->
 <section data-tab="metas" class="hidden space-y-5">
     <div class="card">
@@ -369,7 +415,7 @@
         </div>
         <div class="table-wrap mb-4">
             <table class="table">
-                <thead><tr><th style="min-width:11rem">Deuda</th><th>Tipo</th><th style="width:8rem">Saldo ($)</th><th style="width:6.5rem">Tasa (%)</th><th style="width:8rem">Pago mínimo ($)</th><th style="width:8.5rem">En tu presupuesto ($/mes)</th><th class="text-center">Orden</th><th class="text-center">Se paga en</th><th></th></tr></thead>
+                <thead><tr><th style="min-width:11rem">Deuda</th><th>Tipo</th><th style="width:8rem">Saldo (<span class="cur">$</span>)</th><th style="width:6.5rem">Tasa (%)</th><th style="width:8rem">Pago mínimo (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th class="text-center">Orden</th><th class="text-center">Se paga en</th><th></th></tr></thead>
                 <tbody id="debt-body"></tbody>
             </table>
         </div>
@@ -411,7 +457,7 @@
         </div>
         <div class="table-wrap mb-4">
             <table class="table">
-                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo ($)</th><th style="width:8rem">Ahorrado ($)</th><th style="width:8.5rem">En tu presupuesto ($/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th class="text-center">Tiempo estimado</th><th></th></tr></thead>
+                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo (<span class="cur">$</span>)</th><th style="width:8rem">Ahorrado (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th class="text-center">Tiempo estimado</th><th></th></tr></thead>
                 <tbody id="goal-body"></tbody>
             </table>
         </div>
@@ -489,7 +535,7 @@
             </div>
             <div class="table-wrap">
                 <table class="table">
-                    <thead><tr><th style="min-width:12rem">Cooperativa</th><th>N° Póliza</th><th style="width:7.5rem">Capital ($)</th><th style="width:6rem">Tasa (%)</th><th style="width:6rem">Días</th><th>Capitalización</th><th>Vencimiento</th><th class="num">Interés</th><th></th></tr></thead>
+                    <thead><tr><th style="min-width:12rem">Cooperativa</th><th>N° Póliza</th><th style="width:7.5rem">Capital (<span class="cur">$</span>)</th><th style="width:6rem">Tasa (%)</th><th style="width:6rem">Días</th><th>Capitalización</th><th>Vencimiento</th><th class="num">Interés</th><th></th></tr></thead>
                     <tbody id="pol-body"></tbody>
                     <tfoot><tr><td colspan="2">Total</td><td class="num" id="pol-total"></td><td colspan="4"></td><td class="num" id="pol-total-int"></td><td></td></tr></tfoot>
                 </table>
@@ -505,7 +551,7 @@
             </div>
             <div class="table-wrap">
                 <table class="table">
-                    <thead><tr><th style="min-width:14rem">Institución</th><th>Segmento</th><th style="width:6.5rem">Tasa ref. (%)</th><th>Capitalización</th><th style="width:8rem">Cobertura COSEDE ($)</th><th></th></tr></thead>
+                    <thead><tr><th style="min-width:14rem">Institución</th><th>Segmento</th><th style="width:6.5rem">Tasa ref. (%)</th><th>Capitalización</th><th style="width:8rem">Cobertura COSEDE (<span class="cur">$</span>)</th><th></th></tr></thead>
                     <tbody id="coop-body"></tbody>
                 </table>
             </div>
@@ -523,7 +569,7 @@
             </div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-            <label class="field field-box"><span class="field-label">Monto del préstamo ($)</span><input type="number" class="input" step="1000" min="0" data-bind="mortgage.amount"></label>
+            <label class="field field-box"><span class="field-label">Monto del préstamo (<span class="cur">$</span>)</span><input type="number" class="input" step="1000" min="0" data-bind="mortgage.amount"></label>
             <label class="field field-box"><span class="field-label">Tasa de interés anual (%)</span><input type="number" class="input" step="0.1" min="0" data-bind="mortgage.rate"></label>
             <label class="field field-box"><span class="field-label">Plazo (años)</span><input type="number" class="input" step="1" min="1" max="40" data-bind="mortgage.years"></label>
             <div class="field-box tone-blue">
@@ -539,7 +585,7 @@
         </div>
         <div class="panel tone-amber mb-5">
             <div class="flex flex-wrap items-end gap-4">
-                <label class="field w-full sm:w-56"><span class="field-label">Pago extra mensual a capital ($)</span><input type="number" class="input" step="10" min="0" data-bind="mortgage.extraPayment"></label>
+                <label class="field w-full sm:w-56"><span class="field-label">Pago extra mensual a capital (<span class="cur">$</span>)</span><input type="number" class="input" step="10" min="0" data-bind="mortgage.extraPayment"></label>
                 <div class="flex-1 min-w-[12rem]"><input type="range" id="mort-extra-slider" min="0" step="10" data-input="mortgage.slider" aria-label="Pago extra"></div>
             </div>
             <p class="help text-amber-800">Un abono adicional cada mes, directo al capital. Mira cómo cambian las líneas punteadas de arriba y el resumen.</p>
@@ -577,12 +623,12 @@
             <label class="field field-box"><span class="field-label">Edad actual</span><input type="number" class="input" min="18" max="80" data-bind="retirement.edadActual"></label>
             <label class="field field-box"><span class="field-label">Edad de jubilación deseada</span><input type="number" class="input" min="40" max="85" data-bind="retirement.edadJubilacion"></label>
             <div class="field-box tone-emerald">
-                <span class="field-label">Ahorro DPF actual ($)</span>
+                <span class="field-label">Ahorro DPF actual (<span class="cur">$</span>)</span>
                 <div class="input input-readonly" id="ret-ahorro"></div>
                 <span class="linked">🔗 Automático: el capital de tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas registradas</a>.</span>
             </div>
             <div class="field-box tone-emerald">
-                <span class="field-label">Aporte mensual para el retiro ($)</span>
+                <span class="field-label">Aporte mensual para el retiro (<span class="cur">$</span>)</span>
                 <div class="input input-readonly" id="ret-aporte"></div>
                 <span class="linked">🔗 Automático: tus rubros de Ahorro del <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a> (sin contar metas)<span id="ret-aporte-sweep"></span>. Para aportar más, súbelo ahí. Para solo explorar, usa el simulador de abajo.</span>
             </div>
@@ -598,7 +644,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
             <label class="field field-box tone-indigo"><span class="field-label">Años ya aportados al IESS</span><input type="number" class="input" min="0" max="60" data-bind="retirement.aniosAportados"><span class="help">Más años = pensión más alta, hasta una carrera completa de 30 años.</span></label>
             <div class="field-box tone-indigo">
-                <span class="field-label"><span>Sueldo promedio mensual ($)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="sueldoPromedio" title="Volver a enlazar con tu sueldo">↻ enlazar</button></span>
+                <span class="field-label"><span>Sueldo promedio mensual (<span class="cur">$</span>)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="sueldoPromedio" title="Volver a enlazar con tu sueldo">↻ enlazar</button></span>
                 <input type="number" class="input" step="50" min="0" id="ret-sueldo" data-input="ret.override" data-field="sueldoPromedio">
                 <span class="linked" id="ret-sueldo-note"></span>
             </div>
@@ -682,7 +728,7 @@
         </div>
         <div class="table-wrap">
             <table class="table">
-                <thead><tr><th style="min-width:11rem">Activo</th><th>Categoría</th><th style="width:6rem">Año compra</th><th style="width:8rem">Valor compra ($)</th><th style="width:8rem">Valor en <span class="active-year"></span> ($)</th><th>Estado</th><th></th></tr></thead>
+                <thead><tr><th style="min-width:11rem">Activo</th><th>Categoría</th><th style="width:6rem">Año compra</th><th style="width:8rem">Valor compra (<span class="cur">$</span>)</th><th style="width:8rem">Valor en <span class="active-year"></span> (<span class="cur">$</span>)</th><th>Estado</th><th></th></tr></thead>
                 <tbody id="asset-body"></tbody>
             </table>
         </div>
@@ -716,16 +762,16 @@
         <div class="mt-5 space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 <label class="field field-box"><span class="field-label">Aporte personal IESS (%)</span><input type="number" class="input" step="0.01" min="0" data-bind="year.iessRate"></label>
-                <label class="field field-box"><span class="field-label">SBU ($)</span><input type="number" class="input" step="1" min="0" data-bind="year.sbu"><span class="help">Base del Décimo Cuarto.</span></label>
-                <label class="field field-box"><span class="field-label">Canasta básica ($)</span><input type="number" class="input" step="1" min="0" data-bind="year.canasta"></label>
+                <label class="field field-box"><span class="field-label">SBU (<span class="cur">$</span>)</span><input type="number" class="input" step="1" min="0" data-bind="year.sbu"><span class="help">Base del Décimo Cuarto.</span></label>
+                <label class="field field-box"><span class="field-label">Canasta básica (<span class="cur">$</span>)</span><input type="number" class="input" step="1" min="0" data-bind="year.canasta"></label>
                 <label class="field field-box"><span class="field-label">Tope deducible (× canasta)</span><input type="number" class="input" step="0.1" min="0" data-bind="year.sriCapMultiplier"><span class="help">Ajusta si tu caso (cargas, año fiscal) cambia el tope.</span></label>
-                <label class="field field-box"><span class="field-label">Cobertura COSEDE ($)</span><input type="number" class="input" step="1000" min="0" data-bind="year.cosede"><span class="help">Para cooperativas sin límite propio.</span></label>
+                <label class="field field-box"><span class="field-label">Cobertura COSEDE (<span class="cur">$</span>)</span><input type="number" class="input" step="1000" min="0" data-bind="year.cosede"><span class="help">Para cooperativas sin límite propio.</span></label>
             </div>
             <div>
                 <div class="section-label">Tabla del Impuesto a la Renta · <span class="active-year"></span></div>
                 <div class="table-wrap">
                     <table class="table">
-                        <thead><tr><th>Fracción básica ($)</th><th>Exceso hasta ($)</th><th>Impuesto fracción básica ($)</th><th>% sobre excedente</th></tr></thead>
+                        <thead><tr><th>Fracción básica (<span class="cur">$</span>)</th><th>Exceso hasta (<span class="cur">$</span>)</th><th>Impuesto fracción básica (<span class="cur">$</span>)</th><th>% sobre excedente</th></tr></thead>
                         <tbody id="cfg-brackets"></tbody>
                     </table>
                 </div>
@@ -739,6 +785,12 @@
             <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
         </summary>
         <div class="mt-5 space-y-4">
+            <div class="panel tone-slate">
+                <div class="section-label"><i class="fa-solid fa-coins text-amber-600"></i> Moneda</div>
+                <label class="field max-w-md"><span class="field-label">Mostrar los montos en</span>
+                    <select id="cfg-currency" class="input" data-bind="settings.currency" data-structural="true"></select>
+                    <span class="help">Solo cambia cómo se muestran los montos (símbolo y separadores). No convierte valores: escribe tus montos en la moneda que elijas. Los cálculos de IESS, SRI y COSEDE son de Ecuador y están en dólares.</span></label>
+            </div>
             <div class="panel tone-indigo">
                 <div class="section-label text-indigo-900"><i class="fa-solid fa-file-shield"></i> Copia de respaldo</div>
                 <div class="flex flex-wrap gap-2">
@@ -785,8 +837,8 @@
                     <option value="frances">Francés (cuota fija)</option>
                     <option value="aleman">Alemán (cuota decreciente)</option>
                 </select><span class="help">La mayoría de préstamos en Ecuador usan el Francés. La calculadora muestra solo el sistema elegido.</span></label>
-            <label class="field field-box tone-purple"><span class="field-label">Tope simulador de jubilación ($/mes)</span><input type="number" class="input" step="50" min="50" data-bind="settings.retireWhatIfMax"></label>
-            <label class="field field-box tone-purple"><span class="field-label">Tope simulador hipotecario ($/mes)</span><input type="number" class="input" step="100" min="50" data-bind="settings.mortgageWhatIfMax"></label>
+            <label class="field field-box tone-purple"><span class="field-label">Tope simulador de jubilación (<span class="cur">$</span>/mes)</span><input type="number" class="input" step="50" min="50" data-bind="settings.retireWhatIfMax"></label>
+            <label class="field field-box tone-purple"><span class="field-label">Tope simulador hipotecario (<span class="cur">$</span>/mes)</span><input type="number" class="input" step="100" min="50" data-bind="settings.mortgageWhatIfMax"></label>
         </div>
     </details>
 
@@ -841,6 +893,7 @@
 <script src="js/app.js"></script>
 <script src="js/views/shared.js"></script>
 <script src="js/views/resumen.js"></script>
+<script src="js/views/presupuesto-simple.js"></script>
 <script src="js/views/presupuesto.js"></script>
 <script src="js/views/ingresos.js"></script>
 <script src="js/views/transacciones.js"></script>

@@ -166,10 +166,17 @@
             </tr>`;
     }
 
+    const layout = () => Store.ui.budgetLayout || 'simple';
+
     function render(ctx) {
         const yd = ctx.year;
         const m = month();
         UI.html('budget-month', Views.selectOptions(Views.monthOptions(yd), m));
+        // Simple (cards: planned / spent / remaining) or Detallada (the full table).
+        UI.$$('[data-action="budget.layout"]').forEach(b => b.classList.toggle('active', b.dataset.layout === layout()));
+        UI.show('bud-simple', layout() === 'simple');
+        UI.show('bud-detailed', layout() === 'detailed');
+        if (layout() === 'simple') BudgetSimple.render(ctx);
 
         const list = items(ctx);
         const tax = ctx.state.taxonomy.expense;
@@ -212,6 +219,26 @@
         }
 
         const other = updateIncome(ctx);
+        if (layout() === 'simple') BudgetSimple.update(ctx);
+
+        // Risk of overspending this month: spending so far vs. how much of the month passed.
+        const sm = m !== 'base' ? m : (ctx.state.activeYear === today.getFullYear() ? String(today.getMonth() + 1) : null);
+        const riskBox = document.getElementById('bud-risk-box');
+        if (sm) {
+            const monthItemsSm = Engine.monthItems(ctx.budgetYear, sm);
+            const plannedSpend = monthItemsSm.filter(i => !Engine.isSavingsItem(i)).reduce((t, i) => t + (Number(i.real) || 0), 0);
+            const spentAll = ctx.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && Number(t.date.slice(0, 4)) === ctx.state.activeYear && String(Number(t.date.slice(5, 7))) === sm)
+                .reduce((t, x) => t + (Number(x.amount) || 0), 0);
+            const risk = Engine.overspendRisk({ planned: plannedSpend, spent: spentAll, year: ctx.state.activeYear, month: sm, today });
+            const LBL = { none: ['Sin datos', 'tone-slate', 'Registra tus gastos para medirlo.'], low: ['Bajo', 'tone-emerald', 'Vas a buen ritmo.'], medium: ['Medio', 'tone-amber', 'Gastas un poco más rápido de lo planeado.'], high: ['Alto', 'tone-red', 'A este ritmo te pasarás del presupuesto.'] }[risk.level];
+            riskBox.className = `kpi ${LBL[1]}`;
+            UI.text('bud-risk', LBL[0]);
+            UI.text('bud-risk-note', `${money0(spentAll)} de ${money0(plannedSpend)} gastado en ${Fmt.MONTH_NAMES[sm - 1]}. ${LBL[2]}`);
+        } else {
+            riskBox.className = 'kpi tone-slate';
+            UI.text('bud-risk', '—');
+            UI.text('bud-risk-note', 'Elige un mes para medirlo.');
+        }
 
         // Summary tiles
         UI.text('bud-income', money(mb.income));
@@ -257,6 +284,12 @@
 
         // Rows: diff and spend-vs-budget cells
         const period = m === 'base' ? 'base' : m;
+        const spend = Engine.lineSpend(list, ctx.state.transactions, ctx.state.activeYear, period);
+        const spentOf = (it) => {
+            const s = spend.byLine[String(it.id)];
+            const tracked = (it.linkedCategory && it.linkedCategory !== 'none') || (s && s.txns.length);
+            return tracked ? (s ? s.spent : 0) : null;
+        };
         list.forEach(it => {
             const row = document.querySelector(`#bud-body tr[data-row="${it.id}"]`);
             if (!row) return;
@@ -281,7 +314,7 @@
                 }
                 return;
             }
-            const spent = Engine.categorySpend(ctx.state.transactions, it.linkedCategory, ctx.state.activeYear, period);
+            const spent = spentOf(it);
             const target = Engine.categoryTarget(it, ctx.state.activeYear, period, today);
             row.querySelector('[data-cell="spend"]').innerHTML = Views.spendBadge(Engine.spendStatus(spent, target));
         });
@@ -322,7 +355,7 @@
         const tracked = new Set(ctx.state.transactions.map(t => t.parentCategory));
         const opps = list
             .filter(it => tracked.has(it.linkedCategory) && !Engine.isSavingsItem(it))
-            .map(it => ({ it, target: Engine.categoryTarget(it, ctx.state.activeYear, period, today), spent: Engine.categorySpend(ctx.state.transactions, it.linkedCategory, ctx.state.activeYear, period) }))
+            .map(it => ({ it, target: Engine.categoryTarget(it, ctx.state.activeYear, period, today), spent: spentOf(it) }))
             .filter(o => o.target > 0 && o.spent === 0);
         UI.show('bud-opportunities', opps.length > 0);
         if (opps.length) {
@@ -332,19 +365,22 @@
 
         // Budget vs actual trend
         const trend = Engine.budgetVsActualByMonth(ctx.budgetYear, ctx.state.transactions, ctx.state.activeYear);
-        const anyLinked = Engine.MONTHS.some(mm => Engine.monthItems(ctx.budgetYear, mm).some(i => i.linkedCategory && i.linkedCategory !== 'none'));
-        UI.show('bud-trend-empty', !anyLinked);
-        UI.show(document.getElementById('bud-trend-chart').parentElement, anyLinked);
-        if (anyLinked) {
+        const anySpent = trend.some(t => t.actual > 0);
+        UI.show('bud-trend-empty', !anySpent);
+        UI.show(document.getElementById('bud-trend-chart').parentElement, anySpent);
+        if (anySpent) {
+            // Months that haven't happened yet have no spending to show (a drop to $0 would lie).
+            const cutoff = ctx.state.activeYear < today.getFullYear() ? 12 : ctx.state.activeYear > today.getFullYear() ? 0 : today.getMonth() + 1;
             UI.chart('bud-trend-chart', {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: Fmt.MONTH_SHORT,
                     datasets: [
-                        { label: 'Presupuestado', data: trend.map(t => t.budgeted), backgroundColor: 'rgba(245,158,11,.55)', borderColor: '#f59e0b', borderWidth: 1, borderRadius: 3 },
-                        { label: 'Real gastado', data: trend.map(t => t.actual), backgroundColor: 'rgba(220,38,38,.6)', borderColor: '#dc2626', borderWidth: 1, borderRadius: 3 }
+                        { label: 'Planeado', data: trend.map(t => t.budgeted), borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: .25, cubicInterpolationMode: 'monotone', fill: false },
+                        { label: 'Gastado', data: trend.map((t, i) => i < cutoff ? t.actual : null), borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: .25, cubicInterpolationMode: 'monotone', fill: true }
                     ]
-                }
+                },
+                options: { interaction: { mode: 'index', intersect: false } }
             });
         }
     }
@@ -376,7 +412,7 @@
             list.push({ id, name: 'Nuevo ingreso', amount: 0, category: 'none' });
             App.changed({ structural: true, step: true });
             UI.toast('Ingreso agregado. Escribe su nombre y cuánto recibes al mes (neto).', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
-            const input = document.querySelector(`#bud-body tr[data-income="${id}"] input`);
+            const input = document.querySelector(layout() === 'simple' ? `#bud-simple [data-income="${id}"] .bs-name-input` : `#bud-body tr[data-income="${id}"] input`);
             if (input) { input.focus(); input.select(); }
         },
         'income.set': (el) => {
@@ -449,7 +485,13 @@
             const id = Number(el.dataset.id), field = el.dataset.field;
             const item = editableItems().find(i => i.id === id);
             if (!item) return;
-            if (field === 'prep' || field === 'real') item[field] = Math.max(0, parseNum(el.value, 0));
+            if (field === 'prep' || field === 'real') {
+                const v = Math.max(0, parseNum(el.value, 0));
+                // The simple view edits one "planned" amount: keep Presupuestado following Real
+                // while they were the same.
+                if (el.dataset.sync === 'prep' && Math.abs((Number(item.prep) || 0) - (Number(item.real) || 0)) < 0.005) item.prep = v;
+                item[field] = v;
+            }
             else if (field === 'isDeductible') item.isDeductible = el.checked;
             else item[field] = el.value;
             // Changing the type moves the row to another group; everything else only
@@ -463,13 +505,35 @@
             obj.monthly = Math.max(0, parseNum(el.value, 0));
             App.changed();
         },
-        'budget.addRow': () => {
+        'budget.addRow': (el) => {
             const list = editableItems();
             const id = Store.nextId(list);
-            list.push({ id, name: 'Nuevo rubro', type: 'Gasto Variable', isDeductible: false, prep: 0, real: 0, linkedCategory: 'none' });
-            App.changed({ structural: true });
-            const input = document.querySelector(`#bud-body tr[data-row="${id}"] input`);
+            const type = el && el.dataset.type && Defaults.BUDGET_TYPES.includes(el.dataset.type) ? el.dataset.type : 'Gasto Variable';
+            list.push({ id, name: 'Nuevo rubro', type, isDeductible: false, prep: 0, real: 0, linkedCategory: 'none' });
+            App.changed({ structural: true, step: true });
+            const input = document.querySelector(layout() === 'simple' ? `#bud-simple [data-line="${id}"] .bs-name-input` : `#bud-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
+        },
+        // Due day of a bill: saved on the line in the base budget and every month that has its
+        // own copy (it's the same bill), or on the debt for a debt line.
+        'budget.dueDay': async (el) => {
+            const kind = el.dataset.kind;
+            const yd = Store.active();
+            const debt = kind === 'debt' ? Store.state.debts.find(d => d.id === Number(el.dataset.ref)) : null;
+            const lines = kind === 'debt' ? [] : [yd.budgetBase].concat(Object.values(yd.monthOverrides)).map(l => l.find(i => String(i.id) === el.dataset.id)).filter(Boolean);
+            const target = debt || lines[0];
+            if (!target) return;
+            const r = await UI.form({
+                title: `Fecha de pago: ${target.name}`,
+                fields: [{ name: 'day', label: 'Día del mes en que vence (1–31)', type: 'number', min: 1, step: 1, value: target.dueDay || '', help: 'Déjalo vacío si no tiene fecha fija. Te avisaremos en el Resumen cuando se acerque.' }],
+                confirmText: 'Guardar',
+                validate: v => v.day === '' || (Number(v.day) >= 1 && Number(v.day) <= 31 && Number.isInteger(Number(v.day))) ? null : 'Escribe un día entre 1 y 31.'
+            });
+            if (!r) return;
+            const day = r.day === '' ? undefined : Number(r.day);
+            (debt ? [debt] : lines).forEach(x => { if (day) x.dueDay = day; else delete x.dueDay; });
+            App.changed({ structural: true, step: true });
+            UI.toast(day ? `"${target.name}" vence el día ${day} de cada mes.` : `"${target.name}" ya no tiene fecha de pago.`);
         },
         'budget.delete': (el) => {
             const id = Number(el.dataset.id);

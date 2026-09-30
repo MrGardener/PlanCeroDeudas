@@ -162,6 +162,8 @@
     // ------------------------------------------------------------ rendering
     function renderGlobals() {
         const s = Store.state;
+        const c = Fmt.setCurrency(s.settings.currency);
+        UI.$$('.cur').forEach(el => { el.textContent = c.symbol; });
         const sel = document.getElementById('global-year-select');
         if (sel.options.length !== s.configEndYear - s.configStartYear + 1 || Number(sel.options[0]?.value) !== s.configStartYear) {
             sel.innerHTML = '';

@@ -39,6 +39,28 @@
         </div>`;
     }
 
+    // This month's bills with a due date: overdue first, then upcoming, then paid.
+    function billsHTML(ctx) {
+        const s = ctx.state;
+        const y = ctx.today.getFullYear(), m = String(ctx.today.getMonth() + 1);
+        UI.text('dash-bills-month', `${Fmt.MONTH_NAMES[m - 1]} ${y}`);
+        const items = Engine.monthItems(Store.effective(y), m);
+        const spend = Engine.lineSpend(items, s.transactions, y, m);
+        const bills = Engine.billsDue({ items, spend, year: y, month: m, today: ctx.today });
+        if (!bills.length) return '<p class="text-xs text-slate-500">Aún no tienes fechas de pago. En tu presupuesto (vista Simple), toca el <i class="fa-regular fa-calendar"></i> junto a un rubro —arriendo, luz, internet, tarjeta— para decir qué día vence.</p>';
+        const order = { overdue: 0, soon: 1, later: 2, paid: 3 };
+        const label = (b) => b.status === 'paid' ? '<span class="badge badge-ok">Pagado</span>'
+            : b.status === 'overdue' ? `<span class="badge badge-bad">Vencido hace ${-b.daysLeft} día${b.daysLeft === -1 ? '' : 's'}</span>`
+            : b.daysLeft === 0 ? '<span class="badge badge-warn">Vence hoy</span>'
+            : `<span class="badge ${b.status === 'soon' ? 'badge-warn' : 'badge-muted'}">En ${b.daysLeft} día${b.daysLeft === 1 ? '' : 's'}</span>`;
+        return bills.slice().sort((a, b) => order[a.status] - order[b.status] || a.day - b.day).map(b => `
+            <div class="bill-item ${b.status}">
+                <div class="bill-day"><span>${Fmt.MONTH_SHORT[m - 1]}</span><b>${b.day}</b></div>
+                <div class="min-w-0"><div class="font-bold text-sm text-slate-800 break-words">${esc(b.item.name)}</div><div class="text-[11px] text-slate-500">${b.spent > 0 && !b.paid ? `Pagado ${money(b.spent)} de ${money(b.planned)}` : money(b.planned)}</div></div>
+                <div class="flex flex-col items-end gap-1">${label(b)}${b.paid ? '' : `<button type="button" class="mini-btn" data-action="bill.pay" data-line="${esc(String(b.item.id))}" data-amount="${b.remaining}">Registrar pago</button>`}</div>
+            </div>`).join('');
+    }
+
     function alerts(ctx) {
         const s = ctx.state, out = [];
         const add = (tone, icon, html, goto) => out.push(`<button type="button" class="alert-item w-full text-left ${tone}" data-goto="${goto}"><i class="fa-solid ${icon} mt-0.5"></i><span>${html}</span></button>`);
@@ -56,10 +78,15 @@
         // Over-budget categories this calendar month (only meaningful for the current year).
         if (s.activeYear === ctx.today.getFullYear()) {
             const m = String(ctx.today.getMonth() + 1);
-            const over = Engine.monthItems(ctx.budgetYear, m).filter(it => {
-                const spent = Engine.categorySpend(s.transactions, it.linkedCategory, s.activeYear, m);
-                return spent !== null && Engine.spendStatus(spent, Number(it.prep) || 0).kind === 'over';
+            const items = Engine.monthItems(ctx.budgetYear, m);
+            const spend = Engine.lineSpend(items, s.transactions, s.activeYear, m);
+            const over = items.filter(it => {
+                const sp = spend.byLine[String(it.id)];
+                return sp && sp.txns.length && Engine.spendStatus(sp.spent, Number(it.real) || 0).kind === 'over';
             });
+            const bills = Engine.billsDue({ items, spend, year: s.activeYear, month: m, today: ctx.today });
+            const late = bills.filter(b => b.status === 'overdue');
+            if (late.length) add('tone-red', 'fa-calendar-xmark text-red-600', `Pagos vencidos: ${late.map(b => `<strong>${esc(b.item.name)}</strong> (día ${b.day})`).join(', ')}.`, 'resumen');
             if (over.length) add('tone-red', 'fa-cart-shopping text-red-600', `Este mes te pasaste en: <strong>${over.map(i => esc(i.name)).join(', ')}</strong>.`, 'presupuesto/plan');
         }
         const sync = Views.netWorthSync(ctx);
@@ -81,6 +108,7 @@
 
     function update(ctx) {
         const s = ctx.state;
+        UI.html('dash-bills', billsHTML(ctx));
         const welcome = document.getElementById('dash-welcome');
         UI.show(welcome, !s.settings.welcomeDismissed);
         if (!s.settings.welcomeDismissed) {
@@ -119,6 +147,20 @@
     }
 
     UI.register({
+        // Logs this month's payment of a bill as an expense on its budget line.
+        'bill.pay': (el) => {
+            const today = new Date();
+            const y = today.getFullYear(), m = String(today.getMonth() + 1);
+            const item = Engine.monthItems(Store.effective(y), m).find(i => String(i.id) === el.dataset.line);
+            if (!item) return;
+            const tax = Store.state.taxonomy.expense;
+            const cat = tax[item.linkedCategory] ? item.linkedCategory : (tax.Otros ? 'Otros' : Object.keys(tax)[0]);
+            const txns = Store.state.transactions;
+            const amount = Math.round(Number(el.dataset.amount) * 100) / 100;
+            txns.push({ id: Store.nextId(txns), type: 'Gasto', description: item.name, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date: Engine.isoDate(today), paymentType: 'Transferencia', budgetLine: String(item.id) });
+            App.changed({ structural: true, step: true });
+            UI.toast(`Pago de "${item.name}" registrado (${Fmt.money(amount)}).`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        },
         'app.dismissWelcome': (el) => {
             Store.state.settings.welcomeDismissed = true;
             Store.scheduleSave();

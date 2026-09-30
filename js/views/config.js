@@ -6,6 +6,9 @@
     function render(ctx) {
         const s = ctx.state, yd = ctx.year;
         UI.html('cfg-guide-body', Views.guideHTML());
+        const curSel = document.getElementById('cfg-currency');
+        if (!curSel.options.length) curSel.innerHTML = Views.selectOptions(Fmt.CURRENCIES.map(c => ({ value: c.code, label: c.label })), s.settings.currency || 'USD');
+        curSel.value = s.settings.currency || 'USD';
         UI.html('cfg-brackets', yd.sriBrackets.map((b, i) => `<tr>
             <td><input type="number" class="cell-input num" value="${b.min}" data-change="cfg.bracket" data-idx="${i}" data-field="min"></td>
             <td><input type="number" class="cell-input num" value="${b.max}" data-change="cfg.bracket" data-idx="${i}" data-field="max"></td>

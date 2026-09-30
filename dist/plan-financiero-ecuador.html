@@ -204,6 +204,101 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
     .cell-input, .input { border: none !important; background: transparent !important; box-shadow: none !important; }
     [data-tab].hidden, [data-view].hidden { display: none !important; }
 }
+
+/* ---------------------------------------------------------------- budget: simple view */
+.bs-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .75rem; }
+.bs-modes { flex: 1 1 22rem; max-width: 34rem; }
+.bs-month { font-size: .75rem; color: #475569; font-weight: 600; }
+.bs-banner { text-align: center; font-size: .85rem; font-weight: 700; padding: .55rem .75rem; border-radius: .7rem; margin-bottom: .9rem; }
+.bs-banner.ok { color: #047857; background: #ecfdf5; }
+.bs-banner.warn { color: #92400e; background: #fffbeb; }
+.bs-banner.bad { color: #b91c1c; background: #fef2f2; }
+.bs-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+@media (min-width: 1024px) { #bud-simple:not(.mode-all) .bs-grid { grid-template-columns: 1fr 1fr; } }
+.bs-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem; padding: .9rem 1rem .6rem; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); min-width: 0; overflow-x: auto; }
+.bs-unassigned { margin-bottom: 1rem; border-color: #fcd34d; background: #fffbeb; }
+.bs-head, .bs-row { display: grid; grid-template-columns: minmax(0, 1fr) 7.5rem; column-gap: .75rem; align-items: center; }
+#bud-simple.mode-all .bs-head, #bud-simple.mode-all .bs-row { grid-template-columns: minmax(9rem, 1fr) 7.5rem 6.5rem 6.5rem; }
+.bs-all { display: none; }
+#bud-simple.mode-all .bs-all { display: block; }
+.bs-head { padding-bottom: .4rem; border-bottom: 1px solid #f1f5f9; margin-bottom: .15rem; }
+.bs-title { font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #334155; display: flex; align-items: center; gap: .45rem; }
+.bs-col { font-size: .7rem; font-weight: 600; color: #94a3b8; text-align: right; }
+.bs-row { padding: .45rem 0 .5rem; row-gap: .3rem; }
+.bs-row.bs-txn { grid-template-columns: minmax(0, 1fr) auto auto; cursor: grab; }
+.bs-name { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .15rem .4rem; }
+.bs-label, .bs-name-input { font-size: .85rem; font-weight: 600; color: #0f172a; }
+.bs-name-input { background: transparent; border: 1px solid transparent; border-radius: .4rem; padding: .1rem .3rem; margin-left: -.3rem; min-width: 0; flex: 1 1 100%; text-overflow: ellipsis; }
+.bs-name-input:hover { border-color: #e2e8f0; }
+.bs-name-input:focus { outline: none; border-color: #10b981; background: #fff; }
+.bs-sub { flex-basis: 100%; font-size: .7rem; color: #64748b; }
+.bs-sub:empty { display: none; }
+.bs-val { text-align: right; }
+.bs-num { font-size: .85rem; font-weight: 700; color: #0f172a; text-align: right; font-variant-numeric: tabular-nums; }
+.bs-rem { justify-self: end; padding: .1rem .45rem; border-radius: .5rem; font-size: .8rem; }
+.bs-rem.pos { background: #ecfdf5; color: #047857; }
+.bs-rem.neg { background: #fef2f2; color: #b91c1c; }
+.bs-rem.zero { background: #f1f5f9; color: #64748b; }
+.bs-input { width: 100%; text-align: right; font-size: .85rem; font-weight: 700; padding: .3rem .5rem; border: 1px solid #fde68a; background: #fffbeb; border-radius: .5rem; font-variant-numeric: tabular-nums; }
+.bs-input:focus { outline: none; border-color: #10b981; background: #fff; box-shadow: 0 0 0 3px rgba(16, 185, 129, .15); }
+.bs-bar { grid-column: 1 / -1; height: 3px; border-radius: 3px; background: #e2e8f0; overflow: hidden; }
+.bs-bar > span { display: block; height: 100%; background: #10b981; border-radius: 3px; transition: width .25s ease; }
+.bs-bar > span.warn { background: #f59e0b; }
+.bs-bar > span.over { background: #dc2626; }
+.bs-foot { display: flex; justify-content: space-between; align-items: center; padding-top: .5rem; font-size: .8rem; }
+.bs-total { font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; }
+.bs-empty { font-size: .75rem; color: #94a3b8; padding: .6rem 0; }
+.bs-due { font-size: .68rem; color: #94a3b8; padding: .05rem .3rem; border-radius: .35rem; }
+.bs-due:hover { color: #2563eb; background: #eff6ff; }
+.bs-due span:empty { display: none; }
+.bs-del.bs-del { padding: .1rem .3rem; }
+@media (hover: hover) { .bs-del.bs-del { opacity: 0; } .bs-row:hover .bs-del.bs-del, .bs-del.bs-del:focus { opacity: 1; } }
+.bs-row.drop-target { background: #eff6ff; outline: 2px dashed #3b82f6; outline-offset: 2px; border-radius: .5rem; }
+body.dragging-txn #bud-simple [data-line]:not([data-line="sweep"]) { outline: 1px dashed #bfdbfe; outline-offset: 1px; border-radius: .5rem; }
+.bud-layout { flex: 0 0 auto; }
+
+/* Budget-line chip on a transaction: dashed while unassigned, solid once assigned. */
+.chip-select { appearance: none; -webkit-appearance: none; font-size: .72rem; font-weight: 700; color: #1d4ed8; background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 999px; padding: .2rem .8rem; max-width: 13rem; text-overflow: ellipsis; cursor: pointer; }
+.chip-select.empty { background: #fff; border-style: dashed; border-color: #3b82f6; }
+.chip-select.auto { background: #f8fafc; border-color: #cbd5e1; color: #334155; }
+.chip-select:focus { outline: 2px solid #93c5fd; outline-offset: 1px; }
+
+/* ---------------------------------------------------------------- transactions list */
+.txn-search { display: flex; align-items: center; gap: .4rem; border: 1px solid #cbd5e1; border-radius: .6rem; padding: 0 .6rem; background: #fff; color: #94a3b8; min-width: 14rem; flex: 1 1 14rem; }
+.txn-search input { border: 0; outline: none; padding: .4rem 0; font-size: .8rem; width: 100%; color: #0f172a; background: transparent; }
+.txn-search:focus-within { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, .15); }
+.txn-list { max-height: 44rem; overflow-y: auto; }
+.txn-month { position: sticky; top: 0; z-index: 1; background: #f8fafc; font-size: .75rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: .05em; padding: .45rem .6rem; border-radius: .5rem; margin-top: .4rem; }
+.txn-item { display: grid; grid-template-columns: 2.9rem minmax(0, 1fr) auto auto auto; grid-template-areas: "date main chip amt actions"; gap: .35rem .75rem; align-items: center; padding: .65rem .4rem; border-bottom: 1px solid #f1f5f9; }
+.txn-date { grid-area: date; } .txn-main { grid-area: main; min-width: 0; } .txn-amt { grid-area: amt; text-align: right; } .txn-chip { grid-area: chip; min-width: 0; } .txn-actions { grid-area: actions; }
+.txn-item[draggable="true"] { cursor: grab; }
+.txn-date { width: 2.9rem; height: 2.9rem; border-radius: 999px; border: 2px solid #2563eb; color: #1d4ed8; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; font-size: .62rem; font-weight: 700; }
+.txn-date b { font-size: .9rem; }
+.txn-date.inc { border-color: #10b981; color: #047857; }
+.txn-date.pending { border-style: dashed; }
+.txn-desc { font-size: .88rem; font-weight: 700; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.txn-meta { font-size: .7rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.txn-notes { font-size: .68rem; margin-top: .15rem; }
+.txn-right { display: flex; flex-direction: column; align-items: flex-end; gap: .3rem; min-width: 0; }
+.txn-amt { font-size: .9rem; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.txn-amt.inc { color: #047857; }
+.txn-actions { display: flex; gap: .1rem; }
+.chip-note { font-size: .7rem; color: #64748b; font-weight: 600; }
+@media (max-width: 639px) {
+    .txn-item { grid-template-columns: 2.6rem minmax(0, 1fr) auto; grid-template-areas: "date main amt" "date chip actions"; }
+    .txn-chip .chip-select { max-width: 100%; }
+}
+
+/* ---------------------------------------------------------------- bills */
+.bills-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: .6rem; }
+.bill-item { display: grid; grid-template-columns: 2.7rem minmax(0, 1fr) auto; gap: .6rem; align-items: center; padding: .55rem .7rem; border: 1px solid #e2e8f0; border-radius: .8rem; background: #fff; }
+.bill-item.overdue { border-color: #fecaca; background: #fef2f2; }
+.bill-item.soon { border-color: #fde68a; background: #fffbeb; }
+.bill-item.paid { opacity: .7; }
+.bill-day { width: 2.7rem; height: 2.7rem; border-radius: .7rem; background: #eff6ff; color: #1d4ed8; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; font-size: .6rem; font-weight: 700; }
+.bill-day b { font-size: .95rem; }
+.bill-item.overdue .bill-day { background: #fee2e2; color: #b91c1c; }
+.bill-item.paid .bill-day { background: #ecfdf5; color: #047857; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -242,6 +337,16 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
     <div id="dash-hero" class="hero"></div>
     <div id="dash-steps" class="steps steps-compact"></div>
     <div id="dash-kpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    <div class="card" id="dash-bills-card">
+        <div class="card-head">
+            <div>
+                <div class="card-title"><i class="fa-regular fa-calendar-check text-blue-600"></i> Próximos pagos · <span id="dash-bills-month"></span></div>
+                <div class="card-sub">Tus cuentas con fecha de pago. Se marcan pagadas cuando registras el gasto en su rubro.</div>
+            </div>
+            <a href="#" data-goto="presupuesto/plan" class="link text-xs">Fechas en el presupuesto →</a>
+        </div>
+        <div id="dash-bills" class="bills-list"></div>
+    </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="card lg:col-span-2">
             <div class="card-head">
@@ -272,14 +377,20 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                     <div class="card-title"><i class="fa-solid fa-scale-balanced text-emerald-600"></i> Presupuesto Base Cero · <span class="active-year"></span></div>
                     <div class="card-sub">Asigna cada dólar de tu ingreso a un rubro hasta que el balance por asignar sea $0.00.</div>
                 </div>
-                <label class="field w-full sm:w-72">
-                    <span class="field-label"><span><i class="fa-solid fa-calendar-days text-emerald-600"></i> Mes</span></span>
-                    <select id="budget-month" class="input" data-change="budget.setMonth"></select>
-                </label>
+                <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:items-end">
+                    <div class="segmented bud-layout" role="tablist" aria-label="Vista del presupuesto">
+                        <button type="button" data-action="budget.layout" data-layout="simple"><i class="fa-solid fa-table-cells-large"></i> Simple</button>
+                        <button type="button" data-action="budget.layout" data-layout="detailed"><i class="fa-solid fa-table-list"></i> Detallada</button>
+                    </div>
+                    <label class="field w-full sm:w-72">
+                        <span class="field-label"><span><i class="fa-solid fa-calendar-days text-emerald-600"></i> Mes</span></span>
+                        <select id="budget-month" class="input" data-change="budget.setMonth"></select>
+                    </label>
+                </div>
             </div>
             <p id="bud-month-note" class="text-xs text-slate-600 mb-4"></p>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
                 <div class="kpi tone-emerald">
                     <span class="kpi-label">Ingreso del período</span>
                     <span class="kpi-value" id="bud-income">$0.00</span>
@@ -295,6 +406,11 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                     <span class="kpi-value" id="bud-balance">$0.00</span>
                     <span class="kpi-note" id="bud-balance-note"></span>
                 </div>
+                <div class="kpi tone-slate" id="bud-risk-box">
+                    <span class="kpi-label">Riesgo de gastar de más</span>
+                    <span class="kpi-value" id="bud-risk">—</span>
+                    <span class="kpi-note" id="bud-risk-note"></span>
+                </div>
             </div>
 
             <div class="panel tone-emerald mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -307,6 +423,9 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 <p class="text-[11px] text-blue-800 mt-1"><span id="bud-opp-list" class="font-semibold"></span>. Si de verdad no los necesitas, destínalos a tus <a href="#" class="link" data-goto="metas">Deudas y Metas</a> o a tu <a href="#" class="link" data-goto="jubilacion">Jubilación</a>.</p>
             </div>
 
+            <div id="bud-simple" class="hidden"></div>
+
+            <div id="bud-detailed">
             <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
                 <p class="text-xs text-slate-500 max-w-2xl">Arriba van <strong>todos tus ingresos</strong>: tu sueldo y cualquier otro (negocio, freelance, remesas). Abajo, los rubros: edita montos, marca los <strong>deducibles SRI</strong> y vincula cada rubro a una categoría de transacciones para comparar lo presupuestado con lo que realmente gastaste.</p>
                 <div class="flex flex-wrap gap-2">
@@ -338,16 +457,17 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                     </tfoot>
                 </table>
             </div>
+            </div>
         </div>
 
         <div class="card" id="bud-trend-card">
             <div class="card-head">
                 <div>
-                    <div class="card-title"><i class="fa-solid fa-chart-column text-amber-600"></i> Presupuestado vs. Real por Mes · <span class="active-year"></span></div>
-                    <div class="card-sub">Solo rubros vinculados a una categoría de transacciones. Vincula más rubros para ver el panorama completo.</div>
+                    <div class="card-title"><i class="fa-solid fa-chart-line text-blue-600"></i> Planeado vs. Gastado por Mes · <span class="active-year"></span></div>
+                    <div class="card-sub">Lo que planeaste gastar cada mes (línea punteada) frente a todo lo que registraste como gasto.</div>
                 </div>
             </div>
-            <div id="bud-trend-empty" class="text-xs text-slate-400 text-center py-8 hidden">Vincula al menos un rubro a una categoría (columna "Categoría vinculada") para ver esta comparación.</div>
+            <div id="bud-trend-empty" class="text-xs text-slate-400 text-center py-8 hidden">Aún no hay gastos registrados este año. Regístralos en Transacciones para ver la comparación.</div>
             <div class="chart-box"><canvas id="bud-trend-chart"></canvas></div>
         </div>
     </div>
@@ -364,7 +484,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <label class="field field-box tone-amber">
-                    <span class="field-label">Sueldo bruto mensual ($)</span>
+                    <span class="field-label">Sueldo bruto mensual (<span class="cur">$</span>)</span>
                     <input type="number" class="input" step="50" min="0" data-bind="year.sueldo">
                     <span class="help">Sueldo unificado en relación de dependencia.</span>
                 </label>
@@ -457,6 +577,9 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 <label class="field"><span class="field-label"><span>Subcategoría</span><button type="button" class="mini-btn" data-action="txn.addSub">+ Nueva</button></span>
                     <select id="txn-sub" class="input" data-change="txn.subChanged"></select>
                     <span id="txn-payroll-hint" class="help text-amber-700 hidden">Tu sueldo ya se cuenta desde "Tu Sueldo", así que esto no se suma a tu presupuesto. Si es un ingreso extra (ventas, trabajos), elige otra categoría.</span></label>
+                <label class="field" id="txn-line-field"><span class="field-label">Rubro del presupuesto</span>
+                    <select id="txn-line" class="input"></select>
+                    <span class="help">En qué rubro de tu presupuesto cuenta este gasto. "Automático" usa el primer rubro vinculado a su categoría.</span></label>
                 <label class="field hidden" id="txn-income-field"><span class="field-label">¿Es de un ingreso de tu presupuesto?</span>
                     <select id="txn-income" class="input"></select>
                     <span class="help">Elígelo si este dinero es lo que esperabas de un ingreso mensual (así se marca como recibido). Si no, cuenta como ingreso extra del mes.</span></label>
@@ -464,10 +587,10 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                     <select id="txn-payment" class="input">
                         <option>Efectivo</option><option>Tarjeta de Débito</option><option>Tarjeta de Crédito</option><option>Transferencia</option>
                     </select></label>
-                <label class="field"><span class="field-label">Monto ($)</span>
+                <label class="field"><span class="field-label">Monto (<span class="cur">$</span>)</span>
                     <input type="number" id="txn-amount" class="input" step="0.01" min="0" placeholder="Ej: 25.50"></label>
                 <label class="field"><span class="field-label">Fecha</span>
-                    <input type="date" id="txn-date" class="input"></label>
+                    <input type="date" id="txn-date" class="input" data-change="txn.dateChanged"></label>
                 <div class="lg:col-span-3 flex items-end justify-end">
                     <div class="flex flex-wrap gap-2 justify-end">
                         <button class="btn btn-secondary hidden" id="txn-cancel" data-action="txn.cancelEdit">Cancelar</button>
@@ -491,10 +614,38 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             </details>
         </div>
 
+        <div class="card" id="txn-trend-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-chart-line text-blue-600"></i> Tendencia de ingresos y gastos</div>
+                    <div class="card-sub">Elige el período: por semana, por mes o por año.</div>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+                <div class="segmented" role="tablist" aria-label="Período">
+                    <button type="button" data-action="trend.period" data-period="week">Semana</button>
+                    <button type="button" data-action="trend.period" data-period="month">Mes</button>
+                    <button type="button" data-action="trend.period" data-period="year">Año</button>
+                </div>
+                <select id="trend-count" class="cell-input" style="width:auto" data-change="trend.count" aria-label="Cuántos períodos"></select>
+                <select id="trend-show" class="cell-input" style="width:auto" data-change="trend.show" aria-label="Qué mostrar">
+                    <option value="both">Ingresos y gastos</option><option value="expense">Solo gastos</option><option value="income">Solo ingresos</option>
+                </select>
+                <select id="trend-category" class="cell-input" style="width:auto" data-change="trend.category" aria-label="Categoría"></select>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="trend-kpis"></div>
+            <div id="txn-trend-empty" class="text-xs text-slate-400 text-center py-8 hidden">No hay transacciones en este período.</div>
+            <div class="chart-box"><canvas id="txn-trend-chart"></canvas></div>
+            <details class="mt-3">
+                <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
+                <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Período</th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">Neto</th></tr></thead><tbody id="trend-table"></tbody></table></div>
+            </details>
+        </div>
         <div class="card">
             <div class="card-head">
                 <div class="card-title"><i class="fa-solid fa-list text-blue-600"></i> Historial</div>
                 <div class="flex flex-wrap gap-2">
+                    <label class="txn-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="txn-search" placeholder="Buscar descripción, lugar o monto" data-input="txn.search" aria-label="Buscar transacciones"></label>
                     <select id="txn-f-year" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-month" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-type" class="cell-input" style="width:auto" data-change="txn.filter">
@@ -508,21 +659,11 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 <div class="kpi tone-red"><span class="kpi-label">Gastos</span><span class="kpi-value" id="txn-sum-exp">$0.00</span></div>
                 <div class="kpi tone-slate"><span class="kpi-label">Neto</span><span class="kpi-value" id="txn-sum-net">$0.00</span></div>
             </div>
-            <div class="mb-4">
-                <div class="section-label"><i class="fa-solid fa-chart-column text-blue-600"></i> Tendencia <span class="font-normal normal-case tracking-normal text-slate-400">(usa los filtros de año, tipo y categoría; por mes, o por año si hay más de 24 meses)</span></div>
-                <div id="txn-trend-empty" class="text-xs text-slate-400 text-center py-8 hidden">No hay transacciones para este filtro.</div>
-                <div class="chart-box"><canvas id="txn-trend-chart"></canvas></div>
-            </div>
-            <div class="table-wrap tall">
-                <table class="table">
-                    <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Lugar</th><th>Categoría</th><th>Subcategoría</th><th class="num">Monto</th><th>Pago</th><th></th></tr></thead>
-                    <tbody id="txn-body"></tbody>
-                </table>
-            </div>
+            <p class="help mb-2" id="txn-unassigned-note"></p>
+            <div id="txn-body" class="txn-list"></div>
         </div>
     </div>
 </section>
-
 <!-- ======================================================= DEUDAS Y METAS -->
 <section data-tab="metas" class="hidden space-y-5">
     <div class="card">
@@ -565,7 +706,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         </div>
         <div class="table-wrap mb-4">
             <table class="table">
-                <thead><tr><th style="min-width:11rem">Deuda</th><th>Tipo</th><th style="width:8rem">Saldo ($)</th><th style="width:6.5rem">Tasa (%)</th><th style="width:8rem">Pago mínimo ($)</th><th style="width:8.5rem">En tu presupuesto ($/mes)</th><th class="text-center">Orden</th><th class="text-center">Se paga en</th><th></th></tr></thead>
+                <thead><tr><th style="min-width:11rem">Deuda</th><th>Tipo</th><th style="width:8rem">Saldo (<span class="cur">$</span>)</th><th style="width:6.5rem">Tasa (%)</th><th style="width:8rem">Pago mínimo (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th class="text-center">Orden</th><th class="text-center">Se paga en</th><th></th></tr></thead>
                 <tbody id="debt-body"></tbody>
             </table>
         </div>
@@ -607,7 +748,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         </div>
         <div class="table-wrap mb-4">
             <table class="table">
-                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo ($)</th><th style="width:8rem">Ahorrado ($)</th><th style="width:8.5rem">En tu presupuesto ($/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th class="text-center">Tiempo estimado</th><th></th></tr></thead>
+                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo (<span class="cur">$</span>)</th><th style="width:8rem">Ahorrado (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th class="text-center">Tiempo estimado</th><th></th></tr></thead>
                 <tbody id="goal-body"></tbody>
             </table>
         </div>
@@ -685,7 +826,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             </div>
             <div class="table-wrap">
                 <table class="table">
-                    <thead><tr><th style="min-width:12rem">Cooperativa</th><th>N° Póliza</th><th style="width:7.5rem">Capital ($)</th><th style="width:6rem">Tasa (%)</th><th style="width:6rem">Días</th><th>Capitalización</th><th>Vencimiento</th><th class="num">Interés</th><th></th></tr></thead>
+                    <thead><tr><th style="min-width:12rem">Cooperativa</th><th>N° Póliza</th><th style="width:7.5rem">Capital (<span class="cur">$</span>)</th><th style="width:6rem">Tasa (%)</th><th style="width:6rem">Días</th><th>Capitalización</th><th>Vencimiento</th><th class="num">Interés</th><th></th></tr></thead>
                     <tbody id="pol-body"></tbody>
                     <tfoot><tr><td colspan="2">Total</td><td class="num" id="pol-total"></td><td colspan="4"></td><td class="num" id="pol-total-int"></td><td></td></tr></tfoot>
                 </table>
@@ -701,7 +842,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             </div>
             <div class="table-wrap">
                 <table class="table">
-                    <thead><tr><th style="min-width:14rem">Institución</th><th>Segmento</th><th style="width:6.5rem">Tasa ref. (%)</th><th>Capitalización</th><th style="width:8rem">Cobertura COSEDE ($)</th><th></th></tr></thead>
+                    <thead><tr><th style="min-width:14rem">Institución</th><th>Segmento</th><th style="width:6.5rem">Tasa ref. (%)</th><th>Capitalización</th><th style="width:8rem">Cobertura COSEDE (<span class="cur">$</span>)</th><th></th></tr></thead>
                     <tbody id="coop-body"></tbody>
                 </table>
             </div>
@@ -719,7 +860,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             </div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-            <label class="field field-box"><span class="field-label">Monto del préstamo ($)</span><input type="number" class="input" step="1000" min="0" data-bind="mortgage.amount"></label>
+            <label class="field field-box"><span class="field-label">Monto del préstamo (<span class="cur">$</span>)</span><input type="number" class="input" step="1000" min="0" data-bind="mortgage.amount"></label>
             <label class="field field-box"><span class="field-label">Tasa de interés anual (%)</span><input type="number" class="input" step="0.1" min="0" data-bind="mortgage.rate"></label>
             <label class="field field-box"><span class="field-label">Plazo (años)</span><input type="number" class="input" step="1" min="1" max="40" data-bind="mortgage.years"></label>
             <div class="field-box tone-blue">
@@ -735,7 +876,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         </div>
         <div class="panel tone-amber mb-5">
             <div class="flex flex-wrap items-end gap-4">
-                <label class="field w-full sm:w-56"><span class="field-label">Pago extra mensual a capital ($)</span><input type="number" class="input" step="10" min="0" data-bind="mortgage.extraPayment"></label>
+                <label class="field w-full sm:w-56"><span class="field-label">Pago extra mensual a capital (<span class="cur">$</span>)</span><input type="number" class="input" step="10" min="0" data-bind="mortgage.extraPayment"></label>
                 <div class="flex-1 min-w-[12rem]"><input type="range" id="mort-extra-slider" min="0" step="10" data-input="mortgage.slider" aria-label="Pago extra"></div>
             </div>
             <p class="help text-amber-800">Un abono adicional cada mes, directo al capital. Mira cómo cambian las líneas punteadas de arriba y el resumen.</p>
@@ -773,12 +914,12 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             <label class="field field-box"><span class="field-label">Edad actual</span><input type="number" class="input" min="18" max="80" data-bind="retirement.edadActual"></label>
             <label class="field field-box"><span class="field-label">Edad de jubilación deseada</span><input type="number" class="input" min="40" max="85" data-bind="retirement.edadJubilacion"></label>
             <div class="field-box tone-emerald">
-                <span class="field-label">Ahorro DPF actual ($)</span>
+                <span class="field-label">Ahorro DPF actual (<span class="cur">$</span>)</span>
                 <div class="input input-readonly" id="ret-ahorro"></div>
                 <span class="linked">🔗 Automático: el capital de tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas registradas</a>.</span>
             </div>
             <div class="field-box tone-emerald">
-                <span class="field-label">Aporte mensual para el retiro ($)</span>
+                <span class="field-label">Aporte mensual para el retiro (<span class="cur">$</span>)</span>
                 <div class="input input-readonly" id="ret-aporte"></div>
                 <span class="linked">🔗 Automático: tus rubros de Ahorro del <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a> (sin contar metas)<span id="ret-aporte-sweep"></span>. Para aportar más, súbelo ahí. Para solo explorar, usa el simulador de abajo.</span>
             </div>
@@ -794,7 +935,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
             <label class="field field-box tone-indigo"><span class="field-label">Años ya aportados al IESS</span><input type="number" class="input" min="0" max="60" data-bind="retirement.aniosAportados"><span class="help">Más años = pensión más alta, hasta una carrera completa de 30 años.</span></label>
             <div class="field-box tone-indigo">
-                <span class="field-label"><span>Sueldo promedio mensual ($)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="sueldoPromedio" title="Volver a enlazar con tu sueldo">↻ enlazar</button></span>
+                <span class="field-label"><span>Sueldo promedio mensual (<span class="cur">$</span>)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="sueldoPromedio" title="Volver a enlazar con tu sueldo">↻ enlazar</button></span>
                 <input type="number" class="input" step="50" min="0" id="ret-sueldo" data-input="ret.override" data-field="sueldoPromedio">
                 <span class="linked" id="ret-sueldo-note"></span>
             </div>
@@ -878,7 +1019,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         </div>
         <div class="table-wrap">
             <table class="table">
-                <thead><tr><th style="min-width:11rem">Activo</th><th>Categoría</th><th style="width:6rem">Año compra</th><th style="width:8rem">Valor compra ($)</th><th style="width:8rem">Valor en <span class="active-year"></span> ($)</th><th>Estado</th><th></th></tr></thead>
+                <thead><tr><th style="min-width:11rem">Activo</th><th>Categoría</th><th style="width:6rem">Año compra</th><th style="width:8rem">Valor compra (<span class="cur">$</span>)</th><th style="width:8rem">Valor en <span class="active-year"></span> (<span class="cur">$</span>)</th><th>Estado</th><th></th></tr></thead>
                 <tbody id="asset-body"></tbody>
             </table>
         </div>
@@ -912,16 +1053,16 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         <div class="mt-5 space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 <label class="field field-box"><span class="field-label">Aporte personal IESS (%)</span><input type="number" class="input" step="0.01" min="0" data-bind="year.iessRate"></label>
-                <label class="field field-box"><span class="field-label">SBU ($)</span><input type="number" class="input" step="1" min="0" data-bind="year.sbu"><span class="help">Base del Décimo Cuarto.</span></label>
-                <label class="field field-box"><span class="field-label">Canasta básica ($)</span><input type="number" class="input" step="1" min="0" data-bind="year.canasta"></label>
+                <label class="field field-box"><span class="field-label">SBU (<span class="cur">$</span>)</span><input type="number" class="input" step="1" min="0" data-bind="year.sbu"><span class="help">Base del Décimo Cuarto.</span></label>
+                <label class="field field-box"><span class="field-label">Canasta básica (<span class="cur">$</span>)</span><input type="number" class="input" step="1" min="0" data-bind="year.canasta"></label>
                 <label class="field field-box"><span class="field-label">Tope deducible (× canasta)</span><input type="number" class="input" step="0.1" min="0" data-bind="year.sriCapMultiplier"><span class="help">Ajusta si tu caso (cargas, año fiscal) cambia el tope.</span></label>
-                <label class="field field-box"><span class="field-label">Cobertura COSEDE ($)</span><input type="number" class="input" step="1000" min="0" data-bind="year.cosede"><span class="help">Para cooperativas sin límite propio.</span></label>
+                <label class="field field-box"><span class="field-label">Cobertura COSEDE (<span class="cur">$</span>)</span><input type="number" class="input" step="1000" min="0" data-bind="year.cosede"><span class="help">Para cooperativas sin límite propio.</span></label>
             </div>
             <div>
                 <div class="section-label">Tabla del Impuesto a la Renta · <span class="active-year"></span></div>
                 <div class="table-wrap">
                     <table class="table">
-                        <thead><tr><th>Fracción básica ($)</th><th>Exceso hasta ($)</th><th>Impuesto fracción básica ($)</th><th>% sobre excedente</th></tr></thead>
+                        <thead><tr><th>Fracción básica (<span class="cur">$</span>)</th><th>Exceso hasta (<span class="cur">$</span>)</th><th>Impuesto fracción básica (<span class="cur">$</span>)</th><th>% sobre excedente</th></tr></thead>
                         <tbody id="cfg-brackets"></tbody>
                     </table>
                 </div>
@@ -935,6 +1076,12 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
         </summary>
         <div class="mt-5 space-y-4">
+            <div class="panel tone-slate">
+                <div class="section-label"><i class="fa-solid fa-coins text-amber-600"></i> Moneda</div>
+                <label class="field max-w-md"><span class="field-label">Mostrar los montos en</span>
+                    <select id="cfg-currency" class="input" data-bind="settings.currency" data-structural="true"></select>
+                    <span class="help">Solo cambia cómo se muestran los montos (símbolo y separadores). No convierte valores: escribe tus montos en la moneda que elijas. Los cálculos de IESS, SRI y COSEDE son de Ecuador y están en dólares.</span></label>
+            </div>
             <div class="panel tone-indigo">
                 <div class="section-label text-indigo-900"><i class="fa-solid fa-file-shield"></i> Copia de respaldo</div>
                 <div class="flex flex-wrap gap-2">
@@ -981,8 +1128,8 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                     <option value="frances">Francés (cuota fija)</option>
                     <option value="aleman">Alemán (cuota decreciente)</option>
                 </select><span class="help">La mayoría de préstamos en Ecuador usan el Francés. La calculadora muestra solo el sistema elegido.</span></label>
-            <label class="field field-box tone-purple"><span class="field-label">Tope simulador de jubilación ($/mes)</span><input type="number" class="input" step="50" min="50" data-bind="settings.retireWhatIfMax"></label>
-            <label class="field field-box tone-purple"><span class="field-label">Tope simulador hipotecario ($/mes)</span><input type="number" class="input" step="100" min="50" data-bind="settings.mortgageWhatIfMax"></label>
+            <label class="field field-box tone-purple"><span class="field-label">Tope simulador de jubilación (<span class="cur">$</span>/mes)</span><input type="number" class="input" step="50" min="50" data-bind="settings.retireWhatIfMax"></label>
+            <label class="field field-box tone-purple"><span class="field-label">Tope simulador hipotecario (<span class="cur">$</span>/mes)</span><input type="number" class="input" step="100" min="50" data-bind="settings.mortgageWhatIfMax"></label>
         </div>
     </details>
 
@@ -1037,16 +1184,37 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
     const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     const MONTH_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-    const money = (n) => {
+    // Display currency. Ecuador uses the US dollar, but amounts can be shown in another
+    // currency's symbol and number style (display only: nothing is converted).
+    const CURRENCIES = [
+        { code: 'USD', label: 'Dólar estadounidense (USD) — Ecuador', symbol: '$', locale: 'en-US', decimals: 2 },
+        { code: 'EUR', label: 'Euro (EUR)', symbol: '€', locale: 'es-ES', decimals: 2, after: true },
+        { code: 'COP', label: 'Peso colombiano (COP)', symbol: 'COP $', locale: 'es-CO', decimals: 0 },
+        { code: 'PEN', label: 'Sol peruano (PEN)', symbol: 'S/', locale: 'es-PE', decimals: 2 },
+        { code: 'MXN', label: 'Peso mexicano (MXN)', symbol: 'MX$', locale: 'es-MX', decimals: 2 },
+        { code: 'CLP', label: 'Peso chileno (CLP)', symbol: 'CLP $', locale: 'es-CL', decimals: 0 },
+        { code: 'ARS', label: 'Peso argentino (ARS)', symbol: 'ARS $', locale: 'es-AR', decimals: 2 },
+        { code: 'BOB', label: 'Boliviano (BOB)', symbol: 'Bs', locale: 'es-BO', decimals: 2 },
+        { code: 'GTQ', label: 'Quetzal (GTQ)', symbol: 'Q', locale: 'es-GT', decimals: 2 },
+        { code: 'DOP', label: 'Peso dominicano (DOP)', symbol: 'RD$', locale: 'es-DO', decimals: 2 },
+        { code: 'BRL', label: 'Real brasileño (BRL)', symbol: 'R$', locale: 'pt-BR', decimals: 2 },
+        { code: 'GBP', label: 'Libra esterlina (GBP)', symbol: '£', locale: 'en-GB', decimals: 2 },
+        { code: 'CAD', label: 'Dólar canadiense (CAD)', symbol: 'CA$', locale: 'en-CA', decimals: 2 },
+        { code: 'INR', label: 'Rupia india (INR)', symbol: '₹', locale: 'en-IN', decimals: 2 }
+    ];
+    let cur = CURRENCIES[0];
+    const setCurrency = (code) => { cur = CURRENCIES.find(c => c.code === code) || CURRENCIES[0]; return cur; };
+    const currency = () => cur;
+
+    function fmt(n, decimals) {
         const v = Number(n) || 0;
-        const s = '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        return v < 0 ? '-' + s : s;
-    };
-    const money0 = (n) => {
-        const v = Number(n) || 0;
-        const s = '$' + Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 });
-        return v < 0 ? '-' + s : s;
-    };
+        const d = Math.min(decimals, cur.decimals);
+        const num = Math.abs(v).toLocaleString(cur.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
+        const s = cur.after ? `${num} ${cur.symbol}` : `${cur.symbol}${cur.symbol.length > 1 && !cur.symbol.endsWith('$') ? ' ' : ''}${num}`;
+        return v < 0 && Math.abs(v) >= 0.5 * Math.pow(10, -d) ? '-' + s : s;
+    }
+    const money = (n) => fmt(n, 2);
+    const money0 = (n) => fmt(n, 0);
     const pct = (n, digits = 1) => `${(Number(n) || 0).toFixed(digits)}%`;
 
     // Every piece of user-entered text goes through this before reaching innerHTML.
@@ -1068,7 +1236,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 
     const monthYear = (date) => `${MONTH_SHORT[date.getMonth()]} ${date.getFullYear()}`;
 
-    const Fmt = { MONTH_NAMES, MONTH_SHORT, money, money0, pct, esc, parseNum, monthsAsYears, monthYear };
+    const Fmt = { MONTH_NAMES, MONTH_SHORT, CURRENCIES, setCurrency, currency, money, money0, pct, esc, parseNum, monthsAsYears, monthYear };
     if (typeof module !== 'undefined' && module.exports) module.exports = Fmt;
     else root.Fmt = Fmt;
 })(this);
@@ -1222,7 +1390,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 { id: 3, type: 'Ingreso', description: 'Remesa mensual de mi hermano', store: 'Western Union', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: iso, paymentType: 'Tarjeta de Débito' }
             ],
             taxonomy: { expense: clone(EXPENSE_TAXONOMY), income: clone(INCOME_TAXONOMY) },
-            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null },
+            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD' },
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -1544,17 +1712,118 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         return { kind: 'ok', spent, target, ratio };
     }
 
+    // Which budget line each expense of a period belongs to. A transaction the person
+    // assigned to a line (t.budgetLine) counts there; otherwise it counts for the FIRST line
+    // linked to its category, so two lines sharing a category never count the same money
+    // twice. Anything that matches no line is "unassigned" (shown so it can be assigned).
+    function lineSpend(items, transactions, year, month) {
+        const byLine = {};
+        const firstByCat = {};
+        items.forEach(i => {
+            byLine[String(i.id)] = { spent: 0, txns: [] };
+            const c = i.linkedCategory;
+            if (c && c !== 'none' && !(c in firstByCat)) firstByCat[c] = String(i.id);
+        });
+        const unassigned = [];
+        (transactions || []).forEach(t => {
+            if (txnType(t) !== 'Gasto') return;
+            const d = txnDate(t);
+            if (d.getFullYear() !== Number(year)) return;
+            if (month !== 'base' && (d.getMonth() + 1) !== Number(month)) return;
+            const explicit = t.budgetLine !== undefined && t.budgetLine !== null && t.budgetLine !== '' && byLine[String(t.budgetLine)] ? String(t.budgetLine) : null;
+            const key = explicit || firstByCat[t.parentCategory] || null;
+            if (!key) { unassigned.push(t); return; }
+            byLine[key].spent += num(t.amount);
+            byLine[key].txns.push(t);
+        });
+        return { byLine, unassigned, unassignedTotal: sum(unassigned, t => num(t.amount)) };
+    }
+
+    // Planned spending vs. everything actually spent (all expense transactions), per month.
     function budgetVsActualByMonth(yd, transactions, year) {
         return MONTHS.map(m => {
-            const linked = monthItems(yd, m).filter(i => i.linkedCategory && i.linkedCategory !== 'none');
-            const cats = new Set(linked.map(i => i.linkedCategory));
             const actual = sum((transactions || []).filter(t => {
-                if (txnType(t) !== 'Gasto' || !cats.has(t.parentCategory)) return false;
+                if (txnType(t) !== 'Gasto') return false;
                 const d = txnDate(t);
-                return d.getFullYear() === year && (d.getMonth() + 1) === Number(m);
+                return d.getFullYear() === Number(year) && (d.getMonth() + 1) === Number(m);
             }), t => num(t.amount));
-            return { month: Number(m), budgeted: sum(linked, i => num(i.prep)), actual };
+            return { month: Number(m), budgeted: sum(monthItems(yd, m), i => num(i.real)), actual };
         });
+    }
+
+    // ------------------------------------------------------------ trends
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const isoDate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+    // Start of the week (Monday), month or year that contains a date.
+    function periodStart(d, period) {
+        if (period === 'year') return new Date(d.getFullYear(), 0, 1);
+        if (period === 'month') return new Date(d.getFullYear(), d.getMonth(), 1);
+        const s = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        s.setDate(s.getDate() - ((s.getDay() + 6) % 7));
+        return s;
+    }
+
+    function shiftPeriod(d, period, n) {
+        if (period === 'year') return new Date(d.getFullYear() + n, 0, 1);
+        if (period === 'month') return new Date(d.getFullYear(), d.getMonth() + n, 1);
+        const s = new Date(d); s.setDate(s.getDate() + 7 * n); return s;
+    }
+
+    // Income and expenses for the last `count` weeks/months/years up to `end` (included),
+    // optionally for one category. Every period is present, even with no transactions.
+    function periodSeries(transactions, { period = 'month', count = 12, end = new Date(), category = 'all' } = {}) {
+        const last = periodStart(new Date(end), period);
+        const rows = [];
+        for (let i = count - 1; i >= 0; i--) {
+            const start = shiftPeriod(last, period, -i);
+            rows.push({ key: isoDate(start), start: isoDate(start), income: 0, expense: 0, count: 0 });
+        }
+        const index = new Map(rows.map((r, i) => [r.key, i]));
+        (transactions || []).forEach(t => {
+            if (category !== 'all' && t.parentCategory !== category) return;
+            const k = isoDate(periodStart(txnDate(t), period));
+            if (!index.has(k)) return;
+            const r = rows[index.get(k)];
+            if (txnType(t) === 'Ingreso') r.income += num(t.amount); else r.expense += num(t.amount);
+            r.count++;
+        });
+        return rows;
+    }
+
+    // ------------------------------------------------------------ bills
+    // Lines with a due day in a given month: paid once what was spent on the line covers
+    // what's planned; otherwise overdue (day passed), due soon (within `soonDays`) or later.
+    function billsDue({ items, spend, year, month, today = new Date(), soonDays = 7 }) {
+        const t = new Date(today);
+        const y = Number(year), m = Number(month);
+        const isThisMonth = t.getFullYear() === y && t.getMonth() + 1 === m;
+        const isPast = !isThisMonth && new Date(y, m - 1, 1) < new Date(t.getFullYear(), t.getMonth(), 1);
+        const lastDay = new Date(y, m, 0).getDate();
+        return items.filter(i => Number(i.dueDay) >= 1 && num(i.real) > 0).map(i => {
+            const day = Math.min(Number(i.dueDay), lastDay);
+            const planned = num(i.real);
+            const spent = (spend.byLine[String(i.id)] || { spent: 0 }).spent;
+            const paid = spent + 0.005 >= planned;
+            const daysLeft = isThisMonth ? day - t.getDate() : isPast ? -1 : 99;
+            const status = paid ? 'paid' : daysLeft < 0 ? 'overdue' : daysLeft <= soonDays ? 'soon' : 'later';
+            return { item: i, day, planned, spent, remaining: Math.max(0, planned - spent), paid, daysLeft, status };
+        }).sort((a, b) => a.day - b.day);
+    }
+
+    // How likely this month's plan is to be overspent, from what's spent so far vs. how much
+    // of the month has passed: 'low' | 'medium' | 'high' (or 'none' before anything is logged).
+    function overspendRisk({ planned, spent, year, month, today = new Date() }) {
+        const t = new Date(today);
+        const y = Number(year), m = Number(month);
+        const days = new Date(y, m, 0).getDate();
+        const elapsed = t.getFullYear() === y && t.getMonth() + 1 === m ? t.getDate() / days
+            : new Date(y, m - 1, 1) < t ? 1 : 0;
+        if (planned <= 0) return { level: spent > 0 ? 'high' : 'none', ratio: 0, pace: 0 };
+        const ratio = spent / planned;
+        const pace = elapsed > 0 ? ratio / elapsed : ratio > 0 ? Infinity : 0;
+        const level = ratio > 1 || (elapsed < 1 && pace > 1.25) ? 'high' : pace > 1 ? 'medium' : spent > 0 ? 'low' : 'none';
+        return { level, ratio, pace, elapsed };
     }
 
     function filterTransactions(transactions, { year = 'all', month = 'all', type = 'all', category = 'all' } = {}) {
@@ -1910,6 +2179,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
+        lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
@@ -2035,7 +2305,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
     const Store = {
         KEY,
         state: null,
-        ui: { tab: 'resumen', sub: { presupuesto: 'plan', ahorro: 'proyeccion' }, month: 'base', txnFilters: { year: 'all', month: 'all', type: 'all', category: 'all' }, txnEditing: null },
+        ui: { tab: 'resumen', sub: { presupuesto: 'plan', ahorro: 'proyeccion' }, month: 'base', txnFilters: { year: 'all', month: 'all', type: 'all', category: 'all' }, txnEditing: null, txnSearch: '', budgetLayout: 'simple', budgetMode: null, trend: { period: 'month', count: 12 } },
         status: { lastSavedAt: null, error: null },
         listeners: [],
         _timer: null,
@@ -2080,7 +2350,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             this.state.debts.forEach(d => {
                 if (Number(d.balance) > 0.01 && (d.createdYear || 0) <= y) {
                     const m = Math.max(0, Number(d.monthly) || 0);
-                    rows.push({ id: 'debt-' + d.id, link: 'debt', refId: d.id, name: d.name, type: 'Deuda', isDeductible: false, prep: m, real: m, linkedCategory: 'Deudas', minPayment: Math.max(0, Number(d.minPayment) || 0) });
+                    rows.push({ id: 'debt-' + d.id, link: 'debt', refId: d.id, name: d.name, type: 'Deuda', isDeductible: false, prep: m, real: m, linkedCategory: 'Deudas', minPayment: Math.max(0, Number(d.minPayment) || 0), dueDay: d.dueDay });
                 }
             });
             this.state.goals.forEach(g => {
@@ -2347,7 +2617,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         chart(canvasId, config) {
             const canvas = document.getElementById(canvasId);
             if (!canvas || typeof Chart === 'undefined') return null;
-            const money = (v) => '$' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 });
+            const money = (v) => Fmt.money0(v);
             const base = {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -2556,6 +2826,8 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
     // ------------------------------------------------------------ rendering
     function renderGlobals() {
         const s = Store.state;
+        const c = Fmt.setCurrency(s.settings.currency);
+        UI.$$('.cur').forEach(el => { el.textContent = c.symbol; });
         const sel = document.getElementById('global-year-select');
         if (sel.options.length !== s.configEndYear - s.configStartYear + 1 || Number(sel.options[0]?.value) !== s.configStartYear) {
             sel.innerHTML = '';
@@ -2928,6 +3200,28 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         </div>`;
     }
 
+    // This month's bills with a due date: overdue first, then upcoming, then paid.
+    function billsHTML(ctx) {
+        const s = ctx.state;
+        const y = ctx.today.getFullYear(), m = String(ctx.today.getMonth() + 1);
+        UI.text('dash-bills-month', `${Fmt.MONTH_NAMES[m - 1]} ${y}`);
+        const items = Engine.monthItems(Store.effective(y), m);
+        const spend = Engine.lineSpend(items, s.transactions, y, m);
+        const bills = Engine.billsDue({ items, spend, year: y, month: m, today: ctx.today });
+        if (!bills.length) return '<p class="text-xs text-slate-500">Aún no tienes fechas de pago. En tu presupuesto (vista Simple), toca el <i class="fa-regular fa-calendar"></i> junto a un rubro —arriendo, luz, internet, tarjeta— para decir qué día vence.</p>';
+        const order = { overdue: 0, soon: 1, later: 2, paid: 3 };
+        const label = (b) => b.status === 'paid' ? '<span class="badge badge-ok">Pagado</span>'
+            : b.status === 'overdue' ? `<span class="badge badge-bad">Vencido hace ${-b.daysLeft} día${b.daysLeft === -1 ? '' : 's'}</span>`
+            : b.daysLeft === 0 ? '<span class="badge badge-warn">Vence hoy</span>'
+            : `<span class="badge ${b.status === 'soon' ? 'badge-warn' : 'badge-muted'}">En ${b.daysLeft} día${b.daysLeft === 1 ? '' : 's'}</span>`;
+        return bills.slice().sort((a, b) => order[a.status] - order[b.status] || a.day - b.day).map(b => `
+            <div class="bill-item ${b.status}">
+                <div class="bill-day"><span>${Fmt.MONTH_SHORT[m - 1]}</span><b>${b.day}</b></div>
+                <div class="min-w-0"><div class="font-bold text-sm text-slate-800 break-words">${esc(b.item.name)}</div><div class="text-[11px] text-slate-500">${b.spent > 0 && !b.paid ? `Pagado ${money(b.spent)} de ${money(b.planned)}` : money(b.planned)}</div></div>
+                <div class="flex flex-col items-end gap-1">${label(b)}${b.paid ? '' : `<button type="button" class="mini-btn" data-action="bill.pay" data-line="${esc(String(b.item.id))}" data-amount="${b.remaining}">Registrar pago</button>`}</div>
+            </div>`).join('');
+    }
+
     function alerts(ctx) {
         const s = ctx.state, out = [];
         const add = (tone, icon, html, goto) => out.push(`<button type="button" class="alert-item w-full text-left ${tone}" data-goto="${goto}"><i class="fa-solid ${icon} mt-0.5"></i><span>${html}</span></button>`);
@@ -2945,10 +3239,15 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         // Over-budget categories this calendar month (only meaningful for the current year).
         if (s.activeYear === ctx.today.getFullYear()) {
             const m = String(ctx.today.getMonth() + 1);
-            const over = Engine.monthItems(ctx.budgetYear, m).filter(it => {
-                const spent = Engine.categorySpend(s.transactions, it.linkedCategory, s.activeYear, m);
-                return spent !== null && Engine.spendStatus(spent, Number(it.prep) || 0).kind === 'over';
+            const items = Engine.monthItems(ctx.budgetYear, m);
+            const spend = Engine.lineSpend(items, s.transactions, s.activeYear, m);
+            const over = items.filter(it => {
+                const sp = spend.byLine[String(it.id)];
+                return sp && sp.txns.length && Engine.spendStatus(sp.spent, Number(it.real) || 0).kind === 'over';
             });
+            const bills = Engine.billsDue({ items, spend, year: s.activeYear, month: m, today: ctx.today });
+            const late = bills.filter(b => b.status === 'overdue');
+            if (late.length) add('tone-red', 'fa-calendar-xmark text-red-600', `Pagos vencidos: ${late.map(b => `<strong>${esc(b.item.name)}</strong> (día ${b.day})`).join(', ')}.`, 'resumen');
             if (over.length) add('tone-red', 'fa-cart-shopping text-red-600', `Este mes te pasaste en: <strong>${over.map(i => esc(i.name)).join(', ')}</strong>.`, 'presupuesto/plan');
         }
         const sync = Views.netWorthSync(ctx);
@@ -2970,6 +3269,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 
     function update(ctx) {
         const s = ctx.state;
+        UI.html('dash-bills', billsHTML(ctx));
         const welcome = document.getElementById('dash-welcome');
         UI.show(welcome, !s.settings.welcomeDismissed);
         if (!s.settings.welcomeDismissed) {
@@ -3008,6 +3308,20 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
     }
 
     UI.register({
+        // Logs this month's payment of a bill as an expense on its budget line.
+        'bill.pay': (el) => {
+            const today = new Date();
+            const y = today.getFullYear(), m = String(today.getMonth() + 1);
+            const item = Engine.monthItems(Store.effective(y), m).find(i => String(i.id) === el.dataset.line);
+            if (!item) return;
+            const tax = Store.state.taxonomy.expense;
+            const cat = tax[item.linkedCategory] ? item.linkedCategory : (tax.Otros ? 'Otros' : Object.keys(tax)[0]);
+            const txns = Store.state.transactions;
+            const amount = Math.round(Number(el.dataset.amount) * 100) / 100;
+            txns.push({ id: Store.nextId(txns), type: 'Gasto', description: item.name, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date: Engine.isoDate(today), paymentType: 'Transferencia', budgetLine: String(item.id) });
+            App.changed({ structural: true, step: true });
+            UI.toast(`Pago de "${item.name}" registrado (${Fmt.money(amount)}).`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        },
         'app.dismissWelcome': (el) => {
             Store.state.settings.welcomeDismissed = true;
             Store.scheduleSave();
@@ -3018,6 +3332,329 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 
     App.defineView('resumen', { update });
 })();
+</script>
+<script>/* js/views/presupuesto-simple.js */
+/*
+ * Presupuesto del Mes → vista Simple: the budget as cards, one per group, with a
+ * Planeado / Gastado / Restante switch (the EveryDollar way of reading a budget).
+ * Planned amounts are edited in place; what was spent comes from the transactions
+ * assigned to each line (see Engine.lineSpend). The detailed table stays available.
+ */
+(function (root) {
+    'use strict';
+    const { money, money0, esc } = Fmt;
+
+    const GROUPS = [
+        { type: 'Gasto Fijo', label: 'Gastos fijos', icon: 'fa-house' },
+        { type: 'Gasto Variable', label: 'Gastos variables', icon: 'fa-basket-shopping' },
+        { type: 'Deuda', label: 'Pagos de deudas', icon: 'fa-credit-card' },
+        { type: 'Ahorro', label: 'Ahorro e inversión', icon: 'fa-piggy-bank' }
+    ];
+    const MODES = { planned: 'Planeado', spent: 'Gastado', remaining: 'Restante', all: 'Todo' };
+    const INCOME_MODES = { planned: 'Planeado', spent: 'Recibido', remaining: 'Por recibir', all: 'Todo' };
+
+    const groupOf = (item) => {
+        const t = item.type || '';
+        if (GROUPS.some(g => g.type === t)) return t;
+        return t.includes('Ahorro') ? 'Ahorro' : 'Otros';
+    };
+    // "Todo" (planned, spent and remaining side by side) needs a wide screen; phones get one
+    // column at a time, like EveryDollar.
+    const mode = () => Store.ui.budgetMode || (typeof window !== 'undefined' && window.innerWidth >= 1024 ? 'all' : 'planned');
+
+    // Spending is always monthly. On the base budget it's the current month's (when the
+    // active year is this year); for another year's base there's no month to show.
+    function spendMonth(ctx) {
+        const m = Store.ui.month;
+        if (m !== 'base') return m;
+        return ctx.state.activeYear === ctx.today.getFullYear() ? String(ctx.today.getMonth() + 1) : null;
+    }
+
+    // Everything the cards show for the selected month, computed once per update.
+    function model(ctx) {
+        const sm = spendMonth(ctx);
+        const plannedItems = Engine.monthItems(ctx.budgetYear, Store.ui.month);
+        const spend = sm ? Engine.lineSpend(Engine.monthItems(ctx.budgetYear, sm), ctx.state.transactions, ctx.state.activeYear, sm)
+            : { byLine: {}, unassigned: [], unassignedTotal: 0 };
+        const other = Engine.otherIncome(ctx.budgetYear, sm || 'base');
+        const planned = Engine.otherIncome(ctx.budgetYear, Store.ui.month);
+        const salaryReceived = sm ? other.payroll.reduce((t, x) => t + (Number(x.amount) || 0), 0) : 0;
+        return { sm, plannedItems, spend, other, planned, salaryReceived };
+    }
+
+    // ------------------------------------------------------------------ markup
+    function valueCell(inputHTML) {
+        return `<div class="bs-val">${inputHTML || ''}<span class="bs-num" data-v></span></div>
+            <span class="bs-num bs-all" data-s></span><span class="bs-num bs-all bs-rem" data-r></span>`;
+    }
+    const colsHTML = (labels) => `<span class="bs-col" data-col></span><span class="bs-col bs-all">${labels.spent}</span><span class="bs-col bs-all">${labels.remaining}</span>`;
+
+    function lineRow(item) {
+        const id = esc(String(item.id));
+        let input = '';
+        if (item.sweep) input = '';
+        else if (item.link) input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" aria-label="Planeado para ${esc(item.name)}">`;
+        else input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.set" data-id="${id}" data-field="real" data-sync="prep" aria-label="Planeado para ${esc(item.name)}">`;
+        const badge = item.link ? `<a href="#" class="badge ${item.link === 'debt' ? 'badge-bad' : 'badge-purple'}" data-goto="metas" data-focus="${item.link === 'debt' ? 'metas-debts' : 'metas-goals'}"><i class="fa-solid fa-link"></i> ${item.link === 'debt' ? 'Deuda' : 'Meta'}</a>`
+            : item.sweep ? '<span class="badge badge-ok"><i class="fa-solid fa-wand-magic-sparkles"></i> Automático</span>' : '';
+        const canDue = !item.sweep && item.link !== 'goal';
+        return `<div class="bs-row" data-line="${id}">
+                <div class="bs-name">${item.link || item.sweep ? `<span class="bs-label">${esc(item.sweep ? 'Sobrante del mes' : item.name)}</span>`
+                    : `<input class="bs-name-input" value="${esc(item.name)}" data-change="budget.set" data-id="${id}" data-field="name" aria-label="Nombre del rubro">`} ${badge}
+                    ${!item.link && !item.sweep ? `<button type="button" class="row-del bs-del" data-action="budget.delete" data-id="${id}" title="Eliminar rubro" aria-label="Eliminar rubro"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                    ${canDue ? `<button type="button" class="bs-due" data-action="budget.dueDay" data-id="${id}" data-kind="${item.link || 'line'}" data-ref="${item.refId || ''}" title="Fecha de pago"><i class="fa-regular fa-calendar"></i> <span data-due></span></button>` : ''}
+                    <span class="bs-sub" data-sub></span></div>
+                ${valueCell(input)}
+                <div class="bs-bar"><span data-bar></span></div>
+            </div>`;
+    }
+
+    function incomeCard(ctx, m) {
+        const rows = [`<div class="bs-row" data-income="salary">
+                <div class="bs-name"><span class="bs-label">Sueldo neto</span> <a href="#" class="badge badge-ok" data-goto="presupuesto/ingresos"><i class="fa-solid fa-link"></i> Tu Sueldo</a><span class="bs-sub" data-sub></span></div>
+                ${valueCell()}<div class="bs-bar"><span data-bar></span></div></div>`];
+        (ctx.year.otherIncomes || []).forEach(src => {
+            rows.push(`<div class="bs-row" data-income="${src.id}">
+                <div class="bs-name"><input class="bs-name-input" value="${esc(src.name)}" data-change="income.set" data-id="${src.id}" data-field="name" aria-label="Nombre del ingreso">
+                    <button type="button" class="row-del bs-del" data-action="income.delete" data-id="${src.id}" title="Eliminar ingreso" aria-label="Eliminar ingreso"><i class="fa-solid fa-trash-can"></i></button><span class="bs-sub" data-sub></span></div>
+                ${valueCell(`<input type="number" class="bs-input" min="0" step="10" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Planeado para ${esc(src.name)}">`)}
+                <div class="bs-bar"><span data-bar></span></div></div>`);
+        });
+        m.other.unplanned.forEach(u => {
+            rows.push(`<div class="bs-row" data-income="cat:${esc(u.category)}">
+                <div class="bs-name"><span class="bs-label">${esc(u.category)}</span><span class="bs-sub">Registrado: ${esc(u.txns.map(t => t.description).join(', '))} · <button type="button" class="mini-btn" data-action="income.fromCategory" data-category="${esc(u.category)}" data-amount="${u.amount}">Es mensual</button></span></div>
+                ${valueCell()}<div class="bs-bar"><span data-bar></span></div></div>`);
+        });
+        return `<section class="bs-card" data-group="income">
+                <header class="bs-head"><span class="bs-title"><i class="fa-solid fa-sack-dollar text-emerald-600"></i> Ingresos</span>${colsHTML(INCOME_MODES)}</header>
+                ${rows.join('')}
+                <footer class="bs-foot"><button type="button" class="link" data-action="income.add"><i class="fa-solid fa-plus"></i> Agregar ingreso</button><span class="bs-total" data-total></span></footer>
+            </section>`;
+    }
+
+    function render(ctx) {
+        const host = document.getElementById('bud-simple');
+        if (!host) return;
+        const m = model(ctx);
+        const byGroup = {};
+        m.plannedItems.forEach(it => { (byGroup[groupOf(it)] = byGroup[groupOf(it)] || []).push(it); });
+        if (ctx.year.sweepSavings) (byGroup.Ahorro = byGroup.Ahorro || []).push({ id: 'sweep', sweep: true, type: 'Ahorro' });
+        const order = GROUPS.map(g => g.type).concat(Object.keys(byGroup).filter(k => !GROUPS.some(g => g.type === k)));
+        const cards = order.map(g => {
+            const def = GROUPS.find(x => x.type === g) || { label: g, icon: 'fa-folder' };
+            const list = byGroup[g] || [];
+            return `<section class="bs-card" data-group="${esc(g)}">
+                <header class="bs-head"><span class="bs-title"><i class="fa-solid ${def.icon} text-slate-400"></i> ${esc(def.label)}</span>${colsHTML(MODES)}</header>
+                ${list.map(lineRow).join('') || '<p class="bs-empty">Sin rubros todavía.</p>'}
+                <footer class="bs-foot">${GROUPS.some(x => x.type === g) && g !== 'Deuda' ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(g === 'Ahorro' ? 'Ahorro/Inversión' : g)}"><i class="fa-solid fa-plus"></i> Agregar rubro</button>`
+                    : g === 'Deuda' ? '<a href="#" class="link" data-goto="metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Agregar deuda</a>' : '<span></span>'}<span class="bs-total" data-total></span></footer>
+            </section>`;
+        });
+        host.innerHTML = `
+            <div class="bs-toolbar">
+                <div class="segmented bs-modes" role="tablist" aria-label="Qué mostrar">${Object.keys(MODES).map(k => `<button type="button" data-action="budget.mode" data-mode="${k}">${MODES[k]}</button>`).join('')}</div>
+                <span class="bs-month" id="bs-month"></span>
+            </div>
+            <div id="bs-banner" class="bs-banner"></div>
+            <section class="bs-card bs-unassigned hidden" id="bs-unassigned"></section>
+            <div class="bs-grid">${incomeCard(ctx, m)}${cards.join('')}</div>`;
+        update(ctx);
+    }
+
+    // ------------------------------------------------------------------ numbers
+    function setRow(row, { value, planned, spent, progress, sub, negative, invert }) {
+        if (!row) return;
+        const md = mode();
+        const input = row.querySelector('.bs-input');
+        const num = row.querySelector('[data-v]');
+        const editing = (md === 'planned' || md === 'all') && input;
+        if (md === 'all') {
+            value = planned;
+            row.querySelector('[data-s]').textContent = money(spent || 0);
+            const rem = invert ? Math.max(0, (planned || 0) - (spent || 0)) : (planned || 0) - (spent || 0);
+            const r = row.querySelector('[data-r]');
+            r.textContent = money(rem);
+            r.className = `bs-num bs-all bs-rem ${rem < -0.005 && !invert ? 'neg' : Math.abs(rem) < 0.005 ? 'zero' : 'pos'}`;
+            negative = false;
+        }
+        if (input) {
+            input.classList.toggle('hidden', !editing);
+            if (editing && input !== document.activeElement) input.value = Math.round((Number(planned) || 0) * 100) / 100;
+        }
+        num.classList.toggle('hidden', !!editing);
+        num.textContent = money(value);
+        num.classList.toggle('text-red-600', !!negative);
+        const bar = row.querySelector('[data-bar]');
+        const p = Math.max(0, Math.min(1, progress || 0));
+        bar.style.width = (p * 100).toFixed(1) + '%';
+        bar.className = progress > 1.0001 ? 'over' : progress >= 0.8 && md !== 'planned' ? 'warn' : '';
+        if (sub !== undefined) { const s = row.querySelector('[data-sub]'); if (s) s.innerHTML = sub; }
+    }
+
+    function pick(planned, spent) {
+        const md = mode();
+        return md === 'planned' || md === 'all' ? planned : md === 'spent' ? spent : planned - spent;
+    }
+
+    function update(ctx) {
+        const host = document.getElementById('bud-simple');
+        if (!host || !host.firstElementChild) return;
+        const m = model(ctx);
+        const md = mode();
+        const mb = ctx.monthBudget;
+        const monthName = m.sm ? Fmt.MONTH_NAMES[m.sm - 1] : null;
+
+        UI.$$('#bud-simple [data-action="budget.mode"]').forEach(b => b.classList.toggle('active', b.dataset.mode === md));
+        host.classList.toggle('mode-all', md === 'all');
+        UI.$$('#bud-simple .bs-card[data-group]').forEach(c => {
+            const col = c.querySelector('[data-col]');
+            if (col) col.textContent = md === 'all' ? 'Planeado' : (c.dataset.group === 'income' ? INCOME_MODES : MODES)[md];
+        });
+        const t = ctx.today;
+        const isCurrent = m.sm && ctx.state.activeYear === t.getFullYear() && Number(m.sm) === t.getMonth() + 1;
+        const daysLeft = isCurrent ? new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate() - t.getDate() : null;
+        UI.html('bs-month', md === 'planned' ? '' : m.sm
+            ? `<i class="fa-regular fa-calendar"></i> ${Store.ui.month === 'base' ? `Gastos de ${monthName} (mes actual)` : `Gastos de ${monthName}`}${daysLeft !== null ? ` · ${daysLeft === 0 ? 'último día del mes' : `quedan ${daysLeft} día${daysLeft === 1 ? '' : 's'}`}` : ''}`
+            : '<span class="text-amber-700">Elige un mes para ver lo gastado.</span>');
+
+        // Zero-based banner
+        const bal = mb.balanceReal;
+        const banner = document.getElementById('bs-banner');
+        banner.className = `bs-banner ${Math.abs(bal) < 0.005 ? 'ok' : bal > 0 ? 'warn' : 'bad'}`;
+        banner.innerHTML = Math.abs(bal) < 0.005 ? '<i class="fa-regular fa-circle-check"></i> ¡Es un presupuesto base cero! Cada dólar tiene un trabajo.'
+            : bal > 0 ? `<i class="fa-solid fa-circle-info"></i> Te quedan <strong>${money(bal)}</strong> por asignar.`
+            : `<i class="fa-solid fa-triangle-exclamation"></i> Planeaste <strong>${money(-bal)}</strong> más de lo que ganas.`;
+
+        // Income
+        const salaryRow = host.querySelector('[data-income="salary"]');
+        setRow(salaryRow, {
+            value: md === 'remaining' ? Math.max(0, mb.salary - m.salaryReceived) : pick(mb.salary, m.salaryReceived), planned: mb.salary, spent: m.salaryReceived, invert: true, progress: mb.salary > 0 ? m.salaryReceived / mb.salary : 0,
+            sub: md === 'planned' ? 'Calculado de tu sueldo bruto' : m.salaryReceived > 0 ? 'Registrado en Transacciones' : 'Regístralo como Sueldo/Salario para verlo recibido'
+        });
+        m.other.sources.forEach(src => {
+            const pl = (m.planned.sources.find(x => x.id === src.id) || src).planned;
+            setRow(host.querySelector(`[data-income="${src.id}"]`), {
+                value: md === 'remaining' ? Math.max(0, pl - src.received) : pick(pl, src.received), planned: pl, spent: src.received, invert: true, progress: pl > 0 ? src.received / pl : (src.received > 0 ? 1 : 0),
+                negative: md === 'remaining' && src.received > pl + 0.005 ? false : undefined,
+                sub: src.txns.length ? `Recibido: ${esc(src.txns.map(t => t.description).join(', '))}` : (src.category ? esc(src.category) : '')
+            });
+        });
+        m.other.unplanned.forEach(u => setRow(host.querySelector(`[data-income="cat:${CSS.escape(u.category)}"]`), { value: md === 'remaining' ? 0 : pick(0, u.amount), planned: 0, spent: u.amount, invert: true, progress: 1 }));
+        const incPlanned = mb.incomePrep;
+        const incReceived = m.salaryReceived + m.other.sources.reduce((t, s) => t + s.received, 0) + m.other.unplanned.reduce((t, u) => t + u.amount, 0);
+        const incTotal = host.querySelector('.bs-card[data-group="income"] [data-total]');
+        if (incTotal) incTotal.textContent = money(md === 'remaining' ? Math.max(0, incPlanned - incReceived) : pick(incPlanned, incReceived));
+
+        // Expense lines
+        const spentOf = (id) => (m.spend.byLine[String(id)] || { spent: 0, txns: [] });
+        const today = ctx.today;
+        m.plannedItems.forEach(it => {
+            const row = host.querySelector(`[data-line="${CSS.escape(String(it.id))}"]`);
+            if (!row) return;
+            const planned = Number(it.real) || 0;
+            const s = spentOf(it.id);
+            const subParts = [];
+            if (it.link === 'debt') subParts.push(planned + 0.005 >= it.minPayment ? `Cubre el mínimo (${money0(it.minPayment)})` : `<span class="text-red-600">Mínimo ${money0(it.minPayment)}</span>`);
+            if (it.link === 'goal') {
+                const g = ctx.state.goals.find(x => x.id === it.refId) || {};
+                const r = Engine.goalMonths(g);
+                subParts.push(r.status === 'reached' ? '¡Meta alcanzada!' : r.status === 'never' ? '<span class="text-red-600">Sin aporte: nunca llega</span>' : `Lista en ${Fmt.monthYear(Engine.addMonths(today, r.months))}`);
+            }
+            if (md !== 'planned' && s.txns.length) subParts.push(`${s.txns.length} transacci${s.txns.length === 1 ? 'ón' : 'ones'}`);
+            setRow(row, {
+                value: pick(planned, s.spent), planned, spent: s.spent, progress: planned > 0 ? s.spent / planned : (s.spent > 0 ? 1.01 : 0),
+                negative: md === 'remaining' && planned - s.spent < -0.005,
+                sub: subParts.join(' · ')
+            });
+            const due = row.querySelector('[data-due]');
+            if (due) due.textContent = Number(it.dueDay) >= 1 ? `día ${it.dueDay}` : '';
+        });
+        const sweepRow = host.querySelector('[data-line="sweep"]');
+        if (sweepRow) setRow(sweepRow, { value: md === 'spent' ? 0 : mb.sweep, planned: mb.sweep, spent: 0, progress: 0, sub: mb.sweep > 0 ? 'Pásalo a tu cuenta de ahorro o póliza' : 'No sobra nada' });
+
+        // Card totals
+        UI.$$('#bud-simple .bs-card[data-group]').forEach(c => {
+            const g = c.dataset.group;
+            if (g === 'income') return;
+            const list = m.plannedItems.filter(it => groupOf(it) === g);
+            const planned = list.reduce((t, it) => t + (Number(it.real) || 0), 0) + (g === 'Ahorro' ? mb.sweep : 0);
+            const spent = list.reduce((t, it) => t + spentOf(it.id).spent, 0);
+            const el = c.querySelector('[data-total]');
+            const v = pick(planned, spent);
+            el.textContent = money(v);
+            el.classList.toggle('text-red-600', md === 'remaining' && v < -0.005);
+        });
+
+        // Spending that isn't on any line yet
+        const un = document.getElementById('bs-unassigned');
+        const show = md !== 'planned' && m.spend.unassigned.length > 0;
+        un.classList.toggle('hidden', !show);
+        if (show) {
+            const options = lineOptions(Engine.monthItems(ctx.budgetYear, m.sm));
+            un.innerHTML = `<header class="bs-head"><span class="bs-title text-amber-800"><i class="fa-solid fa-triangle-exclamation"></i> Gastos sin rubro en ${monthName}</span><span class="bs-total">${money(m.spend.unassignedTotal)}</span></header>
+                <p class="bs-sub mb-2">No cuentan en ningún rubro. Arrástralos a un rubro de arriba (o elígelo en la lista) para que tu presupuesto refleje lo que gastaste.</p>
+                ${m.spend.unassigned.map(t => `<div class="bs-row bs-txn" draggable="true" data-txn="${t.id}" title="Arrástralo a un rubro, o elige el rubro a la derecha"><div class="bs-name"><span class="bs-label">${esc(t.description)}</span><span class="bs-sub">${esc(t.date)} · ${esc(t.parentCategory)}</span></div>
+                    <div class="bs-val"><span class="bs-num">${money(t.amount)}</span></div>
+                    <select class="chip-select empty" data-change="txn.assignLine" data-id="${t.id}" aria-label="Asignar a un rubro"><option value="">+ Asignar a un rubro</option>${options}</select></div>`).join('')}`;
+        }
+    }
+
+    // <option>s for every expense line of a month's budget, grouped.
+    function lineOptions(items, selected) {
+        const byGroup = {};
+        items.forEach(it => { (byGroup[groupOf(it)] = byGroup[groupOf(it)] || []).push(it); });
+        return Object.keys(byGroup).map(g => `<optgroup label="${esc((GROUPS.find(x => x.type === g) || { label: g }).label)}">${byGroup[g].map(it =>
+            `<option value="${esc(String(it.id))}" ${String(selected) === String(it.id) ? 'selected' : ''}>${esc(it.name)}</option>`).join('')}</optgroup>`).join('');
+    }
+
+    // Drag a transaction onto a budget line to assign it there.
+    if (typeof document !== 'undefined') {
+        document.addEventListener('dragstart', (e) => {
+            const t = e.target.closest && e.target.closest('[data-txn]');
+            if (!t) return;
+            e.dataTransfer.setData('text/plain', 'txn:' + t.dataset.txn);
+            e.dataTransfer.effectAllowed = 'move';
+            // Restyling during dragstart makes Chrome cancel the drag: highlight a tick later.
+            setTimeout(() => document.body.classList.add('dragging-txn'), 0);
+        });
+        document.addEventListener('dragend', () => document.body.classList.remove('dragging-txn'));
+        document.addEventListener('dragover', (e) => {
+            const row = e.target.closest && e.target.closest('#bud-simple [data-line]');
+            if (!row || row.dataset.line === 'sweep') return;
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+            UI.$$('#bud-simple .drop-target').forEach(r => { if (r !== row) r.classList.remove('drop-target'); });
+            row.classList.add('drop-target');
+        });
+        document.addEventListener('drop', (e) => {
+            const row = e.target.closest && e.target.closest('#bud-simple [data-line]');
+            UI.$$('#bud-simple .drop-target').forEach(r => r.classList.remove('drop-target'));
+            const data = e.dataTransfer && e.dataTransfer.getData('text/plain');
+            if (!row || !data || !data.startsWith('txn:') || row.dataset.line === 'sweep') return;
+            e.preventDefault();
+            assignLine(Number(data.slice(4)), row.dataset.line);
+        });
+    }
+
+    function assignLine(txnId, lineId) {
+        const t = Store.state.transactions.find(x => x.id === txnId);
+        if (!t) return;
+        if (lineId) t.budgetLine = lineId; else delete t.budgetLine;
+        App.changed({ structural: true, step: true });
+        if (lineId) {
+            const item = Engine.monthItems(Store.effective(Number(t.date.slice(0, 4))), String(Number(t.date.slice(5, 7)))).find(i => String(i.id) === String(lineId));
+            UI.toast(`"${t.description}" ahora cuenta en «${item ? item.name : lineId}».`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        }
+    }
+
+    UI.register({
+        'txn.assignLine': (el) => assignLine(Number(el.dataset.id), el.value),
+        'budget.mode': (el) => { Store.ui.budgetMode = el.dataset.mode; App.update(); },
+        'budget.layout': (el) => { Store.ui.budgetLayout = el.dataset.layout; App.render(); }
+    });
+
+    root.BudgetSimple = { render, update, lineOptions, groupOf, GROUPS, assignLine };
+})(this);
 </script>
 <script>/* js/views/presupuesto.js */
 /* Presupuesto → Presupuesto del Mes: zero-based budget table, grouped by type. */
@@ -3188,10 +3825,17 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             </tr>`;
     }
 
+    const layout = () => Store.ui.budgetLayout || 'simple';
+
     function render(ctx) {
         const yd = ctx.year;
         const m = month();
         UI.html('budget-month', Views.selectOptions(Views.monthOptions(yd), m));
+        // Simple (cards: planned / spent / remaining) or Detallada (the full table).
+        UI.$$('[data-action="budget.layout"]').forEach(b => b.classList.toggle('active', b.dataset.layout === layout()));
+        UI.show('bud-simple', layout() === 'simple');
+        UI.show('bud-detailed', layout() === 'detailed');
+        if (layout() === 'simple') BudgetSimple.render(ctx);
 
         const list = items(ctx);
         const tax = ctx.state.taxonomy.expense;
@@ -3234,6 +3878,26 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         }
 
         const other = updateIncome(ctx);
+        if (layout() === 'simple') BudgetSimple.update(ctx);
+
+        // Risk of overspending this month: spending so far vs. how much of the month passed.
+        const sm = m !== 'base' ? m : (ctx.state.activeYear === today.getFullYear() ? String(today.getMonth() + 1) : null);
+        const riskBox = document.getElementById('bud-risk-box');
+        if (sm) {
+            const monthItemsSm = Engine.monthItems(ctx.budgetYear, sm);
+            const plannedSpend = monthItemsSm.filter(i => !Engine.isSavingsItem(i)).reduce((t, i) => t + (Number(i.real) || 0), 0);
+            const spentAll = ctx.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && Number(t.date.slice(0, 4)) === ctx.state.activeYear && String(Number(t.date.slice(5, 7))) === sm)
+                .reduce((t, x) => t + (Number(x.amount) || 0), 0);
+            const risk = Engine.overspendRisk({ planned: plannedSpend, spent: spentAll, year: ctx.state.activeYear, month: sm, today });
+            const LBL = { none: ['Sin datos', 'tone-slate', 'Registra tus gastos para medirlo.'], low: ['Bajo', 'tone-emerald', 'Vas a buen ritmo.'], medium: ['Medio', 'tone-amber', 'Gastas un poco más rápido de lo planeado.'], high: ['Alto', 'tone-red', 'A este ritmo te pasarás del presupuesto.'] }[risk.level];
+            riskBox.className = `kpi ${LBL[1]}`;
+            UI.text('bud-risk', LBL[0]);
+            UI.text('bud-risk-note', `${money0(spentAll)} de ${money0(plannedSpend)} gastado en ${Fmt.MONTH_NAMES[sm - 1]}. ${LBL[2]}`);
+        } else {
+            riskBox.className = 'kpi tone-slate';
+            UI.text('bud-risk', '—');
+            UI.text('bud-risk-note', 'Elige un mes para medirlo.');
+        }
 
         // Summary tiles
         UI.text('bud-income', money(mb.income));
@@ -3279,6 +3943,12 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 
         // Rows: diff and spend-vs-budget cells
         const period = m === 'base' ? 'base' : m;
+        const spend = Engine.lineSpend(list, ctx.state.transactions, ctx.state.activeYear, period);
+        const spentOf = (it) => {
+            const s = spend.byLine[String(it.id)];
+            const tracked = (it.linkedCategory && it.linkedCategory !== 'none') || (s && s.txns.length);
+            return tracked ? (s ? s.spent : 0) : null;
+        };
         list.forEach(it => {
             const row = document.querySelector(`#bud-body tr[data-row="${it.id}"]`);
             if (!row) return;
@@ -3303,7 +3973,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 }
                 return;
             }
-            const spent = Engine.categorySpend(ctx.state.transactions, it.linkedCategory, ctx.state.activeYear, period);
+            const spent = spentOf(it);
             const target = Engine.categoryTarget(it, ctx.state.activeYear, period, today);
             row.querySelector('[data-cell="spend"]').innerHTML = Views.spendBadge(Engine.spendStatus(spent, target));
         });
@@ -3344,7 +4014,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         const tracked = new Set(ctx.state.transactions.map(t => t.parentCategory));
         const opps = list
             .filter(it => tracked.has(it.linkedCategory) && !Engine.isSavingsItem(it))
-            .map(it => ({ it, target: Engine.categoryTarget(it, ctx.state.activeYear, period, today), spent: Engine.categorySpend(ctx.state.transactions, it.linkedCategory, ctx.state.activeYear, period) }))
+            .map(it => ({ it, target: Engine.categoryTarget(it, ctx.state.activeYear, period, today), spent: spentOf(it) }))
             .filter(o => o.target > 0 && o.spent === 0);
         UI.show('bud-opportunities', opps.length > 0);
         if (opps.length) {
@@ -3354,19 +4024,22 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 
         // Budget vs actual trend
         const trend = Engine.budgetVsActualByMonth(ctx.budgetYear, ctx.state.transactions, ctx.state.activeYear);
-        const anyLinked = Engine.MONTHS.some(mm => Engine.monthItems(ctx.budgetYear, mm).some(i => i.linkedCategory && i.linkedCategory !== 'none'));
-        UI.show('bud-trend-empty', !anyLinked);
-        UI.show(document.getElementById('bud-trend-chart').parentElement, anyLinked);
-        if (anyLinked) {
+        const anySpent = trend.some(t => t.actual > 0);
+        UI.show('bud-trend-empty', !anySpent);
+        UI.show(document.getElementById('bud-trend-chart').parentElement, anySpent);
+        if (anySpent) {
+            // Months that haven't happened yet have no spending to show (a drop to $0 would lie).
+            const cutoff = ctx.state.activeYear < today.getFullYear() ? 12 : ctx.state.activeYear > today.getFullYear() ? 0 : today.getMonth() + 1;
             UI.chart('bud-trend-chart', {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: Fmt.MONTH_SHORT,
                     datasets: [
-                        { label: 'Presupuestado', data: trend.map(t => t.budgeted), backgroundColor: 'rgba(245,158,11,.55)', borderColor: '#f59e0b', borderWidth: 1, borderRadius: 3 },
-                        { label: 'Real gastado', data: trend.map(t => t.actual), backgroundColor: 'rgba(220,38,38,.6)', borderColor: '#dc2626', borderWidth: 1, borderRadius: 3 }
+                        { label: 'Planeado', data: trend.map(t => t.budgeted), borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: .25, cubicInterpolationMode: 'monotone', fill: false },
+                        { label: 'Gastado', data: trend.map((t, i) => i < cutoff ? t.actual : null), borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: .25, cubicInterpolationMode: 'monotone', fill: true }
                     ]
-                }
+                },
+                options: { interaction: { mode: 'index', intersect: false } }
             });
         }
     }
@@ -3398,7 +4071,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             list.push({ id, name: 'Nuevo ingreso', amount: 0, category: 'none' });
             App.changed({ structural: true, step: true });
             UI.toast('Ingreso agregado. Escribe su nombre y cuánto recibes al mes (neto).', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
-            const input = document.querySelector(`#bud-body tr[data-income="${id}"] input`);
+            const input = document.querySelector(layout() === 'simple' ? `#bud-simple [data-income="${id}"] .bs-name-input` : `#bud-body tr[data-income="${id}"] input`);
             if (input) { input.focus(); input.select(); }
         },
         'income.set': (el) => {
@@ -3471,7 +4144,13 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             const id = Number(el.dataset.id), field = el.dataset.field;
             const item = editableItems().find(i => i.id === id);
             if (!item) return;
-            if (field === 'prep' || field === 'real') item[field] = Math.max(0, parseNum(el.value, 0));
+            if (field === 'prep' || field === 'real') {
+                const v = Math.max(0, parseNum(el.value, 0));
+                // The simple view edits one "planned" amount: keep Presupuestado following Real
+                // while they were the same.
+                if (el.dataset.sync === 'prep' && Math.abs((Number(item.prep) || 0) - (Number(item.real) || 0)) < 0.005) item.prep = v;
+                item[field] = v;
+            }
             else if (field === 'isDeductible') item.isDeductible = el.checked;
             else item[field] = el.value;
             // Changing the type moves the row to another group; everything else only
@@ -3485,13 +4164,35 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             obj.monthly = Math.max(0, parseNum(el.value, 0));
             App.changed();
         },
-        'budget.addRow': () => {
+        'budget.addRow': (el) => {
             const list = editableItems();
             const id = Store.nextId(list);
-            list.push({ id, name: 'Nuevo rubro', type: 'Gasto Variable', isDeductible: false, prep: 0, real: 0, linkedCategory: 'none' });
-            App.changed({ structural: true });
-            const input = document.querySelector(`#bud-body tr[data-row="${id}"] input`);
+            const type = el && el.dataset.type && Defaults.BUDGET_TYPES.includes(el.dataset.type) ? el.dataset.type : 'Gasto Variable';
+            list.push({ id, name: 'Nuevo rubro', type, isDeductible: false, prep: 0, real: 0, linkedCategory: 'none' });
+            App.changed({ structural: true, step: true });
+            const input = document.querySelector(layout() === 'simple' ? `#bud-simple [data-line="${id}"] .bs-name-input` : `#bud-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
+        },
+        // Due day of a bill: saved on the line in the base budget and every month that has its
+        // own copy (it's the same bill), or on the debt for a debt line.
+        'budget.dueDay': async (el) => {
+            const kind = el.dataset.kind;
+            const yd = Store.active();
+            const debt = kind === 'debt' ? Store.state.debts.find(d => d.id === Number(el.dataset.ref)) : null;
+            const lines = kind === 'debt' ? [] : [yd.budgetBase].concat(Object.values(yd.monthOverrides)).map(l => l.find(i => String(i.id) === el.dataset.id)).filter(Boolean);
+            const target = debt || lines[0];
+            if (!target) return;
+            const r = await UI.form({
+                title: `Fecha de pago: ${target.name}`,
+                fields: [{ name: 'day', label: 'Día del mes en que vence (1–31)', type: 'number', min: 1, step: 1, value: target.dueDay || '', help: 'Déjalo vacío si no tiene fecha fija. Te avisaremos en el Resumen cuando se acerque.' }],
+                confirmText: 'Guardar',
+                validate: v => v.day === '' || (Number(v.day) >= 1 && Number(v.day) <= 31 && Number.isInteger(Number(v.day))) ? null : 'Escribe un día entre 1 y 31.'
+            });
+            if (!r) return;
+            const day = r.day === '' ? undefined : Number(r.day);
+            (debt ? [debt] : lines).forEach(x => { if (day) x.dueDay = day; else delete x.dueDay; });
+            App.changed({ structural: true, step: true });
+            UI.toast(day ? `"${target.name}" vence el día ${day} de cada mes.` : `"${target.name}" ya no tiene fecha de pago.`);
         },
         'budget.delete': (el) => {
             const id = Number(el.dataset.id);
@@ -3575,6 +4276,7 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         const opts = prev && keepParent && !parents.includes(prev) ? parents.concat([prev]) : parents;
         parentSel.innerHTML = Views.selectOptions(opts, opts.includes(prev) ? prev : first);
         fillIncomeSelect();
+        fillLineSelect();
         fillSubSelect();
     }
 
@@ -3589,12 +4291,13 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         UI.text('txn-form-title', t ? 'Editar Transacción' : 'Registrar Transacción');
         UI.show('txn-cancel', !!t);
         document.getElementById('txn-submit').innerHTML = t ? '<i class="fa-solid fa-check"></i> Guardar cambios' : '<i class="fa-solid fa-plus"></i> Agregar Transacción';
-        UI.$$('#txn-body tr[data-row]').forEach(r => r.classList.toggle('row-editing', !!t && Number(r.dataset.row) === t.id));
+        UI.$$('#txn-body [data-row]').forEach(r => r.classList.toggle('row-editing', !!t && Number(r.dataset.row) === t.id));
     }
 
     function clearForm() {
         FORM_FIELDS.forEach(id => { document.getElementById(id).value = ''; });
         document.getElementById('txn-income').value = '';
+        document.getElementById('txn-line').value = '';
     }
 
     // Income lines of the budget (active year) that a new income can be the receipt of.
@@ -3605,6 +4308,18 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         const sel = document.getElementById('txn-income');
         const prev = keep !== undefined ? String(keep || '') : sel.value;
         sel.innerHTML = Views.selectOptions([{ value: '', label: 'No: es un ingreso extra' }].concat(lines.map(x => ({ value: String(x.id), label: `Sí: ${x.name}` }))), lines.some(x => String(x.id) === prev) ? prev : '');
+    }
+
+    // Budget lines of the transaction's month (its date decides which month's budget).
+    function fillLineSelect(keep) {
+        const isExp = document.getElementById('txn-type').value !== 'Ingreso';
+        UI.show('txn-line-field', isExp);
+        const sel = document.getElementById('txn-line');
+        const prev = keep !== undefined ? String(keep || '') : sel.value;
+        const date = document.getElementById('txn-date').value || new Date().toISOString().slice(0, 10);
+        const items = Engine.monthItems(Store.effective(Number(date.slice(0, 4))), String(Number(date.slice(5, 7))));
+        sel.innerHTML = `<option value="">Automático (según la categoría)</option>${BudgetSimple.lineOptions(items, prev)}`;
+        if (prev && ![...sel.options].some(o => o.value === prev)) sel.value = '';
     }
 
     function fillSubSelect(keepSub) {
@@ -3668,48 +4383,163 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
         return line ? `<span class="block text-[10px] text-emerald-700"><i class="fa-solid fa-link"></i> Recibido de «${esc(line.name)}»</span>` : '';
     }
 
+    // Which budget line each expense counts in (explicit or automatic by category), per month.
+    function assignments(ctx) {
+        const cache = {};
+        return (t) => {
+            const y = Number(t.date.slice(0, 4)), m = String(Number(t.date.slice(5, 7)));
+            const key = y + '-' + m;
+            if (!cache[key]) {
+                const items = Engine.monthItems(Store.effective(y), m);
+                const spend = Engine.lineSpend(items, ctx.state.transactions, y, m);
+                const byTxn = {};
+                Object.keys(spend.byLine).forEach(id => spend.byLine[id].txns.forEach(x => { byTxn[x.id] = id; }));
+                cache[key] = { items, byTxn };
+            }
+            const c = cache[key];
+            const lineId = c.byTxn[t.id];
+            return { items: c.items, lineId, line: c.items.find(i => String(i.id) === lineId), explicit: lineId !== undefined && String(t.budgetLine) === lineId };
+        };
+    }
+
+    function matchesSearch(t, q) {
+        if (!q) return true;
+        const hay = [t.description, t.store, t.parentCategory, t.category, t.paymentType, String(t.amount), Number(t.amount).toFixed(2)].join(' ').toLowerCase();
+        return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+    }
+
+    function txnItemHTML(t, assignOf) {
+        const inc = (t.type || 'Gasto') === 'Ingreso';
+        const d = new Date(t.date + 'T00:00:00');
+        let chip = '';
+        let pending = false;
+        if (inc) {
+            const yd = Store.state.years[d.getFullYear()];
+            const lines = (yd && yd.otherIncomes) || [];
+            if (Engine.isPayrollTxn(t)) chip = '<span class="chip-note">Tu sueldo (ya contado)</span>';
+            else if (lines.length) chip = `<select class="chip-select ${t.incomeId ? '' : 'auto'}" data-change="txn.assignIncome" data-id="${t.id}" aria-label="Ingreso del presupuesto">
+                <option value="">Ingreso extra del mes</option>${lines.map(x => `<option value="${x.id}" ${x.id === t.incomeId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`;
+            else chip = '<span class="chip-note">Ingreso extra del mes</span>';
+        } else {
+            const a = assignOf(t);
+            pending = !a.lineId;
+            const first = a.explicit ? 'Automático (por categoría)' : a.lineId ? `${a.line.name} (auto)` : '+ Asignar a un rubro';
+            chip = `<select class="chip-select ${a.explicit ? '' : a.lineId ? 'auto' : 'empty'}" data-change="txn.assignLine" data-id="${t.id}" aria-label="Rubro del presupuesto">
+                <option value="">${esc(first)}</option>${BudgetSimple.lineOptions(a.items, a.explicit ? a.lineId : null)}</select>`;
+        }
+        const notes = [];
+        if (inc && Engine.isPayrollTxn(t)) notes.push(`<span class="text-amber-700">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>`);
+        if (inc && t.countAsExtra) notes.push('<span class="text-emerald-700">Contado como ingreso extra</span>');
+        if (inc && t.incomeId) notes.push(incomeLabel(t));
+        return `<div class="txn-item ${Store.ui.txnEditing === t.id ? 'row-editing' : ''}" data-row="${t.id}" ${inc ? '' : `draggable="true" data-txn="${t.id}"`}>
+                <div class="txn-date ${inc ? 'inc' : 'exp'} ${pending ? 'pending' : ''}"><span>${Fmt.MONTH_SHORT[d.getMonth()]}</span><b>${d.getDate()}</b></div>
+                <div class="txn-main">
+                    <div class="txn-desc">${esc(t.description)}</div>
+                    <div class="txn-meta">${[t.store, `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`, t.paymentType].filter(Boolean).map(esc).join(' · ')}</div>
+                    ${notes.length ? `<div class="txn-notes">${notes.join(' ')}</div>` : ''}
+                </div>
+                <div class="txn-amt ${inc ? 'inc' : ''}">${inc ? '+' : '−'}${money(t.amount)}</div>
+                <div class="txn-chip">${chip}</div>
+                <div class="txn-actions"><button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Editar" aria-label="Editar"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></div>
+            </div>`;
+    }
+
     function update(ctx) {
         const f = Store.ui.txnFilters;
-        const list = Engine.filterTransactions(ctx.state.transactions, f).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
-        UI.html('txn-body', list.length ? list.map(t => {
-            const inc = (t.type || 'Gasto') === 'Ingreso';
-            return `<tr data-row="${t.id}" class="${Store.ui.txnEditing === t.id ? 'row-editing' : ''}">
-                <td class="whitespace-nowrap">${esc(t.date)}</td>
-                <td><span class="badge ${inc ? 'badge-ok' : 'badge-bad'}">${inc ? 'Ingreso' : 'Gasto'}</span></td>
-                <td class="font-medium">${esc(t.description)}</td>
-                <td class="text-slate-500">${esc(t.store || '—')}</td>
-                <td>${esc(t.parentCategory)}</td>
-                <td class="text-slate-500">${esc(t.category)}${inc && Engine.isPayrollTxn(t) ? `<span class="block text-[10px] text-amber-700" title="Tu sueldo ya se cuenta desde Tu Sueldo">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>` : ''}${inc && t.countAsExtra ? '<span class="block text-[10px] text-emerald-700">Contado como ingreso extra</span>' : ''}${inc && t.incomeId ? incomeLabel(t) : ''}</td>
-                <td class="num font-bold ${inc ? 'text-emerald-700' : 'text-red-700'}">${inc ? '+' : '−'}${money(t.amount)}</td>
-                <td><span class="badge badge-muted">${esc(t.paymentType)}</span></td>
-                <td class="text-center whitespace-nowrap"><button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Editar" aria-label="Editar"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></td>
-            </tr>`;
-        }).join('') : '<tr class="empty-row"><td colspan="9">No hay transacciones para este filtro.</td></tr>');
+        const q = (Store.ui.txnSearch || '').trim();
+        const search = document.getElementById('txn-search');
+        if (search && search !== document.activeElement) search.value = q;
+        const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q))
+            .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+        const assignOf = assignments(ctx);
+        // Grouped by month, newest first.
+        const groups = [];
+        list.forEach(t => {
+            const key = t.date.slice(0, 7);
+            if (!groups.length || groups[groups.length - 1].key !== key) groups.push({ key, items: [] });
+            groups[groups.length - 1].items.push(t);
+        });
+        UI.html('txn-body', groups.length ? groups.map(g => `<div class="txn-month">${Fmt.MONTH_NAMES[Number(g.key.slice(5)) - 1]} ${g.key.slice(0, 4)}</div>` + g.items.map(t => txnItemHTML(t, assignOf)).join('')).join('')
+            : `<p class="empty-row text-center text-xs text-slate-400 py-6">${q ? `Nada coincide con "${esc(q)}".` : 'No hay transacciones para este filtro.'}</p>`);
 
         const inc = list.filter(t => t.type === 'Ingreso').reduce((s, t) => s + Number(t.amount || 0), 0);
         const exp = list.filter(t => (t.type || 'Gasto') === 'Gasto').reduce((s, t) => s + Number(t.amount || 0), 0);
         UI.text('txn-sum-inc', money(inc));
         UI.text('txn-sum-exp', money(exp));
         UI.text('txn-sum-net', money(inc - exp));
+        const pending = list.filter(t => (t.type || 'Gasto') === 'Gasto' && !assignOf(t).lineId).length;
+        UI.html('txn-unassigned-note', pending ? `<i class="fa-solid fa-circle-exclamation text-amber-600"></i> ${pending} gasto${pending === 1 ? '' : 's'} sin rubro: elige su rubro en el botón punteado para que cuenten en tu presupuesto.` : '');
 
-        // The trend ignores the month filter: a single month has no trend.
-        const trendList = Engine.filterTransactions(ctx.state.transactions, { ...f, month: 'all' });
-        UI.show('txn-trend-empty', trendList.length === 0);
-        UI.show(document.getElementById('txn-trend-chart').parentElement, trendList.length > 0);
-        if (trendList.length) {
-            const t = Engine.transactionTrend(trendList);
-            const labels = t.keys.map(k => t.yearly ? k : `${Fmt.MONTH_SHORT[Number(k.slice(5)) - 1]} ${k.slice(2, 4)}`);
-            const datasets = [];
-            if (f.type !== 'Gasto') datasets.push({ label: 'Ingresos', data: t.income, backgroundColor: 'rgba(5,150,105,.65)', borderRadius: 3 });
-            if (f.type !== 'Ingreso') datasets.push({ label: 'Gastos', data: t.expense, backgroundColor: 'rgba(220,38,38,.65)', borderRadius: 3 });
-            UI.chart('txn-trend-chart', { type: 'bar', data: { labels, datasets } });
+        updateTrend(ctx);
+    }
+
+    // ------------------------------------------------------------------ trend
+    const COUNTS = { week: [8, 12, 26, 52], month: [6, 12, 24, 36], year: [3, 5, 10] };
+    const DEFAULT_COUNT = { week: 12, month: 12, year: 5 };
+    const SERIES = { income: { label: 'Ingresos', color: '#1baf7a' }, expense: { label: 'Gastos', color: '#2a78d6' } };
+
+    function periodLabel(start, period) {
+        const d = new Date(start + 'T00:00:00');
+        if (period === 'year') return String(d.getFullYear());
+        if (period === 'month') return `${Fmt.MONTH_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+        return `${d.getDate()} ${Fmt.MONTH_SHORT[d.getMonth()]}`;
+    }
+
+    function updateTrend(ctx) {
+        const tr = Store.ui.trend = Object.assign({ period: 'month', count: 12, show: 'both', category: 'all' }, Store.ui.trend);
+        if (!COUNTS[tr.period].includes(tr.count)) tr.count = DEFAULT_COUNT[tr.period];
+        UI.$$('[data-action="trend.period"]').forEach(b => b.classList.toggle('active', b.dataset.period === tr.period));
+        const unit = { week: ['semana', 'semanas'], month: ['mes', 'meses'], year: ['año', 'años'] }[tr.period];
+        UI.html('trend-count', COUNTS[tr.period].map(n => `<option value="${n}" ${n === tr.count ? 'selected' : ''}>Últimos ${n} ${unit[1]}</option>`).join(''));
+        document.getElementById('trend-show').value = tr.show;
+        const cats = [...new Set(ctx.state.transactions.map(t => t.parentCategory))].sort();
+        UI.html('trend-category', Views.selectOptions([{ value: 'all', label: 'Todas las categorías' }].concat(cats.map(c => ({ value: c, label: c }))), tr.category));
+
+        const rows = Engine.periodSeries(ctx.state.transactions, { period: tr.period, count: tr.count, end: ctx.today, category: tr.category });
+        const any = rows.some(r => r.count > 0);
+        UI.show('txn-trend-empty', !any);
+        UI.show(document.getElementById('txn-trend-chart').parentElement, any);
+        const keys = tr.show === 'both' ? ['income', 'expense'] : [tr.show];
+        const labels = rows.map(r => periodLabel(r.start, tr.period));
+        if (any) {
+            UI.chart('txn-trend-chart', {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: keys.map(k => ({ label: SERIES[k].label, data: rows.map(r => r[k]), borderColor: SERIES[k].color, backgroundColor: SERIES[k].color + '1a', borderWidth: 2, pointRadius: rows.length > 30 ? 0 : 4, pointHoverRadius: 6, tension: .3, cubicInterpolationMode: 'monotone', fill: keys.length === 1 }))
+                },
+                options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: keys.length > 1 } } }
+            });
         }
+        // Headline numbers for the selected window.
+        const exp = rows.map(r => r.expense);
+        const avg = exp.reduce((a, b) => a + b, 0) / (rows.length || 1);
+        const maxI = exp.indexOf(Math.max(...exp));
+        const last = exp[exp.length - 1] || 0, prev = exp[exp.length - 2] || 0;
+        const change = prev > 0 ? (last - prev) / prev : null;
+        UI.html('trend-kpis', `
+            <div class="kpi tone-slate"><span class="kpi-label">Gasto promedio por ${unit[0]}</span><span class="kpi-value">${money(avg)}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">${unit[0] === 'mes' ? 'Mes' : unit[0] === 'año' ? 'Año' : 'Semana'} de mayor gasto</span><span class="kpi-value">${exp[maxI] > 0 ? money(exp[maxI]) : '—'}</span><span class="kpi-note">${exp[maxI] > 0 ? labels[maxI] : 'Sin gastos'}</span></div>
+            <div class="kpi ${change === null ? 'tone-slate' : change > 0.1 ? 'tone-red' : change < -0.1 ? 'tone-emerald' : 'tone-slate'}"><span class="kpi-label">Este ${unit[0]} vs. el anterior</span><span class="kpi-value">${change === null ? '—' : (change > 0 ? '+' : '') + Math.round(change * 100) + '%'}</span><span class="kpi-note">${money(last)} vs. ${money(prev)}${tr.period !== 'year' ? ' (el actual aún no termina)' : ''}</span></div>`);
+        UI.html('trend-table', rows.slice().reverse().map((r, i) => `<tr><td>${labels[rows.length - 1 - i]}</td><td class="num">${money(r.income)}</td><td class="num">${money(r.expense)}</td><td class="num ${r.income - r.expense < 0 ? 'text-red-600' : ''}">${money(r.income - r.expense)}</td></tr>`).join(''));
     }
 
     UI.register({
         'txn.typeChanged': () => fillCategorySelects(),
-        'txn.parentChanged': () => fillSubSelect(),
+        'txn.parentChanged': () => { fillSubSelect(); fillLineSelect(); },
+        'txn.search': (el) => { Store.ui.txnSearch = el.value; App.update(); },
+        'trend.period': (el) => { Store.ui.trend.period = el.dataset.period; Store.ui.trend.count = DEFAULT_COUNT[el.dataset.period]; App.update(); },
+        'trend.count': (el) => { Store.ui.trend.count = Number(el.value); App.update(); },
+        'trend.show': (el) => { Store.ui.trend.show = el.value; App.update(); },
+        'trend.category': (el) => { Store.ui.trend.category = el.value; App.update(); },
+        'txn.assignIncome': (el) => {
+            const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
+            if (!t) return;
+            if (el.value) t.incomeId = Number(el.value); else delete t.incomeId;
+            App.changed({ structural: true, step: true });
+        },
         'txn.subChanged': () => payrollHint(),
+        'txn.dateChanged': () => fillLineSelect(),
         'txn.filter': () => {
             Store.ui.txnFilters = {
                 year: document.getElementById('txn-f-year').value,
@@ -3738,12 +4568,14 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
                 amount,
                 date: get('txn-date').value || new Date().toISOString().slice(0, 10),
                 paymentType: get('txn-payment').value,
-                incomeId: get('txn-type').value === 'Ingreso' && get('txn-income').value ? Number(get('txn-income').value) : undefined
+                incomeId: get('txn-type').value === 'Ingreso' && get('txn-income').value ? Number(get('txn-income').value) : undefined,
+                budgetLine: get('txn-type').value !== 'Ingreso' && get('txn-line').value ? get('txn-line').value : undefined
             };
             const editing = s.transactions.find(t => t.id === Store.ui.txnEditing);
             if (editing) {
                 Object.assign(editing, values);
                 if (!values.incomeId) delete editing.incomeId;
+                if (!values.budgetLine) delete editing.budgetLine;
                 setEditing(null);
                 clearForm();
                 App.changed({ structural: true, step: true });
@@ -3766,6 +4598,8 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
             fillCategorySelects(t.parentCategory);
             fillSubSelect(t.category);
             fillIncomeSelect(t.incomeId);
+            get('txn-date').value = t.date || '';
+            fillLineSelect(t.budgetLine);
             get('txn-description').value = t.description || '';
             get('txn-store').value = t.store || '';
             get('txn-amount').value = Number(t.amount) || '';
@@ -4491,6 +5325,9 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
     function render(ctx) {
         const s = ctx.state, yd = ctx.year;
         UI.html('cfg-guide-body', Views.guideHTML());
+        const curSel = document.getElementById('cfg-currency');
+        if (!curSel.options.length) curSel.innerHTML = Views.selectOptions(Fmt.CURRENCIES.map(c => ({ value: c.code, label: c.label })), s.settings.currency || 'USD');
+        curSel.value = s.settings.currency || 'USD';
         UI.html('cfg-brackets', yd.sriBrackets.map((b, i) => `<tr>
             <td><input type="number" class="cell-input num" value="${b.min}" data-change="cfg.bracket" data-idx="${i}" data-field="min"></td>
             <td><input type="number" class="cell-input num" value="${b.max}" data-change="cfg.bracket" data-idx="${i}" data-field="max"></td>
