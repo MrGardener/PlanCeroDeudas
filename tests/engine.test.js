@@ -610,3 +610,35 @@ test('every 2 weeks works even when the date given is not the payday weekday', (
     // 6 Oct 2026 is a Tuesday → counted from Thursday 8 Oct.
     assert.deepEqual(E.payDates({ freq: 'weekly', weekday: 4, interval: 2, anchor: '2026-10-06' }, '2026-10-01', '2026-11-10'), ['2026-10-08', '2026-10-22', '2026-11-05']);
 });
+
+test('forecast: dated paydays and evenly spread plan, grouped by period', () => {
+    const monthly = { '2026-11': { income: 300, expense: 900, savings: 150, debt: 300 }, '2026-12': { income: 0, expense: 930, savings: 0, debt: 0 } };
+    const events = [{ date: '2026-11-13', amount: 600 }, { date: '2026-11-27', amount: 600 }, { date: '2026-12-11', amount: 600 }, { date: '2027-01-08', amount: 600 }];
+    const m = E.projectFlows({ from: '2026-11-01', to: '2026-12-31', period: 'month', events, monthly });
+    assert.equal(m.length, 2);
+    assert.ok(Math.abs(m[0].income - 1500) < 1e-6 && Math.abs(m[0].expense - 900) < 1e-6 && Math.abs(m[0].savings - 150) < 1e-6);
+    assert.ok(Math.abs(m[1].income - 600) < 1e-6 && Math.abs(m[1].expense - 930) < 1e-6);
+    const w = E.projectFlows({ from: '2026-12-07', to: '2026-12-20', period: 'week', events, monthly });
+    assert.deepEqual(w.map(r => r.start), ['2026-12-07', '2026-12-14']);
+    assert.ok(Math.abs(w[0].expense - 210) < 1e-6 && w[0].income === 600 && w[1].income === 0);
+});
+
+test('projected balances: debts follow the plan, then their payments roll into savings', () => {
+    const months = [1, 2, 3].map(i => ({ key: `2026-1${i - 1}`, income: 2000, expense: 1500, savings: 100, debt: 400 }));
+    const b = E.projectBalances({ start: { cash: 500, savings: 1000, debts: 700 }, months, rate: 12, debtHistory: [350, 0] });
+    assert.deepEqual(b.map(x => Math.round(x.debts)), [350, 0, 0]);
+    assert.deepEqual(b.map(x => Math.round(x.cash)), [500, 500, 500]);
+    assert.equal(Math.round(b[1].savings), Math.round((1000 * 1.01 + 100) * 1.01 + 100));
+    assert.equal(Math.round(b[2].savings), Math.round(((1000 * 1.01 + 100) * 1.01 + 100) * 1.01 + 100 + 400));
+    const plan = E.debtPayoff([{ id: 1, balance: 700, rate: 0, minPayment: 100, monthly: 400 }], 'snowball', 0);
+    assert.deepEqual(plan.history, [300, 0]);
+});
+
+test('a 27-paycheck year pays 27 regular checks (salary ÷ 26 each)', () => {
+    const sch = { freq: 'weekly', weekday: 5, interval: 2, anchor: '2027-01-01' };
+    assert.equal(E.paymentsPerYear(sch, 2027), 27);
+    assert.equal(E.nominalPaymentsPerYear(sch), 26);
+    const ev = E.cashEvents({ from: '2027-01-01', to: '2027-12-31', months: [], recurring: [], schedule: sch, payPerMonth: 2600 });
+    assert.equal(ev.length, 27);
+    assert.ok(ev.every(e => Math.abs(e.amount - 1200) < 1e-9));
+});

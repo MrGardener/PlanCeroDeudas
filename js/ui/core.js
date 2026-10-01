@@ -162,6 +162,7 @@
         chart(canvasId, config) {
             const canvas = document.getElementById(canvasId);
             if (!canvas || typeof Chart === 'undefined') return null;
+            registerTodayLine();
             const money = (v) => Fmt.money0(v);
             const base = {
                 responsive: true,
@@ -193,6 +194,28 @@
 
         chartInstance(id) { return charts[id] || null; }
     };
+
+    // A dashed vertical "Hoy" line at a category index: options.plugins.todayLine = { index, label }.
+    let todayLineReady = false;
+    function registerTodayLine() {
+        if (todayLineReady || typeof Chart === 'undefined') return;
+        todayLineReady = true;
+        Chart.register({
+            id: 'todayLine',
+            afterDatasetsDraw(chart, args, opts) {
+                if (!opts || !(opts.index >= 0) || !chart.scales.x) return;
+                const x = chart.scales.x.getPixelForValue(opts.index);
+                const { top, bottom } = chart.chartArea;
+                const c = chart.ctx;
+                c.save();
+                c.strokeStyle = Chart.defaults.color; c.globalAlpha = .55; c.setLineDash([3, 3]); c.lineWidth = 1;
+                c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
+                c.globalAlpha = .9; c.setLineDash([]); c.fillStyle = Chart.defaults.color; c.font = '600 10px Inter, sans-serif'; c.textAlign = 'left';
+                c.fillText(opts.label || 'Hoy', x + 4, top + 10);
+                c.restore();
+            }
+        });
+    }
 
     function mergeDeep(a, b) {
         const out = Array.isArray(a) ? a.slice() : { ...a };

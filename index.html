@@ -407,7 +407,7 @@
             <div class="card-head">
                 <div>
                     <div class="card-title"><i class="fa-solid fa-chart-line text-blue-600"></i> Tendencia de ingresos y gastos</div>
-                    <div class="card-sub">Elige el período: por semana, por mes o por año.</div>
+                    <div class="card-sub">Elige el período (semana, mes o año), cuánto hacia atrás y cuánto hacia adelante.</div>
                 </div>
             </div>
             <div class="flex flex-wrap items-center gap-2 mb-3">
@@ -417,18 +417,39 @@
                     <button type="button" data-action="trend.period" data-period="year">Año</button>
                 </div>
                 <select id="trend-count" class="cell-input" style="width:auto" data-change="trend.count" aria-label="Cuántos períodos"></select>
+                <select id="trend-ahead" class="cell-input" style="width:auto" data-change="trend.ahead" aria-label="Cuánto hacia adelante"></select>
+                <select id="trend-basis" class="cell-input" style="width:auto" data-change="trend.basis" aria-label="Base de la proyección"><option value="plan">Gastos según mi presupuesto</option><option value="history">Gastos según mi historial</option></select>
                 <select id="trend-show" class="cell-input" style="width:auto" data-change="trend.show" aria-label="Qué mostrar">
                     <option value="both">Ingresos y gastos</option><option value="expense">Solo gastos</option><option value="income">Solo ingresos</option>
                 </select>
                 <select id="trend-category" class="cell-input" style="width:auto" data-change="trend.category" aria-label="Categoría"></select>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="trend-kpis"></div>
+            <p class="help mb-2" id="trend-note"></p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3" id="trend-kpis"></div>
             <div id="txn-trend-empty" class="text-xs text-slate-400 text-center py-8 hidden">No hay transacciones en este período.</div>
             <div class="chart-box"><canvas id="txn-trend-chart"></canvas></div>
             <details class="mt-3">
                 <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
                 <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Período</th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">Neto</th></tr></thead><tbody id="trend-table"></tbody></table></div>
             </details>
+        </div>
+        <div class="card" id="bal-forecast">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-scale-balanced text-teal-600"></i> Saldos proyectados</div>
+                    <div class="card-sub">Cuánto tendrías en tus cuentas, tus ahorros y tus deudas al final de cada mes si sigues tu presupuesto. Usa el mismo "Próximos" de arriba.</div>
+                </div>
+            </div>
+            <p id="bal-forecast-empty" class="help hidden">Elige "Próximos…" en la tendencia para ver tus saldos a futuro.</p>
+            <div id="bal-forecast-body">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3" id="bal-forecast-kpis"></div>
+                <div class="chart-box"><canvas id="bal-forecast-chart"></canvas></div>
+                <p class="help mt-2">Efectivo: tus cuentas corrientes y efectivo + ingresos − gastos − lo que ahorras − pagos de deudas. Ahorros: cuentas de ahorro, pólizas e inversiones + lo que apartas + interés (tasa DPF del año). Cuando terminas de pagar tus deudas, esos pagos pasan a tus ahorros. Es una estimación: no incluye compras ni ingresos que no estén en tu plan.</p>
+                <details class="mt-2">
+                    <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
+                    <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Mes</th><th class="num">Efectivo</th><th class="num">Ahorros e inversiones</th><th class="num">Deudas</th></tr></thead><tbody id="bal-forecast-table"></tbody></table></div>
+                </details>
+            </div>
         </div>
         <div class="card" id="rec-card">
             <div class="card-head">

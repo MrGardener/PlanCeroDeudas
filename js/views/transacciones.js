@@ -310,6 +310,9 @@
     // ------------------------------------------------------------------ trend
     const COUNTS = { week: [8, 12, 26, 52], month: [6, 12, 24, 36], year: [3, 5, 10] };
     const DEFAULT_COUNT = { week: 12, month: 12, year: 5 };
+    // How far ahead the projection goes, per period.
+    const AHEAD = { week: [0, 4, 8, 13, 26], month: [0, 3, 6, 12, 24], year: [0, 1, 2, 3, 5] };
+    const DEFAULT_AHEAD = { week: 8, month: 12, year: 2 };
     const SERIES = { income: { label: 'Ingresos', color: '#1baf7a' }, expense: { label: 'Gastos', color: '#2a78d6' } };
 
     function periodLabel(start, period) {
@@ -319,30 +322,70 @@
         return `${d.getDate()} ${Fmt.MONTH_SHORT[d.getMonth()]}`;
     }
 
+    // Expected per month from history: the average of the last 3 complete months.
+    function historyMonthlyExpense(transactions, today) {
+        const t = new Date(today);
+        let total = 0;
+        for (let i = 1; i <= 3; i++) {
+            const d = new Date(t.getFullYear(), t.getMonth() - i, 1);
+            const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            total += (transactions || []).filter(x => (x.type || 'Gasto') === 'Gasto' && String(x.date).startsWith(k)).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+        }
+        return total / 3;
+    }
+
+    // The future part of the trend: next period up to `ahead` periods.
+    function trendForecast(tr, today) {
+        const cur = Engine.periodStart(new Date(today), tr.period);
+        const from = Engine.shiftPeriod(cur, tr.period, 1);
+        const endStart = Engine.shiftPeriod(cur, tr.period, tr.ahead + 1);
+        const to = new Date(endStart.getFullYear(), endStart.getMonth(), endStart.getDate() - 1);
+        const inp = Cash.forecastInputs(Engine.isoDate(from), Engine.isoDate(to));
+        if (tr.basis === 'history') {
+            const avg = historyMonthlyExpense(Store.state.transactions, today);
+            Object.keys(inp.monthly).forEach(k => { inp.monthly[k] = Object.assign({}, inp.monthly[k], { expense: avg, savings: 0, debt: 0 }); });
+        }
+        const rows = Engine.projectFlows({ from: Engine.isoDate(from), to: Engine.isoDate(to), period: tr.period, events: inp.events, monthly: inp.monthly });
+        // In the trend, "gastos" are all money going out (spending + savings deposits + debt payments), as logged.
+        return rows.map(r => ({ start: r.start, income: r.income, expense: r.expense + r.savings + r.debt, spending: r.expense, savings: r.savings, debt: r.debt }));
+    }
+
     function updateTrend(ctx) {
-        const tr = Store.ui.trend = Object.assign({ period: 'month', count: 12, show: 'both', category: 'all' }, Store.ui.trend);
+        const tr = Store.ui.trend = Object.assign({ period: 'month', count: 12, show: 'both', category: 'all', basis: 'plan' }, Store.ui.trend);
         if (!COUNTS[tr.period].includes(tr.count)) tr.count = DEFAULT_COUNT[tr.period];
+        if (!AHEAD[tr.period].includes(tr.ahead)) tr.ahead = DEFAULT_AHEAD[tr.period];
         UI.$$('[data-action="trend.period"]').forEach(b => b.classList.toggle('active', b.dataset.period === tr.period));
         const unit = { week: ['semana', 'semanas'], month: ['mes', 'meses'], year: ['año', 'años'] }[tr.period];
         UI.html('trend-count', COUNTS[tr.period].map(n => `<option value="${n}" ${n === tr.count ? 'selected' : ''}>Últimos ${n} ${unit[1]}</option>`).join(''));
+        UI.html('trend-ahead', AHEAD[tr.period].map(n => `<option value="${n}" ${n === tr.ahead ? 'selected' : ''}>${n ? `Próximos ${n} ${n === 1 ? unit[0] : unit[1]}` : 'Sin proyección'}</option>`).join(''));
         document.getElementById('trend-show').value = tr.show;
+        document.getElementById('trend-basis').value = tr.basis;
         const cats = [...new Set(ctx.state.transactions.map(t => t.parentCategory))].sort();
         UI.html('trend-category', Views.selectOptions([{ value: 'all', label: 'Todas las categorías' }].concat(cats.map(c => ({ value: c, label: c }))), tr.category));
 
         const rows = Engine.periodSeries(ctx.state.transactions, { period: tr.period, count: tr.count, end: ctx.today, category: tr.category });
-        const any = rows.some(r => r.count > 0);
+        // The projection is for everything (it comes from your plan, not from categories).
+        const projecting = tr.ahead > 0 && tr.category === 'all';
+        const future = projecting ? trendForecast(tr, ctx.today) : [];
+        UI.show('trend-basis', projecting);
+        UI.html('trend-note', tr.ahead > 0 && tr.category !== 'all' ? 'La proyección se muestra con "Todas las categorías".'
+            : projecting ? `Líneas punteadas: lo que esperas según ${tr.basis === 'history' ? 'tu historial (promedio de los últimos 3 meses)' : 'tu presupuesto'}, tu sueldo en tus días de pago${Cash.paySchedule() ? '' : ' (dinos cómo te pagan en Ingresos)'} y tus ingresos que se repiten.` : '');
+        const any = rows.some(r => r.count > 0) || future.length > 0;
         UI.show('txn-trend-empty', !any);
         UI.show(document.getElementById('txn-trend-chart').parentElement, any);
         const keys = tr.show === 'both' ? ['income', 'expense'] : [tr.show];
-        const labels = rows.map(r => periodLabel(r.start, tr.period));
+        const labels = rows.map(r => periodLabel(r.start, tr.period)).concat(future.map(r => periodLabel(r.start, tr.period)));
+        const nowIdx = rows.length - 1;
         if (any) {
+            const datasets = [];
+            keys.forEach(k => {
+                datasets.push({ label: SERIES[k].label, data: rows.map(r => r[k]).concat(future.map(() => null)), borderColor: SERIES[k].color, backgroundColor: SERIES[k].color + '1a', borderWidth: 2, pointRadius: labels.length > 30 ? 0 : 4, pointHoverRadius: 6, tension: .3, cubicInterpolationMode: 'monotone', fill: keys.length === 1 && !future.length });
+                if (future.length) datasets.push({ label: `${SERIES[k].label} (proyección)`, data: rows.map((r, i) => (i === nowIdx ? r[k] : null)).concat(future.map(r => r[k])), borderColor: SERIES[k].color, borderDash: [6, 4], borderWidth: 2, pointRadius: labels.length > 30 ? 0 : 3, pointStyle: 'circle', backgroundColor: '#ffffff00', pointHoverRadius: 6, tension: .3, cubicInterpolationMode: 'monotone', fill: false, spanGaps: false });
+            });
             UI.chart('txn-trend-chart', {
                 type: 'line',
-                data: {
-                    labels,
-                    datasets: keys.map(k => ({ label: SERIES[k].label, data: rows.map(r => r[k]), borderColor: SERIES[k].color, backgroundColor: SERIES[k].color + '1a', borderWidth: 2, pointRadius: rows.length > 30 ? 0 : 4, pointHoverRadius: 6, tension: .3, cubicInterpolationMode: 'monotone', fill: keys.length === 1 }))
-                },
-                options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: keys.length > 1 } } }
+                data: { labels, datasets },
+                options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: datasets.length > 1 }, todayLine: { index: future.length ? nowIdx : -1, label: 'Hoy' }, tooltip: { filter: (c) => c.raw !== null } } }
             });
         }
         // Headline numbers for the selected window.
@@ -351,11 +394,50 @@
         const maxI = exp.indexOf(Math.max(...exp));
         const last = exp[exp.length - 1] || 0, prev = exp[exp.length - 2] || 0;
         const change = prev > 0 ? (last - prev) / prev : null;
+        const fIn = future.reduce((a, r) => a + r.income, 0), fOut = future.reduce((a, r) => a + r.expense, 0);
         UI.html('trend-kpis', `
             <div class="kpi tone-slate"><span class="kpi-label">Gasto promedio por ${unit[0]}</span><span class="kpi-value">${money(avg)}</span></div>
             <div class="kpi tone-slate"><span class="kpi-label">${unit[0] === 'mes' ? 'Mes' : unit[0] === 'año' ? 'Año' : 'Semana'} de mayor gasto</span><span class="kpi-value">${exp[maxI] > 0 ? money(exp[maxI]) : '—'}</span><span class="kpi-note">${exp[maxI] > 0 ? labels[maxI] : 'Sin gastos'}</span></div>
-            <div class="kpi ${change === null ? 'tone-slate' : change > 0.1 ? 'tone-red' : change < -0.1 ? 'tone-emerald' : 'tone-slate'}"><span class="kpi-label">Este ${unit[0]} vs. el anterior</span><span class="kpi-value">${change === null ? '—' : (change > 0 ? '+' : '') + Math.round(change * 100) + '%'}</span><span class="kpi-note">${money(last)} vs. ${money(prev)}${tr.period !== 'year' ? ' (el actual aún no termina)' : ''}</span></div>`);
-        UI.html('trend-table', rows.slice().reverse().map((r, i) => `<tr><td>${labels[rows.length - 1 - i]}</td><td class="num">${money(r.income)}</td><td class="num">${money(r.expense)}</td><td class="num ${r.income - r.expense < 0 ? 'text-red-600' : ''}">${money(r.income - r.expense)}</td></tr>`).join(''));
+            <div class="kpi ${change === null ? 'tone-slate' : change > 0.1 ? 'tone-red' : change < -0.1 ? 'tone-emerald' : 'tone-slate'}"><span class="kpi-label">Este ${unit[0]} vs. el anterior</span><span class="kpi-value">${change === null ? '—' : (change > 0 ? '+' : '') + Math.round(change * 100) + '%'}</span><span class="kpi-note">${money(last)} vs. ${money(prev)}${tr.period !== 'year' ? ' (el actual aún no termina)' : ''}</span></div>
+            ${future.length ? `<div class="kpi ${fIn - fOut < -0.005 ? 'tone-red' : 'tone-blue'}" id="trend-future-kpi"><span class="kpi-label">Próximos ${tr.ahead} ${tr.ahead === 1 ? unit[0] : unit[1]} (proyección)</span><span class="kpi-value">${Math.abs(fIn - fOut) < 0.005 ? '' : fIn - fOut < 0 ? '−' : '+'}${money(Math.abs(fIn - fOut))}</span><span class="kpi-note">Entran ${money(fIn)} · salen ${money(fOut)}</span></div>` : ''}`);
+        UI.html('trend-table', future.slice().reverse().map(r => `<tr class="trend-future"><td>${periodLabel(r.start, tr.period)} <span class="badge badge-info">proyección</span></td><td class="num">${money(r.income)}</td><td class="num">${money(r.expense)}</td><td class="num ${r.income - r.expense < 0 ? 'text-red-600' : ''}">${money(r.income - r.expense)}</td></tr>`).join('')
+            + rows.slice().reverse().map((r, i) => `<tr><td>${labels[rows.length - 1 - i]}</td><td class="num">${money(r.income)}</td><td class="num">${money(r.expense)}</td><td class="num ${r.income - r.expense < 0 ? 'text-red-600' : ''}">${money(r.income - r.expense)}</td></tr>`).join(''));
+        renderBalances(ctx, tr);
+    }
+
+    // Month-end balances ahead: cash, savings & investments, debts.
+    const BAL = { cash: { label: 'Efectivo (cuentas corrientes)', color: '#2a78d6' }, savings: { label: 'Ahorros e inversiones', color: '#1baf7a' }, debts: { label: 'Deudas', color: '#eb6834' } };
+    function renderBalances(ctx, tr) {
+        const months = tr.ahead <= 0 ? 0 : tr.period === 'month' ? tr.ahead : tr.period === 'year' ? tr.ahead * 12 : Math.max(1, Math.ceil(tr.ahead * 7 / 30.4));
+        const card = document.getElementById('bal-forecast');
+        if (!card) return;
+        UI.show('bal-forecast-empty', months === 0);
+        UI.show('bal-forecast-body', months > 0);
+        if (!months) return;
+        const s = ctx.state, t = ctx.today;
+        const from = new Date(t.getFullYear(), t.getMonth() + 1, 1), to = new Date(t.getFullYear(), t.getMonth() + 1 + months, 0);
+        const inp = Cash.forecastInputs(Engine.isoDate(from), Engine.isoDate(to));
+        const flows = Engine.projectFlows({ from: Engine.isoDate(from), to: Engine.isoDate(to), period: 'month', events: inp.events, monthly: inp.monthly });
+        const cash = Engine.cashNow(s.accounts, s.transactions, t);
+        const accts = s.accounts || [];
+        const savings0 = accts.filter(a => a.kind === 'ahorros').reduce((a, x) => a + (Number(x.balance) || 0), 0) + ctx.polizasCapital + Engine.holdingsValue(s.holdings);
+        const debts0 = (s.debts || []).reduce((a, d) => a + Math.max(0, Number(d.balance) || 0), 0);
+        const pts = Engine.projectBalances({ start: { cash: cash ? cash.total : 0, savings: savings0, debts: debts0 }, months: flows.map(f => Object.assign({ key: f.start.slice(0, 7) }, f)), rate: Number(ctx.year.tasa) || 0, debtHistory: ctx.debts.history || [] });
+        const labels = ['Hoy'].concat(pts.map(p => { const d = new Date(p.key + '-01T00:00'); return `${Fmt.MONTH_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`; }));
+        const start = { cash: cash ? cash.total : 0, savings: savings0, debts: debts0 };
+        UI.chart('bal-forecast-chart', {
+            type: 'line',
+            data: { labels, datasets: Object.keys(BAL).map(k => ({ label: BAL[k].label, data: [start[k]].concat(pts.map(p => p[k])), borderColor: BAL[k].color, backgroundColor: BAL[k].color, borderWidth: 2, borderDash: [6, 4], pointRadius: labels.length > 30 ? 0 : 3, pointHoverRadius: 6, tension: .25, cubicInterpolationMode: 'monotone', fill: false })) },
+            options: { interaction: { mode: 'index', intersect: false }, plugins: { todayLine: { index: 0, label: 'Hoy' } } }
+        });
+        const end = pts[pts.length - 1];
+        const net0 = start.cash + start.savings - start.debts;
+        UI.html('bal-forecast-kpis', `
+            <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.cash.color}"></i>Efectivo en ${labels[labels.length - 1]}</span><span class="kpi-value">${money(end.cash)}</span><span class="kpi-note">Hoy ${money(start.cash)}${cash ? '' : ' (agrega tus saldos en Patrimonio → Cuentas)'}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.savings.color}"></i>Ahorros e inversiones</span><span class="kpi-value">${money(end.savings)}</span><span class="kpi-note">Hoy ${money(start.savings)}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.debts.color}"></i>Deudas</span><span class="kpi-value">${money(end.debts)}</span><span class="kpi-note">Hoy ${money(start.debts)}</span></div>
+            <div class="kpi ${end.net >= net0 ? 'tone-emerald' : 'tone-red'}"><span class="kpi-label">Lo que tendrías (neto)</span><span class="kpi-value">${money(end.net)}</span><span class="kpi-note">${end.net >= net0 ? '+' : '−'}${money(Math.abs(end.net - net0))} vs. hoy</span></div>`);
+        UI.html('bal-forecast-table', [['Hoy', start]].concat(pts.map((p, i) => [labels[i + 1], p])).map(([l, p]) => `<tr><td>${l}</td><td class="num">${money(p.cash)}</td><td class="num">${money(p.savings)}</td><td class="num">${money(p.debts)}</td></tr>`).join(''));
     }
 
     // Fill the form from elsewhere (e.g. a receipt photo) and let the person review it.
@@ -462,7 +544,9 @@
             App.undoable('Papelera vaciada', () => { Store.state.trash = []; });
         },
         'txn.search': (el) => { Store.ui.txnSearch = el.value; App.update(); },
-        'trend.period': (el) => { Store.ui.trend.period = el.dataset.period; Store.ui.trend.count = DEFAULT_COUNT[el.dataset.period]; App.update(); },
+        'trend.period': (el) => { Store.ui.trend.period = el.dataset.period; Store.ui.trend.count = DEFAULT_COUNT[el.dataset.period]; Store.ui.trend.ahead = DEFAULT_AHEAD[el.dataset.period]; App.update(); },
+        'trend.ahead': (el) => { Store.ui.trend.ahead = Number(el.value); App.update(); },
+        'trend.basis': (el) => { Store.ui.trend.basis = el.value; App.update(); },
         'trend.count': (el) => { Store.ui.trend.count = Number(el.value); App.update(); },
         'trend.show': (el) => { Store.ui.trend.show = el.value; App.update(); },
         'trend.category': (el) => { Store.ui.trend.category = el.value; App.update(); },

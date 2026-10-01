@@ -21,8 +21,8 @@
         const items = Engine.monthItems(yd, String(m));
         const spend = Engine.lineSpend(items, Store.state.transactions, y, String(m));
         const payroll = Engine.payroll(yd);
-        const pay = Engine.monthBudget(yd, String(m), payroll).salary;
-        return { year: y, month: m, items, spend, pay, payBase: payroll.netoM };
+        const mb = Engine.monthBudget(yd, String(m), payroll);
+        return { year: y, month: m, items, spend, pay: mb.salary, payBase: payroll.netoM, other: Engine.otherIncome(yd, String(m)).planned, sweep: mb.sweep, tasa: Number(yd.tasa) || 0 };
     }
 
     // Months touched by [from, to], each with its data.
@@ -203,5 +203,25 @@
         'safe.buffer': (el) => { Store.state.settings.cashBuffer = Math.max(0, Fmt.parseNum(el.value, 0)); App.changed({ structural: true, step: true }); }
     });
 
-    window.Cash = { paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar };
+    // ------------------------------------------------------------------ forecast
+    // What the plan says will come in and go out between two dates: dated paydays and repeating
+    // income, plus each month's budget (other incomes, spending, savings, debt payments).
+    function forecastInputs(fromISO, toISO) {
+        const ev = events(fromISO, toISO);
+        const monthly = {};
+        ev.months.forEach(d => {
+            const k = `${d.year}-${String(d.month).padStart(2, '0')}`;
+            const lines = d.items.filter(i => i.type !== 'Ingreso');
+            const real = (i) => Number(i.real) || 0;
+            monthly[k] = {
+                income: d.other,
+                savings: lines.filter(i => Engine.isSavingsItem(i)).reduce((a, i) => a + real(i), 0) + d.sweep,
+                debt: lines.filter(i => i.type === 'Deuda').reduce((a, i) => a + real(i), 0),
+                expense: lines.filter(i => !Engine.isSavingsItem(i) && i.type !== 'Deuda').reduce((a, i) => a + real(i), 0)
+            };
+        });
+        return { monthly, events: ev.list.filter(e => e.amount > 0 && (e.kind === 'payday' || e.kind === 'income')), months: ev.months };
+    }
+
+    window.Cash = { forecastInputs, paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar };
 })();

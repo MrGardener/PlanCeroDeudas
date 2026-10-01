@@ -516,6 +516,17 @@
 
     const paymentsPerYear = (schedule, year) => payDates(schedule, `${year}-01-01`, `${year}-12-31`).length;
 
+    // The usual number of paychecks in a year for a rhythm (every 2 weeks = 26, even in a
+    // year that happens to have 27 Fridays): what a yearly salary is divided by.
+    function nominalPaymentsPerYear(schedule) {
+        const sch = normalizeSchedule(schedule);
+        if (!sch) return 0;
+        if (sch.freq === 'monthly') return sch.days.length * 12 / sch.interval;
+        if (sch.freq === 'weekly') return 52 / sch.interval;
+        if (sch.freq === 'nth') return sch.nths.length * 12;
+        return sch.businessDays ? 261 : 365;
+    }
+
     // Next payday on or after `today` (a schedule, or the old array of days of the month).
     function nextPayday(schedule, today) {
         const t = new Date(today);
@@ -721,6 +732,7 @@
             else items.sort((a, b) => a.balance - b.balance);
 
             let month = 0, totalInterest = 0;
+            const history = [];   // total owed after each month
             while (items.some(d => d.balance > 0.01) && month < MAX) {
                 month++;
                 items.forEach(d => {
@@ -749,15 +761,17 @@
                         if (d.payoffMonth === null) d.payoffMonth = month;
                     }
                 });
+                history.push(sum(items, d => d.balance));
             }
             items.forEach((d, idx) => { d.order = idx + 1; });
-            return { items, months: month, totalInterest, never: month >= MAX && items.some(d => d.balance > 0.01) };
+            return { items, months: month, totalInterest, history, never: month >= MAX && items.some(d => d.balance > 0.01) };
         }
         const plan = run('plan');
         const minimums = run('minimums');
         const pool = extra0 + sum(open, line);
         return {
             items: plan.items,
+            history: plan.history,
             months: plan.months,
             never: plan.never,
             totalInterest: plan.totalInterest,
@@ -1109,7 +1123,7 @@
             // rhythm: each payment is the stated amount, or the yearly net pay over the payments
             // of the year; bonuses (décimos) arrive with the month's first payment.
             const split = sch.freq === 'monthly' && sch.interval === 1 && !sch.amount;
-            const perYear = {};
+            const nominal = nominalPaymentsPerYear(sch);
             Object.keys(byMonth).forEach(key => {
                 const dates = byMonth[key];
                 const total = pick(payPerMonth, key);
@@ -1120,8 +1134,7 @@
                     if (total > 0) dates.forEach(date => out.push({ date, kind: 'payday', name: 'Día de pago', amount: total / all }));
                     return;
                 }
-                const y = key.slice(0, 4);
-                const n = perYear[y] || (perYear[y] = paymentsPerYear(sch, y));
+                const n = nominal;
                 const each = sch.amount || (n ? base * 12 / n : 0);
                 if (each > 0) dates.forEach(date => out.push({ date, kind: 'payday', name: 'Día de pago', amount: each }));
                 if (total - base > 0.004) out.push({ date: dates[0], kind: 'payday', name: 'Décimo / bono', amount: total - base });
@@ -1187,13 +1200,54 @@
         return { takes, short: need > 0.004 ? need : 0 };
     }
 
+    // ------------------------------------------------------------------ forecast
+    // Future money by period (week / month / year): dated income events (paydays, repeating
+    // income) land on their day; everything planned per month without a date (expenses,
+    // savings, debt payments, other income) is spread evenly over the month's days.
+    // monthly: { 'YYYY-MM': { income, expense, savings, debt } }.
+    function projectFlows({ from, to, period = 'month', events = [], monthly = {} }) {
+        const rows = new Map();
+        const row = (iso) => {
+            const k = isoDate(periodStart(parseISO(iso), period));
+            if (!rows.has(k)) rows.set(k, { start: k, income: 0, expense: 0, savings: 0, debt: 0 });
+            return rows.get(k);
+        };
+        for (let d = parseISO(from), end = parseISO(to); d <= end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+            const iso = isoDate(d);
+            const m = monthly[iso.slice(0, 7)];
+            if (!m) { row(iso); continue; }
+            const n = daysIn(d.getFullYear(), d.getMonth() + 1);
+            const r = row(iso);
+            r.income += num(m.income) / n; r.expense += num(m.expense) / n; r.savings += num(m.savings) / n; r.debt += num(m.debt) / n;
+        }
+        (events || []).forEach(e => { if (e.date >= from && e.date <= to && e.amount > 0) row(e.date).income += e.amount; });
+        return [...rows.values()].sort((a, b) => a.start.localeCompare(b.start));
+    }
+
+    // Month-end balances ahead: cash moves with income − spending − savings − debt payments;
+    // savings grow with deposits and interest (annual %); debts follow the payoff plan
+    // (debtHistory: total owed after each month). Once debts are gone, their payments go to
+    // savings (the snowball keeps rolling).
+    function projectBalances({ start = {}, months = [], rate = 0, debtHistory = [] }) {
+        let cash = num(start.cash), savings = num(start.savings), debts = num(start.debts);
+        const r = num(rate) / 1200;
+        return months.map((m, i) => {
+            const nextDebt = debtHistory.length ? (i < debtHistory.length ? debtHistory[i] : 0) : debts;
+            const free = debts <= 0.01;
+            savings = savings * (1 + r) + num(m.savings) + (free ? num(m.debt) : 0);
+            cash += num(m.income) - num(m.expense) - num(m.savings) - num(m.debt);
+            debts = Math.max(0, nextDebt);
+            return { key: m.key, cash, savings, debts, net: cash + savings - debts };
+        });
+    }
+
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
-        occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear,
-        cashNow, cashEvents, safeToSpend, cashForecast, starveLines,
+        occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear, nominalPaymentsPerYear,
+        cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
-        holdingValue, holdingsValue, lineSpend, periodStart, periodSeries, billsDue, overspendRisk, isoDate,
+        holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
         incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
