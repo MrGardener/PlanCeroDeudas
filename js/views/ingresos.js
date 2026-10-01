@@ -4,12 +4,12 @@
     const { money, pct, esc } = Fmt;
 
     // ------------------------------------------------------------------ how you get paid
-    const WD = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const WD = Fmt.WEEKDAYS;
     const WD_PL = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
     const ORD = { 1: '1.º', 2: '2.º', 3: '3.º', 4: '4.º', 5: '5.º', '-1': 'último' };
     const EVERY = { 1: 'cada mes', 2: 'cada 2 meses', 3: 'cada 3 meses (trimestral)', 6: 'cada 6 meses (semestral)', 12: 'una vez al año' };
     const list = (xs) => xs.length > 1 ? `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}` : xs.join('');
-    const dayLabel = (iso) => { const d = new Date(iso + 'T12:00'); return `${WD[d.getDay()].slice(0, 3)} ${d.getDate()} ${Fmt.MONTH_SHORT[d.getMonth()].toLowerCase()}`; };
+    const dayLabel = (iso) => { const d = new Date(iso + 'T12:00'); return Fmt.lang === 'en' ? `${WD[d.getDay()].slice(0, 3)} ${Fmt.MONTH_SHORT[d.getMonth()]} ${d.getDate()}` : `${WD[d.getDay()].slice(0, 3)} ${d.getDate()} ${Fmt.MONTH_SHORT[d.getMonth()].toLowerCase()}`; };
 
     function describe(sch) {
         if (!sch) return 'Sin configurar';
@@ -29,7 +29,7 @@
     function renderSummary() {
         const sch = Cash.paySchedule();
         const next = sch ? Engine.nextPayday(sch, new Date()) : null;
-        UI.html('pay-summary', sch ? `${esc(describe(sch))}${next ? `<div class="text-xs font-normal text-slate-600">Próximo: ${esc(dayLabel(Engine.isoDate(next.date)))}${next.days === 0 ? ' (hoy)' : ` (en ${next.days} día${next.days === 1 ? '' : 's'})`}</div>` : ''}` : '<span class="text-slate-500 font-normal">Sin configurar</span>');
+        UI.html('pay-summary', sch ? `${esc(describe(sch))}${next ? `<div class="text-xs font-normal text-slate-600"><span>Próximo:</span> <span>${esc(dayLabel(Engine.isoDate(next.date)))}</span> <span>${next.days === 0 ? '(hoy)' : `(en ${next.days} día${next.days === 1 ? '' : 's'})`}</span></div>` : ''}` : '<span class="text-slate-500 font-normal">Sin configurar</span>');
     }
 
     // The editor works on a draft; nothing changes until "Guardar".

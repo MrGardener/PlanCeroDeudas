@@ -21,7 +21,9 @@ reason and what it needs) is logged in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 ```
 index.html              markup for every tab (no logic)
 css/app.css             shared components: cards, fields, buttons, KPI tiles, tables
-js/device.js            this device only: theme (light/dark/auto) and PIN lock — never in backups
+js/i18n.js              language layer: translates what's on screen from the Spanish source
+js/i18n/en.js           English dictionary (tests/i18n.test.js fails if a Spanish text lacks one)
+js/device.js            this device only: language, theme (light/dark/auto) and PIN lock — never in backups
 js/format.js            money/percent formatting, HTML escaping
 js/defaults.js          default budget template, categories, sample data, new-year factory
 js/engine.js            ALL financial math — pure functions, no DOM (payroll/SRI, budget,
@@ -35,6 +37,7 @@ js/views/whatif.js      "¿Y si compro…?" sandbox (nothing saved)
 js/views/*.js           one file per tab: render() on structure changes, update() for numbers
 tests/                  node:test unit tests (engine, store/migration, build)
 scripts/build.js        inlines everything into dist/
+scripts/i18n-extract.js lists every Spanish text the app can show (translation keys)
 ```
 
 Data flows one way: input → handler updates `Store.state` → `App.changed()` → autosave +

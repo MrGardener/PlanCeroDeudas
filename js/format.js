@@ -51,13 +51,35 @@
 
     const monthsAsYears = (m) => {
         const y = Math.floor(m / 12), r = m % 12;
+        const Y = lang === 'en' ? 'y' : 'a';
         if (y === 0) return `${r}m`;
-        return r === 0 ? `${y}a` : `${y}a ${r}m`;
+        return r === 0 ? `${y}${Y}` : `${y}${Y} ${r}m`;
     };
 
     const monthYear = (date) => `${MONTH_SHORT[date.getMonth()]} ${date.getFullYear()}`;
 
-    const Fmt = { MONTH_NAMES, MONTH_SHORT, CURRENCIES, setCurrency, currency, money, money0, pct, esc, parseNum, monthsAsYears, monthYear };
+    // Language of month and weekday names (the arrays are updated in place, so code holding
+    // them sees the change). Weekdays start on Monday.
+    const DOW_SHORT = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+    const NAMES = {
+        es: { months: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'], short: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'], dow: ['L', 'M', 'M', 'J', 'V', 'S', 'D'] },
+        en: { months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'], short: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], dow: ['M', 'T', 'W', 'T', 'F', 'S', 'S'] }
+    };
+    let lang = 'es';
+    function setLang(l) {
+        lang = NAMES[l] ? l : 'es';
+        MONTH_NAMES.splice(0, 12, ...NAMES[lang].months);
+        MONTH_SHORT.splice(0, 12, ...NAMES[lang].short);
+        DOW_SHORT.splice(0, 7, ...NAMES[lang].dow);
+        WEEKDAYS.splice(0, 7, ...WEEKDAYS_ALL[lang]);
+    }
+    const monthLower = (i) => (lang === 'en' ? MONTH_NAMES[i] : MONTH_NAMES[i].toLowerCase());
+    const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const WEEKDAYS_ALL = { es: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'], en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] };
+    // "30 de septiembre" / "September 30"
+    const dayMonth = (date) => (lang === 'en' ? `${MONTH_NAMES[date.getMonth()]} ${date.getDate()}` : `${date.getDate()} de ${MONTH_NAMES[date.getMonth()].toLowerCase()}`);
+
+    const Fmt = { MONTH_NAMES, MONTH_SHORT, DOW_SHORT, WEEKDAYS, monthLower, CURRENCIES, setCurrency, currency, money, money0, pct, esc, parseNum, monthsAsYears, monthYear, setLang, dayMonth, get lang() { return lang; } };
     if (typeof module !== 'undefined' && module.exports) module.exports = Fmt;
     else root.Fmt = Fmt;
 })(this);

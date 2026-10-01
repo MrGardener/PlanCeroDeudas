@@ -92,7 +92,7 @@
         const host = document.getElementById('dash-safe');
         if (!host) return;
         const c = safeContext(today);
-        const untilLabel = `${c.until.getDate()} de ${Fmt.MONTH_NAMES[c.until.getMonth()].toLowerCase()}`;
+        const untilLabel = Fmt.dayMonth(c.until);
         if (!c.cash) {
             host.innerHTML = `<div class="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
                 <p class="text-sm text-slate-600">Para saber cuánto puedes gastar hoy sin quedarte corto, dinos cuánto hay en tu cuenta corriente o en efectivo. Lo restamos de tus pagos pendientes, tus metas y tu colchón.</p>
@@ -131,7 +131,7 @@
     }
 
     // ------------------------------------------------------------------ money calendar
-    const DOW = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+    const DOW = Fmt.DOW_SHORT;
     const short = (v) => { const a = Math.abs(v); const t = a >= 10000 ? `${Math.round(a / 1000)}k` : a >= 1000 ? `${(a / 1000).toFixed(1)}k` : Math.round(a).toString(); return `${v < 0 ? '−' : ''}${Fmt.currency().symbol}${t}`; };
 
     function calendarData(offset, today = new Date()) {
@@ -175,8 +175,8 @@
         const agenda = c.days.filter(d => d.events.length || (d.f && d.f.status !== 'ok' && (!low[0] || d === low[0])));
         host.innerHTML = `
             ${c.cash ? (worst ? `<div class="bs-banner ${worst.f.status === 'short' ? 'bad' : worst.f.status === 'low' ? 'warn' : 'ok'} mb-3" id="cal-note">${worst.f.status === 'ok'
-                ? `<i class="fa-solid fa-circle-check"></i> Este mes no bajas de ${money0(worst.f.balance)} (${worst.day} de ${Fmt.MONTH_NAMES[c.first.getMonth()].toLowerCase()}).`
-                : `<i class="fa-solid fa-triangle-exclamation"></i> ${[shortN ? `${shortN} día${shortN === 1 ? '' : 's'} sin dinero suficiente` : '', lowN ? `${lowN} día${lowN === 1 ? '' : 's'} bajo tu colchón` : ''].filter(Boolean).join(' y ')}. El más ajustado: ${worst.day} de ${Fmt.MONTH_NAMES[c.first.getMonth()].toLowerCase()} con ${worst.f.balance < 0 ? '−' : ''}${money0(Math.abs(worst.f.balance))}. Adelanta un ingreso, mueve un pago o aparta dinero antes.`}</div>` : '')
+                ? `<i class="fa-solid fa-circle-check"></i> Este mes no bajas de ${money0(worst.f.balance)} (${Fmt.dayMonth(new Date(c.first.getFullYear(), c.first.getMonth(), worst.day))}).`
+                : `<i class="fa-solid fa-triangle-exclamation"></i> ${[shortN ? `${shortN} día${shortN === 1 ? '' : 's'} sin dinero suficiente` : '', lowN ? `${lowN} día${lowN === 1 ? '' : 's'} bajo tu colchón` : ''].filter(Boolean).join(' y ')}. El más ajustado: ${Fmt.dayMonth(new Date(c.first.getFullYear(), c.first.getMonth(), worst.day))} con ${worst.f.balance < 0 ? '−' : ''}${money0(Math.abs(worst.f.balance))}. Adelanta un ingreso, mueve un pago o aparta dinero antes.`}</div>` : '')
                 : '<p class="help mb-3">Agrega el saldo de tu cuenta (Patrimonio → Cuentas) para ver cuánto tendrás cada día y los días en que te quedarías corto.</p>'}
             <div class="cal-grid" role="grid" aria-label="Calendario de pagos e ingresos">
                 ${DOW.map(d => `<div class="cal-dow">${d}</div>`).join('')}

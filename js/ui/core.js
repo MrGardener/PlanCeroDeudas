@@ -163,6 +163,14 @@
             const canvas = document.getElementById(canvasId);
             if (!canvas || typeof Chart === 'undefined') return null;
             registerTodayLine();
+            // Chart text lives in the canvas, outside the page: translate it here.
+            if (root.I18n && I18n.lang !== 'es') {
+                const tr = (v) => (typeof v === 'string' ? I18n.t(v) : v);
+                if (Array.isArray(config.data.labels)) config.data.labels = config.data.labels.map(tr);
+                (config.data.datasets || []).forEach(d => { d.label = tr(d.label); });
+                const tl = config.options && config.options.plugins && config.options.plugins.todayLine;
+                if (tl && tl.label) tl.label = tr(tl.label);
+            }
             const money = (v) => Fmt.money0(v);
             const base = {
                 responsive: true,

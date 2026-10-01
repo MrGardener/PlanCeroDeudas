@@ -47,6 +47,27 @@
     }
     if (media && media.addEventListener) media.addEventListener('change', () => { if ((read().theme || 'light') === 'auto') setTheme('auto'); });
 
+    // ------------------------------------------------------------------ language
+    // Spanish or English, per device. The edition sets the default (Ecuador: Spanish, US: English).
+    const defaultLang = () => (root.APP_EDITION && root.APP_EDITION.lang) || 'es';
+    const getLang = () => read().lang || defaultLang();
+    function applyLang() {
+        if (!root.I18n) return;
+        I18n.setLang(getLang());
+        const b = document.getElementById('lang-toggle');
+        if (b) { b.textContent = getLang() === 'en' ? 'ES' : 'EN'; b.title = getLang() === 'en' ? 'Cambiar a español' : 'Switch to English'; }
+        const sel = document.getElementById('cfg-lang');
+        if (sel) sel.value = getLang();
+    }
+    function setLang(l) {
+        const d = read();
+        d.lang = l;
+        write(d);
+        applyLang();
+        // Redraw what was built with month names and chart labels.
+        if (root.App && App.render) App.render();
+    }
+
     // ------------------------------------------------------------------ PIN
     function randomSalt() {
         const a = new Uint8Array(16);
@@ -136,7 +157,7 @@
         if (document.hidden) hiddenAt = Date.now();
         else if (hiddenAt && Date.now() - hiddenAt >= IDLE_MS) showLock();
     });
-    document.addEventListener('DOMContentLoaded', () => { applyTheme(); showLock(); });
+    document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); showLock(); });
 
-    root.Device = { read, applyTheme, setTheme, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
+    root.Device = { read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
 })(this);

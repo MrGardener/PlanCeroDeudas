@@ -525,3 +525,5 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
 .pay-next li { display: flex; justify-content: space-between; gap: .5rem; border-bottom: 1px dashed #e2e8f0; padding: .2rem 0; color: #334155; }
 .pay-next .num { color: #047857; font-variant-numeric: tabular-nums; }
 html[data-theme="dark"] .pay-next li { border-bottom-color: var(--line); color: #cbd5e1; } html[data-theme="dark"] .pay-next .num { color: #34d399; }
+
+.icon-btn.icon-btn.lang-btn { width: auto; padding: 0 .5rem; font-size: .7rem; font-weight: 800; letter-spacing: .04em; }

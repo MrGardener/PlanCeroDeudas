@@ -38,6 +38,8 @@
 
     // Theme and PIN belong to this device (js/device.js), outside the saved budget.
     function renderDevice() {
+        const lang = document.getElementById('cfg-lang');
+        if (lang) lang.value = Device.getLang();
         const link = document.getElementById('cfg-quick-link');
         if (link) link.value = location.href.split('#')[0] + '#rapido';
         const sel = document.getElementById('cfg-theme');
@@ -72,6 +74,8 @@
 
     UI.register({
         'device.theme': (el) => Device.setTheme(el.value),
+        'device.lang': (el) => Device.setLang(el.value),
+        'device.toggleLang': () => Device.setLang(Device.getLang() === 'en' ? 'es' : 'en'),
         'device.toggleTheme': () => Device.setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'),
         'device.setPin': async () => {
             if (Device.hasPin()) {

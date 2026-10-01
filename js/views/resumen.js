@@ -85,7 +85,7 @@
         const spentToday = txns.filter(x => (x.type || 'Gasto') === 'Gasto' && x.date === iso).reduce((a, x) => a + (Number(x.amount) || 0), 0);
         const pay = Engine.nextPayday(Cash.paySchedule(), t);
         const streak = Engine.loggingStreak(txns, t);
-        const DOW = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+        const DOW = Fmt.DOW_SHORT;
         UI.html('dash-today', `
             <div class="kpi ${allow.perDay > 0 ? (spentToday > allow.perDay ? 'tone-amber' : 'tone-emerald') : 'tone-red'}">
                 <span class="kpi-label">Puedes gastar hoy</span>
@@ -95,7 +95,7 @@
             <div class="kpi tone-slate">
                 <span class="kpi-label">Próximo día de pago</span>
                 <span class="kpi-value">${pay ? (pay.days === 0 ? '¡Hoy!' : `En ${pay.days} día${pay.days === 1 ? '' : 's'}`) : '—'}</span>
-                <span class="kpi-note">${pay ? `${pay.date.getDate()} de ${Fmt.MONTH_NAMES[pay.date.getMonth()].toLowerCase()}` : '<a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-schedule">Dinos cómo te pagan</a>'}</span>
+                <span class="kpi-note">${pay ? Fmt.dayMonth(pay.date) : '<a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-schedule">Dinos cómo te pagan</a>'}</span>
             </div>
             <div class="kpi ${streak.days >= 3 ? 'tone-amber' : 'tone-slate'}">
                 <span class="kpi-label">${streak.days ? '🔥 Racha registrando' : 'Registra hoy'}</span>
@@ -113,7 +113,7 @@
                 <div><div class="flex justify-between"><span class="font-semibold text-slate-600">Entró</span><span><strong class="text-slate-900">${money0(cf.income)}</strong> ${chg(cf.income, cfp.income, true)}</span></div>${bar(cf.income / mx, '#1baf7a')}</div>
                 <div><div class="flex justify-between"><span class="font-semibold text-slate-600">Salió</span><span><strong class="text-slate-900">${money0(cf.expense)}</strong> ${chg(cf.expense, cfp.expense, false)}</span></div>${bar(cf.expense / mx, '#2a78d6')}</div>
                 <div class="flex justify-between border-t border-slate-100 pt-2"><span class="font-semibold text-slate-600">Balance</span><strong class="${cf.net < 0 ? 'text-red-600' : 'text-emerald-700'}">${cf.net < 0 ? '−' : '+'}${money0(Math.abs(cf.net))}</strong></div>
-                <p class="help">Según tus transacciones registradas. ▲▼ comparado con ${Fmt.MONTH_NAMES[pm - 1].toLowerCase()}.</p>
+                <p class="help">Según tus transacciones registradas. ▲▼ comparado con ${Fmt.monthLower(pm - 1)}.</p>
             </div>`);
 
         // Where the money went.
@@ -123,7 +123,7 @@
         const rest = br.items.slice(5).reduce((a, r) => a + r.amount, 0);
         UI.html('dash-top', br.total ? `<div class="space-y-2.5 text-xs">${top.map(r => `<div><div class="flex justify-between gap-2"><span class="font-semibold text-slate-700 truncate">${esc(r.category)}</span><span class="whitespace-nowrap"><strong>${money0(r.amount)}</strong> <span class="text-slate-400">${Math.round(r.share * 100)}%</span></span></div>${bar(r.amount / top[0].amount, '#2a78d6')}</div>`).join('')}
             ${rest ? `<div class="flex justify-between text-slate-500"><span>Otras categorías</span><span>${money0(rest)}</span></div>` : ''}
-            <p class="help">Total: ${money0(br.total)} en ${Fmt.MONTH_NAMES[m - 1].toLowerCase()}.</p></div>` : '<p class="help">Aún no registras gastos este mes.</p>');
+            <p class="help">Total: ${money0(br.total)} en ${Fmt.monthLower(m - 1)}.</p></div>` : '<p class="help">Aún no registras gastos este mes.</p>');
 
         // Insights
         const ins = Engine.monthInsights(txns, t);
