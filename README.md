@@ -22,10 +22,12 @@ reason and what it needs) is logged in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 index.html              markup for every tab (no logic)
 css/app.css             shared components: cards, fields, buttons, KPI tiles, tables
 js/i18n.js              language layer: translates what's on screen from the Spanish source
+js/i18n/us.js           US edition's Spanish wording (Seguro Social, CD, talón de pago…)
 js/i18n/en.js           English dictionary (tests/i18n.test.js fails if a Spanish text lacks one)
 js/device.js            this device only: language, theme (light/dark/auto) and PIN lock — never in backups
 js/format.js            money/percent formatting, HTML escaping
-js/defaults.js          default budget template, categories, sample data, new-year factory
+js/defaults.js          default budget template, categories, sample data, new-year factory (Ecuador)
+js/defaults-us.js       US edition: budget, sample data, 2026 federal tax tables, states, Michigan cities
 js/engine.js            ALL financial math — pure functions, no DOM (payroll/SRI, budget,
                         DPF projection, debts, goals, mortgage, retirement, net worth)
 js/importers.js         CSV / SRI invoice XML / receipt text parsing — pure, no DOM
@@ -42,6 +44,18 @@ scripts/i18n-extract.js lists every Spanish text the app can show (translation k
 
 Data flows one way: input → handler updates `Store.state` → `App.changed()` → autosave +
 re-render of the visible view. `update()` never recreates inputs, so typing keeps focus.
+
+## Editions
+
+One codebase, one file per country (`npm run build` makes both):
+
+| File | Edition | Default language |
+|---|---|---|
+| `dist/plan-financiero-ecuador.html` | Ecuador (IESS, SRI, décimos, DPF/COSEDE) | Spanish |
+| `dist/zerodebtplan-usa.html` | ZeroDebtPlan, United States (federal + FICA + Michigan/state + city tax, 401(k)/HSA, Social Security, FDIC CDs, PITI, OFX) | English |
+
+Both switch between English and Spanish. While developing, open `index.html?edition=us` for the US edition.
+Each edition saves in its own browser storage, so both can be used on the same device.
 
 ## Develop
 

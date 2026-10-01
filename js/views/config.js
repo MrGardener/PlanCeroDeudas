@@ -11,7 +11,15 @@
         const curSel = document.getElementById('cfg-currency');
         if (!curSel.options.length) curSel.innerHTML = Views.selectOptions(Fmt.CURRENCIES.map(c => ({ value: c.code, label: c.label })), s.settings.currency || 'USD');
         curSel.value = s.settings.currency || 'USD';
-        UI.html('cfg-brackets', yd.sriBrackets.map((b, i) => `<tr>
+        if (yd.usTax) {
+            const status = Store.ui.usBracketStatus || yd.filingStatus || 'single';
+            const sel = document.getElementById('cfg-us-status');
+            if (sel) sel.value = status;
+            UI.html('cfg-us-brackets', ((yd.usTax.brackets || {})[status] || []).map(([from, rate], i) => `<tr>
+                <td><input type="number" class="cell-input num" value="${from}" min="0" data-change="us.bracket" data-status="${status}" data-idx="${i}" data-field="0" aria-label="Desde"></td>
+                <td><input type="number" class="cell-input num" step="0.1" value="${+(rate * 100).toFixed(2)}" min="0" data-change="us.bracket" data-status="${status}" data-idx="${i}" data-field="1" aria-label="Tasa (%)"></td></tr>`).join(''));
+        }
+        UI.html('cfg-brackets', (yd.sriBrackets || []).map((b, i) => `<tr>
             <td><input type="number" class="cell-input num" value="${b.min}" data-change="cfg.bracket" data-idx="${i}" data-field="min"></td>
             <td><input type="number" class="cell-input num" value="${b.max}" data-change="cfg.bracket" data-idx="${i}" data-field="max"></td>
             <td><input type="number" class="cell-input num" value="${b.baseTax}" data-change="cfg.bracket" data-idx="${i}" data-field="baseTax"></td>
@@ -130,6 +138,13 @@
                 Store.state.members = Store.state.members.filter(x => x.id !== id);
                 Store.state.transactions.forEach(t => { if (t.memberId === id) delete t.memberId; });
             });
+        },
+        'us.bracketStatus': (el) => { Store.ui.usBracketStatus = el.value; App.render(); },
+        'us.bracket': (el) => {
+            const b = Store.active().usTax.brackets[el.dataset.status][Number(el.dataset.idx)];
+            const v = Math.max(0, parseNum(el.value, 0));
+            b[Number(el.dataset.field)] = el.dataset.field === '1' ? v / 100 : v;
+            App.changed({ step: true });
         },
         'cfg.bracket': (el) => {
             const b = Store.active().sriBrackets[Number(el.dataset.idx)];

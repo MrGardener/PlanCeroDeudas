@@ -68,13 +68,8 @@
         depth = level;
         try { return t(text); } finally { depth = prev; }
     }
-    function t(text) {
-        if (lang === 'es' || text == null) return text;
-        const d = dicts[lang];
-        if (!d) return text;
-        const s = String(text);
-        const key = norm(s);
-        if (!key || !/[A-Za-zÁÉÍÓÚáéíóúñÑ]/.test(key)) return s;
+    // Look a text up in one dictionary (exact, patterns, then pieces); undefined when unknown.
+    function lookup(d, key) {
         let hit = d.exact.get(key);
         if (hit === undefined) {
             const cands = (d.byPrefix.get(key.slice(0, 4)) || []).concat(d.lead);
@@ -98,11 +93,34 @@
             const parts = key.split(' · '), tr = parts.map(p => t(p));
             if (tr.some((p, i) => p !== parts[i])) hit = tr.join(' · ');
         }
-        if (hit === undefined) return s;
+        return hit;
+    }
+
+    // Country wording first (the US edition says "Seguro Social" where Ecuador says "IESS"),
+    // then the language.
+    function t(text) {
+        if (text == null) return text;
+        const s = String(text);
+        const key = norm(s);
+        if (!key || !/[A-Za-zÁÉÍÓÚáéíóúñÑ]/.test(key)) return s;
+        let cur = key;
+        let changed = false;
+        if (country && !inCountry) {
+            inCountry = true;
+            try { const o = lookup(country, key); if (o !== undefined) { cur = norm(o); changed = true; } } finally { inCountry = false; }
+        }
+        if (lang !== 'es' && dicts[lang] && !inCountry) {
+            const hit = lookup(dicts[lang], cur);
+            if (hit !== undefined) { cur = hit; changed = true; }
+        }
+        if (!changed) return s;
         // Keep the spaces around the original text.
         const lead = s.match(/^\s*/)[0], trail = s.match(/\s*$/)[0];
-        return lead + hit + trail;
+        return lead + cur + trail;
     }
+    let country = null, inCountry = false;
+    const countries = {};
+    const active = () => lang !== 'es' || !!country;
 
     const skip = (el) => el && el.closest && el.closest('[data-i18n-skip], script, style, textarea');
 
@@ -127,7 +145,7 @@
     }
 
     function apply(rootEl) {
-        if (lang === 'es' || !rootEl) return;
+        if (!active() || !rootEl) return;
         if (rootEl.nodeType === 3) { if (!skip(rootEl.parentElement)) translateText(rootEl); return; }
         if (rootEl.nodeType !== 1 || skip(rootEl)) return;
         translateAttrs(rootEl);
@@ -155,7 +173,7 @@
     function observe() {
         if (observer || typeof MutationObserver === 'undefined') return;
         observer = new MutationObserver((muts) => {
-            if (busy || lang === 'es') return;
+            if (busy || !active()) return;
             busy = true;
             try {
                 muts.forEach(m => {
@@ -168,6 +186,15 @@
         observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
     }
 
+    // The edition's own wording (Spanish → Spanish), applied before translating.
+    function setCountry(code) {
+        country = countries[code] || null;
+        if (typeof document === 'undefined' || !document.body) return;
+        busy = true;
+        try { restore(document.body); apply(document.body); } finally { busy = false; }
+        observe();
+    }
+
     function setLang(l) {
         const next = dicts[l] || l === 'es' ? l : 'es';
         if (next === lang) return;
@@ -176,13 +203,16 @@
         document.documentElement.lang = lang;
         if (root.Fmt && Fmt.setLang) Fmt.setLang(lang);
         busy = true;
-        try { if (prev !== 'es') restore(document.body); apply(document.body); } finally { busy = false; }
+        try { if (prev !== 'es' || country) restore(document.body); apply(document.body); } finally { busy = false; }
         observe();
     }
 
     root.I18n = {
         add(l, entries) { const src = Object.assign({}, dicts[l] ? dicts[l].src : {}, entries); dicts[l] = compile(src); dicts[l].src = src; },
         keys: (l) => Object.keys((dicts[l] && dicts[l].src) || {}),
+        country(code, entries) { const src = Object.assign({}, countries[code] ? countries[code].src : {}, entries); countries[code] = compile(src); countries[code].src = src; },
+        countryKeys: (code) => Object.keys((countries[code] && countries[code].src) || {}),
+        setCountry,
         t, apply, setLang, get lang() { return lang; }, has: (l) => l === 'es' || !!dicts[l]
     };
 })(this);

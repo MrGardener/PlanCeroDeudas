@@ -135,7 +135,7 @@
                 if (e.description) out.description = e.description;
                 if (e.budgetLine !== undefined && r.type !== 'Ingreso') out.budgetLine = e.budgetLine;
             }
-            out.ref = r.error ? '' : Importers.importRef(r);
+            out.ref = r.error ? '' : r.fitid ? 'ofx:' + r.fitid : Importers.importRef(r);
             const dup = !r.error && (!!r.dupKey || Importers.isDuplicate(out, Store.state.transactions) || Importers.isDuplicate(r, Store.state.transactions) || Store.state.transactions.some(t => t.importRef === out.ref));
             let match = null;
             if (!r.error && !dup) {
@@ -192,6 +192,12 @@
         UI.show(ms, members.length > 0);
         if (members.length && !ms.options.length) ms.innerHTML = `<option value="">¿De quién? (nadie)</option>` + members.map(p => `<option value="${p.id}">De ${esc(p.name)}</option>`).join('');
         renderBulk(ok.length);
+        // OFX files carry the account's balance: offer to update one of yours with it.
+        const ab = document.getElementById('imp-ofx-account');
+        if (ab) {
+            ab.classList.toggle('hidden', !(s.source === 'ofx' && s.ofxBalance));
+            if (s.source === 'ofx' && s.ofxBalance) ab.innerHTML = `<label class="field max-w-md"><span class="field-label">Actualizar el saldo de (${money(s.ofxBalance.balance)} al ${esc(s.ofxBalance.date || '')})</span><select class="input" data-change="imp.account">${[['', 'No actualizar ninguna cuenta'], ['new', 'Una cuenta nueva']].concat((Store.state.accounts || []).map(a => [String(a.id), a.name])).map(([v, l]) => `<option value="${v}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+        }
         const catOptions = (r) => Object.keys(r.type === 'Ingreso' ? incomeTax() : expenseTax()).map(c => `<option ${c === r.category ? 'selected' : ''}>${esc(c)}</option>`).join('');
         UI.html('imp-rows', s.rows.slice(0, 500).map((r, i) => `<tr class="${r.error ? 'opacity-60' : ''}">
                 <td class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggle" data-i="${i}" ${r.include ? 'checked' : ''} ${r.error ? 'disabled' : ''}></td>
@@ -290,7 +296,18 @@
             if (!file) return;
             if (/\.xlsx?$/i.test(file.name)) { UI.toast('Ese es un archivo de Excel. Ábrelo y guárdalo como CSV, luego elígelo aquí.', 'error'); el.value = ''; return; }
             UI.text('imp-file-name', `${file.name} · ${file.size < 1024 ? file.size + ' bytes' : Math.round(file.size / 1024) + ' KB'}`);
-            startSession(file.name, await readText(file));
+            const text = await readText(file);
+            const ofx = Importers.parseOFX(text);
+            if (ofx) {
+                // OFX/QFX: no columns to map; each movement has a unique id (FITID).
+                if (!ofx.rows.length) { UI.toast('No encontramos movimientos en ese archivo OFX.', 'error'); return; }
+                session = { source: 'ofx', name: file.name, rows: ofx.rows, base: ofx.rows, include: {}, edits: {}, catMap: {}, ofxBalance: ofx.balance };
+                recompute();
+                renderSetup();
+                renderPreview();
+                return;
+            }
+            startSession(file.name, text);
         },
         'imp.headerRow': (el) => {
             if (!session) return;
@@ -380,7 +397,7 @@
             }
             // The statement's running balance updates the chosen account.
             let balanceNote = '';
-            const lb = s.source === 'csv' && s.account ? Importers.latestBalance(s.rows) : null;
+            const lb = s.account ? (s.source === 'csv' ? Importers.latestBalance(s.rows) : s.source === 'ofx' ? s.ofxBalance : null) : null;
             if (lb) {
                 const accts = Store.state.accounts || (Store.state.accounts = []);
                 let a = accts.find(x => String(x.id) === String(s.account));

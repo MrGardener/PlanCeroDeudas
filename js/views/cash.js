@@ -193,7 +193,7 @@
         'cal.move': (el) => { Store.ui.calOffset = Math.max(0, Math.min(2, (Number(Store.ui.calOffset) || 0) + Number(el.dataset.step))); renderCalendar(new Date()); },
         'safe.addAccount': () => {
             App.go('patrimonio', { focus: 'nw-accounts' });
-            if (!(Store.state.accounts || []).some(a => a.kind !== 'ahorros')) {
+            if (!(Store.state.accounts || []).some(Engine.isCashAccount)) {
                 const b = document.querySelector('[data-action="acct.add"]');
                 if (b) b.click();
                 const acc = Store.state.accounts[Store.state.accounts.length - 1];

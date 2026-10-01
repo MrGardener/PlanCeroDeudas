@@ -24,6 +24,11 @@
             ? [['tone-blue', 'Primera cuota', money(base.firstPayment)], ['tone-blue', 'Última cuota', money(base.lastPayment)]]
             : [['tone-blue', 'Cuota mensual', money(base.firstPayment)], ['tone-slate', 'Plazo', Fmt.monthsAsYears(months)]];
         tiles.push(['tone-red', 'Interés total', money0(base.totalInterest)], ['tone-slate', 'Total pagado', money0(base.totalPaid)]);
+        // US: what you really pay each month (PITI).
+        if (ctx.budgetYear.country === 'US') {
+            const p = Engine.pitiMonthly(Object.assign({ payment: base.firstPayment }, m));
+            tiles.unshift(['tone-amber', 'Pago mensual total (PITI)', `${money(p.total)}<span class="kpi-note block">Capital e interés ${money(p.pi)} · impuesto ${money(p.tax)} · seguro ${money(p.ins)}${p.pmi ? ` · PMI ${money(p.pmi)}` : ''}${p.hoa ? ` · HOA ${money(p.hoa)}` : ''}</span>`]);
+        }
         let html = tiles.map(([tone, label, value]) => `<div class="kpi ${tone}"><span class="kpi-label">${label}</span><span class="kpi-value">${value}</span></div>`).join('');
         if (extra) {
             html += `<div class="kpi tone-emerald col-span-2"><span class="kpi-label"><i class="fa-solid fa-piggy-bank"></i> Con ${money0(m.extraPayment)} extra al mes</span><span class="kpi-value">Terminas en ${Fmt.monthsAsYears(extra.months)}</span><span class="kpi-note">En vez de ${Fmt.monthsAsYears(months)} · ${Fmt.monthsAsYears(months - extra.months)} antes</span></div>

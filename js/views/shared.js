@@ -83,11 +83,11 @@
         if (s.activeYear !== ctx.today.getFullYear()) return null;
         const f = ctx.netWorth.fields;
         const holdings = Engine.holdingsValue(s.holdings);
-        const expected = { investments: ctx.polizasCapital + holdings };
         const accts = s.accounts || [];
+        const expected = { investments: ctx.polizasCapital + holdings + Engine.accountTotal(accts, 'retiro') };
         if (accts.length) {
-            expected.checking = accts.filter(a => a.kind !== 'ahorros').reduce((t, a) => t + (Number(a.balance) || 0), 0);
-            expected.savings = accts.filter(a => a.kind === 'ahorros').reduce((t, a) => t + (Number(a.balance) || 0), 0);
+            expected.checking = Engine.accountTotal(accts, 'cash');
+            expected.savings = Engine.accountTotal(accts, 'ahorros');
         }
         Engine.DEBT_KINDS.forEach(k => { expected[k.netWorthField] = 0; });
         s.debts.forEach(d => {

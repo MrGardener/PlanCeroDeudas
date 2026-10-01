@@ -44,15 +44,20 @@
         return s[scope];
     }
 
+    // "year.sueldo" or deeper ("year.usTax.stdDeduction.single").
+    function boundParent(path) {
+        const [scope, ...rest] = path.split('.');
+        let obj = bindTarget(scope);
+        for (let i = 0; obj && i < rest.length - 1; i++) obj = obj[rest[i]];
+        return [obj, rest[rest.length - 1]];
+    }
     function readBound(el) {
-        const [scope, field] = el.dataset.bind.split('.');
-        const obj = bindTarget(scope);
+        const [obj, field] = boundParent(el.dataset.bind);
         return obj ? obj[field] : undefined;
     }
 
     function writeBound(el) {
-        const [scope, field] = el.dataset.bind.split('.');
-        const obj = bindTarget(scope);
+        const [obj, field] = boundParent(el.dataset.bind);
         if (!obj) return;
         let v;
         if (el.type === 'checkbox') v = el.checked;
@@ -107,7 +112,9 @@
             const r = s.retirement;
             return {
                 ...r,
-                ahorroActual: ctx.polizasCapital,
+                country: ctx.budgetYear.country, usTax: ctx.year.usTax,
+                // US: 401(k)/IRA balances (accounts) are retirement savings too.
+                ahorroActual: ctx.polizasCapital + (ctx.budgetYear.country === 'US' ? Engine.accountTotal(s.accounts, 'retiro') : 0),
                 aporteMensual: ctx.retirementMonthly,
                 tasaRetorno: r.tasaRetorno === null || r.tasaRetorno === undefined ? ctx.year.tasa : r.tasaRetorno,
                 sueldoPromedio: r.sueldoPromedio === null || r.sueldoPromedio === undefined ? ctx.year.sueldo : r.sueldoPromedio
@@ -317,6 +324,8 @@
     });
 
     function init() {
+        const E = root.APP_EDITION || {};
+        if (E.appName) { UI.text('brand-title', E.appName); UI.text('brand-sub', E.appSub || ''); }
         Store.init();
         hist.committed = Store.serialize();
         UI.initEvents();

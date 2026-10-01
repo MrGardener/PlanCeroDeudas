@@ -6,14 +6,19 @@ const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 
 // Internal names that look like words but are never shown.
-const IGNORE = /^[a-z0-9-]+(\/[a-z]+)?$|^[.\[]|^es-|^en-|^pt-|total|^no (lib|Tesseract)$|^ya$|^ón|^disabled title|Alianza del Valle|Cooperativa Politécnica|Jardín Azuayo/;
+const IGNORE = /^[A-Z]{2}$|^[a-z0-9-]+(\/[a-z]+)?$|^[.\[]|^es-|^en-|^pt-|total|^no (lib|Tesseract)$|^ya$|^ón|^disabled title|Alianza del Valle|Cooperativa Politécnica|Jardín Azuayo/;
 
 test('every Spanish text has an English translation', () => {
     const keys = Object.keys(JSON.parse(execFileSync('node', [path.join(__dirname, '..', 'scripts', 'i18n-extract.js')], { encoding: 'utf8', maxBuffer: 1 << 24 })));
     global.I18n = { d: {}, add(l, e) { Object.assign(this.d, e); } };
     require('../js/i18n/en.js');
     const have = new Set(Object.keys(global.I18n.d).map(k => k.replace(/\s+/g, ' ').trim()));
-    const missing = keys.filter(k => !have.has(k) && !IGNORE.test(k));
+    // The US edition's own Spanish wording (js/i18n/us.js) needs English too.
+    const country = {};
+    global.I18n.country = (c, e) => Object.assign(country, e);
+    require('../js/i18n/us.js');
+    keys.push(...Object.values(country));
+    const missing = [...new Set(keys)].filter(k => !have.has(k.replace(/\s+/g, ' ').trim()) && !IGNORE.test(k));
     assert.deepEqual(missing, [], `Missing English for:\n${missing.join('\n')}`);
 });
 

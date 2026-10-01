@@ -8,7 +8,7 @@
  */
 (function (root) {
     'use strict';
-    const KEY = 'plan_financiero_ec_device';
+    const KEY = (root.APP_EDITION && root.APP_EDITION.deviceKey) || 'plan_financiero_ec_device';
     const IDLE_MS = 5 * 60 * 1000;      // lock again after 5 minutes in the background
     const MAX_TRIES = 5, WAIT_MS = 30 * 1000;
 
@@ -53,6 +53,7 @@
     const getLang = () => read().lang || defaultLang();
     function applyLang() {
         if (!root.I18n) return;
+        if (root.APP_EDITION && APP_EDITION.country !== 'EC') I18n.setCountry(APP_EDITION.country);
         I18n.setLang(getLang());
         const b = document.getElementById('lang-toggle');
         if (b) { b.textContent = getLang() === 'en' ? 'ES' : 'EN'; b.title = getLang() === 'en' ? 'Cambiar a español' : 'Switch to English'; }

@@ -10,7 +10,12 @@
     const Defaults = root.Defaults || (typeof require !== 'undefined' ? require('./defaults.js') : null);
     const Engine = root.Engine || (typeof require !== 'undefined' ? require('./engine.js') : null);
 
-    const KEY = 'plan_financiero_ec_v7_store';
+    // The edition (set by the build: Ecuador or US) decides the starting data and where it's
+    // saved, so both editions can live side by side in one browser.
+    const EDITION = root.APP_EDITION || {};
+    const COUNTRY = EDITION.country || 'EC';
+    const D = COUNTRY === 'US' ? (root.DefaultsUS || (typeof require !== 'undefined' ? require('./defaults-us.js') : Defaults)) : Defaults;
+    const KEY = EDITION.storageKey || 'plan_financiero_ec_v7_store';
     const SAVE_DELAY_MS = 400;
 
     const deepFreeze = (o) => { Object.values(o).forEach(v => { if (v && typeof v === 'object') deepFreeze(v); }); return Object.freeze(o); };
@@ -18,7 +23,7 @@
 
     // Bring one year's data up to the current shape (older saves predate some fields).
     function normalizeYear(yd) {
-        const fresh = Defaults.newYear();
+        const fresh = D.newYear();
         Object.keys(fresh).forEach(k => { if (yd[k] === undefined) yd[k] = fresh[k]; });
         const nw = yd.netWorth || (yd.netWorth = {});
         if (nw.cash !== undefined && nw.checking === undefined) { nw.checking = nw.cash; nw.savings = 0; }
@@ -37,7 +42,8 @@
     // Accepts the current format (version 8) or the pre-refactor flat format, and returns
     // a complete, normalized state. Anything missing falls back to the defaults.
     function migrate(raw, today) {
-        const s = Defaults.newState(today);
+        const s = D.newState(today);
+        s.settings.country = COUNTRY;
         if (!raw || typeof raw !== 'object') return s;
 
         if (raw.version >= 8) {
@@ -103,12 +109,13 @@
         s.assets.forEach(a => { if (!a.valuesByYear) a.valuesByYear = {}; });
         s.configStartYear = Number(s.configStartYear); s.configEndYear = Number(s.configEndYear);
         s.activeYear = Math.min(s.configEndYear, Math.max(s.configStartYear, Number(s.activeYear)));
+        s.settings.country = s.settings.country || COUNTRY;
         s.version = 8;
         return s;
     }
 
     const Store = {
-        KEY,
+        KEY, COUNTRY, EDITION, defaults: D,
         state: null,
         ui: { tab: 'resumen', sub: { presupuesto: 'plan', ahorro: 'proyeccion' }, month: 'base', txnFilters: { year: 'all', month: 'all', type: 'all', category: 'all' }, txnEditing: null, txnSearch: '', budgetLayout: 'simple', budgetMode: null, trend: { period: 'month', count: 12 } },
         status: { lastSavedAt: null, error: null },
@@ -132,7 +139,7 @@
         // A year's data for editing — created from defaults the first time it's touched.
         year(y) {
             y = Number(y === undefined ? this.state.activeYear : y);
-            if (!this.state.years[y]) this.state.years[y] = Defaults.newYear();
+            if (!this.state.years[y]) this.state.years[y] = D.newYear();
             return this.state.years[y];
         },
 
@@ -141,7 +148,7 @@
         // silently changing every unconfigured year.
         peekYear(y) {
             if (this.state.years[y]) return this.state.years[y];
-            if (!frozenDefaultYear) frozenDefaultYear = deepFreeze(Defaults.newYear());
+            if (!frozenDefaultYear) frozenDefaultYear = deepFreeze(D.newYear());
             return frozenDefaultYear;
         },
 
@@ -181,6 +188,7 @@
             const overrides = {};
             Object.keys(yd.monthOverrides || {}).forEach(m => { overrides[m] = yd.monthOverrides[m].concat(rows); });
             return Object.assign({}, yd, {
+                country: (this.state.settings && this.state.settings.country) || COUNTRY,
                 budgetBase: (yd.budgetBase || []).concat(rows),
                 monthOverrides: overrides,
                 receivedIncome: Engine.receivedIncome(this.state.transactions, y)
@@ -231,7 +239,7 @@
         },
 
         reset(kind) {
-            this.state = kind === 'empty' ? Defaults.emptyState() : Defaults.newState();
+            this.state = kind === 'empty' ? D.emptyState() : D.newState();
             this.year(this.state.activeYear);
             if (this.storage) this.storage.removeItem(KEY);
             this._lastSaved = null;
@@ -273,7 +281,7 @@
             const src = Defaults.clone(this.year(fromY));
             const target = this.state.years[toY];
             if (target) { src.netWorth = target.netWorth; src.netWorthTouched = target.netWorthTouched; }
-            else { const fresh = Defaults.newYear(); src.netWorth = fresh.netWorth; src.netWorthTouched = fresh.netWorthTouched; }
+            else { const fresh = D.newYear(); src.netWorth = fresh.netWorth; src.netWorthTouched = fresh.netWorthTouched; }
             this.state.years[toY] = src;
         }
     };

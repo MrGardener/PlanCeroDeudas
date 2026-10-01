@@ -642,3 +642,48 @@ test('a 27-paycheck year pays 27 regular checks (salary ÷ 26 each)', () => {
     assert.equal(ev.length, 27);
     assert.ok(ev.every(e => Math.abs(e.amount - 1200) < 1e-9));
 });
+
+// ---- United States (ZeroDebtPlan)
+const US = require('../js/defaults-us.js');
+const usYear = (over) => Object.assign(US.newYear(), { payDeductions: [] }, over);
+const near = (a, b, msg) => assert.ok(Math.abs(a - b) < 0.01, `${msg}: ${a} vs ${b}`);
+
+test('US paycheck: single in Michigan, $5,000 a month', () => {
+    const p = E.payroll(usYear({}));
+    near(p.fedM * 12, 5020, 'federal');                       // (60,000 − 16,100) through the 2026 brackets
+    near(p.ssM * 12, 3720, 'social security');
+    near(p.medM * 12, 870, 'medicare');
+    near(p.stateM * 12, 2303.5, 'Michigan 4.25% after the $5,800 exemption');
+    near(p.netoM, 4007.21, 'net per month');
+});
+
+test('US paycheck: pre-tax 401(k) lowers income tax only; health lowers FICA too; city tax', () => {
+    const p = E.payroll(usYear({ localRate: 2.4, payDeductions: [
+        { id: 1, name: '401(k)', group: 'retirement', kind: 'retirement', pretax: true, monthly: 300 },
+        { id: 2, name: 'Medical', group: 'insurance', kind: 'health', pretax: true, monthly: 150 },
+        { id: 3, name: 'Federal', group: 'mandatory', kind: 'federal', monthly: 400 }   // from a stub: computed, not subtracted again
+    ] }));
+    near(p.fedM * 12, 4372, 'federal on 54,600');
+    near((p.ssM + p.medM) * 12, 4452.3, 'FICA on 58,200');
+    near(p.stateM * 12, 2074, 'Michigan');
+    near(p.localM * 12, 1310.4, 'Detroit 2.4%');
+    near(p.otrosDescuentosM, 450, 'only the 401(k) and medical come off as deductions');
+});
+
+test('US paycheck: married with two kids; Social Security stops at the wage base', () => {
+    near(E.payroll(usYear({ sueldo: 10000, filingStatus: 'mfj', dependents: 2 })).fedM * 12, 5640, 'MFJ with child credits');
+    const high = E.payroll(usYear({ sueldo: 20000 }));
+    near(high.ssM * 12, 11439, 'SS capped at $184,500');
+    near(high.medM * 12, 3840, 'Medicare + 0.9% over $200k');
+    near(E.payroll(usYear({ state: 'TX' })).stateM, 0, 'Texas has no wage tax');
+    near(E.payroll(usYear({ state: 'CA', stateRate: 5 })).stateM * 12, 3000, 'a state you enter a rate for');
+});
+
+test('Social Security estimate: PIA formula and claiming age', () => {
+    const t = US.usTax2026();
+    const at = (age) => E.socialSecurity({ sueldoPromedio: 5000, aniosAportados: 10, aniosRestantes: 25, edadJubilacion: age, usTax: t });
+    near(at(67), 2345.88, 'full retirement age');
+    near(at(62), 2345.88 * 0.7, 'at 62: 30% less');
+    near(at(70), 2345.88 * 1.24, 'at 70: 24% more');
+    near(E.socialSecurity({ sueldoPromedio: 5000, aniosAportados: 5, aniosRestantes: 12.5, edadJubilacion: 67, usTax: t }), 0.9 * 1286 + 0.32 * (2500 - 1286), 'half a career');
+});

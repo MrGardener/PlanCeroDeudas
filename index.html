@@ -4,8 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plan Financiero Ecuador</title>
+    <script>/* Edition: Ecuador or US (ZeroDebtPlan). The build fixes it; while developing, add ?edition=us */
+    window.APP_EDITION = window.APP_EDITION || (/[?&]edition=us\b/i.test(location.search)
+        ? { country: 'US', lang: 'en', appName: 'ZeroDebtPlan', appSub: 'Presupuesto, deudas, ahorro y jubilación', storageKey: 'zerodebtplan_us_store', deviceKey: 'zerodebtplan_us_device' }
+        : { country: 'EC', lang: 'es', appName: 'Plan Financiero Ecuador', appSub: 'Presupuesto, deudas, DPF y jubilación · USD', storageKey: 'plan_financiero_ec_v7_store', deviceKey: 'plan_financiero_ec_device' });
+    document.documentElement.dataset.country = APP_EDITION.country;
+    document.title = APP_EDITION.appName;</script>
     <script>/* Theme and lock before first paint (see js/device.js) */
-    try { var d = JSON.parse(localStorage.getItem('plan_financiero_ec_device') || '{}'), t = d.theme || 'light';
+    try { var d = JSON.parse(localStorage.getItem(APP_EDITION.deviceKey) || '{}'), t = d.theme || 'light';
           if (t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.theme = 'dark';
           if (d.lock && d.lock.hash) document.documentElement.classList.add('app-locked'); } catch (e) {}</script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -21,8 +27,8 @@
         <div class="brand">
             <div class="brand-logo"><i class="fa-solid fa-chart-line"></i></div>
             <div class="min-w-0">
-                <div class="brand-title">Plan Financiero Ecuador</div>
-                <div class="brand-sub hidden sm:block">Presupuesto, deudas, DPF y jubilación · USD</div>
+                <div class="brand-title" id="brand-title">Plan Financiero Ecuador</div>
+                <div class="brand-sub hidden sm:block" id="brand-sub">Presupuesto, deudas, DPF y jubilación · USD</div>
             </div>
         </div>
         <div class="header-actions">
@@ -257,20 +263,21 @@
                     <div class="card-title"><i class="fa-solid fa-money-check-dollar text-emerald-600"></i> Tu Sueldo · <span class="active-year"></span></div>
                     <div class="card-sub">Estos datos definen tu sueldo neto, que alimenta el presupuesto, la proyección DPF y la jubilación. ¿Tienes otros ingresos (negocio, freelance, remesas)? <a href="#" class="link" data-goto="presupuesto/plan">Agrégalos en el Presupuesto del Mes</a>.</div>
                 </div>
-                <a href="#" class="link text-xs" data-goto="config" data-focus="cfg-legal">Parámetros legales (IESS, SBU, tabla SRI) →</a>
+                <a href="#" class="link text-xs" data-goto="config" data-focus="cfg-legal"><span data-country="EC">Parámetros legales (IESS, SBU, tabla SRI) →</span><span data-country="US">Parámetros de impuestos (federal, Seguro Social, estado) →</span></a>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <label class="field field-box tone-amber">
                     <span class="field-label"><span>Sueldo bruto mensual (<span class="cur">$</span>)</span></span>
                     <input type="number" class="input" step="50" min="0" data-bind="year.sueldo">
-                    <span class="help">Sueldo unificado en relación de dependencia.</span>
+                    <span class="help" data-country="EC">Sueldo unificado en relación de dependencia.</span>
+                    <span class="help" data-country="US" id="inc-annual"></span>
                 </label>
-                <div class="field-box tone-blue space-y-2">
+                <div class="field-box tone-blue space-y-2" data-country="EC">
                     <span class="field-label">Décimos</span>
                     <label class="check"><input type="checkbox" data-bind="year.d3"><span>Décimo Tercero <span class="block text-[11px] font-normal text-slate-500">Un sueldo extra en diciembre</span></span></label>
                     <label class="check"><input type="checkbox" data-bind="year.d4"><span>Décimo Cuarto <span class="block text-[11px] font-normal text-slate-500">Un SBU (<span id="inc-sbu"></span>) según tu región</span></span></label>
                 </div>
-                <label class="field field-box tone-blue">
+                <label class="field field-box tone-blue" data-country="EC">
                     <span class="field-label">Región del Décimo Cuarto</span>
                     <select class="input" data-bind="year.d4Region">
                         <option value="costa">Costa e Insular (Marzo)</option>
@@ -284,7 +291,32 @@
                     <button type="button" class="btn btn-secondary btn-sm mt-1 self-start" data-action="pay.edit" id="pay-edit"><i class="fa-regular fa-calendar"></i> Configurar</button>
                     <span class="help">Cada semana, cada 2 semanas, días fijos, 2.º y 4.º viernes, a diario… El calendario y "Seguro para gastar" lo usan.</span>
                 </div>
-                <label class="field field-box tone-slate">
+                <!-- US: how federal, state and city tax are figured -->
+                <label class="field field-box tone-blue" data-country="US">
+                    <span class="field-label">Estado civil para impuestos</span>
+                    <select class="input" data-bind="year.filingStatus" data-structural="true">
+                        <option value="single">Soltero/a</option>
+                        <option value="mfj">Casado/a, declaración conjunta</option>
+                        <option value="hoh">Jefe/a de familia</option>
+                    </select>
+                </label>
+                <div class="field field-box tone-blue" data-country="US">
+                    <span class="field-label">Dependientes</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label><span class="help block">Hijos menores de 17</span><input type="number" class="input" min="0" step="1" data-bind="year.dependents"></label>
+                        <label><span class="help block">Otros dependientes</span><input type="number" class="input" min="0" step="1" data-bind="year.otherDependents"></label>
+                    </div>
+                </div>
+                <div class="field field-box tone-blue" data-country="US">
+                    <span class="field-label">Estado y ciudad</span>
+                    <select class="input" id="inc-state" data-change="us.state" aria-label="Estado"></select>
+                    <div class="grid grid-cols-2 gap-2 mt-1">
+                        <label><span class="help block" id="inc-state-rate-label">Impuesto estatal (%)</span><input type="number" class="input" min="0" step="0.01" id="inc-state-rate" data-change="us.stateRate" placeholder="Automático"></label>
+                        <label><span class="help block">Impuesto de tu ciudad (%)</span><select class="input" id="inc-city" data-change="us.city"></select></label>
+                    </div>
+                    <span class="help" id="inc-state-note"></span>
+                </div>
+                <label class="field field-box tone-slate" data-country="EC">
                     <span class="field-label">Cálculo anual de deducibles</span>
                     <select class="input" data-bind="year.annualMode">
                         <option value="base12">Presupuesto base × 12 meses</option>
@@ -309,6 +341,7 @@
             <div id="ded-status" class="text-sm mb-2"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3" id="ded-kpis"></div>
             <div class="table-wrap"><table class="table"><thead><tr><th>Descuento</th><th>Tipo</th><th class="num">Al mes</th><th>Cuenta como</th><th></th></tr></thead><tbody id="ded-body"></tbody></table></div>
+            <div id="ded-limits"></div>
             <p class="help mt-2" id="ded-last"></p>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -322,10 +355,21 @@
                     <div><span class="kpi-label">Sueldo neto mensual</span><span class="kpi-note">Sin décimos. Con décimos en su mes: ver Presupuesto del Mes.</span></div>
                     <span class="kpi-value text-2xl" id="inc-neto">$0.00</span>
                 </div>
-                <p class="help mt-3">Fuentes: <a class="link" href="https://www.sri.gob.ec" target="_blank" rel="noopener">SRI</a> · <a class="link" href="https://www.iess.gob.ec" target="_blank" rel="noopener">IESS</a></p>
+                <p class="help mt-3" data-country="EC">Fuentes: <a class="link" href="https://www.sri.gob.ec" target="_blank" rel="noopener">SRI</a> · <a class="link" href="https://www.iess.gob.ec" target="_blank" rel="noopener">IESS</a></p>
+                <p class="help mt-3" data-country="US">Fuentes: <a class="link" href="https://www.irs.gov/individuals/tax-withholding-estimator" target="_blank" rel="noopener">IRS</a> · <a class="link" href="https://www.ssa.gov" target="_blank" rel="noopener">SSA</a> · <a class="link" href="https://www.michigan.gov/taxes" target="_blank" rel="noopener">Michigan Treasury</a></p>
             </div>
 
-            <div class="card">
+            <div class="card" data-country="US" id="inc-us-ded">
+                <div class="card-head">
+                    <div>
+                        <div class="card-title"><i class="fa-solid fa-file-invoice-dollar text-blue-600"></i> Deducción federal y créditos</div>
+                        <div class="card-sub">Se usa la deducción estándar, o tus deducciones detalladas si son mayores (intereses de hipoteca, impuestos estatales y locales, donaciones).</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-3" id="inc-us-ded-kpis"></div>
+                <label class="field max-w-xs"><span class="field-label"><span>Deducciones detalladas al año (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="100" data-bind="year.itemized"><span class="help">Déjalo en 0 si tomas la deducción estándar.</span></label>
+            </div>
+            <div class="card" data-country="EC">
                 <div class="card-head">
                     <div>
                         <div class="card-title"><i class="fa-solid fa-file-invoice-dollar text-blue-600"></i> Deducción de Gastos Personales</div>
@@ -341,7 +385,17 @@
             </div>
         </div>
 
-        <details class="explain">
+        <details class="explain" data-country="US">
+            <summary>¿Cómo se calcula tu sueldo neto?</summary>
+            <div>
+                <p><strong>1. Antes de impuestos:</strong> tu 401(k)/403(b) tradicional baja el impuesto sobre la renta; tu seguro médico, dental y de visión, FSA y HSA por nómina bajan también el Seguro Social y Medicare.</p>
+                <p><strong>2. Impuesto federal:</strong> sueldo anual − descuentos antes de impuestos − deducción estándar (o detallada), por la tabla progresiva del IRS según tu estado civil; menos los créditos por hijos y dependientes. Se reparte en 12 meses.</p>
+                <p><strong>3. Seguro Social y Medicare (FICA):</strong> 6.2% hasta el tope anual de salario y 1.45% (más 0.9% sobre $200,000).</p>
+                <p><strong>4. Estado y ciudad:</strong> Michigan cobra una tasa fija después de una exención por persona; algunas ciudades (Detroit, Grand Rapids…) tienen su propio impuesto. Otros estados: escribe la tasa de tu talón de pago.</p>
+                <p><strong>5. Neto:</strong> sueldo − FICA − impuestos − tus demás descuentos del talón. Es una estimación: verifica con tu talón y con un profesional de impuestos.</p>
+            </div>
+        </details>
+        <details class="explain" data-country="EC">
             <summary>¿Cómo se calcula tu sueldo neto?</summary>
             <div>
                 <p><strong>1. Aporte IESS:</strong> Sueldo bruto × tasa de aporte personal (9.45% por defecto).</p>
@@ -515,8 +569,8 @@
                 </div>
             </div>
             <div class="flex flex-wrap items-center gap-3">
-                <label class="btn btn-primary cursor-pointer"><i class="fa-solid fa-folder-open"></i> Elegir archivo CSV
-                    <input type="file" id="imp-file" accept=".csv,.txt,.tsv,text/csv,text/plain" class="hidden" data-change="imp.file"></label>
+                <label class="btn btn-primary cursor-pointer"><i class="fa-solid fa-folder-open"></i> Elegir archivo (CSV u OFX)
+                    <input type="file" id="imp-file" accept=".csv,.txt,.tsv,.ofx,.qfx,text/csv,text/plain,application/x-ofx" class="hidden" data-change="imp.file"></label>
                 <span class="help" id="imp-file-name">¿Tu banco solo da Excel (.xlsx)? Ábrelo y usa "Guardar como → CSV".</span>
             </div>
             <div id="imp-setup" class="hidden mt-5 space-y-4">
@@ -535,7 +589,7 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div class="card">
+            <div class="card" data-country="EC">
                 <div class="card-head">
                     <div>
                         <div class="card-title"><i class="fa-solid fa-file-invoice text-blue-600"></i> Factura electrónica del SRI (XML)</div>
@@ -570,6 +624,7 @@
                     <button class="btn btn-primary" data-action="imp.commit" id="imp-commit"><i class="fa-solid fa-file-import"></i> Importar</button>
                 </div>
             </div>
+            <div class="mb-3 hidden" id="imp-ofx-account"></div>
             <div class="panel tone-slate mb-3" id="imp-bulk"></div>
             <div class="table-wrap tall"><table class="table"><thead><tr><th class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggleAll" id="imp-all" checked aria-label="Todas"></th><th>Fecha</th><th>Descripción</th><th>Categoría</th><th class="num">Monto</th><th>Estado</th></tr></thead><tbody id="imp-rows"></tbody></table></div>
         </div>
@@ -793,7 +848,7 @@
             <div class="card-head">
                 <div>
                     <div class="card-title"><i class="fa-solid fa-building-columns text-emerald-600"></i> Cooperativas</div>
-                    <div class="card-sub">Instituciones donde tienes o podrías tener pólizas, con su cobertura COSEDE. Verifica en <a class="link" href="https://www.seps.gob.ec" target="_blank" rel="noopener">SEPS</a> y <a class="link" href="https://www.cosede.gob.ec" target="_blank" rel="noopener">COSEDE</a>.</div>
+                    <div class="card-sub"><span data-country="EC">Instituciones donde tienes o podrías tener pólizas, con su cobertura COSEDE. Verifica en <a class="link" href="https://www.seps.gob.ec" target="_blank" rel="noopener">SEPS</a> y <a class="link" href="https://www.cosede.gob.ec" target="_blank" rel="noopener">COSEDE</a>.</span><span data-country="US">Bancos y cooperativas de crédito donde tienes o podrías tener CDs. El seguro de depósitos cubre hasta $250,000 por persona, por banco: verifica en <a class="link" href="https://www.fdic.gov/resources/deposit-insurance/" target="_blank" rel="noopener">FDIC</a> y <a class="link" href="https://www.ncua.gov" target="_blank" rel="noopener">NCUA</a>.</span></div>
                 </div>
                 <button class="btn btn-primary" data-action="coop.add"><i class="fa-solid fa-plus"></i> Nueva Cooperativa</button>
             </div>
@@ -825,6 +880,12 @@
                 <div class="input input-readonly text-xs" id="mort-system"></div>
                 <a href="#" class="mini-btn" data-goto="config" data-focus="cfg-prefs">Cambiar en Configuración →</a>
             </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5" data-country="US">
+            <label class="field field-box"><span class="field-label"><span>Impuesto a la propiedad al año (<span class="cur">$</span>)</span></span><input type="number" class="input" step="100" min="0" data-bind="mortgage.propertyTax"></label>
+            <label class="field field-box"><span class="field-label"><span>Seguro de vivienda al año (<span class="cur">$</span>)</span></span><input type="number" class="input" step="100" min="0" data-bind="mortgage.homeInsurance"></label>
+            <label class="field field-box"><span class="field-label">PMI (% del préstamo al año)</span><input type="number" class="input" step="0.05" min="0" data-bind="mortgage.pmiRate"><span class="help">Si das menos del 20% de entrada. Se quita al llegar a 80% del valor.</span></label>
+            <label class="field field-box"><span class="field-label"><span>HOA al mes (<span class="cur">$</span>)</span></span><input type="number" class="input" step="10" min="0" data-bind="mortgage.hoa"></label>
         </div>
         <div id="mort-summary" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5"></div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
@@ -896,7 +957,7 @@
                 <input type="number" class="input" step="50" min="0" id="ret-sueldo" data-input="ret.override" data-field="sueldoPromedio">
                 <span class="linked" id="ret-sueldo-note"></span>
             </div>
-            <label class="field field-box tone-indigo"><span class="field-label">Tasa de reemplazo (%)</span><input type="number" class="input" min="0" max="100" data-bind="retirement.tasaReemplazo"><span class="help">% del sueldo que recibirías de pensión (típico IESS: 40–75%).</span></label>
+            <label class="field field-box tone-indigo" data-country="EC"><span class="field-label">Tasa de reemplazo (%)</span><input type="number" class="input" min="0" max="100" data-bind="retirement.tasaReemplazo"><span class="help">% del sueldo que recibirías de pensión (típico IESS: 40–75%).</span></label>
         </div>
 
         <div class="panel tone-slate mb-5"><div class="section-label"><i class="fa-solid fa-chart-line text-emerald-600"></i> Crecimiento de tu ahorro hasta la jubilación</div><div class="chart-box"><canvas id="ret-chart"></canvas></div></div>
@@ -921,14 +982,16 @@
             <div><span class="text-xs font-extrabold text-slate-700 uppercase block">Ingreso mensual total en la jubilación</span><span class="text-[11px] text-slate-500"><span class="text-emerald-700 font-bold">Ahorro DPF</span> + <span class="text-indigo-700 font-bold">Pensión IESS</span></span></div>
             <div class="text-right"><span class="text-2xl font-black text-slate-900 block" id="ret-total">$0</span><span class="text-xs font-bold text-purple-700 hidden" id="ret-total-delta"></span></div>
         </div>
-        <p class="panel tone-amber text-[11px] text-amber-900 leading-relaxed"><i class="fa-solid fa-triangle-exclamation text-amber-600"></i> <strong>La fórmula real del IESS es más compleja</strong> (historial de aportes, años mínimos, reformas). Aquí la pensión se reduce proporcionalmente si tu carrera total es menor a 30 años. Verifica tu caso en <a href="https://www.iess.gob.ec" target="_blank" rel="noopener" class="link">iess.gob.ec</a>.</p>
+        <p class="panel tone-amber text-[11px] text-amber-900 leading-relaxed" data-country="US"><i class="fa-solid fa-triangle-exclamation text-amber-600"></i> <strong>Estimación del Seguro Social</strong>: usa tu sueldo actual como promedio de 35 años (con el tope anual), la fórmula de beneficio (90% / 32% / 15%) y tu edad de retiro (menos antes de los 67, más hasta los 70). Tu estimado real está en <a href="https://www.ssa.gov/myaccount/" target="_blank" rel="noopener" class="link">ssa.gov/myaccount</a>.</p>
+        <p class="panel tone-amber text-[11px] text-amber-900 leading-relaxed" data-country="EC"><i class="fa-solid fa-triangle-exclamation text-amber-600"></i> <strong>La fórmula real del IESS es más compleja</strong> (historial de aportes, años mínimos, reformas). Aquí la pensión se reduce proporcionalmente si tu carrera total es menor a 30 años. Verifica tu caso en <a href="https://www.iess.gob.ec" target="_blank" rel="noopener" class="link">iess.gob.ec</a>.</p>
     </div>
     <details class="explain">
         <summary>¿Cómo se calcula?</summary>
         <div>
             <p><strong>Valor futuro:</strong> VF = Ahorro × (1+i)ⁿ + Aporte × [((1+i)ⁿ − 1) / i], con i la tasa mensual y n los meses hasta jubilarte.</p>
             <p><strong>Ingreso del ahorro:</strong> (VF × tasa de retiro segura) / 12.</p>
-            <p><strong>Pensión IESS:</strong> Sueldo promedio × tasa de reemplazo × mín(1, años totales / 30).</p>
+            <p data-country="EC"><strong>Pensión IESS:</strong> Sueldo promedio × tasa de reemplazo × mín(1, años totales / 30).</p>
+            <p data-country="US"><strong>Seguro Social:</strong> promedio mensual de tus 35 mejores años (con el tope anual) → 90% de los primeros $1,286 + 32% hasta $7,749 + 15% del resto; menos si lo pides antes de los 67, 8% más por año hasta los 70.</p>
         </div>
     </details>
 </section>
@@ -1035,7 +1098,24 @@
             <div><div class="card-title"><i class="fa-solid fa-scale-balanced text-amber-600"></i> Parámetros Legales · <span class="active-year"></span></div><div class="card-sub">Tasas y topes oficiales que usa el cálculo de tu sueldo neto. Cambian por año; verifica los vigentes en las fuentes oficiales.</div></div>
             <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
         </summary>
-        <div class="mt-5 space-y-4">
+        <div class="mt-5 space-y-4" data-country="US" id="cfg-us-tax">
+            <p class="help">Cifras del año fiscal que eliges arriba (cargadas con las de 2026). Verifica cada año en irs.gov, ssa.gov y el Departamento del Tesoro de tu estado.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <label class="field field-box"><span class="field-label"><span>Deducción estándar · soltero/a (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.single"></label>
+                <label class="field field-box"><span class="field-label"><span>Deducción estándar · casados (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.mfj"></label>
+                <label class="field field-box"><span class="field-label"><span>Deducción estándar · jefe/a de familia (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.hoh"></label>
+                <label class="field field-box"><span class="field-label"><span>Crédito por hijo (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.childCredit"></label>
+                <label class="field field-box"><span class="field-label"><span>Tope de salario del Seguro Social (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="100" data-bind="year.usTax.ssWageBase"></label>
+                <label class="field field-box"><span class="field-label">Seguro Social (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.ssRate"></label>
+                <label class="field field-box"><span class="field-label">Medicare (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.medicareRate"></label>
+                <label class="field field-box"><span class="field-label"><span>Cobertura FDIC / NCUA (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="1000" data-bind="year.cosede"></label>
+            </div>
+            <div>
+                <div class="section-label">Tabla del impuesto federal · <span class="active-year"></span> · <select class="cell-input text-xs" style="width:auto" id="cfg-us-status" data-change="us.bracketStatus"><option value="single">Soltero/a</option><option value="mfj">Casado/a, declaración conjunta</option><option value="hoh">Jefe/a de familia</option></select></div>
+                <div class="table-wrap"><table class="table"><thead><tr><th>Desde (<span class="cur">$</span>)</th><th>Tasa (%)</th></tr></thead><tbody id="cfg-us-brackets"></tbody></table></div>
+            </div>
+        </div>
+        <div class="mt-5 space-y-4" data-country="EC">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 <label class="field field-box"><span class="field-label">Aporte personal IESS (%)</span><input type="number" class="input" step="0.01" min="0" data-bind="year.iessRate"></label>
                 <label class="field field-box"><span class="field-label"><span>SBU (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.sbu"><span class="help">Base del Décimo Cuarto.</span></label>
@@ -1155,7 +1235,7 @@
             <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
         </summary>
         <div class="mt-5 space-y-5">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs" data-country="EC">
                 <a href="https://www.sri.gob.ec" target="_blank" rel="noopener" class="panel tone-slate hover:border-blue-400"><strong class="block text-slate-800"><i class="fa-solid fa-building-columns text-blue-600"></i> SRI</strong>Impuesto a la renta y gastos deducibles</a>
                 <a href="https://www.iess.gob.ec" target="_blank" rel="noopener" class="panel tone-slate hover:border-blue-400"><strong class="block text-slate-800"><i class="fa-solid fa-hand-holding-medical text-blue-600"></i> IESS</strong>Aportes y pensiones</a>
                 <a href="https://www.seps.gob.ec" target="_blank" rel="noopener" class="panel tone-slate hover:border-blue-400"><strong class="block text-slate-800"><i class="fa-solid fa-people-group text-blue-600"></i> SEPS</strong>Segmentación de cooperativas</a>
@@ -1164,14 +1244,28 @@
                 <a href="https://www.trabajo.gob.ec" target="_blank" rel="noopener" class="panel tone-slate hover:border-blue-400"><strong class="block text-slate-800"><i class="fa-solid fa-briefcase text-blue-600"></i> Ministerio del Trabajo</strong>SBU, décimos y beneficios</a>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs text-slate-700">
-                <p><strong class="text-slate-900">DPF:</strong> depósito a plazo fijo; inmoviliza tu capital por un plazo a cambio de una tasa pactada.</p>
-                <p><strong class="text-slate-900">IESS:</strong> Instituto Ecuatoriano de Seguridad Social; administra tu aporte y tu futura pensión.</p>
-                <p><strong class="text-slate-900">SRI:</strong> Servicio de Rentas Internas; administra el impuesto a la renta.</p>
-                <p><strong class="text-slate-900">SBU:</strong> Salario Básico Unificado; base del Décimo Cuarto.</p>
-                <p><strong class="text-slate-900">Décimo Tercero:</strong> un sueldo adicional pagado en diciembre.</p>
-                <p><strong class="text-slate-900">Décimo Cuarto:</strong> un SBU pagado en marzo (Costa) o agosto (Sierra).</p>
-                <p><strong class="text-slate-900">COSEDE:</strong> asegura tus depósitos hasta un límite legal por institución.</p>
-                <p><strong class="text-slate-900">Segmento 1:</strong> las cooperativas más grandes y reguladas por la SEPS.</p>
+                <p data-country="EC"><strong class="text-slate-900">DPF:</strong> depósito a plazo fijo; inmoviliza tu capital por un plazo a cambio de una tasa pactada.</p>
+                <p data-country="EC"><strong class="text-slate-900">IESS:</strong> Instituto Ecuatoriano de Seguridad Social; administra tu aporte y tu futura pensión.</p>
+                <p data-country="EC"><strong class="text-slate-900">SRI:</strong> Servicio de Rentas Internas; administra el impuesto a la renta.</p>
+                <p data-country="EC"><strong class="text-slate-900">SBU:</strong> Salario Básico Unificado; base del Décimo Cuarto.</p>
+                <p data-country="EC"><strong class="text-slate-900">Décimo Tercero:</strong> un sueldo adicional pagado en diciembre.</p>
+                <p data-country="EC"><strong class="text-slate-900">Décimo Cuarto:</strong> un SBU pagado en marzo (Costa) o agosto (Sierra).</p>
+                <p data-country="EC"><strong class="text-slate-900">COSEDE:</strong> asegura tus depósitos hasta un límite legal por institución.</p>
+                <p data-country="EC"><strong class="text-slate-900">Segmento 1:</strong> las cooperativas más grandes y reguladas por la SEPS.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs" data-country="US">
+                <a href="https://www.irs.gov" target="_blank" rel="noopener" class="panel tone-slate hover:border-blue-400"><strong class="block text-slate-800"><i class="fa-solid fa-building-columns text-blue-600"></i> IRS</strong>Impuesto federal y retenciones</a>
+                <a href="https://www.ssa.gov/myaccount/" target="_blank" rel="noopener" class="panel tone-slate hover:border-blue-400"><strong class="block text-slate-800"><i class="fa-solid fa-hand-holding-medical text-blue-600"></i> SSA</strong>Tu estimado del Seguro Social</a>
+                <a href="https://www.michigan.gov/taxes" target="_blank" rel="noopener" class="panel tone-slate hover:border-blue-400"><strong class="block text-slate-800"><i class="fa-solid fa-landmark text-blue-600"></i> Michigan Treasury</strong>Impuesto estatal y de ciudades</a>
+                <a href="https://www.fdic.gov/resources/deposit-insurance/" target="_blank" rel="noopener" class="panel tone-slate hover:border-blue-400"><strong class="block text-slate-800"><i class="fa-solid fa-shield-halved text-blue-600"></i> FDIC / NCUA</strong>Seguro de depósitos</a>
+                <a href="https://www.consumerfinance.gov" target="_blank" rel="noopener" class="panel tone-slate hover:border-blue-400"><strong class="block text-slate-800"><i class="fa-solid fa-scale-balanced text-blue-600"></i> CFPB</strong>Préstamos, tarjetas e hipotecas</a>
+                <a href="https://www.annualcreditreport.com" target="_blank" rel="noopener" class="panel tone-slate hover:border-blue-400"><strong class="block text-slate-800"><i class="fa-solid fa-file-shield text-blue-600"></i> AnnualCreditReport</strong>Tu reporte de crédito gratis</a>
+            </div>
+                <p data-country="US"><strong class="text-slate-900">CD:</strong> certificado de depósito; tu dinero queda fijo por un plazo a cambio de una tasa (APY).</p>
+                <p data-country="US"><strong class="text-slate-900">FICA:</strong> Seguro Social (6.2%) y Medicare (1.45%) que se descuentan de tu sueldo.</p>
+                <p data-country="US"><strong class="text-slate-900">401(k) / IRA:</strong> cuentas de jubilación; la tradicional baja tus impuestos hoy, la Roth crece libre de impuestos.</p>
+                <p data-country="US"><strong class="text-slate-900">HSA:</strong> cuenta de ahorro para salud con ventajas de impuestos (con seguro de deducible alto).</p>
+                <p data-country="US"><strong class="text-slate-900">FDIC / NCUA:</strong> aseguran tus depósitos hasta $250,000 por persona, por banco.</p>
+                <p data-country="US"><strong class="text-slate-900">PITI:</strong> capital, interés, impuesto a la propiedad y seguro: tu pago real de hipoteca.</p>
                 <p><strong class="text-slate-900">NPER:</strong> fórmula del número de meses para alcanzar una meta.</p>
                 <p><strong class="text-slate-900">Francés / Alemán:</strong> cuota fija vs. abono a capital fijo con cuota decreciente.</p>
                 <p><strong class="text-slate-900">Bola de Nieve / Avalancha:</strong> pagar deudas por menor saldo o por mayor tasa.</p>
@@ -1196,9 +1290,11 @@
 
 <script src="js/i18n.js"></script>
 <script src="js/i18n/en.js"></script>
+<script src="js/i18n/us.js"></script>
 <script src="js/device.js"></script>
 <script src="js/format.js"></script>
 <script src="js/defaults.js"></script>
+<script src="js/defaults-us.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/importers.js"></script>
 <script src="js/store.js"></script>

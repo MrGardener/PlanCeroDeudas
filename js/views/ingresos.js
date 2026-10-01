@@ -130,9 +130,54 @@
         draft.amount = v('ps-amount') || '';
     }
 
+    // ------------------------------------------------------------------ United States
+    const US = () => window.DefaultsUS || { STATES: [], MI_CITIES: [] };
+    function renderUS(ctx) {
+        const yd = ctx.year, p = ctx.pay;
+        const st = US().STATES.find(x => x.code === yd.state) || { type: 'custom', name: yd.state };
+        const sel = document.getElementById('inc-state');
+        if (sel && !sel.options.length) sel.innerHTML = US().STATES.map(x => `<option value="${x.code}">${esc(x.name)}</option>`).join('');
+        if (sel) sel.value = yd.state || 'MI';
+        const rate = document.getElementById('inc-state-rate');
+        if (rate && rate !== document.activeElement) rate.value = yd.stateRate === null || yd.stateRate === undefined ? '' : yd.stateRate;
+        if (rate) rate.placeholder = st.type === 'none' ? '0' : st.type === 'flat' ? String(st.rate) : 'Escribe tu %';
+        UI.html('inc-state-note', st.type === 'none' ? `${esc(st.name)} no cobra impuesto sobre el sueldo.`
+            : st.type === 'flat' ? `${esc(st.name)}: ${st.rate}% fijo${st.exemption ? ` después de ${money(st.exemption)} de exención por persona` : ''}.`
+            : `Aún no tenemos la tabla de ${esc(st.name)}: escribe el porcentaje de impuesto estatal de tu talón de pago (impuesto estatal ÷ sueldo bruto).`);
+        // Cities with an income tax (Michigan list) or a rate you type.
+        const city = document.getElementById('inc-city');
+        if (city) {
+            const cities = yd.state === 'MI' ? US().MI_CITIES : [];
+            const known = cities.find(c => c.name === yd.localName);
+            city.innerHTML = `<option value="">Ninguno (0%)</option>` + cities.map(c => `<option value="${esc(c.name)}">${esc(c.name)} (${c.rate}%)</option>`).join('') + `<option value="__custom">Otra tasa…</option>`;
+            city.value = known ? known.name : (Number(yd.localRate) > 0 ? '__custom' : '');
+            if (!known && Number(yd.localRate) > 0) city.options[city.options.length - 1].textContent = `Otra: ${yd.localRate}%`;
+        }
+        UI.text('inc-annual', `Antes de impuestos. Al año: ${money(p.sueldoAnual)}.`);
+        const rows = [
+            ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],
+            p.pretaxM > 0 ? ['Descuentos antes de impuestos (401(k), seguro médico…)', '−' + money(p.pretaxM), 'text-blue-700'] : null,
+            ['Impuesto federal', '−' + money(p.fedM), 'text-red-600'],
+            ['Seguro Social', '−' + money(p.ssM), 'text-red-600'],
+            ['Medicare', '−' + money(p.medM), 'text-red-600'],
+            [`Impuesto estatal (${esc(st.name)}${p.stateRate ? ` ${p.stateRate}%` : ''})`, '−' + money(p.stateM), 'text-red-600'],
+            p.localM > 0 ? [`Impuesto de la ciudad${yd.localName ? ` (${esc(yd.localName)})` : ''}`, '−' + money(p.localM), 'text-red-600'] : null,
+            p.otrosDescuentosM - p.pretaxM > 0.004 ? ['Otros descuentos del talón (después de impuestos)', '−' + money(p.otrosDescuentosM - p.pretaxM), 'text-red-600'] : null
+        ].filter(Boolean);
+        UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold ${c}">${v}</dd></div>`).join(''));
+        UI.text('inc-neto', money(p.netoM));
+        UI.html('inc-us-ded-kpis', `
+            <div class="kpi tone-slate"><span class="kpi-label">Deducción aplicada</span><span class="kpi-value">${money(p.dedApplied)}</span><span class="kpi-note">${Number(yd.itemized) > p.stdDeduction ? 'Detallada' : `Estándar (${money(p.stdDeduction)})`}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Ingreso sujeto a impuesto federal</span><span class="kpi-value">${money(p.baseImponible)}</span><span class="kpi-note">al año</span></div>
+            <div class="kpi tone-blue"><span class="kpi-label">Créditos por dependientes</span><span class="kpi-value">${money(p.credits)}</span><span class="kpi-note">al año</span></div>
+            <div class="kpi tone-amber"><span class="kpi-label">Impuestos sobre la renta</span><span class="kpi-value">${money(p.isrAnual)}</span><span class="kpi-note">al año (federal + estado + ciudad)</span></div>`);
+        if (window.PayScan) PayScan.render(ctx);
+    }
+
     function update(ctx) {
         const yd = ctx.year, p = ctx.pay;
         renderSummary();
+        if (p.country === 'US') { renderUS(ctx); return; }
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
             ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],
@@ -167,6 +212,20 @@
     }
 
     UI.register({
+        'us.state': (el) => { const y = Store.active(); y.state = el.value; y.stateRate = null; y.localName = ''; y.localRate = 0; App.changed({ structural: true, step: true }); },
+        'us.stateRate': (el) => { Store.active().stateRate = el.value === '' ? null : Math.max(0, Fmt.parseNum(el.value, 0)); App.changed({ step: true }); },
+        'us.city': async (el) => {
+            const y = Store.active();
+            if (el.value === '__custom') {
+                const r = await UI.form({ title: 'Impuesto de tu ciudad', fields: [{ name: 'name', label: 'Ciudad', value: y.localName || '' }, { name: 'rate', label: 'Tasa (%)', type: 'number', step: '0.01', min: 0, value: y.localRate || '' }], confirmText: 'Guardar' });
+                if (!r) { App.render(); return; }
+                y.localName = r.name.trim().slice(0, 40); y.localRate = Math.max(0, Number(r.rate) || 0);
+            } else {
+                const c = (US().MI_CITIES || []).find(x => x.name === el.value);
+                y.localName = c ? c.name : ''; y.localRate = c ? c.rate : 0;
+            }
+            App.changed({ structural: true, step: true });
+        },
         'pay.edit': () => {
             draft = draftFrom(Cash.paySchedule());
             // A sensible "one payday" for every-2-weeks: the next such weekday.

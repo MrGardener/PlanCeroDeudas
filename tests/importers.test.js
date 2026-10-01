@@ -225,3 +225,20 @@ Líquido a recibir  1.061,05`;
     assert.equal(p.periodDays, 30);
     assert.deepEqual(p.deductions.map(d => [d.kind, d.amount]), [['iess', 141.75], ['loan', 85.2], ['garnishment', 200], ['life', 12]]);
 });
+
+test('OFX / QFX bank download (SGML, no closing tags)', () => {
+    const ofx = `OFXHEADER:100
+DATA:OFXSGML
+<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>USD<BANKACCTFROM><BANKID>072000326<ACCTID>123456789<ACCTTYPE>CHECKING</BANKACCTFROM>
+<BANKTRANLIST><DTSTART>20260901<DTEND>20260930
+<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260903120000.000[-5:EST]<TRNAMT>-85.40<FITID>2026090301<NAME>MEIJER #123<MEMO>POS PURCHASE
+<STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20260915<TRNAMT>1850.00<FITID>2026091502<NAME>ACME CORP PAYROLL
+</BANKTRANLIST><LEDGERBAL><BALAMT>2340.55<DTASOF>20260930</LEDGERBAL></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>`;
+    const r = I.parseOFX(ofx);
+    assert.equal(r.rows.length, 2);
+    assert.deepEqual([r.rows[0].date, r.rows[0].amount, r.rows[0].type, r.rows[0].description, r.rows[0].store, r.rows[0].fitid], ['2026-09-03', 85.4, 'Gasto', 'MEIJER #123', 'POS PURCHASE', '2026090301']);
+    assert.deepEqual([r.rows[1].type, r.rows[1].amount], ['Ingreso', 1850]);
+    assert.deepEqual(r.balance, { balance: 2340.55, date: '2026-09-30' });
+    assert.equal(r.account, '•••••6789');
+    assert.equal(I.parseOFX('date,amount\n'), null);
+});

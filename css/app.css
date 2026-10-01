@@ -527,3 +527,8 @@ html[data-theme="dark"] .wi-head { color: #e2e8f0; } html[data-theme="dark"] .wi
 html[data-theme="dark"] .pay-next li { border-bottom-color: var(--line); color: #cbd5e1; } html[data-theme="dark"] .pay-next .num { color: #34d399; }
 
 .icon-btn.icon-btn.lang-btn { width: auto; padding: 0 .5rem; font-size: .7rem; font-weight: 800; letter-spacing: .04em; }
+
+/* ================================================================ editions (Ecuador / US) */
+html[data-country="US"] [data-country="EC"], html[data-country="EC"] [data-country="US"] { display: none !important; }
+/* Long labels (English is often longer) wrap instead of pushing the page sideways on phones. */
+@media (max-width: 639px) { .btn { white-space: normal; max-width: 100%; } }

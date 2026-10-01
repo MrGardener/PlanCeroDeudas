@@ -168,6 +168,7 @@
                 const tr = (v) => (typeof v === 'string' ? I18n.t(v) : v);
                 if (Array.isArray(config.data.labels)) config.data.labels = config.data.labels.map(tr);
                 (config.data.datasets || []).forEach(d => { d.label = tr(d.label); });
+                Object.values((config.options && config.options.scales) || {}).forEach(sc => { if (sc && sc.title && sc.title.text) sc.title.text = tr(sc.title.text); });
                 const tl = config.options && config.options.plugins && config.options.plugins.todayLine;
                 if (tl && tl.label) tl.label = tr(tl.label);
             }

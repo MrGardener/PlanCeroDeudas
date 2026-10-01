@@ -62,6 +62,7 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ✅ Forecast in the trend lines + projected balances | Transacciones → Tendencia: "Próximos N" (weeks / months / years, or none); dashed projected income (salary on its paydays, other planned income, repeating income) and money out (budget plan, or the last-3-months average); "Hoy" marker; projected rows in the table. "Saldos proyectados": cash, savings & investments (with DPF interest) and debts (snowball plan) month by month; paid-off debt payments roll into savings. A biweekly year with 27 paydays shows the extra check |
 | ✅ Paycheck deductions + pay stub reading | Ingresos → "Descuentos de tu rol de pagos": insurance (health, dental, vision, life, car), garnishments (pensión alimenticia / child support), loans (IESS quirografario, 401k loan; link to the debt → paid by payroll, not a budget line), retirement (ahorro voluntario, 401k/403b/457, HSA → counts for Baby Step 4), union dues, employer match (informational, adds to retirement). Reads a PDF (pdf.js) or photo (Tesseract) of a rol de pagos or US pay stub in English/Spanish: gross, net, pay period → paychecks a year, each deduction with its type; review before saving; IESS / income tax already computed are recognized; checks the stub's net against the app. Only labels and amounts are kept; the file and ID numbers are not |
 | ✅ English / Spanish | Configuración → Este dispositivo (and EN/ES in the header on a computer). Spanish stays the source; js/i18n/en.js translates every text on screen, tooltips, dialogs, toasts and chart labels, including sentences with values; month/weekday names and dates follow the language. A unit test fails when new Spanish text has no English |
+| ✅ US edition — ZeroDebtPlan (`dist/zerodebtplan-usa.html`) | Same codebase and features; English by default with Spanish (US wording: Seguro Social, CD, talón de pago). Paycheck: 2026 federal brackets by filing status, standard/itemized deduction, child and dependent credits, Social Security to the wage base, Medicare + 0.9%, pre-tax 401(k) (income tax) vs. section-125 health/HSA/FSA (also FICA), **Michigan 4.25% after the per-person exemption**, Michigan city taxes (Detroit 2.4%, Grand Rapids 1.5%…), no-tax states, IL/PA flat, any other state by the rate on your stub. Pay stub reading recognizes federal/state/SS/Medicare lines as computed. 401(k)/HSA limit warnings. Social Security estimate (PIA bend points, claiming age 62–70). Savings & CDs with FDIC/NCUA; 401(k)/IRA account type (counts for retirement and net worth). Mortgage PITI (property tax, insurance, PMI, HOA). OFX/QFX bank downloads (unique ids, account balance). Tax parameters editable per year in Settings. Own storage, so both editions can live on one device |
 
 ## Phase 3 — planned (works without a server)
 
@@ -70,6 +71,17 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | 📋 Nested budget groups (a group inside a group) | "Car Money → Transportation / Maintenance" |
 | 📋 History grouped by week/month with category totals | Nudget history. Partly covered: Reportes groups by week/month with totals; a timeline view in Transacciones is still to do |
 | 📋 Share a read-only report (file / print) | Until hosting allows real sharing. Today: Reportes → CSV / print to PDF. Next: a single-file read-only snapshot |
+
+## US edition — next
+
+| Item | Notes |
+|---|---|
+| 📋 Exact tables for more states | Today: Michigan, no-tax states, IL and PA are automatic; every other state uses the rate you type (from your pay stub). Add brackets state by state, starting with the ones users ask for |
+| 📋 Ohio/Pennsylvania/other city & school-district taxes | Michigan cities are listed; elsewhere type the rate |
+| 🔍 Verify 2026 figures each January | Federal brackets/standard deduction (IRS Rev. Proc.), Social Security wage base and bend points (SSA), Michigan rate/exemption; editable in Settings |
+| 📋 Bonuses, overtime and hourly pay | Today: monthly gross; hourly users can set a fixed amount per paycheck in "¿Cómo te pagan?" |
+| 📋 Roth vs. traditional comparison, IRA contribution tracker, employer match optimizer | Builds on the 401(k)/IRA account type and deductions |
+| 📋 US bank CSV presets (Chase, BofA, Wells Fargo, Capital One, Amex) | The column mapper already handles them; presets would skip the mapping step |
 
 ## 🔍 Under analysis — no decision yet (requested 2026-09-30)
 

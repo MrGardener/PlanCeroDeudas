@@ -106,7 +106,7 @@
     const find = (el) => Store.state.assets.find(a => a.id === Number(el.dataset.id));
 
     // ------------------------------------------------------------ accounts
-    const ACCT_KINDS = [{ value: 'corriente', label: 'Cuenta corriente' }, { value: 'ahorros', label: 'Cuenta de ahorros' }, { value: 'efectivo', label: 'Efectivo' }];
+    const ACCT_KINDS = [{ value: 'corriente', label: 'Cuenta corriente' }, { value: 'ahorros', label: 'Cuenta de ahorros' }, { value: 'efectivo', label: 'Efectivo' }, { value: 'retiro', label: 'Jubilación (401(k) / IRA)' }];
     function renderAccounts(ctx) {
         const list = ctx.state.accounts || [];
         UI.html('acct-body', list.length ? list.map(a => `<tr data-row="${a.id}">
@@ -252,13 +252,13 @@
         },
         'nw.prefill': () => {
             const s = Store.state, yd = Store.active();
-            const capital = Engine.polizasCapital(s.polizas) + Engine.holdingsValue(s.holdings);
+            const accts = s.accounts || [];
+            const capital = Engine.polizasCapital(s.polizas) + Engine.holdingsValue(s.holdings) + Engine.accountTotal(accts, 'retiro');
             touch(yd, 'investments', capital);
             // Accounts, when registered, fill checking (corriente + efectivo) and savings.
-            const accts = s.accounts || [];
             if (accts.length) {
-                touch(yd, 'checking', accts.filter(a => a.kind !== 'ahorros').reduce((t, a) => t + (Number(a.balance) || 0), 0));
-                touch(yd, 'savings', accts.filter(a => a.kind === 'ahorros').reduce((t, a) => t + (Number(a.balance) || 0), 0));
+                touch(yd, 'checking', Engine.accountTotal(accts, 'cash'));
+                touch(yd, 'savings', Engine.accountTotal(accts, 'ahorros'));
             }
             const byKind = {};
             Engine.DEBT_KINDS.forEach(k => { byKind[k.netWorthField] = 0; });

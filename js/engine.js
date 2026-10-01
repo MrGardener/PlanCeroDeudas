@@ -59,8 +59,11 @@
     //   retirement (savings), insurance, garnishment (court-ordered), loan, other: taken from pay;
     //   employer: paid by the employer on top (e.g. 401k match) — not taken from pay.
     const DEDUCTION_GROUPS = ['mandatory', 'retirement', 'insurance', 'garnishment', 'loan', 'other', 'employer'];
+    // Lines the app computes itself (so a pay stub's copy isn't subtracted twice).
+    const COMPUTED_KINDS = { EC: ['iess', 'ir'], US: ['federal', 'state', 'local', 'ss', 'medicare'] };
     function payDeductionsSummary(yd) {
-        const list = (yd && yd.payDeductions) || [];
+        const computed = COMPUTED_KINDS[(yd && yd.country) || 'EC'] || [];
+        const list = ((yd && yd.payDeductions) || []).filter(d => !(d.group === 'mandatory' && computed.includes(d.kind)));
         const byGroup = {};
         DEDUCTION_GROUPS.forEach(g => { byGroup[g] = 0; });
         list.forEach(d => { const g = DEDUCTION_GROUPS.includes(d.group) ? d.group : 'other'; byGroup[g] += Math.max(0, num(d.monthly)); });
@@ -68,7 +71,80 @@
         return { byGroup, taken, retirement: byGroup.retirement + list.filter(d => d.group === 'employer' && d.kind === 'retirement').reduce((a, d) => a + Math.max(0, num(d.monthly)), 0), employer: byGroup.employer };
     }
 
-    function payroll(yd) {
+    // ------------------------------------------------------------------ US payroll
+    // Progressive tax on an amount with [[from, rate], …] brackets.
+    function bracketTax(amount, brackets) {
+        let tax = 0;
+        (brackets || []).forEach(([from, rate], i) => {
+            const to = i + 1 < brackets.length ? brackets[i + 1][0] : Infinity;
+            if (amount > from) tax += (Math.min(amount, to) - from) * rate;
+        });
+        return tax;
+    }
+    const US_STATE_DEFAULT = { type: 'custom', rate: null, exemption: 0 };
+    const US_STATES_FALLBACK = () => (typeof require !== 'undefined' ? require('./defaults-us.js').STATES : []);
+    // Paycheck math for the US (annual figures ÷ 12): pre-tax 401(k)/403(b) lower income tax;
+    // pre-tax health, dental, vision, FSA and HSA (section 125) lower income tax and FICA too.
+    function payrollUS(yd, states) {
+        const t = yd.usTax || {};
+        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const sueldo = Math.max(0, num(yd.sueldo));
+        const gross = sueldo * 12;
+        const ded = (yd.payDeductions || []).filter(d => d.pretax && d.group !== 'employer');
+        const pretaxRetire = sum(ded.filter(d => d.group === 'retirement' && d.kind !== 'hsa'), d => num(d.monthly)) * 12;
+        const pretax125 = sum(ded.filter(d => !(d.group === 'retirement' && d.kind !== 'hsa')), d => num(d.monthly)) * 12;
+        const incomeWages = Math.max(0, gross - pretaxRetire - pretax125);
+        const ficaWages = Math.max(0, gross - pretax125);
+        // Federal income tax
+        const std = num((t.stdDeduction || {})[status]);
+        const dedApplied = Math.max(std, num(yd.itemized));
+        const taxable = Math.max(0, incomeWages - dedApplied);
+        const credits = num(yd.dependents) * num(t.childCredit) + num(yd.otherDependents) * num(t.otherDependentCredit);
+        const fedAnnual = Math.max(0, bracketTax(taxable, (t.brackets || {})[status]) - credits);
+        // FICA
+        const ssAnnual = Math.min(ficaWages, num(t.ssWageBase) || Infinity) * num(t.ssRate) / 100;
+        const medAnnual = ficaWages * num(t.medicareRate) / 100 + Math.max(0, ficaWages - num((t.addlMedicareThreshold || {})[status])) * num(t.addlMedicareRate) / 100;
+        // State (flat or a rate you enter) and city
+        const st = Object.assign({}, US_STATE_DEFAULT, (states || []).find(x => x.code === yd.state) || {});
+        const people = 1 + (status === 'mfj' ? 1 : 0) + num(yd.dependents) + num(yd.otherDependents);
+        const stateRate = yd.stateRate !== null && yd.stateRate !== undefined && yd.stateRate !== '' ? num(yd.stateRate) : (st.type === 'none' ? 0 : num(st.rate));
+        const stateAnnual = st.type === 'none' && (yd.stateRate === null || yd.stateRate === undefined || yd.stateRate === '') ? 0 : Math.max(0, incomeWages - num(st.exemption) * people) * stateRate / 100;
+        const localAnnual = incomeWages * num(yd.localRate) / 100;
+        const incomeTaxAnnual = fedAnnual + stateAnnual + localAnnual;
+        const ficaM = (ssAnnual + medAnnual) / 12;
+        const netoAntesM = Math.max(0, sueldo - ficaM - incomeTaxAnnual / 12);
+        const otros = payDeductionsSummary(yd).taken;
+        return {
+            country: 'US', sueldo, sueldoAnual: gross, status,
+            iessM: ficaM, iessAnual: ssAnnual + medAnnual, ssM: ssAnnual / 12, medM: medAnnual / 12,
+            fedM: fedAnnual / 12, stateM: stateAnnual / 12, localM: localAnnual / 12, stateRate, stateType: st.type,
+            pretaxM: (pretaxRetire + pretax125) / 12, stdDeduction: std, credits,
+            sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied, baseImponible: taxable,
+            isrAnual: incomeTaxAnnual, isrM: incomeTaxAnnual / 12,
+            netoAntesM, otrosDescuentosM: otros, netoM: Math.max(0, netoAntesM - otros)
+        };
+    }
+
+    // Social Security retirement benefit (estimate): average monthly earnings over a 35-year
+    // career (capped at the wage base), the PIA formula (90% / 32% / 15% at the bend points),
+    // reduced for claiming before full retirement age or increased (8% a year) up to 70.
+    function socialSecurity({ sueldoPromedio, aniosAportados, aniosRestantes, edadJubilacion, usTax }) {
+        const t = usTax || {};
+        const years = Math.min(35, num(aniosAportados) + num(aniosRestantes));
+        const aime = Math.min(num(sueldoPromedio), (num(t.ssWageBase) || Infinity) / 12) * years / 35;
+        const b1 = num(t.ssBend1), b2 = num(t.ssBend2);
+        const pia = 0.9 * Math.min(aime, b1) + 0.32 * Math.max(0, Math.min(aime, b2) - b1) + 0.15 * Math.max(0, aime - b2);
+        const full = num(t.ssFullAge) || 67;
+        const age = Math.min(70, Math.max(62, num(edadJubilacion) || full));
+        const months = Math.round((age - full) * 12);
+        let factor = 1;
+        if (months < 0) { const m = -months; factor = 1 - (Math.min(36, m) * 5 / 900) - (Math.max(0, m - 36) * 5 / 1200); }
+        else factor = 1 + months * (8 / 1200);
+        return pia * factor;
+    }
+
+    function payroll(yd, states) {
+        if (yd && yd.country === 'US') return payrollUS(yd, states || (root.DefaultsUS && root.DefaultsUS.STATES) || US_STATES_FALLBACK());
         const sueldo = Math.max(0, num(yd.sueldo));
         const iessM = sueldo * num(yd.iessRate) / 100;
         const cap = sriCap(yd);
@@ -932,7 +1008,7 @@
         const aporte = Math.max(0, num(inp.aporteMensual));
         const extra = Math.max(0, num(inp.whatIfExtra));
         const withdraw = Math.max(0, num(inp.tasaRetiroSegura)) / 100;
-        const pensionM = pension({ ...inp, aniosRestantes: anios });
+        const pensionM = inp.country === 'US' ? socialSecurity({ ...inp, aniosRestantes: anios }) : pension({ ...inp, aniosRestantes: anios });
 
         const base = schedule(aporte);
         const valorFuturo = base[base.length - 1];
@@ -1086,8 +1162,17 @@
     // Cash you can reach today: checking + cash accounts (savings stay out), moved by what you
     // logged after the balance date. Credit-card purchases don't leave the account until the
     // card is paid, so they're not subtracted.
+    // US mortgage: principal & interest + property tax + home insurance + PMI + HOA, per month.
+    function pitiMonthly({ payment, amount, propertyTax = 0, homeInsurance = 0, pmiRate = 0, hoa = 0 }) {
+        const parts = { pi: num(payment), tax: num(propertyTax) / 12, ins: num(homeInsurance) / 12, pmi: num(amount) * num(pmiRate) / 1200, hoa: num(hoa) };
+        return Object.assign(parts, { total: parts.pi + parts.tax + parts.ins + parts.pmi + parts.hoa });
+    }
+
+    // Account kinds: cash you can spend (checking, cash), savings, retirement (401(k)/IRA).
+    const isCashAccount = (a) => !a.kind || a.kind === 'corriente' || a.kind === 'efectivo';
+    const accountTotal = (accounts, kinds) => sum((accounts || []).filter(a => (kinds === 'cash' ? isCashAccount(a) : a.kind === kinds)), a => num(a.balance));
     function cashNow(accounts, transactions, today) {
-        const cash = (accounts || []).filter(a => a.kind !== 'ahorros');
+        const cash = (accounts || []).filter(isCashAccount);
         if (!cash.length) return null;
         const t = isoDate(new Date(today));
         const asOf = cash.map(a => a.updatedAt || '').sort().pop() || t;
@@ -1260,10 +1345,10 @@
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
         occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear, nominalPaymentsPerYear,
-        cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
+        pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, payDeductionsSummary, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

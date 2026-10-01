@@ -420,7 +420,7 @@
         const flows = Engine.projectFlows({ from: Engine.isoDate(from), to: Engine.isoDate(to), period: 'month', events: inp.events, monthly: inp.monthly });
         const cash = Engine.cashNow(s.accounts, s.transactions, t);
         const accts = s.accounts || [];
-        const savings0 = accts.filter(a => a.kind === 'ahorros').reduce((a, x) => a + (Number(x.balance) || 0), 0) + ctx.polizasCapital + Engine.holdingsValue(s.holdings);
+        const savings0 = Engine.accountTotal(accts, 'ahorros') + Engine.accountTotal(accts, 'retiro') + ctx.polizasCapital + Engine.holdingsValue(s.holdings);
         const debts0 = (s.debts || []).reduce((a, d) => a + Math.max(0, Number(d.balance) || 0), 0);
         const pts = Engine.projectBalances({ start: { cash: cash ? cash.total : 0, savings: savings0, debts: debts0 }, months: flows.map(f => Object.assign({ key: f.start.slice(0, 7) }, f)), rate: Number(ctx.year.tasa) || 0, debtHistory: ctx.debts.history || [] });
         const labels = ['Hoy'].concat(pts.map(p => { const d = new Date(p.key + '-01T00:00'); return `${Fmt.MONTH_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`; }));

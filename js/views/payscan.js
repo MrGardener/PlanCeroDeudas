@@ -17,7 +17,9 @@
     };
     const PPY = [[52, 'Cada semana'], [26, 'Cada 2 semanas'], [24, 'Dos veces al mes'], [12, 'Una vez al mes']];
     // In Ecuador the app already computes these from the salary.
-    const COMPUTED = { iess: (p) => p.iessM, ir: (p) => p.isrM };
+    const COMPUTED_EC = { iess: (p) => p.iessM, ir: (p) => p.isrM };
+    const COMPUTED_US = { federal: (p) => p.fedM, state: (p) => p.stateM, local: (p) => p.localM, ss: (p) => p.ssM, medicare: (p) => p.medM };
+    const COMPUTED = new Proxy({}, { get: (_, k) => ((Store.COUNTRY === 'US' ? COMPUTED_US : COMPUTED_EC)[k]) });
 
     function yd() { return Store.active(); }
     const list = () => yd().payDeductions || (yd().payDeductions = []);
@@ -49,6 +51,18 @@
                 <td>${usesFor(d)}</td>
                 <td class="text-center"><button class="row-del" data-action="ded.delete" data-id="${d.id}" title="Quitar" aria-label="Quitar"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`).join('') : '<tr class="empty-row"><td colspan="5">Sin descuentos además del IESS y el impuesto a la renta. Escanea tu rol de pagos o agrégalos a mano.</td></tr>';
+        // US: yearly contribution limits.
+        const tax = yd().usTax;
+        if (tax) {
+            const age = Number(Store.state.retirement.edadActual) || 0;
+            const k401 = items.filter(d => d.group === 'retirement' && d.kind !== 'hsa').reduce((a, d) => a + (Number(d.monthly) || 0), 0) * 12;
+            const hsa = items.filter(d => d.kind === 'hsa').reduce((a, d) => a + (Number(d.monthly) || 0), 0) * 12;
+            const lim = tax.limit401k + (age >= 50 ? tax.catchUp401k : 0);
+            const warn = [];
+            if (k401 > lim) warn.push(`Tus aportes de jubilación por nómina (${money(k401)} al año) pasan el límite de ${money(lim)} para el 401(k).`);
+            if (hsa > tax.limitHSA.family) warn.push(`Tu HSA (${money(hsa)} al año) pasa el límite familiar de ${money(tax.limitHSA.family)}.`);
+            UI.html('ded-limits', warn.map(w => `<div class="bs-banner warn mt-2"><i class="fa-solid fa-triangle-exclamation"></i> ${w}</div>`).join(''));
+        }
         const last = yd().lastPaystub;
         UI.html('ded-last', last ? (() => {
             const stubMonthly = last.net * last.ppy / 12;

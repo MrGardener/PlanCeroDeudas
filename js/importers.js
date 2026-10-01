@@ -332,6 +332,29 @@
         return '﻿' + rows.map(r => r.map(cell).join(delimiter)).join('\r\n') + '\r\n';
     }
 
+    // ------------------------------------------------------------------ OFX / QFX
+    // Bank downloads in Open Financial Exchange (SGML v1 or XML v2; Quicken's QFX is the same).
+    // Each <STMTTRN>: date, signed amount, name/memo and a unique id (FITID) → exact duplicates.
+    function parseOFX(text) {
+        const src = String(text || '');
+        if (!/<OFX>/i.test(src)) return null;
+        const field = (block, tag) => { const m = block.match(new RegExp('<' + tag + '>([^<\\r\\n]*)', 'i')); return m ? m[1].trim() : ''; };
+        const date = (v) => { const m = String(v).match(/^(\d{4})(\d{2})(\d{2})/); return m ? `${m[1]}-${m[2]}-${m[3]}` : null; };
+        const rows = [];
+        src.split(/<STMTTRN>/i).slice(1).forEach(chunk => {
+            const block = chunk.split(/<\/STMTTRN>|<\/BANKTRANLIST>/i)[0];
+            const amt = parseAmount(field(block, 'TRNAMT'), '.');
+            const name = field(block, 'NAME'), memo = field(block, 'MEMO');
+            const d = date(field(block, 'DTPOSTED'));
+            const out = { date: d, description: name || memo || '', store: name && memo && memo !== name ? memo : '', category: '', fitid: field(block, 'FITID'), amount: Math.round(Math.abs(amt || 0) * 100) / 100, type: amt > 0 ? 'Ingreso' : 'Gasto' };
+            if (!d) out.error = 'Fecha no reconocida';
+            else if (!amt) out.error = 'Sin monto';
+            rows.push(out);
+        });
+        const ledger = src.match(/<LEDGERBAL>[\s\S]*?<BALAMT>([^<\r\n]*)[\s\S]*?<DTASOF>([^<\r\n]*)/i);
+        return { rows, balance: ledger ? { balance: parseAmount(ledger[1].trim(), '.'), date: date(ledger[2].trim()) } : null, account: field(src, 'ACCTID').replace(/.(?=.{4})/g, '•') };
+    }
+
     // ------------------------------------------------------------------ pay stubs
     // What a deduction line on a pay stub is, from its label (English or Spanish).
     // { group, kind, pretax } or null for lines that aren't deductions (earnings, totals).
@@ -427,7 +450,7 @@
         return null;
     }
 
-    const Importers = { classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    const Importers = { parseOFX, classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
     if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
     else root.Importers = Importers;
 })(this);
