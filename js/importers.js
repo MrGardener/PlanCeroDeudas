@@ -332,7 +332,102 @@
         return '﻿' + rows.map(r => r.map(cell).join(delimiter)).join('\r\n') + '\r\n';
     }
 
-    const Importers = { findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    // ------------------------------------------------------------------ pay stubs
+    // What a deduction line on a pay stub is, from its label (English or Spanish).
+    // { group, kind, pretax } or null for lines that aren't deductions (earnings, totals).
+    const DEDUCTION_RULES = [
+        // Paid by the employer on top of pay: shown, never subtracted.
+        [/\b(er|employer|company|patronal)\b.*\b(401|403|457|match|retire|hsa|contrib|aporte)|\bmatch(ing)?\b|aporte patronal/, { group: 'employer', kind: 'retirement' }],
+        [/\b(employer|company|patronal)\b/, { group: 'employer', kind: 'other' }],
+        // Loans repaid from pay.
+        [/(401k?|403b?|retirement)\s*loan|prestamo|quirografario|hipotecario|anticipo|\bloan\b|advance/, { group: 'loan', kind: 'loan' }],
+        // Taxes and mandatory contributions.
+        [/aporte personal|\biess\b(?!.*(prestamo|quirografario|hipotecario))|seguridad social(?!.*prestamo)/, { group: 'mandatory', kind: 'iess' }],
+        [/retencion.*(renta|\bir\b)|impuesto a la renta|\bir\b retenido/, { group: 'mandatory', kind: 'ir' }],
+        [/social security|oasdi|\bfica\b|\bss tax\b|\bsoc sec\b/, { group: 'mandatory', kind: 'ss' }],
+        [/medicare|\bmed tax\b/, { group: 'mandatory', kind: 'medicare' }],
+        [/fed(eral)?\b.*(w\/?h|withholding|income tax|tax)|\bfit\b|\bfwt\b/, { group: 'mandatory', kind: 'federal' }],
+        [/\bstate\b.*(tax|w\/?h|withholding)|\bsit\b|\bswt\b|\b(mi|ca|ny|oh|il|pa|ga|nc|va|nj|ma|az|co|wi|mn|or|ky|al|la|sc|ut|ia|ks|ar|ms|ne|id|nm|wv|hi|me|ri|mt|de|vt|dc|ok|in|md|mo|ct)\b\s*(w\/?h|withholding|income tax|tax|sit)/, { group: 'mandatory', kind: 'state' }],
+        [/\b(city|local|county|school district)\b.*tax|\blocal\b/, { group: 'mandatory', kind: 'local' }],
+        [/\b(sdi|sui|fli|pfl|pfml|vdi|disability ins)\b/, { group: 'mandatory', kind: 'state-ins' }],
+        // Court-ordered.
+        [/garnish|child support|pension(es)? alimenticia|alimentos|\blevy\b|wage assign|embargo|retencion judicial|support order/, { group: 'garnishment', kind: 'garnishment' }],
+        // Retirement savings.
+        [/roth/, { group: 'retirement', kind: 'retirement', pretax: false }],
+        [/\b401\s?\(?k\)?|\b403\s?\(?b\)?|\b457\b|\btsp\b|retirement|pension plan|deferred comp|ahorro voluntario|fondo de (cesantia|jubilacion|pensiones)|jubilacion patronal|aporte voluntario/, { group: 'retirement', kind: 'retirement', pretax: true }],
+        [/\bhsa\b|health savings/, { group: 'retirement', kind: 'hsa', pretax: true }],
+        // Insurance.
+        [/medical|health|\bhmo\b|\bppo\b|seguro (medico|de salud|de asistencia|privado)|asistencia medica/, { group: 'insurance', kind: 'health', pretax: true }],
+        [/dental|odontolog/, { group: 'insurance', kind: 'dental', pretax: true }],
+        [/vision|optic/, { group: 'insurance', kind: 'vision', pretax: true }],
+        [/\bfsa\b|flexible spending|dependent care/, { group: 'insurance', kind: 'fsa', pretax: true }],
+        [/\blife\b|ad&d|ad ?& ?d|seguro de vida|\bstd\b|\bltd\b|short.term|long.term|accident|critical illness|hospital indemnity/, { group: 'insurance', kind: 'life', pretax: false }],
+        [/auto ins|car ins|vehicle ins|seguro (vehicular|del carro|de auto)/, { group: 'insurance', kind: 'auto', pretax: false }],
+        [/legal plan|pet ins|identity/, { group: 'insurance', kind: 'other', pretax: false }],
+        // Other things taken from pay.
+        [/union|dues|cuota sindical|sindicato|comisariato|commuter|transit|parking|charity|united way|donation|uniform|cafeteria|stock purchase|espp|multa|descuento/, { group: 'other', kind: 'other' }]
+    ];
+    const NOT_DEDUCTION = /gross|total|net pay|net check|neto|liquido|a recibir|a pagar|earnings|regular|overtime|horas|hours|salary|sueldo|bonus|bono|comision|commission|vacation|holiday|pto|sick|rate|ytd|year to date|period|fecha|date|check no|deposit|fondos de reserva|decimo|tips/;
+
+    function classifyDeduction(label) {
+        const t = norm(label).replace(/[^a-z0-9&/()\s.-]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!t || t.length < 2) return null;
+        for (const [re, out] of DEDUCTION_RULES) if (re.test(t)) return Object.assign({ pretax: false }, out);
+        return null;
+    }
+
+    // Read a pay stub's text (from a PDF or a photo). Lines are "Label   current   YTD".
+    // Returns { gross, net, totalDeductions, deductions: [{ label, amount, ytd, group, kind, pretax }],
+    // periodStart, periodEnd, periodDays, payDate }. No names or ID numbers are returned.
+    const MONEY = /\(?-?\$?\s?\d{1,3}(?:[.,\s]\d{3})*[.,]\d{2}\)?(?!\d)|\(?-?\$?\s?\d+[.,]\d{2}\)?(?!\d)/g;
+    function parsePaystub(text) {
+        const out = { gross: null, net: null, totalDeductions: null, deductions: [], periodStart: null, periodEnd: null, periodDays: null, payDate: null };
+        const seen = new Set();
+        // Day-first (Ecuador) or month-first (US) dates, decided once for the whole stub.
+        const all = String(text || '').match(/\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b/g) || [];
+        const dayFirst = all.some(d => Number(d.split(/[/.-]/)[0]) > 12) || (!all.some(d => Number(d.split(/[/.-]/)[1]) > 12) && /\b(rol|periodo|sueldo|liquido|quincena|egresos)\b/.test(norm(text)));
+        String(text || '').split(/\r?\n/).forEach(raw => {
+            const line = raw.replace(/\b\d{3}-\d{2}-\d{4}\b|\bxxx-xx-\d{4}\b/gi, ' ').replace(/\s+/g, ' ').trim();
+            if (!line) return;
+            const n = norm(line);
+            // Dates: pay period and pay date.
+            const dates = (line.match(/\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b/g) || []).map(d => parseDate(d, /\b\d{4}-/.test(d) ? 'ymd' : dayFirst ? 'dmy' : 'mdy')).filter(Boolean);
+            if (/period|periodo/.test(n) && dates.length >= 2 && !out.periodStart) {
+                out.periodStart = dates[0]; out.periodEnd = dates[1];
+                out.periodDays = Math.round((Date.parse(dates[1]) - Date.parse(dates[0])) / 86400000) + 1;
+            }
+            if (/pay date|check date|fecha de pago|advice date|deposit date/.test(n) && dates.length && !out.payDate) out.payDate = dates[dates.length - 1];
+            // Rates like "9,45%" are not money.
+            const body = line.replace(/\d+(?:[.,]\d+)?\s?%/g, ' ');
+            const amounts = (body.match(MONEY) || []).map(a => Math.abs(parseAmount(a.replace(/\s/g, ''))));
+            if (!amounts.length) return;
+            const first = body.search(MONEY);
+            const label = body.slice(0, first).replace(/[:\-–]+\s*$/, '').replace(/\s+\d+(\.\d+)?\s*%?\s*$/, '').trim();
+            const l = norm(label);
+            if (/^(gross pay|gross earnings|total gross|gross|total earnings|total ingresos|ingresos totales|total devengado|total haberes|total de ingresos)\b/.test(l) || (/gross/.test(l) && !/ytd/.test(l))) { if (out.gross === null) out.gross = amounts[0]; return; }
+            if (/^(net pay|net check|net amount|net|neto a (recibir|pagar)|liquido a (recibir|pagar)|total a (recibir|pagar)|valor a recibir|neto)\b/.test(l)) { if (out.net === null) out.net = amounts[0]; return; }
+            if (/^(total deductions|total descuentos|total egresos|deductions total|total de descuentos)\b/.test(l)) { if (out.totalDeductions === null) out.totalDeductions = amounts[0]; return; }
+            const c = classifyDeduction(label);
+            if (!c || NOT_DEDUCTION.test(l) && c.group !== 'mandatory') return;
+            const key = l;
+            if (seen.has(key) || !(amounts[0] > 0)) return;
+            seen.add(key);
+            out.deductions.push(Object.assign({ label: label.slice(0, 60), amount: amounts[0], ytd: amounts.length > 1 ? amounts[amounts.length - 1] : null }, c));
+        });
+        return out;
+    }
+
+    // Paychecks a year from the length of the pay period (in days).
+    function paysPerYearFromPeriod(days) {
+        if (!(days > 0)) return null;
+        if (days <= 8) return 52;
+        if (days <= 14) return 26;
+        if (days <= 17) return 24;
+        if (days <= 31) return 12;
+        return null;
+    }
+
+    const Importers = { classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
     if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
     else root.Importers = Importers;
 })(this);

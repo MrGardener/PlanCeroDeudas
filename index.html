@@ -294,6 +294,22 @@
             </div>
         </div>
 
+        <div class="card" id="ded-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-file-invoice-dollar text-amber-600"></i> Descuentos de tu rol de pagos</div>
+                    <div class="card-sub">Lo que tu empleador descuenta además del IESS y el impuesto a la renta: seguros, pensión alimenticia, préstamos del IESS, ahorro voluntario, cuota sindical… Se restan de tu sueldo neto.</div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <label class="btn btn-primary btn-sm cursor-pointer"><i class="fa-solid fa-camera"></i> Escanear mi rol (PDF o foto)<input type="file" id="ded-file" class="hidden" accept="application/pdf,image/*" data-change="ded.file"></label>
+                    <button type="button" class="btn btn-secondary btn-sm" data-action="ded.add"><i class="fa-solid fa-plus"></i> Agregar a mano</button>
+                </div>
+            </div>
+            <div id="ded-status" class="text-sm mb-2"></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3" id="ded-kpis"></div>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Descuento</th><th>Tipo</th><th class="num">Al mes</th><th>Cuenta como</th><th></th></tr></thead><tbody id="ded-body"></tbody></table></div>
+            <p class="help mt-2" id="ded-last"></p>
+        </div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div class="card">
                 <div class="card-head">
@@ -1188,6 +1204,7 @@
 <script src="js/views/presupuesto-simple.js"></script>
 <script src="js/views/presupuesto.js"></script>
 <script src="js/views/ingresos.js"></script>
+<script src="js/views/payscan.js"></script>
 <script src="js/views/transacciones.js"></script>
 <script src="js/views/importar.js"></script>
 <script src="js/views/reportes.js"></script>

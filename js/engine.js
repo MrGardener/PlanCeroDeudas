@@ -55,6 +55,19 @@
 
     // Monthly payroll for a year: IESS personal contribution, SRI income tax withheld and
     // the resulting net salary (without décimos — those depend on the month, see below).
+    // Paycheck deductions beyond what the app computes (IESS, income tax). Groups:
+    //   retirement (savings), insurance, garnishment (court-ordered), loan, other: taken from pay;
+    //   employer: paid by the employer on top (e.g. 401k match) — not taken from pay.
+    const DEDUCTION_GROUPS = ['mandatory', 'retirement', 'insurance', 'garnishment', 'loan', 'other', 'employer'];
+    function payDeductionsSummary(yd) {
+        const list = (yd && yd.payDeductions) || [];
+        const byGroup = {};
+        DEDUCTION_GROUPS.forEach(g => { byGroup[g] = 0; });
+        list.forEach(d => { const g = DEDUCTION_GROUPS.includes(d.group) ? d.group : 'other'; byGroup[g] += Math.max(0, num(d.monthly)); });
+        const taken = sum(DEDUCTION_GROUPS.filter(g => g !== 'employer'), g => byGroup[g]);
+        return { byGroup, taken, retirement: byGroup.retirement + list.filter(d => d.group === 'employer' && d.kind === 'retirement').reduce((a, d) => a + Math.max(0, num(d.monthly)), 0), employer: byGroup.employer };
+    }
+
     function payroll(yd) {
         const sueldo = Math.max(0, num(yd.sueldo));
         const iessM = sueldo * num(yd.iessRate) / 100;
@@ -74,7 +87,9 @@
             baseImponible,
             isrAnual,
             isrM: isrAnual / 12,
-            netoM: Math.max(0, sueldo - iessM - isrAnual / 12)
+            netoAntesM: Math.max(0, sueldo - iessM - isrAnual / 12),
+            otrosDescuentosM: payDeductionsSummary(yd).taken,
+            netoM: Math.max(0, sueldo - iessM - isrAnual / 12 - payDeductionsSummary(yd).taken)
         };
     }
 
@@ -1248,7 +1263,7 @@
         cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, payDeductionsSummary, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

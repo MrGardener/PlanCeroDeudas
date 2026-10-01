@@ -152,8 +152,12 @@
         // a debt/goal is reflected in every budget immediately and can never fall out of sync.
         linkedRows(y) {
             const rows = [];
+            // A debt paid straight from the paycheck (a payroll deduction linked to it) isn't a
+            // budget line: the net salary already comes without that money.
+            const yd = this.state.years[y] || {};
+            const byPayroll = new Set((yd.payDeductions || []).filter(x => x.debtId).map(x => Number(x.debtId)));
             this.state.debts.forEach(d => {
-                if (Number(d.balance) > 0.01 && (d.createdYear || 0) <= y) {
+                if (Number(d.balance) > 0.01 && (d.createdYear || 0) <= y && !byPayroll.has(Number(d.id))) {
                     const m = Math.max(0, Number(d.monthly) || 0);
                     rows.push({ id: 'debt-' + d.id, link: 'debt', refId: d.id, name: d.name, type: 'Deuda', isDeductible: false, prep: m, real: m, linkedCategory: 'Deudas', minPayment: Math.max(0, Number(d.minPayment) || 0), dueDay: d.dueDay });
                 }

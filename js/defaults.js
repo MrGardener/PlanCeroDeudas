@@ -100,6 +100,10 @@
             budgetBase: clone(BUDGET_TEMPLATE),
             // Income besides the salary, every month: { id, name, amount, category }.
             otherIncomes: [],
+            // What the employer takes from each paycheck besides IESS and income tax (seguros,
+            // pensión alimenticia, préstamos IESS, ahorro voluntario…), per month:
+            // { id, name, group, kind, monthly, pretax, debtId? }.
+            payDeductions: [],
             monthOverrides: {},
             sriBrackets: sriBrackets()
         };

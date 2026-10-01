@@ -149,3 +149,79 @@ test('receipt text from a photo: total, date, RUC, store', () => {
     assert.equal(r.ruc, '1790710319001');
     assert.equal(r.merchant, 'FARMACIAS FYBECA');
 });
+
+test('pay stub deductions are classified in English and Spanish', () => {
+    const c = (l) => { const r = I.classifyDeduction(l); return r ? `${r.group}/${r.kind}` : null; };
+    assert.equal(c('Federal Income Tax'), 'mandatory/federal');
+    assert.equal(c('MI State Income Tax'), 'mandatory/state');
+    assert.equal(c('Social Security'), 'mandatory/ss');
+    assert.equal(c('Medicare'), 'mandatory/medicare');
+    assert.equal(c('401(k) Pre-Tax'), 'retirement/retirement');
+    assert.equal(c('Roth 401k'), 'retirement/retirement');
+    assert.equal(I.classifyDeduction('Roth 401k').pretax, false);
+    assert.equal(I.classifyDeduction('401K').pretax, true);
+    assert.equal(c('401k Loan'), 'loan/loan');
+    assert.equal(c('ER 401K Match'), 'employer/retirement');
+    assert.equal(c('Medical PPO'), 'insurance/health');
+    assert.equal(c('Dental'), 'insurance/dental');
+    assert.equal(c('Vision'), 'insurance/vision');
+    assert.equal(c('Supp Life AD&D'), 'insurance/life');
+    assert.equal(c('Child Support Garnishment'), 'garnishment/garnishment');
+    assert.equal(c('Pensión alimenticia'), 'garnishment/garnishment');
+    assert.equal(c('Aporte personal IESS 9.45%'), 'mandatory/iess');
+    assert.equal(c('Préstamo quirografario IESS'), 'loan/loan');
+    assert.equal(c('Retención impuesto a la renta'), 'mandatory/ir');
+    assert.equal(c('Seguro de vida'), 'insurance/life');
+    assert.equal(c('Seguro vehicular'), 'insurance/auto');
+    assert.equal(c('Union Dues'), 'other/other');
+    assert.equal(c('Regular Earnings'), null);
+});
+
+test('US pay stub text: gross, net, period, deductions with YTD; SSN never kept', () => {
+    const text = `ACME CORP  Pay Statement
+Employee: Jane Doe   SSN: 123-45-6789
+Pay Period: 09/14/2026 - 09/27/2026   Pay Date: 10/02/2026
+Regular  80.00  25.00  2,000.00  38,000.00
+Gross Pay  2,000.00  38,000.00
+Federal Income Tax  182.40  3,465.60
+Social Security  117.80  2,238.20
+Medicare  27.55  523.45
+MI State Income Tax  73.10  1,388.90
+401(k) Pre-Tax  120.00  2,280.00
+Medical PPO  85.00  1,615.00
+Dental  9.50  180.50
+Child Support Garnishment  150.00  2,850.00
+ER 401K Match  60.00  1,140.00
+Total Deductions  765.35  14,541.65
+Net Pay  1,234.65  23,458.35`;
+    const p = I.parsePaystub(text);
+    assert.equal(p.gross, 2000);
+    assert.equal(p.net, 1234.65);
+    assert.equal(p.totalDeductions, 765.35);
+    assert.equal(p.periodDays, 14);
+    assert.equal(I.paysPerYearFromPeriod(p.periodDays), 26);
+    assert.equal(p.payDate, '2026-10-02');
+    assert.deepEqual(p.deductions.map(d => [d.label, d.amount, d.group]), [
+        ['Federal Income Tax', 182.4, 'mandatory'], ['Social Security', 117.8, 'mandatory'], ['Medicare', 27.55, 'mandatory'],
+        ['MI State Income Tax', 73.1, 'mandatory'], ['401(k) Pre-Tax', 120, 'retirement'], ['Medical PPO', 85, 'insurance'],
+        ['Dental', 9.5, 'insurance'], ['Child Support Garnishment', 150, 'garnishment'], ['ER 401K Match', 60, 'employer']]);
+    assert.equal(p.deductions[0].ytd, 3465.6);
+    assert.ok(!JSON.stringify(p).includes('6789') && !JSON.stringify(p).includes('Jane'));
+});
+
+test('Ecuador rol de pagos text', () => {
+    const text = `ROL DE PAGOS - SEPTIEMBRE 2026
+Periodo: 01/09/2026 - 30/09/2026
+Sueldo  1.500,00
+Total ingresos  1.500,00
+Aporte personal IESS 9,45%  141,75
+Préstamo quirografario IESS  85,20
+Pensión alimenticia  200,00
+Seguro de vida  12,00
+Total egresos  438,95
+Líquido a recibir  1.061,05`;
+    const p = I.parsePaystub(text);
+    assert.equal(p.gross, 1500); assert.equal(p.net, 1061.05); assert.equal(p.totalDeductions, 438.95);
+    assert.equal(p.periodDays, 30);
+    assert.deepEqual(p.deductions.map(d => [d.kind, d.amount]), [['iess', 141.75], ['loan', 85.2], ['garnishment', 200], ['life', 12]]);
+});

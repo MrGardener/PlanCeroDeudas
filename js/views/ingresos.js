@@ -141,9 +141,10 @@
             ['Base imponible anual', money(p.baseImponible), 'text-slate-900'],
             ['Impuesto a la renta anual', money(p.isrAnual), 'text-amber-700'],
             ['Retención mensual en el rol', '−' + money(p.isrM), 'text-red-600']
-        ];
+        ].concat(p.otrosDescuentosM > 0 ? [['Otros descuentos del rol (seguros, préstamos…)', '−' + money(p.otrosDescuentosM), 'text-red-600']] : []);
         UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold ${c}">${v}</dd></div>`).join(''));
         UI.text('inc-neto', money(p.netoM));
+        if (window.PayScan) PayScan.render(ctx);
 
         UI.text('inc-cap', money(p.sriCap));
         UI.text('inc-ded-prep', money(p.deductibles.prep));
