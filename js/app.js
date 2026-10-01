@@ -360,8 +360,9 @@
             go(g.dataset.goto, { focus: g.dataset.focus });
         });
         buildNav();
-        // Styles and charts come from the internet; say so plainly if they didn't load.
-        UI.show('offline-banner', typeof Chart === 'undefined' || typeof tailwind === 'undefined');
+        // Styles and charts come from the internet (the phone app carries its own copy,
+        // APP_EDITION.offline); say so plainly if they didn't load.
+        UI.show('offline-banner', typeof Chart === 'undefined' || (typeof tailwind === 'undefined' && !APP_EDITION.offline));
         Store.onChange(renderSaveStatus);
         window.addEventListener('beforeunload', () => Store.saveNow());
         document.addEventListener('visibilitychange', () => { if (document.hidden) Store.saveNow(); });

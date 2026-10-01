@@ -532,3 +532,22 @@ html[data-theme="dark"] .pay-next li { border-bottom-color: var(--line); color: 
 html[data-country="US"] [data-country="EC"], html[data-country="EC"] [data-country="US"] { display: none !important; }
 /* Long labels (English is often longer) wrap instead of pushing the page sideways on phones. */
 @media (max-width: 639px) { .btn { white-space: normal; max-width: 100%; } }
+
+/* ------------------------------------------------------------------ phone app (js/native.js) */
+/* The app draws under the status bar and gesture bar: keep content inside the safe area. */
+html.is-native .app-header { padding-top: env(safe-area-inset-top, 0px); }
+html.is-native body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+html.is-native [data-web-only], html:not(.is-native) [data-app-only] { display: none !important; }
+/* Phones: the sections become a bottom tab bar, where the thumb is. */
+@media (max-width: 767px) {
+    html.is-native body { padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); }
+    html.is-native .main-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; max-width: none; margin: 0; padding: .2rem .25rem calc(.2rem + env(safe-area-inset-bottom, 0px)); gap: 0; background: #0f172a; box-shadow: 0 -2px 10px rgba(15, 23, 42, .3); }
+    html.is-native .nav-tab { flex: 1 0 4.4rem; flex-direction: column; justify-content: center; gap: .2rem; padding: .4rem .25rem; font-size: .66rem; border-bottom: 0; border-top: 3px solid transparent; border-radius: 0 0 .5rem .5rem; white-space: normal; text-align: center; line-height: 1.1; }
+    html.is-native .nav-tab i { font-size: 1.1rem; }
+    html.is-native .nav-tab.active { border-top-color: #10b981; }
+    html.is-native .nav-tab .nav-num { display: none; }
+    html.is-native .brand-logo { display: none; }
+    html.is-native .fab { bottom: calc(5rem + env(safe-area-inset-bottom, 0px)); }
+    html.is-native #toast-host { bottom: calc(9.25rem + env(safe-area-inset-bottom, 0px)); }
+}
+html.is-native[data-theme="dark"] .main-nav { background: #070d19; }

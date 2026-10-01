@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Plan Financiero Ecuador</title>
     <script>/* Edition: Ecuador or US (ZeroDebtPlan). The build fixes it; while developing, add ?edition=us */
     window.APP_EDITION = window.APP_EDITION || (/[?&]edition=us\b/i.test(location.search)
@@ -43,7 +43,7 @@
             <button class="icon-btn lang-btn hide-mobile" id="lang-toggle" data-action="device.toggleLang" title="Switch to English" aria-label="Idioma / Language">EN</button>
             <button class="icon-btn hide-mobile" id="theme-toggle" data-action="device.toggleTheme" title="Usar tema oscuro" aria-label="Cambiar tema"><i class="fa-solid fa-moon"></i></button>
             <button class="icon-btn" data-action="app.help" title="Cómo usar la app" aria-label="Ayuda"><i class="fa-solid fa-circle-question"></i></button>
-            <button class="icon-btn hide-mobile" data-action="app.print" title="Imprimir esta pestaña" aria-label="Imprimir"><i class="fa-solid fa-print"></i></button>
+            <button class="icon-btn hide-mobile" data-web-only data-action="app.print" title="Imprimir esta pestaña" aria-label="Imprimir"><i class="fa-solid fa-print"></i></button>
         </div>
     </div>
     <nav id="main-nav" class="wrap main-nav" role="tablist" aria-label="Secciones"></nav>
@@ -650,7 +650,7 @@
                 <div class="flex flex-wrap gap-2 no-print">
                     <button class="btn btn-secondary" data-action="rep.csv"><i class="fa-solid fa-file-csv"></i> Reporte (CSV)</button>
                     <button class="btn btn-secondary" data-action="rep.txns"><i class="fa-solid fa-table-list"></i> Transacciones (CSV)</button>
-                    <button class="btn btn-primary" data-action="app.print"><i class="fa-solid fa-print"></i> Imprimir / PDF</button>
+                    <button class="btn btn-primary" data-web-only data-action="app.print"><i class="fa-solid fa-print"></i> Imprimir / PDF</button>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4 no-print">
@@ -1137,7 +1137,7 @@
 
     <details class="card group-card" id="cfg-data" open>
         <summary class="flex items-center justify-between gap-3">
-            <div><div class="card-title"><i class="fa-solid fa-database text-indigo-600"></i> Tus Datos</div><div class="card-sub">Todo se guarda automáticamente en este navegador. Descarga una copia para no perderla o moverla a otro equipo.</div></div>
+            <div><div class="card-title"><i class="fa-solid fa-database text-indigo-600"></i> Tus Datos</div><div class="card-sub"><span data-web-only>Todo se guarda automáticamente en este navegador. Descarga una copia para no perderla o moverla a otro equipo.</span><span data-app-only>Todo se guarda automáticamente en este teléfono. Guarda una copia para no perderla o moverla a otro equipo.</span></div></div>
             <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
         </summary>
         <div class="mt-5 space-y-4">
@@ -1167,7 +1167,7 @@
                     <div class="field"><span class="field-label">Bloqueo con PIN</span>
                         <div id="cfg-lock" class="flex flex-wrap gap-2 items-center"></div></div>
                 </div>
-                <div class="field mt-3 max-w-2xl"><span class="field-label">Acceso directo al registro rápido</span>
+                <div class="field mt-3 max-w-2xl" data-web-only><span class="field-label">Acceso directo al registro rápido</span>
                     <div class="flex gap-2"><input id="cfg-quick-link" class="input" readonly aria-label="Enlace de registro rápido"><button type="button" class="btn btn-secondary btn-sm" data-action="device.copyQuick"><i class="fa-regular fa-copy"></i> Copiar</button></div>
                     <span class="help">Guárdalo como favorito (o en tu pantalla de inicio cuando la app esté en internet): abre directo el teclado para anotar un gasto. En computadora, la tecla <kbd>N</kbd> hace lo mismo.</span></div>
                 <p class="help mt-2">Se guardan solo en este navegador (no van en la copia de respaldo). El PIN oculta la app al abrirla y después de 5 minutos en segundo plano; no cifra tus datos, así que usa también el bloqueo de tu teléfono o computadora.</p>
@@ -1292,6 +1292,7 @@
 <script src="js/i18n/en.js"></script>
 <script src="js/i18n/us.js"></script>
 <script src="js/device.js"></script>
+<script src="js/native.js"></script>
 <script src="js/format.js"></script>
 <script src="js/defaults.js"></script>
 <script src="js/defaults-us.js"></script>

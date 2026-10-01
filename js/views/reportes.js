@@ -110,12 +110,9 @@
             : '<tr class="empty-row"><td colspan="5">No hay movimientos en este período.</td></tr>');
     }
 
+    // A download in the browser; the share sheet in the phone app (js/native.js).
     function download(name, text) {
-        const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
-        const a = document.createElement('a');
-        a.href = url; a.download = name;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        Native.saveFile(name, text, 'text/csv;charset=utf-8').catch(e => UI.toast('No se pudo guardar el archivo: ' + (e.message || e), 'error'));
     }
 
     UI.register({

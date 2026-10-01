@@ -25,6 +25,7 @@ js/i18n.js              language layer: translates what's on screen from the Spa
 js/i18n/us.js           US edition's Spanish wording (Seguro Social, CD, talón de pago…)
 js/i18n/en.js           English dictionary (tests/i18n.test.js fails if a Spanish text lacks one)
 js/device.js            this device only: language, theme (light/dark/auto) and PIN lock — never in backups
+js/native.js            phone app bridge (share sheet, back button, native copy of the data); no-op on the web
 js/format.js            money/percent formatting, HTML escaping
 js/defaults.js          default budget template, categories, sample data, new-year factory (Ecuador)
 js/defaults-us.js       US edition: budget, sample data, 2026 federal tax tables, states, Michigan cities
@@ -40,6 +41,8 @@ js/views/*.js           one file per tab: render() on structure changes, update(
 tests/                  node:test unit tests (engine, store/migration, build)
 scripts/build.js        inlines everything into dist/
 scripts/i18n-extract.js lists every Spanish text the app can show (translation keys)
+mobile/                 phone app (Capacitor: Android + iOS) built from the same code — docs/MOBILE.md
+.github/workflows/      cloud builds: tests, Android test APK, iOS compile on a macOS runner
 ```
 
 Data flows one way: input → handler updates `Store.state` → `App.changed()` → autosave +
@@ -57,9 +60,13 @@ One codebase, one file per country (`npm run build` makes both):
 Both switch between English and Spanish. While developing, open `index.html?edition=us` for the US edition.
 Each edition saves in its own browser storage, so both can be used on the same device.
 
+**Phone app:** ZeroDebtPlan for Android and iPhone lives in `mobile/` (same code, works offline).
+Every push builds a test APK in GitHub Actions → Phone app → Artifacts. See [docs/MOBILE.md](docs/MOBILE.md).
+
 ## Develop
 
 ```
 npm test          # unit tests (Node 18+, no dependencies)
 npm run build     # regenerate dist/ after editing sources (a test checks it's current)
+cd mobile && npm ci && npm run sync   # phone app: build mobile/www and copy it into android/ and ios/
 ```

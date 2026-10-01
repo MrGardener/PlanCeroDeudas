@@ -1,0 +1,88 @@
+# Phone app builds in the cloud: no Android Studio or Mac needed.
+#  - Android: a test APK for the Pixel (download it from the run's "Artifacts").
+#  - iOS: builds the app on a macOS runner to prove it compiles. Installing it on an iPhone needs
+#    an Apple Developer account and signing (see docs/MOBILE.md).
+name: Phone app
+
+on:
+  push:
+    paths:
+      - 'index.html'
+      - 'css/**'
+      - 'js/**'
+      - 'scripts/build.js'
+      - 'tests/**'
+      - 'mobile/**'
+      - '.github/workflows/mobile.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+
+  android:
+    needs: tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - run: node build-www.js
+      - run: npx cap sync android
+      - name: Build the test APK
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug --no-daemon
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk ZeroDebtPlan-${{ github.run_number }}.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZeroDebtPlan-android-${{ github.run_number }}
+          path: mobile/ZeroDebtPlan-${{ github.run_number }}.apk
+          retention-days: 30
+
+  ios:
+    needs: tests
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - run: npm ci
+      - run: node build-www.js
+      - run: npx cap sync ios
+      - name: Build for the iOS Simulator (no signing)
+        working-directory: mobile/ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build

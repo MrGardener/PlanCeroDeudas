@@ -1137,7 +1137,7 @@ I18n.add('en', {
 "Todas las personas": "Everyone",
 "Todo": "All",
 "Todo en orden. ¡Buen trabajo!": "Everything's in order. Great job!",
-"Todo se": "Everything is",
+"Todo se": "Everything",
 "Todo se guarda automáticamente en este navegador. Descarga una copia para no perderla o moverla a otro equipo.": "Everything is saved automatically in this browser. Download a copy so you don't lose it or to move it to another device.",
 "Todo tu modelo volverá a como estaba en este baseline.": "Your whole plan will go back to how it was in this baseline.",
 "Todos los años": "Every year",
@@ -1842,4 +1842,25 @@ I18n.add('en', {
 "Seguro Social:": "Social Security:",
 "promedio mensual de tus 35 mejores años (con el tope anual) → 90% de los primeros $1,286 + 32% hasta $7,749 + 15% del resto; menos si lo pides antes de los 67, 8% más por año hasta los 70.": "monthly average of your 35 best years (with the annual cap) → 90% of the first $1,286 + 32% up to $7,749 + 15% of the rest; less if you claim before 67, 8% more per year up to 70.",
 "Edad": "Age", "Meses": "Months", "Años": "Years",
+});
+
+// Phone app (js/native.js)
+I18n.add('en', {
+"Copia de respaldo lista. Elige dónde guardarla (por ejemplo Google Drive).": "Backup ready. Choose where to keep it (for example Google Drive).",
+"No se pudo guardar el archivo: {0}": "Couldn't save the file: {0}",
+"No se pudo guardar el archivo:": "Couldn't save the file:",
+});
+I18n.add('en', {
+"En tu teléfono": "On your phone",
+"Funciona": "Works", "sin internet": "offline",
+": todo está en tu teléfono. Solo leer un PDF o una foto necesita internet la primera vez.": ": everything is on your phone. Only reading a PDF or a photo needs internet the first time.",
+"Las copias de respaldo y los reportes se abren con": "Backups and reports open with",
+"Compartir": "Share",
+": guárdalos en Google Drive o en Archivos, o envíalos por correo.": ": keep them in Google Drive or Files, or email them.",
+", en este teléfono. Tus datos nunca salen de tu equipo.": ", on this phone. Your data never leaves your device.",
+"arriba a la derecha para volver atrás paso a paso.": "at the top right to go back step by step.",
+"Si desinstalas la app o borras sus datos,": "If you uninstall the app or clear its data,",
+"Guarda una": "Save a",
+". Para pasar a otro teléfono o a un computador, abre la app allí y usa": ". To move to another phone or a computer, open the app there and use",
+"Todo se guarda automáticamente en este teléfono. Guarda una copia para no perderla o moverla a otro equipo.": "Everything saves automatically on this phone. Save a copy so you don't lose it or to move it to another device.",
 });

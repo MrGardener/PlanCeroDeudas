@@ -63,6 +63,7 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ✅ Paycheck deductions + pay stub reading | Ingresos → "Descuentos de tu rol de pagos": insurance (health, dental, vision, life, car), garnishments (pensión alimenticia / child support), loans (IESS quirografario, 401k loan; link to the debt → paid by payroll, not a budget line), retirement (ahorro voluntario, 401k/403b/457, HSA → counts for Baby Step 4), union dues, employer match (informational, adds to retirement). Reads a PDF (pdf.js) or photo (Tesseract) of a rol de pagos or US pay stub in English/Spanish: gross, net, pay period → paychecks a year, each deduction with its type; review before saving; IESS / income tax already computed are recognized; checks the stub's net against the app. Only labels and amounts are kept; the file and ID numbers are not |
 | ✅ English / Spanish | Configuración → Este dispositivo (and EN/ES in the header on a computer). Spanish stays the source; js/i18n/en.js translates every text on screen, tooltips, dialogs, toasts and chart labels, including sentences with values; month/weekday names and dates follow the language. A unit test fails when new Spanish text has no English |
 | ✅ US edition — ZeroDebtPlan (`dist/zerodebtplan-usa.html`) | Same codebase and features; English by default with Spanish (US wording: Seguro Social, CD, talón de pago). Paycheck: 2026 federal brackets by filing status, standard/itemized deduction, child and dependent credits, Social Security to the wage base, Medicare + 0.9%, pre-tax 401(k) (income tax) vs. section-125 health/HSA/FSA (also FICA), **Michigan 4.25% after the per-person exemption**, Michigan city taxes (Detroit 2.4%, Grand Rapids 1.5%…), no-tax states, IL/PA flat, any other state by the rate on your stub. Pay stub reading recognizes federal/state/SS/Medicare lines as computed. 401(k)/HSA limit warnings. Social Security estimate (PIA bend points, claiming age 62–70). Savings & CDs with FDIC/NCUA; 401(k)/IRA account type (counts for retirement and net worth). Mortgage PITI (property tax, insurance, PMI, HOA). OFX/QFX bank downloads (unique ids, account balance). Tax parameters editable per year in Settings. Own storage, so both editions can live on one device |
+| ✅ Phone app foundation (ZeroDebtPlan, Android + iPhone) — `mobile/`, guide in docs/MOBILE.md | Capacitor wrapper around the same code. Works offline (Tailwind, Chart.js, FontAwesome, Inter bundled), bottom tab bar, notch/gesture-bar safe areas, backups and CSV reports through the Share sheet, Android back button, second copy of the data in native storage restored automatically, Android cloud backup off, app icon + splash. GitHub Actions builds a test APK for the Pixel on every push and compiles the iOS app on a cloud Mac (no Mac needed). Tested offline with a simulated Android bridge |
 
 ## Phase 3 — planned (works without a server)
 
@@ -83,6 +84,22 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | 📋 Roth vs. traditional comparison, IRA contribution tracker, employer match optimizer | Builds on the 401(k)/IRA account type and deductions |
 | 📋 US bank CSV presets (Chase, BofA, Wells Fargo, Capital One, Amex) | The column mapper already handles them; presets would skip the mapping step |
 
+## Phone app — next
+
+| Item | Status / what it needs |
+|---|---|
+| ⏳ First APK on the Pixel 10 Pro | Built by GitHub Actions → Phone app → Artifacts. Your part: install it and report anything odd. (Building inside the Claude Code container needs `dl.google.com` allowed in the environment's network settings) |
+| 🙋 iPhone test build (TestFlight) | Needs your Apple Developer Program membership (US$99/yr) and an iPhone; signing secrets added to GitHub once. No Mac needed (cloud macOS runner) |
+| 🙋 Google Play release | Needs your Play Console account (US$25), your upload key (kept by you, stored as a GitHub Secret), a privacy-policy page, the Data safety form. 🔍 Closed test with 12 testers for 14 days for new personal accounts — verify current rule |
+| 📋 Fingerprint / Face ID unlock | Native biometric plugin replaces the PIN prompt; no `https` needed in the app. Needs testing on the phone |
+| 📋 Bill reminders as notifications | `@capacitor/local-notifications`: bills, paydays, weekly review — scheduled on the phone, no server |
+| 📋 Camera button for pay stubs and receipts | `@capacitor/camera`; today the file picker already offers the camera on Android |
+| 📋 Scanning fully offline | Bundle pdf.js and Tesseract with English/Spanish data (~15–20 MB more) |
+| 📋 Home-screen shortcut / widget for quick entry | Android app shortcut first (long-press the icon → "Add expense"); widget later |
+| 📋 Ecuador edition as its own app ("Plan Financiero", Spanish) | `EDITION=ec node build-www.js` already builds it; needs its own app id and store listing |
+| 📋 Encrypt the data on the phone | Native storage isn't encrypted (the phone's own encryption applies). Option: a secure-storage plugin with a key in Android Keystore / iOS Keychain |
+| 📋 Optional encrypted backup to your own Google Drive / iCloud | Android cloud backup is off on purpose (data never leaves the phone); a user-chosen setting could turn it on |
+
 ## 🔍 Under analysis — no decision yet (requested 2026-09-30)
 
 Assessed only; nothing built. "Now" = works in the offline file; "Hosting" = needs stage A/B/C below.
@@ -99,9 +116,9 @@ Assessed only; nothing built. "Now" = works in the offline file; "Hosting" = nee
 |---|---|---|
 | 🌐 Sync the budget across phone and computer (and encrypt the data at rest) | No server to hold the data; localStorage is per browser | Hosting + accounts + encrypted sync (see stage B) |
 | 🌐 Shared household / group budgets with invitation codes ("Start / Join group", review what is shared) | Two people's devices can't talk without a server | Accounts, groups, invitations, per-item sharing permissions |
-| 🌐 Sign in with Touch ID / Face ID (the PIN lock is the offline stand-in) | WebAuthn needs a secure `https://` origin; `file://` doesn't qualify | Stage A (static hosting over HTTPS) is enough for a local lock; stage B for real sign-in |
-| 🌐 Installable app on the phone (home-screen icon, works offline) | PWA install requires `https://` | Stage A |
-| 🌐 Bill reminders as phone notifications | Push needs a service worker on `https://` and a push server | Stage A (local reminders) / B (push) |
+| 🌐 Sign in with Touch ID / Face ID (the PIN lock is the offline stand-in) | WebAuthn needs a secure `https://` origin; `file://` doesn't qualify | Phone app: native biometric unlock (see Phone app — next). Web: stage A; stage B for real sign-in |
+| ✅/🌐 Installable app on the phone (home-screen icon, works offline) | Done as a native app (`mobile/`). A PWA install of the web version still needs `https://` | Stage A for the web version |
+| 🌐 Bill reminders as phone notifications | Web: push needs a service worker on `https://` and a push server | Phone app: local notifications, no server (see Phone app — next). Web: stage A / B |
 | 🌐 Live customer support chat | Needs someone to answer and a chat service | Stage B: chat widget (e.g. WhatsApp Business link or a support tool) |
 | 🌐 Stock prices without asking the user for an API key | Price APIs need a key; keeping one secret needs a server | Stage B: small price proxy with the app's own key |
 | 🌐 Live bank connections (automatic transaction sync) | Needs a bank-data aggregator and a server; 🔍 Ecuador coverage of aggregators (e.g. Belvo) must be verified | Stage C. Until then: CSV import |

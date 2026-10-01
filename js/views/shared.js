@@ -103,22 +103,35 @@
     function guideHTML() {
         const item = (icon, html) => `<li class="flex gap-2.5"><i class="fa-solid ${icon} text-emerald-600 mt-0.5 w-4 text-center"></i><span>${html}</span></li>`;
         const step = (n, goto, label, text) => `<li class="flex gap-2.5"><span class="step-num" style="width:1.4rem;height:1.4rem;font-size:.7rem">${n}</span><span><a href="#" class="link" data-goto="${goto}">${label}</a>: ${text}</span></li>`;
-        return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 text-xs text-slate-700 leading-relaxed">
-            <div>
+        // In the phone app (js/native.js) there's no file to open and nothing needs internet.
+        const app = window.Native && Native.isApp;
+        const open = app ? `
+                <div class="section-label"><i class="fa-solid fa-mobile-screen text-emerald-600"></i> En tu teléfono</div>
+                <ul class="space-y-2">
+                    ${item('fa-plane', 'Funciona <strong>sin internet</strong>: todo está en tu teléfono. Solo leer un PDF o una foto necesita internet la primera vez.')}
+                    ${item('fa-share-nodes', 'Las copias de respaldo y los reportes se abren con <strong>Compartir</strong>: guárdalos en Google Drive o en Archivos, o envíalos por correo.')}
+                </ul>` : `
                 <div class="section-label"><i class="fa-solid fa-folder-open text-emerald-600"></i> Abrir la app</div>
                 <ul class="space-y-2">
                     ${item('fa-file-code', 'Guarda este archivo en una carpeta fácil de encontrar (por ejemplo <strong>Documentos</strong>) y ábrelo con <strong>doble clic</strong>. Se abre en tu navegador; no hay que instalar nada.')}
                     ${item('fa-laptop', 'Funciona mejor en un <strong>computador</strong> con Chrome, Edge o Firefox. En el celular muchos teléfonos no abren bien archivos descargados.')}
                     ${item('fa-wifi', 'Necesitas <strong>internet</strong> al abrirla para ver los estilos y gráficos.')}
-                </ul>
-            </div>
-            <div>
-                <div class="section-label"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Tus datos</div>
-                <ul class="space-y-2">
+                </ul>`;
+        const data = app ? `
+                    ${item('fa-floppy-disk', 'Todo se <strong>guarda solo</strong>, en este teléfono. Tus datos nunca salen de tu equipo.')}
+                    ${item('fa-rotate-left', '¿Te equivocaste? Usa <strong>Deshacer</strong> <i class="fa-solid fa-rotate-left"></i> arriba a la derecha para volver atrás paso a paso.')}
+                    ${item('fa-triangle-exclamation', 'Si desinstalas la app o borras sus datos, <strong>se borra tu plan</strong>.')}
+                    ${item('fa-download', 'Guarda una <strong>copia de respaldo</strong> cada cierto tiempo en <a href="#" class="link" data-goto="config" data-focus="cfg-data">Configuración → Tus Datos</a>. Para pasar a otro teléfono o a un computador, abre la app allí y usa <strong>Cargar copia</strong>.')}` : `
                     ${item('fa-floppy-disk', 'Todo se <strong>guarda solo</strong>, en este navegador y este computador. Tus datos nunca salen de tu equipo.')}
                     ${item('fa-rotate-left', '¿Te equivocaste? Usa <strong>Deshacer</strong> <i class="fa-solid fa-rotate-left"></i> arriba a la derecha (o Ctrl+Z) para volver atrás paso a paso, y <strong>Rehacer</strong> <i class="fa-solid fa-rotate-right"></i> si te arrepientes.')}
                     ${item('fa-triangle-exclamation', 'Si abres la app en <strong>otro navegador u otro computador</strong>, empezará vacía. Si borras el historial o los datos de navegación, <strong>se borra tu plan</strong>.')}
-                    ${item('fa-download', 'Descarga una <strong>copia de respaldo</strong> cada cierto tiempo en <a href="#" class="link" data-goto="config" data-focus="cfg-data">Configuración → Tus Datos</a>. Para pasar a otro equipo, abre la app allí y usa <strong>Cargar copia</strong>.')}
+                    ${item('fa-download', 'Descarga una <strong>copia de respaldo</strong> cada cierto tiempo en <a href="#" class="link" data-goto="config" data-focus="cfg-data">Configuración → Tus Datos</a>. Para pasar a otro equipo, abre la app allí y usa <strong>Cargar copia</strong>.')}`;
+        return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 text-xs text-slate-700 leading-relaxed">
+            <div>${open}
+            </div>
+            <div>
+                <div class="section-label"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Tus datos</div>
+                <ul class="space-y-2">${data}
                 </ul>
             </div>
             <div>

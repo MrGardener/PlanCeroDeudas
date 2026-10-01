@@ -1,0 +1,8 @@
+{
+  "appId": "com.zerodebtplan.app",
+  "appName": "ZeroDebtPlan",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

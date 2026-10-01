@@ -156,19 +156,16 @@
             // The price API key is a credential: it stays in this browser, not in the file.
             const data = JSON.parse(Store.serialize());
             if (data.settings) delete data.settings.priceKey;
-            const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `plan_financiero_ecuador_${new Date().toISOString().slice(0, 10)}.json`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-            Store.state.settings.lastBackupAt = new Date().toISOString();
-            Store.scheduleSave();
-            App.commitHistory();  // a record, not something to undo
-            UI.toast('Copia de respaldo descargada. Guárdala en un lugar seguro (por ejemplo Google Drive o un USB).');
+            const prefix = APP_EDITION.country === 'US' ? 'zerodebtplan' : 'plan_financiero_ecuador';
+            const name = `${prefix}_${new Date().toISOString().slice(0, 10)}.json`;
+            Native.saveFile(name, JSON.stringify(data, null, 1), 'application/json').then(how => {
+                Store.state.settings.lastBackupAt = new Date().toISOString();
+                Store.scheduleSave();
+                App.commitHistory();  // a record, not something to undo
+                UI.toast(how === 'share'
+                    ? 'Copia de respaldo lista. Elige dónde guardarla (por ejemplo Google Drive).'
+                    : 'Copia de respaldo descargada. Guárdala en un lugar seguro (por ejemplo Google Drive o un USB).');
+            }).catch(e => UI.toast('No se pudo guardar el archivo: ' + (e.message || e), 'error'));
         },
         'cfg.upload': () => document.getElementById('cfg-file').click(),
         'cfg.fileChosen': (el) => {

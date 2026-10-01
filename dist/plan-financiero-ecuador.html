@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Plan Financiero Ecuador</title>
     <script>/* Edition: Ecuador or US (ZeroDebtPlan). The build fixes it; while developing, add ?edition=us */
     window.APP_EDITION = window.APP_EDITION || (false
@@ -553,6 +553,25 @@ html[data-theme="dark"] .pay-next li { border-bottom-color: var(--line); color: 
 html[data-country="US"] [data-country="EC"], html[data-country="EC"] [data-country="US"] { display: none !important; }
 /* Long labels (English is often longer) wrap instead of pushing the page sideways on phones. */
 @media (max-width: 639px) { .btn { white-space: normal; max-width: 100%; } }
+
+/* ------------------------------------------------------------------ phone app (js/native.js) */
+/* The app draws under the status bar and gesture bar: keep content inside the safe area. */
+html.is-native .app-header { padding-top: env(safe-area-inset-top, 0px); }
+html.is-native body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+html.is-native [data-web-only], html:not(.is-native) [data-app-only] { display: none !important; }
+/* Phones: the sections become a bottom tab bar, where the thumb is. */
+@media (max-width: 767px) {
+    html.is-native body { padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); }
+    html.is-native .main-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; max-width: none; margin: 0; padding: .2rem .25rem calc(.2rem + env(safe-area-inset-bottom, 0px)); gap: 0; background: #0f172a; box-shadow: 0 -2px 10px rgba(15, 23, 42, .3); }
+    html.is-native .nav-tab { flex: 1 0 4.4rem; flex-direction: column; justify-content: center; gap: .2rem; padding: .4rem .25rem; font-size: .66rem; border-bottom: 0; border-top: 3px solid transparent; border-radius: 0 0 .5rem .5rem; white-space: normal; text-align: center; line-height: 1.1; }
+    html.is-native .nav-tab i { font-size: 1.1rem; }
+    html.is-native .nav-tab.active { border-top-color: #10b981; }
+    html.is-native .nav-tab .nav-num { display: none; }
+    html.is-native .brand-logo { display: none; }
+    html.is-native .fab { bottom: calc(5rem + env(safe-area-inset-bottom, 0px)); }
+    html.is-native #toast-host { bottom: calc(9.25rem + env(safe-area-inset-bottom, 0px)); }
+}
+html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -578,7 +597,7 @@ html[data-country="US"] [data-country="EC"], html[data-country="EC"] [data-count
             <button class="icon-btn lang-btn hide-mobile" id="lang-toggle" data-action="device.toggleLang" title="Switch to English" aria-label="Idioma / Language">EN</button>
             <button class="icon-btn hide-mobile" id="theme-toggle" data-action="device.toggleTheme" title="Usar tema oscuro" aria-label="Cambiar tema"><i class="fa-solid fa-moon"></i></button>
             <button class="icon-btn" data-action="app.help" title="Cómo usar la app" aria-label="Ayuda"><i class="fa-solid fa-circle-question"></i></button>
-            <button class="icon-btn hide-mobile" data-action="app.print" title="Imprimir esta pestaña" aria-label="Imprimir"><i class="fa-solid fa-print"></i></button>
+            <button class="icon-btn hide-mobile" data-web-only data-action="app.print" title="Imprimir esta pestaña" aria-label="Imprimir"><i class="fa-solid fa-print"></i></button>
         </div>
     </div>
     <nav id="main-nav" class="wrap main-nav" role="tablist" aria-label="Secciones"></nav>
@@ -1185,7 +1204,7 @@ html[data-country="US"] [data-country="EC"], html[data-country="EC"] [data-count
                 <div class="flex flex-wrap gap-2 no-print">
                     <button class="btn btn-secondary" data-action="rep.csv"><i class="fa-solid fa-file-csv"></i> Reporte (CSV)</button>
                     <button class="btn btn-secondary" data-action="rep.txns"><i class="fa-solid fa-table-list"></i> Transacciones (CSV)</button>
-                    <button class="btn btn-primary" data-action="app.print"><i class="fa-solid fa-print"></i> Imprimir / PDF</button>
+                    <button class="btn btn-primary" data-web-only data-action="app.print"><i class="fa-solid fa-print"></i> Imprimir / PDF</button>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4 no-print">
@@ -1672,7 +1691,7 @@ html[data-country="US"] [data-country="EC"], html[data-country="EC"] [data-count
 
     <details class="card group-card" id="cfg-data" open>
         <summary class="flex items-center justify-between gap-3">
-            <div><div class="card-title"><i class="fa-solid fa-database text-indigo-600"></i> Tus Datos</div><div class="card-sub">Todo se guarda automáticamente en este navegador. Descarga una copia para no perderla o moverla a otro equipo.</div></div>
+            <div><div class="card-title"><i class="fa-solid fa-database text-indigo-600"></i> Tus Datos</div><div class="card-sub"><span data-web-only>Todo se guarda automáticamente en este navegador. Descarga una copia para no perderla o moverla a otro equipo.</span><span data-app-only>Todo se guarda automáticamente en este teléfono. Guarda una copia para no perderla o moverla a otro equipo.</span></div></div>
             <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
         </summary>
         <div class="mt-5 space-y-4">
@@ -1702,7 +1721,7 @@ html[data-country="US"] [data-country="EC"], html[data-country="EC"] [data-count
                     <div class="field"><span class="field-label">Bloqueo con PIN</span>
                         <div id="cfg-lock" class="flex flex-wrap gap-2 items-center"></div></div>
                 </div>
-                <div class="field mt-3 max-w-2xl"><span class="field-label">Acceso directo al registro rápido</span>
+                <div class="field mt-3 max-w-2xl" data-web-only><span class="field-label">Acceso directo al registro rápido</span>
                     <div class="flex gap-2"><input id="cfg-quick-link" class="input" readonly aria-label="Enlace de registro rápido"><button type="button" class="btn btn-secondary btn-sm" data-action="device.copyQuick"><i class="fa-regular fa-copy"></i> Copiar</button></div>
                     <span class="help">Guárdalo como favorito (o en tu pantalla de inicio cuando la app esté en internet): abre directo el teclado para anotar un gasto. En computadora, la tecla <kbd>N</kbd> hace lo mismo.</span></div>
                 <p class="help mt-2">Se guardan solo en este navegador (no van en la copia de respaldo). El PIN oculta la app al abrirla y después de 5 minutos en segundo plano; no cifra tus datos, así que usa también el bloqueo de tu teléfono o computadora.</p>
@@ -3183,7 +3202,7 @@ I18n.add('en', {
 "Todas las personas": "Everyone",
 "Todo": "All",
 "Todo en orden. ¡Buen trabajo!": "Everything's in order. Great job!",
-"Todo se": "Everything is",
+"Todo se": "Everything",
 "Todo se guarda automáticamente en este navegador. Descarga una copia para no perderla o moverla a otro equipo.": "Everything is saved automatically in this browser. Download a copy so you don't lose it or to move it to another device.",
 "Todo tu modelo volverá a como estaba en este baseline.": "Your whole plan will go back to how it was in this baseline.",
 "Todos los años": "Every year",
@@ -3889,6 +3908,27 @@ I18n.add('en', {
 "promedio mensual de tus 35 mejores años (con el tope anual) → 90% de los primeros $1,286 + 32% hasta $7,749 + 15% del resto; menos si lo pides antes de los 67, 8% más por año hasta los 70.": "monthly average of your 35 best years (with the annual cap) → 90% of the first $1,286 + 32% up to $7,749 + 15% of the rest; less if you claim before 67, 8% more per year up to 70.",
 "Edad": "Age", "Meses": "Months", "Años": "Years",
 });
+
+// Phone app (js/native.js)
+I18n.add('en', {
+"Copia de respaldo lista. Elige dónde guardarla (por ejemplo Google Drive).": "Backup ready. Choose where to keep it (for example Google Drive).",
+"No se pudo guardar el archivo: {0}": "Couldn't save the file: {0}",
+"No se pudo guardar el archivo:": "Couldn't save the file:",
+});
+I18n.add('en', {
+"En tu teléfono": "On your phone",
+"Funciona": "Works", "sin internet": "offline",
+": todo está en tu teléfono. Solo leer un PDF o una foto necesita internet la primera vez.": ": everything is on your phone. Only reading a PDF or a photo needs internet the first time.",
+"Las copias de respaldo y los reportes se abren con": "Backups and reports open with",
+"Compartir": "Share",
+": guárdalos en Google Drive o en Archivos, o envíalos por correo.": ": keep them in Google Drive or Files, or email them.",
+", en este teléfono. Tus datos nunca salen de tu equipo.": ", on this phone. Your data never leaves your device.",
+"arriba a la derecha para volver atrás paso a paso.": "at the top right to go back step by step.",
+"Si desinstalas la app o borras sus datos,": "If you uninstall the app or clear its data,",
+"Guarda una": "Save a",
+". Para pasar a otro teléfono o a un computador, abre la app allí y usa": ". To move to another phone or a computer, open the app there and use",
+"Todo se guarda automáticamente en este teléfono. Guarda una copia para no perderla o moverla a otro equipo.": "Everything saves automatically on this phone. Save a copy so you don't lose it or to move it to another device.",
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -4116,6 +4156,97 @@ I18n.country('US', {
     document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); showLock(); });
 
     root.Device = { read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
+})(this);
+</script>
+<script>/* js/native.js */
+/*
+ * Phone app bridge. The same page runs in a browser and inside the Android / iOS app (Capacitor,
+ * see mobile/). In the browser everything here falls back to what the web does; in the app:
+ *  - files (backups, CSV reports) go to the phone's share sheet: save to Drive, Files, email…
+ *  - the Android back button closes the open dialog, then returns to the Summary, then exits;
+ *  - every save is also copied to the app's native storage, so the plan survives the system
+ *    clearing the web view's storage, and it is put back on the next start.
+ * Only Capacitor's own plugins are used; nothing leaves the phone.
+ */
+(function (root) {
+    'use strict';
+    const cap = root.Capacitor;
+    const isApp = !!(cap && cap.isNativePlatform && cap.isNativePlatform());
+    // Native plugins are reached through Capacitor's core (mobile/www/vendor/capacitor.js).
+    const plugin = (name) => {
+        if (!isApp || !cap.isPluginAvailable || !cap.isPluginAvailable(name)) return null;
+        return (cap.Plugins && cap.Plugins[name]) || (cap.registerPlugin ? cap.registerPlugin(name) : null);
+    };
+    const KEY = root.APP_EDITION && root.APP_EDITION.storageKey;
+    if (isApp) {
+        document.documentElement.classList.add('is-native');
+        document.documentElement.dataset.platform = cap.getPlatform();
+    }
+
+    // Was the plan already in the web view's storage before the app started? (Read now, before
+    // the store writes its first default save.)
+    let hadLocal = true;
+    try { hadLocal = !!(KEY && localStorage.getItem(KEY)); } catch (e) { /* no storage */ }
+
+    function download(name, text, type) {
+        const url = URL.createObjectURL(new Blob([text], { type }));
+        const a = document.createElement('a');
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // Save a text file: a download in the browser, the share sheet in the app.
+    async function saveFile(name, text, type = 'text/plain') {
+        const fs = plugin('Filesystem'), share = plugin('Share');
+        if (!fs || !share) { download(name, text, type); return 'download'; }
+        const res = await fs.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
+        try { await share.share({ title: name, files: [res.uri] }); } catch (e) {
+            // Closing the share sheet without choosing is not an error.
+            if (!/cancel/i.test(String(e && e.message))) throw e;
+        }
+        return 'share';
+    }
+
+    // Android back button.
+    function onBack() {
+        const dlg = document.querySelector('.modal-backdrop:not(.hidden) [data-dialog-cancel]');
+        if (dlg) { dlg.click(); return; }
+        if (document.documentElement.classList.contains('app-locked')) { exit(); return; }
+        const app = root.App, store = root.Store;
+        if (app && store && store.ui && store.ui.tab !== 'resumen') { app.go('resumen'); return; }
+        exit();
+    }
+    function exit() { const a = plugin('App'); if (a && a.exitApp) a.exitApp(); }
+
+    // Keep a copy of every save in native storage; put it back if the web view lost it.
+    function startMirror() {
+        const prefs = plugin('Preferences');
+        if (!prefs || !KEY || !root.Store) return;
+        prefs.get({ key: KEY }).then(({ value }) => {
+            if (!hadLocal && value) {
+                // Stop the store from writing the empty plan back on the way out.
+                try { localStorage.setItem(KEY, value); root.Store.storage = null; location.reload(); return; } catch (e) { /* fall through */ }
+            }
+            let last = null;
+            const mirror = () => {
+                const data = root.Store._lastSaved;
+                if (!data || data === last) return;
+                last = data;
+                prefs.set({ key: KEY, value: data }).catch(() => { last = null; });
+            };
+            root.Store.onChange(mirror);
+            mirror();
+        }).catch(() => { /* the web view copy still works */ });
+    }
+
+    if (isApp) {
+        const app = plugin('App');
+        if (app && app.addListener) app.addListener('backButton', onBack);
+        document.addEventListener('DOMContentLoaded', () => setTimeout(startMirror, 0));
+    }
+
+    root.Native = { isApp, saveFile, platform: isApp ? cap.getPlatform() : 'web' };
 })(this);
 </script>
 <script>/* js/format.js */
@@ -7282,8 +7413,9 @@ I18n.country('US', {
             go(g.dataset.goto, { focus: g.dataset.focus });
         });
         buildNav();
-        // Styles and charts come from the internet; say so plainly if they didn't load.
-        UI.show('offline-banner', typeof Chart === 'undefined' || typeof tailwind === 'undefined');
+        // Styles and charts come from the internet (the phone app carries its own copy,
+        // APP_EDITION.offline); say so plainly if they didn't load.
+        UI.show('offline-banner', typeof Chart === 'undefined' || (typeof tailwind === 'undefined' && !APP_EDITION.offline));
         Store.onChange(renderSaveStatus);
         window.addEventListener('beforeunload', () => Store.saveNow());
         document.addEventListener('visibilitychange', () => { if (document.hidden) Store.saveNow(); });
@@ -7419,22 +7551,35 @@ I18n.country('US', {
     function guideHTML() {
         const item = (icon, html) => `<li class="flex gap-2.5"><i class="fa-solid ${icon} text-emerald-600 mt-0.5 w-4 text-center"></i><span>${html}</span></li>`;
         const step = (n, goto, label, text) => `<li class="flex gap-2.5"><span class="step-num" style="width:1.4rem;height:1.4rem;font-size:.7rem">${n}</span><span><a href="#" class="link" data-goto="${goto}">${label}</a>: ${text}</span></li>`;
-        return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 text-xs text-slate-700 leading-relaxed">
-            <div>
+        // In the phone app (js/native.js) there's no file to open and nothing needs internet.
+        const app = window.Native && Native.isApp;
+        const open = app ? `
+                <div class="section-label"><i class="fa-solid fa-mobile-screen text-emerald-600"></i> En tu teléfono</div>
+                <ul class="space-y-2">
+                    ${item('fa-plane', 'Funciona <strong>sin internet</strong>: todo está en tu teléfono. Solo leer un PDF o una foto necesita internet la primera vez.')}
+                    ${item('fa-share-nodes', 'Las copias de respaldo y los reportes se abren con <strong>Compartir</strong>: guárdalos en Google Drive o en Archivos, o envíalos por correo.')}
+                </ul>` : `
                 <div class="section-label"><i class="fa-solid fa-folder-open text-emerald-600"></i> Abrir la app</div>
                 <ul class="space-y-2">
                     ${item('fa-file-code', 'Guarda este archivo en una carpeta fácil de encontrar (por ejemplo <strong>Documentos</strong>) y ábrelo con <strong>doble clic</strong>. Se abre en tu navegador; no hay que instalar nada.')}
                     ${item('fa-laptop', 'Funciona mejor en un <strong>computador</strong> con Chrome, Edge o Firefox. En el celular muchos teléfonos no abren bien archivos descargados.')}
                     ${item('fa-wifi', 'Necesitas <strong>internet</strong> al abrirla para ver los estilos y gráficos.')}
-                </ul>
-            </div>
-            <div>
-                <div class="section-label"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Tus datos</div>
-                <ul class="space-y-2">
+                </ul>`;
+        const data = app ? `
+                    ${item('fa-floppy-disk', 'Todo se <strong>guarda solo</strong>, en este teléfono. Tus datos nunca salen de tu equipo.')}
+                    ${item('fa-rotate-left', '¿Te equivocaste? Usa <strong>Deshacer</strong> <i class="fa-solid fa-rotate-left"></i> arriba a la derecha para volver atrás paso a paso.')}
+                    ${item('fa-triangle-exclamation', 'Si desinstalas la app o borras sus datos, <strong>se borra tu plan</strong>.')}
+                    ${item('fa-download', 'Guarda una <strong>copia de respaldo</strong> cada cierto tiempo en <a href="#" class="link" data-goto="config" data-focus="cfg-data">Configuración → Tus Datos</a>. Para pasar a otro teléfono o a un computador, abre la app allí y usa <strong>Cargar copia</strong>.')}` : `
                     ${item('fa-floppy-disk', 'Todo se <strong>guarda solo</strong>, en este navegador y este computador. Tus datos nunca salen de tu equipo.')}
                     ${item('fa-rotate-left', '¿Te equivocaste? Usa <strong>Deshacer</strong> <i class="fa-solid fa-rotate-left"></i> arriba a la derecha (o Ctrl+Z) para volver atrás paso a paso, y <strong>Rehacer</strong> <i class="fa-solid fa-rotate-right"></i> si te arrepientes.')}
                     ${item('fa-triangle-exclamation', 'Si abres la app en <strong>otro navegador u otro computador</strong>, empezará vacía. Si borras el historial o los datos de navegación, <strong>se borra tu plan</strong>.')}
-                    ${item('fa-download', 'Descarga una <strong>copia de respaldo</strong> cada cierto tiempo en <a href="#" class="link" data-goto="config" data-focus="cfg-data">Configuración → Tus Datos</a>. Para pasar a otro equipo, abre la app allí y usa <strong>Cargar copia</strong>.')}
+                    ${item('fa-download', 'Descarga una <strong>copia de respaldo</strong> cada cierto tiempo en <a href="#" class="link" data-goto="config" data-focus="cfg-data">Configuración → Tus Datos</a>. Para pasar a otro equipo, abre la app allí y usa <strong>Cargar copia</strong>.')}`;
+        return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 text-xs text-slate-700 leading-relaxed">
+            <div>${open}
+            </div>
+            <div>
+                <div class="section-label"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Tus datos</div>
+                <ul class="space-y-2">${data}
                 </ul>
             </div>
             <div>
@@ -10614,12 +10759,9 @@ I18n.country('US', {
             : '<tr class="empty-row"><td colspan="5">No hay movimientos en este período.</td></tr>');
     }
 
+    // A download in the browser; the share sheet in the phone app (js/native.js).
     function download(name, text) {
-        const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
-        const a = document.createElement('a');
-        a.href = url; a.download = name;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        Native.saveFile(name, text, 'text/csv;charset=utf-8').catch(e => UI.toast('No se pudo guardar el archivo: ' + (e.message || e), 'error'));
     }
 
     UI.register({
@@ -12163,19 +12305,16 @@ I18n.country('US', {
             // The price API key is a credential: it stays in this browser, not in the file.
             const data = JSON.parse(Store.serialize());
             if (data.settings) delete data.settings.priceKey;
-            const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `plan_financiero_ecuador_${new Date().toISOString().slice(0, 10)}.json`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-            Store.state.settings.lastBackupAt = new Date().toISOString();
-            Store.scheduleSave();
-            App.commitHistory();  // a record, not something to undo
-            UI.toast('Copia de respaldo descargada. Guárdala en un lugar seguro (por ejemplo Google Drive o un USB).');
+            const prefix = APP_EDITION.country === 'US' ? 'zerodebtplan' : 'plan_financiero_ecuador';
+            const name = `${prefix}_${new Date().toISOString().slice(0, 10)}.json`;
+            Native.saveFile(name, JSON.stringify(data, null, 1), 'application/json').then(how => {
+                Store.state.settings.lastBackupAt = new Date().toISOString();
+                Store.scheduleSave();
+                App.commitHistory();  // a record, not something to undo
+                UI.toast(how === 'share'
+                    ? 'Copia de respaldo lista. Elige dónde guardarla (por ejemplo Google Drive).'
+                    : 'Copia de respaldo descargada. Guárdala en un lugar seguro (por ejemplo Google Drive o un USB).');
+            }).catch(e => UI.toast('No se pudo guardar el archivo: ' + (e.message || e), 'error'));
         },
         'cfg.upload': () => document.getElementById('cfg-file').click(),
         'cfg.fileChosen': (el) => {
