@@ -309,6 +309,8 @@ input[type="file"].hidden { display: none; }
 .health-ring { width: 104px; height: 104px; }
 .health-track { fill: none; stroke: var(--surface-3); stroke-width: 8; }
 .health-num { font-size: 22px; font-weight: 900; fill: var(--ink); }
+.ins-row { display: flex; align-items: flex-start; gap: .6rem; padding: .55rem .65rem; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+.ins-row.na { opacity: .7; }
 .coach-tips { display: grid; gap: .45rem; font-size: var(--fs-xs); color: var(--ink); list-style: disc; padding-left: 1.1rem; }
 .moves { display: grid; gap: .6rem; }
 .move { display: flex; align-items: flex-start; gap: .75rem; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
@@ -1582,6 +1584,21 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
             </div>
             <div class="section-label mt-4"><i class="fa-solid fa-chart-column text-blue-600"></i> Lo que te quedaría mes a mes</div>
             <div class="chart-box"><canvas id="runway-chart"></canvas></div>
+        </details>
+
+        <details class="card group-card" id="metas-insurance">
+            <summary class="flex items-center justify-between gap-3">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-umbrella text-blue-600"></i> Revisión de seguros <span id="ins-count" class="badge badge-bad ml-1 hidden"></span></div>
+                    <div class="card-sub">Los seguros que protegen tu plan de un golpe que lo borre. Lo adivinamos por tu presupuesto; corrígelo si no es así.</div>
+                </div>
+                <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+            </summary>
+            <label class="check mb-3"><input type="checkbox" id="ins-dependents" data-change="ins.dependents"><span>Alguien depende de mi ingreso (pareja, hijos, padres)</span></label>
+            <ul id="ins-list" class="space-y-2"></ul>
+            <div class="panel tone-slate mt-4 text-xs"><div class="font-bold mb-1"><i class="fa-solid fa-ban text-slate-500"></i> Lo que casi nunca vale la pena</div>
+                <p>Seguro de vida entera o "con ahorro" (cuesta mucho más que uno a término: mejor invierte la diferencia), garantías extendidas, seguros solo de cáncer o de accidentes. Si el banco te exige un seguro con un crédito, compara precios.</p></div>
+            <p class="help mt-2">Guía general, no asesoría de seguros: revisa coberturas y precios con un agente independiente.</p>
         </details>
 
         <div class="card" id="metas-debts">
@@ -4833,6 +4850,26 @@ I18n.add('en', {
     "planeas {0} y gastas unos {1}. Podrías bajarlo {2} y mandarlo {3}.": "you plan {0} and spend about {1}. You could lower it by {2} and send it {3}.",
     "Tu plan está dentro de las guías y no hay rubros que se pasen o sobren mes tras mes. ¡Bien!": "Your plan is within the guidelines and no line goes over or sits unused month after month. Nice!"
 });
+// Insurance check
+I18n.add('en', {
+    "Revisión de seguros": "Insurance check", "Los seguros que protegen tu plan de un golpe que lo borre. Lo adivinamos por tu presupuesto; corrígelo si no es así.": "The insurance that keeps one blow from wiping out your plan. We guess from your budget; correct it if it's wrong.",
+    "Alguien depende de mi ingreso (pareja, hijos, padres)": "Someone depends on my income (partner, kids, parents)",
+    "Lo tienes": "You have it", "Te falta": "Missing", "Revisa la cobertura": "Check the coverage", "No lo necesitas aún": "Not needed yet", "(lo vimos en tu presupuesto)": "(we saw it in your budget)",
+    "¿Lo tienes?": "Do you have it?", "Lo tengo": "I have it", "No lo tengo": "I don't have it", "Cobertura total de vida que tienes ($)": "Total life coverage you have ($)", "Te faltarían {0} de cobertura.": "You'd be {0} of coverage short.",
+    "Seguro de vida a término": "Term life insurance", "Unas 10 veces tu ingreso anual ({0}), a 15–20 años. A término, no \"de vida entera\".": "About 10 times your yearly income ({0}), for 15–20 years. Term, not \"whole life\".",
+    "Si nadie depende de tu ingreso, no lo necesitas todavía.": "If no one depends on your income, you don't need it yet.",
+    "Seguro de salud": "Health insurance", "Un problema de salud es la causa más común de quiebra familiar.": "A health problem is the most common cause of family bankruptcy.",
+    "Seguro por incapacidad": "Disability insurance", "Reemplaza ~60% de tu ingreso si no puedes trabajar por enfermedad o accidente.": "Replaces ~60% of your income if illness or injury keeps you from working.",
+    "Seguro de hogar": "Homeowner's insurance", "Seguro de inquilino": "Renter's insurance", "Protege tu casa (lo exige el banco si tienes hipoteca).": "Protects your home (your lender requires it with a mortgage).",
+    "Barato y cubre tus cosas y tu responsabilidad si algo pasa en tu vivienda.": "Cheap, and it covers your things and your liability if something happens at home.",
+    "Seguro del carro": "Auto insurance", "Responsabilidad civil suficiente; con un fondo de emergencia, puedes subir el deducible y pagar menos.": "Enough liability coverage; with an emergency fund you can raise the deductible and pay less.",
+    "Seguro de responsabilidad civil (umbrella)": "Umbrella liability insurance", "Desde {0} de patrimonio, protege lo que construiste de una demanda.": "From {0} of net worth, it protects what you've built from a lawsuit.",
+    "Seguro de cuidado a largo plazo": "Long-term care insurance", "Desde los 60: un asilo o cuidado en casa puede acabar con tus ahorros.": "From age 60: a nursing home or in-home care can wipe out your savings.",
+    "Lo que casi nunca vale la pena": "What's almost never worth it",
+    "Seguro de vida entera o \"con ahorro\" (cuesta mucho más que uno a término: mejor invierte la diferencia), garantías extendidas, seguros solo de cáncer o de accidentes. Si el banco te exige un seguro con un crédito, compara precios.": "Whole life or \"savings\" life insurance (it costs far more than term: invest the difference instead), extended warranties, cancer-only or accident-only policies. If a lender requires insurance with a loan, compare prices.",
+    "Guía general, no asesoría de seguros: revisa coberturas y precios con un agente independiente.": "General guidance, not insurance advice: review coverage and prices with an independent agent."
+});
+I18n.add('en', { "Escribe cuánto te cubre para saber si alcanza.": "Enter how much it covers to see if it's enough." });
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -5429,6 +5466,8 @@ I18n.country('US', {
             milestones: null,
             // "¿Y si pierdo mi trabajo?": lines kept or cut, income that continues, benefit, severance.
             runway: { keep: {}, other: null, benefit: 0, benefitMonths: 0, lump: 0 },
+            // Revisión de seguros: answers (key → 'si' | 'no'), total life coverage, dependents (null = guess).
+            insurance: { answers: {}, life: 0, dependents: null },
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -7800,6 +7839,42 @@ I18n.country('US', {
         return { need: cents(need), have: cents(num(haveToday)), gap: cents(gap), pct: need > 0 ? Math.min(9.99, num(haveToday) / need) : 1, extraMonthly: extra === null ? null : cents(extra), bridge: cents(bridge) };
     }
 
+    // ------------------------------------------------------------ insurance check
+    // The coverage a household should have (Dave Ramsey's guidance): term life ~10× the yearly
+    // income of each earner someone depends on, health, long-term disability (~60% of income),
+    // home or renter's, auto when there's a car, umbrella liability from $500k net worth, and
+    // long-term care from 60. `seen` is text from budget lines and recent transactions, used to
+    // guess what's already there; `answers` (key → 'si' | 'no') override the guess.
+    const INSURANCE_SEEN = {
+        life: /seguro de vida|life insurance|term life|\blife\b/i,
+        health: /seguro m[eé]dico|medicina prepagada|health insurance|salud prepagada|\bhsa\b|iess/i,
+        disability: /disabilit|incapacidad|invalidez|\b[ls]td\b/i,
+        home: /seguro de hogar|homeowner|home insurance|seguro de inquilino|renter/i,
+        auto: /seguro vehicular|seguro del carro|car insurance|auto insurance|auto-owners|geico|progressive|state farm/i,
+        umbrella: /umbrella|responsabilidad civil/i,
+        ltc: /long[- ]term care|cuidado a largo plazo/i
+    };
+    function insuranceCheck({ income = 0, dependents = true, lifeCoverage = 0, ownsHome = false, hasCar = false, netWorth = 0, age = 0, seen = [], answers = {}, money = (v) => '$' + Math.round(v).toLocaleString('en-US') }) {
+        const text = (seen || []).join(' · ');
+        const has = (k) => answers[k] === 'si' ? true : answers[k] === 'no' ? false : INSURANCE_SEEN[k].test(text);
+        const guessed = (k) => !(answers[k] === 'si' || answers[k] === 'no') && INSURANCE_SEEN[k].test(text);
+        const item = (key, label, needed, why, extra = {}) => Object.assign({ key, label, needed, has: has(key), guessed: guessed(key), why, status: !needed ? 'na' : has(key) ? 'ok' : 'falta' }, extra);
+        const lifeNeed = dependents ? Math.round(num(income) * 10) : 0;
+        const life = item('life', 'Seguro de vida a término', dependents && num(income) > 0, dependents ? `Unas 10 veces tu ingreso anual (${money(lifeNeed)}), a 15–20 años. A término, no "de vida entera".` : 'Si nadie depende de tu ingreso, no lo necesitas todavía.', { need: lifeNeed, coverage: num(lifeCoverage) });
+        if (life.status === 'ok' && life.coverage > 0 && life.coverage < lifeNeed * 0.9) life.status = 'revisar';
+        const out = [
+            life,
+            item('health', 'Seguro de salud', true, 'Un problema de salud es la causa más común de quiebra familiar.'),
+            item('disability', 'Seguro por incapacidad', num(income) > 0, 'Reemplaza ~60% de tu ingreso si no puedes trabajar por enfermedad o accidente.'),
+            item('home', ownsHome ? 'Seguro de hogar' : 'Seguro de inquilino', true, ownsHome ? 'Protege tu casa (lo exige el banco si tienes hipoteca).' : 'Barato y cubre tus cosas y tu responsabilidad si algo pasa en tu vivienda.'),
+            item('auto', 'Seguro del carro', !!hasCar, 'Responsabilidad civil suficiente; con un fondo de emergencia, puedes subir el deducible y pagar menos.'),
+            item('umbrella', 'Seguro de responsabilidad civil (umbrella)', num(netWorth) >= 500000, `Desde ${money(500000)} de patrimonio, protege lo que construiste de una demanda.`),
+            item('ltc', 'Seguro de cuidado a largo plazo', num(age) >= 60, 'Desde los 60: un asilo o cuidado en casa puede acabar con tus ahorros.')
+        ];
+        const needed = out.filter(i => i.needed);
+        return { items: out, missing: needed.filter(i => i.status === 'falta').length, review: needed.filter(i => i.status === 'revisar').length, lifeNeed, lifeGap: Math.max(0, lifeNeed - num(lifeCoverage)) };
+    }
+
     // ------------------------------------------------------------ budget coaching
     // Common guidelines for a household budget, as a share of take-home pay (adapted from Dave
     // Ramsey's recommended percentages). 'lo'/'hi' bound the healthy range; null = no bound.
@@ -8706,7 +8781,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -15185,6 +15260,7 @@ I18n.country('US', {
         UI.html('debt-body', s.debts.length ? s.debts.map(debtRow).join('') : '<tr class="empty-row"><td colspan="9">¡Sin deudas registradas! Si tienes alguna, agrégala para armar tu plan.</td></tr>');
         UI.html('goal-body', s.goals.length ? s.goals.map(goalRow).join('') : '<tr class="empty-row"><td colspan="8">Agrega una meta: un carro, un terreno, la universidad…</td></tr>');
         if (window.Runway) Runway.render(ctx);
+        if (window.Insurance) Insurance.render(ctx);
         update(ctx);
     }
 
@@ -15653,6 +15729,63 @@ I18n.country('US', {
     });
 
     window.Runway = { render, update };
+})();
+</script>
+<script>/* js/views/seguros.js */
+/* Deudas y Metas → Revisión de seguros: the coverage a household should have (Engine.insuranceCheck),
+ * guessed from the budget and recent transactions, confirmed or corrected by the user.
+ * state.insurance: { answers: { key: 'si' | 'no' }, life: total life coverage, dependents: bool|null }. */
+(function () {
+    'use strict';
+    const { money0, esc } = Fmt;
+    const cfg = () => Store.state.insurance || (Store.state.insurance = { answers: {}, life: 0, dependents: null });
+
+    function facts(ctx) {
+        const s = ctx.state, c = cfg(), yd = ctx.year;
+        const since = Engine.isoDate(new Date(ctx.today.getFullYear() - 1, ctx.today.getMonth(), ctx.today.getDate()));
+        const seen = (yd.budgetBase || []).map(i => i.name).concat(s.transactions.filter(t => t.date >= since && (t.type || 'Gasto') === 'Gasto').map(t => `${t.category || ''} ${t.description || ''} ${t.store || ''}`));
+        // Paycheck deductions (employer health, life, disability plans) and the mortgage's escrow.
+        const KIND = { health: 'health insurance', life: 'life insurance', disability: 'disability' };
+        (yd.payDeductions || []).forEach(d => seen.push(`${d.name || ''} ${KIND[d.kind] || ''}`));
+        if (ctx.ownsHome && Number((s.mortgage || {}).homeInsurance) > 0) seen.push('homeowner');
+        // In Ecuador a salaried worker is covered by the IESS (health and disability pension).
+        if (yd.country !== 'US' && Number(yd.sueldo) > 0) seen.push('IESS');
+        const income = ((Number(yd.sueldo) || 0) + (yd.otherIncomes || []).reduce((a, x) => a + (Number(x.amount) || 0), 0)) * 12;
+        const dependents = c.dependents === null || c.dependents === undefined ? (s.members || []).length > 1 : !!c.dependents;
+        const hasCar = (s.assets || []).some(a => a.category === 'Vehículo' && a.status !== 'Vendido') || (s.debts || []).some(d => d.kind === 'vehicular');
+        return { income, dependents, lifeCoverage: Number(c.life) || 0, ownsHome: ctx.ownsHome, hasCar, netWorth: ctx.netWorth.value, age: Number(s.retirement.edadActual) || 0, seen, answers: c.answers || {}, money: money0 };
+    }
+
+    function render(ctx) {
+        if (!document.getElementById('metas-insurance')) return;
+        const c = cfg(), f = facts(ctx), r = Engine.insuranceCheck(f);
+        UI.text('ins-count', r.missing + r.review);
+        UI.show('ins-count', r.missing + r.review > 0);
+        const ICON = { ok: 'fa-circle-check text-emerald-600', falta: 'fa-circle-xmark text-red-600', revisar: 'fa-triangle-exclamation text-amber-600', na: 'fa-circle-minus text-slate-400' };
+        const STATUS = { ok: 'Lo tienes', falta: 'Te falta', revisar: 'Revisa la cobertura', na: 'No lo necesitas aún' };
+        UI.html('ins-list', r.items.map(i => `<li class="ins-row ${i.status}">
+            <i class="fa-solid ${ICON[i.status]} mt-0.5"></i>
+            <div class="min-w-0 flex-1"><div class="font-bold text-xs">${esc(i.label)} <span class="text-[11px] font-semibold text-slate-500">· <span>${STATUS[i.status]}</span>${i.guessed && i.needed ? ' <span>(lo vimos en tu presupuesto)</span>' : ''}</span></div>
+                <p class="text-[11px] text-slate-600">${esc(i.why)}</p>
+                ${i.key === 'life' && i.needed ? `<label class="flex items-center gap-2 mt-1 text-[11px]"><span>Cobertura total de vida que tienes ($)</span><input type="number" class="cell-input num" style="width:8rem" min="0" step="10000" data-input="ins.life" value="${Number(c.life) || ''}" placeholder="0"></label>${i.has && !(Number(c.life) > 0) ? '<p class="text-[11px] text-slate-500 mt-1">Escribe cuánto te cubre para saber si alcanza.</p>' : r.lifeGap > 0 && i.has ? `<p class="text-[11px] text-amber-700 mt-1">Te faltarían ${money0(r.lifeGap)} de cobertura.</p>` : ''}` : ''}</div>
+            ${i.needed ? `<select class="cell-input text-xs" style="width:auto" data-change="ins.answer" data-key="${i.key}" aria-label="¿Lo tienes?">${Views.selectOptions([{ value: '', label: 'Automático' }, { value: 'si', label: 'Lo tengo' }, { value: 'no', label: 'No lo tengo' }], (c.answers || {})[i.key] || '')}</select>` : ''}
+        </li>`).join(''));
+        const dep = document.getElementById('ins-dependents');
+        if (dep) dep.checked = f.dependents;
+    }
+
+    UI.register({
+        'ins.answer': (el) => {
+            const c = cfg();
+            c.answers = Object.assign({}, c.answers);
+            if (el.value) c.answers[el.dataset.key] = el.value; else delete c.answers[el.dataset.key];
+            App.changed({ structural: true, step: true });
+        },
+        'ins.life': (el) => { cfg().life = Math.max(0, Fmt.parseNum(el.value, 0)); App.changed({ step: true }); },
+        'ins.dependents': (el) => { cfg().dependents = el.checked; App.changed({ structural: true, step: true }); }
+    });
+
+    window.Insurance = { render };
 })();
 </script>
 <script>/* js/views/calculadoras.js */

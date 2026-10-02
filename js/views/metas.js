@@ -33,6 +33,7 @@
         UI.html('debt-body', s.debts.length ? s.debts.map(debtRow).join('') : '<tr class="empty-row"><td colspan="9">¡Sin deudas registradas! Si tienes alguna, agrégala para armar tu plan.</td></tr>');
         UI.html('goal-body', s.goals.length ? s.goals.map(goalRow).join('') : '<tr class="empty-row"><td colspan="8">Agrega una meta: un carro, un terreno, la universidad…</td></tr>');
         if (window.Runway) Runway.render(ctx);
+        if (window.Insurance) Insurance.render(ctx);
         update(ctx);
     }
 

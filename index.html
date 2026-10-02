@@ -849,6 +849,21 @@
             <div class="chart-box"><canvas id="runway-chart"></canvas></div>
         </details>
 
+        <details class="card group-card" id="metas-insurance">
+            <summary class="flex items-center justify-between gap-3">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-umbrella text-blue-600"></i> Revisión de seguros <span id="ins-count" class="badge badge-bad ml-1 hidden"></span></div>
+                    <div class="card-sub">Los seguros que protegen tu plan de un golpe que lo borre. Lo adivinamos por tu presupuesto; corrígelo si no es así.</div>
+                </div>
+                <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+            </summary>
+            <label class="check mb-3"><input type="checkbox" id="ins-dependents" data-change="ins.dependents"><span>Alguien depende de mi ingreso (pareja, hijos, padres)</span></label>
+            <ul id="ins-list" class="space-y-2"></ul>
+            <div class="panel tone-slate mt-4 text-xs"><div class="font-bold mb-1"><i class="fa-solid fa-ban text-slate-500"></i> Lo que casi nunca vale la pena</div>
+                <p>Seguro de vida entera o "con ahorro" (cuesta mucho más que uno a término: mejor invierte la diferencia), garantías extendidas, seguros solo de cáncer o de accidentes. Si el banco te exige un seguro con un crédito, compara precios.</p></div>
+            <p class="help mt-2">Guía general, no asesoría de seguros: revisa coberturas y precios con un agente independiente.</p>
+        </details>
+
         <div class="card" id="metas-debts">
             <div class="card-head">
                 <div>
@@ -1554,6 +1569,7 @@
 <script src="js/views/quick.js"></script>
 <script src="js/views/metas.js"></script>
 <script src="js/views/runway.js"></script>
+<script src="js/views/seguros.js"></script>
 <script src="js/views/calculadoras.js"></script>
 <script src="js/views/ahorro.js"></script>
 <script src="js/views/hipoteca.js"></script>

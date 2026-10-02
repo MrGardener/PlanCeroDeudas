@@ -2349,3 +2349,23 @@ I18n.add('en', {
     "planeas {0} y gastas unos {1}. Podrías bajarlo {2} y mandarlo {3}.": "you plan {0} and spend about {1}. You could lower it by {2} and send it {3}.",
     "Tu plan está dentro de las guías y no hay rubros que se pasen o sobren mes tras mes. ¡Bien!": "Your plan is within the guidelines and no line goes over or sits unused month after month. Nice!"
 });
+// Insurance check
+I18n.add('en', {
+    "Revisión de seguros": "Insurance check", "Los seguros que protegen tu plan de un golpe que lo borre. Lo adivinamos por tu presupuesto; corrígelo si no es así.": "The insurance that keeps one blow from wiping out your plan. We guess from your budget; correct it if it's wrong.",
+    "Alguien depende de mi ingreso (pareja, hijos, padres)": "Someone depends on my income (partner, kids, parents)",
+    "Lo tienes": "You have it", "Te falta": "Missing", "Revisa la cobertura": "Check the coverage", "No lo necesitas aún": "Not needed yet", "(lo vimos en tu presupuesto)": "(we saw it in your budget)",
+    "¿Lo tienes?": "Do you have it?", "Lo tengo": "I have it", "No lo tengo": "I don't have it", "Cobertura total de vida que tienes ($)": "Total life coverage you have ($)", "Te faltarían {0} de cobertura.": "You'd be {0} of coverage short.",
+    "Seguro de vida a término": "Term life insurance", "Unas 10 veces tu ingreso anual ({0}), a 15–20 años. A término, no \"de vida entera\".": "About 10 times your yearly income ({0}), for 15–20 years. Term, not \"whole life\".",
+    "Si nadie depende de tu ingreso, no lo necesitas todavía.": "If no one depends on your income, you don't need it yet.",
+    "Seguro de salud": "Health insurance", "Un problema de salud es la causa más común de quiebra familiar.": "A health problem is the most common cause of family bankruptcy.",
+    "Seguro por incapacidad": "Disability insurance", "Reemplaza ~60% de tu ingreso si no puedes trabajar por enfermedad o accidente.": "Replaces ~60% of your income if illness or injury keeps you from working.",
+    "Seguro de hogar": "Homeowner's insurance", "Seguro de inquilino": "Renter's insurance", "Protege tu casa (lo exige el banco si tienes hipoteca).": "Protects your home (your lender requires it with a mortgage).",
+    "Barato y cubre tus cosas y tu responsabilidad si algo pasa en tu vivienda.": "Cheap, and it covers your things and your liability if something happens at home.",
+    "Seguro del carro": "Auto insurance", "Responsabilidad civil suficiente; con un fondo de emergencia, puedes subir el deducible y pagar menos.": "Enough liability coverage; with an emergency fund you can raise the deductible and pay less.",
+    "Seguro de responsabilidad civil (umbrella)": "Umbrella liability insurance", "Desde {0} de patrimonio, protege lo que construiste de una demanda.": "From {0} of net worth, it protects what you've built from a lawsuit.",
+    "Seguro de cuidado a largo plazo": "Long-term care insurance", "Desde los 60: un asilo o cuidado en casa puede acabar con tus ahorros.": "From age 60: a nursing home or in-home care can wipe out your savings.",
+    "Lo que casi nunca vale la pena": "What's almost never worth it",
+    "Seguro de vida entera o \"con ahorro\" (cuesta mucho más que uno a término: mejor invierte la diferencia), garantías extendidas, seguros solo de cáncer o de accidentes. Si el banco te exige un seguro con un crédito, compara precios.": "Whole life or \"savings\" life insurance (it costs far more than term: invest the difference instead), extended warranties, cancer-only or accident-only policies. If a lender requires insurance with a loan, compare prices.",
+    "Guía general, no asesoría de seguros: revisa coberturas y precios con un agente independiente.": "General guidance, not insurance advice: review coverage and prices with an independent agent."
+});
+I18n.add('en', { "Escribe cuánto te cubre para saber si alcanza.": "Enter how much it covers to see if it's enough." });

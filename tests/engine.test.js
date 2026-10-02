@@ -1123,3 +1123,20 @@ test('budget coaching: shares vs guidelines, lines always over, lines barely use
     const gifts = [{ id: 90, type: 'Gasto', parentCategory: 'Regalos', amount: 1100, date: '2025-12-15' }, { id: 91, type: 'Gasto', parentCategory: 'Regalos', amount: 10, date: '2026-09-15' }];
     assert.deepEqual(E.budgetCoach({ buckets: [], income: 5000, itemsFor: () => xmas, transactions: gifts, today: new Date(2026, 9, 2) }).underUsed, []);
 });
+
+test('insurance check: what to have, guessed from the budget, answers win', () => {
+    const r = E.insuranceCheck({ income: 90000, dependents: true, lifeCoverage: 500000, ownsHome: true, hasCar: true, netWorth: 300000, age: 40,
+        seen: ['Seguro Vehicular', 'Health insurance premium', 'Term life – Haven Life'] });
+    const by = Object.fromEntries(r.items.map(i => [i.key, i]));
+    assert.equal(by.auto.status, 'ok'); assert.equal(by.auto.guessed, true);
+    assert.equal(by.health.status, 'ok');
+    assert.equal(by.life.status, 'revisar');        // $500k < 10 × $90k
+    assert.equal(r.lifeGap, 400000);
+    assert.equal(by.disability.status, 'falta');
+    assert.equal(by.home.label, 'Seguro de hogar');
+    assert.equal(by.umbrella.status, 'na'); assert.equal(by.ltc.status, 'na');
+    assert.equal(r.missing, 2);                       // disability, home
+    const r2 = E.insuranceCheck({ income: 90000, dependents: false, answers: { home: 'si', disability: 'si', health: 'no' }, seen: ['Seguro médico'] });
+    const by2 = Object.fromEntries(r2.items.map(i => [i.key, i]));
+    assert.equal(by2.life.status, 'na'); assert.equal(by2.health.status, 'falta'); assert.equal(by2.home.label, 'Seguro de inquilino');
+});

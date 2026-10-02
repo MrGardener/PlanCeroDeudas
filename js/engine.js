@@ -1056,6 +1056,42 @@
         return { need: cents(need), have: cents(num(haveToday)), gap: cents(gap), pct: need > 0 ? Math.min(9.99, num(haveToday) / need) : 1, extraMonthly: extra === null ? null : cents(extra), bridge: cents(bridge) };
     }
 
+    // ------------------------------------------------------------ insurance check
+    // The coverage a household should have (Dave Ramsey's guidance): term life ~10× the yearly
+    // income of each earner someone depends on, health, long-term disability (~60% of income),
+    // home or renter's, auto when there's a car, umbrella liability from $500k net worth, and
+    // long-term care from 60. `seen` is text from budget lines and recent transactions, used to
+    // guess what's already there; `answers` (key → 'si' | 'no') override the guess.
+    const INSURANCE_SEEN = {
+        life: /seguro de vida|life insurance|term life|\blife\b/i,
+        health: /seguro m[eé]dico|medicina prepagada|health insurance|salud prepagada|\bhsa\b|iess/i,
+        disability: /disabilit|incapacidad|invalidez|\b[ls]td\b/i,
+        home: /seguro de hogar|homeowner|home insurance|seguro de inquilino|renter/i,
+        auto: /seguro vehicular|seguro del carro|car insurance|auto insurance|auto-owners|geico|progressive|state farm/i,
+        umbrella: /umbrella|responsabilidad civil/i,
+        ltc: /long[- ]term care|cuidado a largo plazo/i
+    };
+    function insuranceCheck({ income = 0, dependents = true, lifeCoverage = 0, ownsHome = false, hasCar = false, netWorth = 0, age = 0, seen = [], answers = {}, money = (v) => '$' + Math.round(v).toLocaleString('en-US') }) {
+        const text = (seen || []).join(' · ');
+        const has = (k) => answers[k] === 'si' ? true : answers[k] === 'no' ? false : INSURANCE_SEEN[k].test(text);
+        const guessed = (k) => !(answers[k] === 'si' || answers[k] === 'no') && INSURANCE_SEEN[k].test(text);
+        const item = (key, label, needed, why, extra = {}) => Object.assign({ key, label, needed, has: has(key), guessed: guessed(key), why, status: !needed ? 'na' : has(key) ? 'ok' : 'falta' }, extra);
+        const lifeNeed = dependents ? Math.round(num(income) * 10) : 0;
+        const life = item('life', 'Seguro de vida a término', dependents && num(income) > 0, dependents ? `Unas 10 veces tu ingreso anual (${money(lifeNeed)}), a 15–20 años. A término, no "de vida entera".` : 'Si nadie depende de tu ingreso, no lo necesitas todavía.', { need: lifeNeed, coverage: num(lifeCoverage) });
+        if (life.status === 'ok' && life.coverage > 0 && life.coverage < lifeNeed * 0.9) life.status = 'revisar';
+        const out = [
+            life,
+            item('health', 'Seguro de salud', true, 'Un problema de salud es la causa más común de quiebra familiar.'),
+            item('disability', 'Seguro por incapacidad', num(income) > 0, 'Reemplaza ~60% de tu ingreso si no puedes trabajar por enfermedad o accidente.'),
+            item('home', ownsHome ? 'Seguro de hogar' : 'Seguro de inquilino', true, ownsHome ? 'Protege tu casa (lo exige el banco si tienes hipoteca).' : 'Barato y cubre tus cosas y tu responsabilidad si algo pasa en tu vivienda.'),
+            item('auto', 'Seguro del carro', !!hasCar, 'Responsabilidad civil suficiente; con un fondo de emergencia, puedes subir el deducible y pagar menos.'),
+            item('umbrella', 'Seguro de responsabilidad civil (umbrella)', num(netWorth) >= 500000, `Desde ${money(500000)} de patrimonio, protege lo que construiste de una demanda.`),
+            item('ltc', 'Seguro de cuidado a largo plazo', num(age) >= 60, 'Desde los 60: un asilo o cuidado en casa puede acabar con tus ahorros.')
+        ];
+        const needed = out.filter(i => i.needed);
+        return { items: out, missing: needed.filter(i => i.status === 'falta').length, review: needed.filter(i => i.status === 'revisar').length, lifeNeed, lifeGap: Math.max(0, lifeNeed - num(lifeCoverage)) };
+    }
+
     // ------------------------------------------------------------ budget coaching
     // Common guidelines for a household budget, as a share of take-home pay (adapted from Dave
     // Ramsey's recommended percentages). 'lo'/'hi' bound the healthy range; null = no bound.
@@ -1962,7 +1998,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
