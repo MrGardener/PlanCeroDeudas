@@ -1061,3 +1061,17 @@ test('calculators: loan, credit card, compound growth, savings goal', () => {
     assert.equal(E.monthlyToReach(1200, 0, 0, 12), 100);
     assert.equal(E.monthlyToReach(1000, 2000, 5, 12), 0);
 });
+
+test('next moves: urgent first, then the Baby Step, housekeeping last; snoozed ones hide', () => {
+    const base = { hasIncome: true, hasData: true, step: 2, liquid: 1200, monthsCovered: 0.3, essential: 4000, unassigned: 0, income: 8000, savingsRate: 0, uncategorized: 0, backupDays: null,
+        target: { name: 'Visa', balance: 900, rate: 24 } };
+    let m = E.nextMoves(base);
+    assert.deepEqual(m.map(x => x.key), ['snowball', 'backup']);
+    m = E.nextMoves(Object.assign({}, base, { overdueBills: ['Luz'], unassigned: 300, uncategorized: 5 }));
+    assert.deepEqual(m.map(x => x.key), ['overdue', 'unassigned', 'snowball']);
+    assert.match(m[1].text, /bola de nieve/);
+    m = E.nextMoves(Object.assign({}, base, { overdueBills: ['Luz'] }), { snoozed: { overdue: '2099-01-01' } });
+    assert.equal(m[0].key, 'snowball');
+    assert.deepEqual(E.nextMoves({ hasIncome: false }).map(x => x.key), ['setup']);
+    assert.equal(E.nextMoves(Object.assign({}, base, { step: 4, target: null, savingsRate: 0.05 })).find(x => x.key === 'retire15').text.includes('$800'), true);
+});

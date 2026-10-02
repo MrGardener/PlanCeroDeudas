@@ -39,6 +39,48 @@
         </div>`;
     }
 
+    // ---------------------------------------------------------------- next moves
+    // Everything Engine.nextMoves needs, as plain numbers from what the app already knows.
+    function moveFacts(ctx) {
+        const s = ctx.state, t = ctx.today, y = t.getFullYear(), m = String(t.getMonth() + 1);
+        const items = Engine.monthItems(Store.effective(y), m);
+        const spend = Engine.lineSpend(items, s.transactions, y, m);
+        const bills = Engine.billsDue({ items, spend, year: y, month: m, today: t }).filter(b => b.status === 'overdue');
+        // The plan's order, with today's balances (the plan's own balances are where they end).
+        const debt = (ctx.debts.items || []).slice().sort((a, b) => (a.order || 99) - (b.order || 99))
+            .map(i => s.debts.find(d => d.id === i.id)).find(d => d && Number(d.balance) > 0);
+        const billLines = (Store.effective(y).budgetBase || []).filter(i => Number(i.dueDay) >= 1).map(i => i.id);
+        const subs = Engine.findRepeating(s.transactions, { recurring: s.recurring, dismissed: s.settings.dismissedRepeats || [], today: t, billLines });
+        const fund = (s.goals || []).find(g => g.annualFund);
+        const annual = (s.annualBills || []).length ? Engine.annualBillsPlan(s.annualBills, { start: fund ? Number(fund.current) || 0 : 0, monthly: fund ? Number(fund.monthly) || 0 : 0, today: t }) : null;
+        const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
+        return {
+            hasIncome: ctx.baseBudget.income > 0, hasData: s.transactions.length > 0 || (ctx.year.budgetBase || []).length > 0,
+            step: ctx.steps.current, liquid: ctx.ef.liquid, monthsCovered: ctx.ef.monthsCovered, essential: ctx.ef.monthlyEssential,
+            unassigned: ctx.baseBudget.balanceReal, income: ctx.baseBudget.income, savingsRate: ctx.savingsRate,
+            uncategorized: spend.unassigned.length, overdueBills: bills.map(b => b.item.name),
+            target: debt ? { name: debt.name, balance: Number(debt.balance) || 0, rate: Number(debt.rate) || 0 } : null,
+            monthToClose: window.MonthClose ? MonthClose.pending(t) : null,
+            subsYearly: subs.reduce((a, x) => a + x.yearly, 0),
+            annualShort: annual && annual.firstShort ? { label: Fmt.monthYear(new Date(annual.firstShort.year, annual.firstShort.month - 1, 1)), needed: annual.needed, noFund: !fund, yearly: annual.yearly, monthly: Engine.annualSetAside(s.annualBills) } : null,
+            maturing: (s.polizas || []).filter(p => { const st = Engine.maturityStatus(p.maturityDate, t); return st && st.kind === 'pronto'; }).map(p => p.number),
+            backupDays: last ? Math.floor((t - last) / 86400000) : null
+        };
+    }
+    function movesHTML(ctx) {
+        const moves = Engine.nextMoves(moveFacts(ctx), { snoozed: ctx.state.settings.movesSnoozed || {}, today: ctx.today, money: money0 });
+        if (!moves.length) return '';
+        return `<ol class="moves">${moves.map((mv, i) => {
+            const go = mv.action ? `data-action="${mv.action}" ${Object.keys(mv.data || {}).map(k => `data-${k}="${esc(String(mv.data[k]))}"`).join(' ')}` : `data-goto="${mv.goto}" ${mv.focus ? `data-focus="${mv.focus}"` : ''}`;
+            return `<li class="move">
+                <span class="move-num">${i + 1}</span>
+                <div class="min-w-0 flex-1"><div class="move-title"><i class="fa-solid ${mv.icon}"></i> ${esc(mv.title)}</div><p class="move-text">${esc(mv.text)}</p></div>
+                <div class="flex items-center gap-1 shrink-0"><button type="button" class="btn btn-secondary btn-sm" ${go}>Hacerlo <i class="fa-solid fa-arrow-right"></i></button>
+                <button type="button" class="row-del" data-action="moves.snooze" data-key="${mv.key}" title="Ahora no (vuelve en 2 semanas)" aria-label="Ahora no"><i class="fa-solid fa-xmark"></i></button></div>
+            </li>`;
+        }).join('')}</ol>`;
+    }
+
     // ---------------------------------------------------------------- this month
     const bar = (share, color) => `<div class="mini-bar"><span style="width:${Math.max(0, Math.min(100, share * 100)).toFixed(1)}%;background:${color}"></span></div>`;
     const pctChange = (now, before) => before > 0 ? (now - before) / before : null;
@@ -237,9 +279,7 @@
             if (late.length) add('tone-red', 'fa-calendar-xmark text-red-600', `Pagos vencidos: ${late.map(b => `<strong>${esc(b.item.name)}</strong> (día ${b.day})`).join(', ')}.`, 'resumen', 'dash-bills-card');
             if (over.length) add('tone-red', 'fa-cart-shopping text-red-600', `Este mes te pasaste en: <strong>${over.map(i => esc(i.name)).join(', ')}</strong>.`, 'presupuesto/plan');
         }
-        // Last month ended: review it and give what was left a job.
-        const toClose = window.MonthClose && MonthClose.pending(ctx.today);
-        if (toClose) out.unshift(`<button type="button" class="alert-item w-full text-left tone-blue" data-action="close.open" data-y="${toClose.y}" data-m="${toClose.m}"><i class="fa-solid fa-calendar-check text-blue-600 mt-0.5"></i><span><strong>Cierra ${esc(toClose.label)}:</strong> mira cómo te fue y decide qué hacer con lo que sobró.</span></button>`);
+        // (Closing last month is one of the next moves, not an alert.)
         const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
         const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
         if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no tienes una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
@@ -277,6 +317,9 @@
                 <details class="mt-4"><summary class="link text-xs">Cómo funciona la app y cómo cuidar tus datos</summary><div class="mt-3">${Views.guideHTML()}</div></details>`;
         }
         UI.html('dash-hero', hero(ctx));
+        const mv = movesHTML(ctx);
+        UI.html('dash-moves', mv);
+        UI.show('dash-moves-card', !!mv);
         UI.html('dash-steps', Views.stepsHTML(ctx, { compact: true }));
 
         const bb = ctx.baseBudget, debts = ctx.debts, ef = ctx.ef, r = ctx.retirement;

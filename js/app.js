@@ -403,6 +403,14 @@
             changed({ structural: true, step: true });
             go('presupuesto/ingresos');
         },
+        // "Ahora no" on a next move: hide it for two weeks.
+        'moves.snooze': (el) => {
+            const d = new Date(); d.setDate(d.getDate() + 14);
+            const st = Store.state.settings;
+            st.movesSnoozed = Object.assign({}, st.movesSnoozed, { [el.dataset.key]: Engine.isoDate(d) });
+            changed({ step: true });
+            UI.toast('Listo: te lo recordamos en 2 semanas.', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: undo });
+        },
         'app.help': () => {
             go('config', { focus: 'cfg-guide' });
             const g = document.getElementById('cfg-guide');

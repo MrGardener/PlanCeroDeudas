@@ -1039,6 +1039,36 @@
         return out;
     }
 
+    // ------------------------------------------------------------ next moves
+    // The three things worth doing next, ranked by what matters most for this household right
+    // now (urgent first, then the current Baby Step, then housekeeping). `facts` are plain numbers
+    // gathered by the Overview; `snoozed` maps a move to the date it may come back.
+    function nextMoves(f, { snoozed = {}, today = new Date(), money = (v) => '$' + Math.round(v).toLocaleString('en-US'), limit = 3 } = {}) {
+        const t = isoDate(new Date(today));
+        const out = [];
+        const add = (score, key, icon, title, text, go = {}) => out.push(Object.assign({ score, key, icon, title, text }, go));
+        if (!f.hasIncome) add(100, 'setup', 'fa-flag-checkered', 'Arma tu presupuesto', 'Empieza por tu sueldo y luego asigna cada dólar a un rubro: todo lo demás sale de ahí.', { goto: 'presupuesto/ingresos' });
+        if ((f.overdueBills || []).length) add(96, 'overdue', 'fa-calendar-xmark', 'Paga lo vencido', `${f.overdueBills.slice(0, 3).join(', ')} ya pasó su fecha. Págalo o márcalo para evitar recargos.`, { goto: 'resumen', focus: 'dash-bills-card' });
+        if (f.unassigned < -1) add(92, 'overbudget', 'fa-scale-unbalanced', 'Cuadra tu presupuesto', `Tu plan gasta ${money(-f.unassigned)} al mes más de lo que ganas. Recorta rubros hasta que quede en $0.`, { goto: 'presupuesto/plan' });
+        if (f.step === 1 && f.hasIncome) add(88, 'ef1000', 'fa-shield-heart', `Junta ${money(Math.max(0, 1000 - f.liquid))} para tu fondo inicial`, `Con $1,000 a la mano, un imprevisto no se vuelve deuda. Hoy tienes ${money(f.liquid)}.`, { goto: 'futuro/metas', focus: 'metas-ef' });
+        if (f.unassigned > 1) {
+            const where = f.step === 2 ? 'a la bola de nieve' : f.step === 1 || f.step === 3 ? 'a tu fondo de emergencia' : 'a tu jubilación o tus metas';
+            add(84, 'unassigned', 'fa-coins', `Dale un trabajo a ${money(f.unassigned)}`, `Están sin asignar en tu presupuesto. Mándalos ${where} antes de que se gasten solos.`, { goto: 'presupuesto/plan' });
+        }
+        if (f.step === 2 && f.target) add(80, 'snowball', 'fa-snowflake', `Ataca «${f.target.name}»`, `Es la siguiente en tu bola de nieve: ${money(f.target.balance)} al ${f.target.rate}%. Todo lo extra va ahí; las demás, solo el mínimo.`, { goto: 'futuro/metas', focus: 'metas-debts' });
+        if (f.monthToClose) add(72, 'close', 'fa-calendar-check', `Cierra ${f.monthToClose.label}`, 'Mira en qué te pasaste y dale un trabajo a lo que sobró.', { action: 'close.open', data: { y: f.monthToClose.y, m: f.monthToClose.m } });
+        if (f.uncategorized >= 3) add(62, 'uncategorized', 'fa-tags', `Asigna ${f.uncategorized} gastos sin rubro`, 'Mientras no tengan rubro, tu presupuesto no sabe que ya los gastaste.', { goto: 'transacciones/lista' });
+        if (f.annualShort) add(60, 'annual', 'fa-calendar-days', 'Aparta para tus gastos anuales', f.annualShort.noFund
+            ? `Aún no apartas para ellos: son ${money(f.annualShort.yearly)} al año, ${money(f.annualShort.monthly)} al mes.`
+            : `En ${f.annualShort.label} te faltarían ${money(f.annualShort.needed)}. Deposita la diferencia o sube el apartado.`, { goto: 'presupuesto/plan', focus: 'bud-annual-card' });
+        if ((f.maturing || []).length) add(58, 'maturing', 'fa-file-contract', 'Decide qué hacer con tu póliza', `${f.maturing.join(', ')} vence pronto: renuévala o muévela según tu paso actual.`, { goto: 'futuro/polizas' });
+        if (f.step === 3) add(56, 'ef6', 'fa-shield-heart', 'Completa tu fondo de emergencia', `Llevas ${f.monthsCovered.toFixed(1)} meses; la meta son 3 a 6 (${money(f.essential * 3)}–${money(f.essential * 6)}).`, { goto: 'futuro/metas', focus: 'metas-ef' });
+        if (f.step >= 4 && f.savingsRate < 0.15 && f.income > 0) add(52, 'retire15', 'fa-person-cane', 'Invierte el 15% para tu jubilación', `Hoy ahorras el ${Math.round(f.savingsRate * 100)}%. Llegar al 15% son ${money((0.15 - f.savingsRate) * f.income)} más al mes.`, { goto: 'futuro/jubilacion' });
+        if (f.subsYearly >= 100) add(46, 'subs', 'fa-magnifying-glass-dollar', 'Revisa tus suscripciones', `Encontramos cargos que se repiten por ${money(f.subsYearly)} al año. ¿Todavía los usas?`, { goto: 'transacciones/lista' });
+        if (f.hasData && (f.backupDays === null || f.backupDays > 30)) add(40, 'backup', 'fa-download', 'Guarda una copia de respaldo', f.backupDays === null ? 'Nunca has guardado una. Si se borran los datos del navegador, pierdes tu plan.' : `La última fue hace ${f.backupDays} días.`, { goto: 'config', focus: 'cfg-data' });
+        return out.filter(m => !(snoozed[m.key] && snoozed[m.key] > t)).sort((a, b) => b.score - a.score).slice(0, limit);
+    }
+
     // ------------------------------------------------------------ calculators
     // A fixed-payment loan (car, personal, mortgage): the monthly payment and what it costs.
     function loanPayment(principal, ratePct, months) {
@@ -1846,7 +1876,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

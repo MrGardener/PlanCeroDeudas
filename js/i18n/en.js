@@ -2281,3 +2281,24 @@ I18n.add('en', {
     "Necesitas ($)": "You need ($)", "Ya tienes ($)": "You already have ($)", "Interés anual del ahorro (%)": "Annual interest on savings (%)", "Lo quieres en (meses)": "You want it in (months)", "O puedes poner al mes ($)": "Or you can put in per month ($)",
     "Para tenerlo en {0} meses": "To have it in {0} months", "Con {0}/mes llegas en": "With {0}/mo you get there in", "Ya lo tienes": "You already have it"
 });
+// Next moves
+I18n.add('en', {
+    "Tus próximos pasos": "Your next moves", "Lo que más le sirve hoy a tu plan, en orden.": "What helps your plan most today, in order.",
+    "Hacerlo": "Do it", "Ahora no": "Not now", "Ahora no (vuelve en 2 semanas)": "Not now (back in 2 weeks)", "Listo: te lo recordamos en 2 semanas.": "Done: we'll remind you in 2 weeks.",
+    "Arma tu presupuesto": "Build your budget", "Empieza por tu sueldo y luego asigna cada dólar a un rubro: todo lo demás sale de ahí.": "Start with your pay, then give every dollar a line: everything else comes from there.",
+    "Paga lo vencido": "Pay what's overdue", "{0} ya pasó su fecha. Págalo o márcalo para evitar recargos.": "{0} is past due. Pay it or mark it to avoid late fees.",
+    "Cuadra tu presupuesto": "Balance your budget", "Tu plan gasta {0} al mes más de lo que ganas. Recorta rubros hasta que quede en $0.": "Your plan spends {0} a month more than you earn. Trim lines until it's at $0.",
+    "Junta {0} para tu fondo inicial": "Save {0} for your starter fund", "Con $1,000 a la mano, un imprevisto no se vuelve deuda. Hoy tienes {0}.": "With $1,000 on hand, a surprise doesn't become debt. Today you have {0}.",
+    "Dale un trabajo a {0}": "Give {0} a job", "Están sin asignar en tu presupuesto. Mándalos {0} antes de que se gasten solos.": "It's unassigned in your budget. Send it {0} before it gets spent on its own.",
+    "a la bola de nieve": "to the snowball", "a tu fondo de emergencia": "to your emergency fund", "a tu jubilación o tus metas": "to retirement or your goals",
+    "Ataca «{0}»": "Attack «{0}»", "Es la siguiente en tu bola de nieve: {0} al {1}%. Todo lo extra va ahí; las demás, solo el mínimo.": "It's next in your snowball: {0} at {1}%. Every extra dollar goes there; the others get just the minimum.",
+    "Cierra {0}": "Close {0}", "Mira en qué te pasaste y dale un trabajo a lo que sobró.": "See where you went over and give what's left a job.",
+    "Asigna {0} gastos sin rubro": "Assign {0} expenses with no line", "Mientras no tengan rubro, tu presupuesto no sabe que ya los gastaste.": "Until they have a line, your budget doesn't know you spent them.",
+    "Aparta para tus gastos anuales": "Set aside for your annual bills", "En {0} te faltarían {1}. Deposita la diferencia o sube el apartado.": "In {0} you'd be {1} short. Deposit the difference or raise the set-aside.",
+    "Decide qué hacer con tu póliza": "Decide what to do with your CD", "{0} vence pronto: renuévala o muévela según tu paso actual.": "{0} matures soon: renew it or move it according to your current step.",
+    "Completa tu fondo de emergencia": "Finish your emergency fund", "Llevas {0} meses; la meta son 3 a 6 ({1}–{2}).": "You have {0} months; the goal is 3 to 6 ({1}–{2}).",
+    "Invierte el 15% para tu jubilación": "Invest 15% for retirement", "Hoy ahorras el {0}%. Llegar al 15% son {1} más al mes.": "Today you save {0}%. Reaching 15% is {1} more a month.",
+    "Revisa tus suscripciones": "Review your subscriptions", "Encontramos cargos que se repiten por {0} al año. ¿Todavía los usas?": "We found repeating charges worth {0} a year. Do you still use them?",
+    "Guarda una copia de respaldo": "Save a backup", "Nunca has guardado una. Si se borran los datos del navegador, pierdes tu plan.": "You've never saved one. If the browser data is cleared, you lose your plan.", "La última fue hace {0} días.": "The last one was {0} days ago."
+});
+I18n.add('en', { "Aún no apartas para ellos: son {0} al año, {1} al mes.": "You're not setting money aside for them yet: {0} a year, {1} a month." });
