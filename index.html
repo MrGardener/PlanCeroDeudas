@@ -455,14 +455,20 @@
                     <select id="txn-type" class="input" data-change="txn.typeChanged">
                         <option value="Gasto">Gasto</option>
                         <option value="Ingreso">Ingreso (sueldo, remesas…)</option>
+                        <option value="Transferencia">Transferencia o pago de tarjeta</option>
                     </select></label>
                 <label class="field lg:col-span-2"><span class="field-label">Descripción</span>
                     <input type="text" id="txn-description" data-change="txn.descChanged" class="input" placeholder="Ej: Compras de la semana / Remesa de mi hermano"></label>
                 <label class="field"><span class="field-label">Lugar / Fuente</span>
                     <input type="text" id="txn-store" class="input" placeholder="Ej: Supermaxi / Western Union"></label>
-                <label class="field"><span class="field-label"><span>Categoría</span><button type="button" class="mini-btn" data-action="txn.addParent">+ Nueva</button></span>
+                <label class="field hidden" id="txn-from-field"><span class="field-label">Desde</span>
+                    <select id="txn-from" class="input"></select></label>
+                <label class="field hidden" id="txn-to-field"><span class="field-label">Hacia</span>
+                    <select id="txn-to" class="input"></select>
+                    <span class="help">Mover dinero entre tus cuentas o pagar la tarjeta no es un gasto: lo que compraste con la tarjeta ya se contó. Si abonas a una deuda antigua de tu plan, regístralo como gasto en su rubro.</span></label>
+                <label class="field" id="txn-parent-field"><span class="field-label"><span>Categoría</span><button type="button" class="mini-btn" data-action="txn.addParent">+ Nueva</button></span>
                     <select id="txn-parent" class="input" data-change="txn.parentChanged"></select></label>
-                <label class="field"><span class="field-label"><span>Subcategoría</span><button type="button" class="mini-btn" data-action="txn.addSub">+ Nueva</button></span>
+                <label class="field" id="txn-sub-field"><span class="field-label"><span>Subcategoría</span><button type="button" class="mini-btn" data-action="txn.addSub">+ Nueva</button></span>
                     <select id="txn-sub" class="input" data-change="txn.subChanged"></select>
                     <span id="txn-payroll-hint" class="help text-amber-700 hidden">Tu sueldo ya se cuenta desde "Tu Sueldo", así que esto no se suma a tu presupuesto. Si es un ingreso extra (ventas, trabajos), elige otra categoría.</span></label>
                 <label class="field" id="txn-line-field"><span class="field-label">Rubro del presupuesto</span>
@@ -473,12 +479,13 @@
                     <span class="help">Elígelo si este dinero es lo que esperabas de un ingreso mensual (así se marca como recibido). Si no, cuenta como ingreso extra del mes.</span></label>
                 <label class="field hidden" id="txn-member-field"><span class="field-label">¿Quién?</span>
                     <select id="txn-member" class="input"></select></label>
-                <label class="field"><span class="field-label">Forma de pago</span>
+                <label class="field" id="txn-payment-field"><span class="field-label">Forma de pago</span>
                     <select id="txn-payment" class="input">
                         <option>Efectivo</option><option>Tarjeta de Débito</option><option>Tarjeta de Crédito</option><option>Transferencia</option>
                     </select></label>
                 <label class="field"><span class="field-label"><span>Monto (<span class="cur">$</span>)</span></span>
                     <input type="number" id="txn-amount" class="input" step="0.01" min="0" placeholder="Ej: 25.50"></label>
+                <label class="check-row self-end" id="txn-refund-field"><input type="checkbox" id="txn-refund"> <span>Es un <strong>reembolso o devolución</strong>: resta de lo gastado en su categoría</span></label>
                 <label class="field"><span class="field-label">Fecha</span>
                     <input type="date" id="txn-date" class="input" data-change="txn.dateChanged"></label>
                 <label class="field" id="txn-repeat-field"><span class="field-label">Repetir</span>
@@ -517,7 +524,7 @@
                     <select id="txn-f-year" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-month" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-type" class="cell-input" style="width:auto" data-change="txn.filter">
-                        <option value="all">Ingresos y gastos</option><option value="Ingreso">Solo ingresos</option><option value="Gasto">Solo gastos</option>
+                        <option value="all">Todo</option><option value="Ingreso">Solo ingresos</option><option value="Gasto">Solo gastos</option><option value="Transferencia">Solo transferencias</option>
                     </select>
                     <select id="txn-f-category" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-member" class="cell-input hidden" style="width:auto" data-change="txn.filter" aria-label="Persona"></select>
@@ -538,6 +545,7 @@
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkLine"><i class="fa-solid fa-table-list"></i> Rubro</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkMember"><i class="fa-solid fa-user"></i> Persona</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkPayment"><i class="fa-solid fa-credit-card"></i> Forma de pago</button>
+                    <button type="button" class="mini-btn" data-needs data-action="txn.bulkTransfer"><i class="fa-solid fa-right-left"></i> Es transferencia</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkRule"><i class="fa-solid fa-wand-magic-sparkles"></i> Crear regla</button>
                     <button type="button" class="mini-btn text-red-600" data-needs data-action="txn.bulkDelete"><i class="fa-solid fa-trash-can"></i> Eliminar</button>
                 </div>

@@ -302,6 +302,10 @@ input[type="file"].hidden { display: none; }
 .txn-date b { font-size: .9rem; }
 .txn-date.inc { border-color: #10b981; color: #047857; }
 .txn-date.pending { border-style: dashed; }
+.txn-date.tr { border-color: var(--faint); color: var(--muted); }
+.txn-amt.tr { color: var(--muted); }
+.check-row { display: flex; align-items: flex-start; gap: .4rem; padding-bottom: .55rem; font-size: var(--fs-xs); color: var(--ink-2); line-height: 1.35; cursor: pointer; }
+.check-row input { margin-top: .15rem; accent-color: var(--brand); }
 .txn-desc { font-size: .88rem; font-weight: 700; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .txn-meta { font-size: .7rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .txn-notes { font-size: var(--fs-2xs); margin-top: .15rem; }
@@ -440,7 +444,7 @@ html[data-theme="dark"] .bs-unassigned { background: rgba(245, 158, 11, .08); bo
 html[data-theme="dark"] .bs-add-group { border-color: #334155; color: #60a5fa; } html[data-theme="dark"] .bs-add-group:hover { background: rgba(37, 99, 235, .1); }
 html[data-theme="dark"] .txn-item { border-bottom-color: var(--line-soft); }
 html[data-theme="dark"] .txn-month { background: var(--surface-2); color: #cbd5e1; }
-html[data-theme="dark"] .txn-date { color: #93c5fd; border-color: #3b82f6; } html[data-theme="dark"] .txn-date.inc { color: #6ee7b7; border-color: #10b981; }
+html[data-theme="dark"] .txn-date { color: #93c5fd; border-color: #3b82f6; } html[data-theme="dark"] .txn-date.inc { color: #6ee7b7; border-color: #10b981; } html[data-theme="dark"] .txn-date.tr { color: var(--muted); border-color: var(--faint); }
 html[data-theme="dark"] .txn-amt.inc { color: #6ee7b7; }
 html[data-theme="dark"] .chip-select { background: rgba(37, 99, 235, .15); border-color: rgba(96, 165, 250, .45); color: #93c5fd; }
 html[data-theme="dark"] .chip-select.empty { background: transparent; border-color: #60a5fa; }
@@ -1155,14 +1159,20 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                     <select id="txn-type" class="input" data-change="txn.typeChanged">
                         <option value="Gasto">Gasto</option>
                         <option value="Ingreso">Ingreso (sueldo, remesas…)</option>
+                        <option value="Transferencia">Transferencia o pago de tarjeta</option>
                     </select></label>
                 <label class="field lg:col-span-2"><span class="field-label">Descripción</span>
                     <input type="text" id="txn-description" data-change="txn.descChanged" class="input" placeholder="Ej: Compras de la semana / Remesa de mi hermano"></label>
                 <label class="field"><span class="field-label">Lugar / Fuente</span>
                     <input type="text" id="txn-store" class="input" placeholder="Ej: Supermaxi / Western Union"></label>
-                <label class="field"><span class="field-label"><span>Categoría</span><button type="button" class="mini-btn" data-action="txn.addParent">+ Nueva</button></span>
+                <label class="field hidden" id="txn-from-field"><span class="field-label">Desde</span>
+                    <select id="txn-from" class="input"></select></label>
+                <label class="field hidden" id="txn-to-field"><span class="field-label">Hacia</span>
+                    <select id="txn-to" class="input"></select>
+                    <span class="help">Mover dinero entre tus cuentas o pagar la tarjeta no es un gasto: lo que compraste con la tarjeta ya se contó. Si abonas a una deuda antigua de tu plan, regístralo como gasto en su rubro.</span></label>
+                <label class="field" id="txn-parent-field"><span class="field-label"><span>Categoría</span><button type="button" class="mini-btn" data-action="txn.addParent">+ Nueva</button></span>
                     <select id="txn-parent" class="input" data-change="txn.parentChanged"></select></label>
-                <label class="field"><span class="field-label"><span>Subcategoría</span><button type="button" class="mini-btn" data-action="txn.addSub">+ Nueva</button></span>
+                <label class="field" id="txn-sub-field"><span class="field-label"><span>Subcategoría</span><button type="button" class="mini-btn" data-action="txn.addSub">+ Nueva</button></span>
                     <select id="txn-sub" class="input" data-change="txn.subChanged"></select>
                     <span id="txn-payroll-hint" class="help text-amber-700 hidden">Tu sueldo ya se cuenta desde "Tu Sueldo", así que esto no se suma a tu presupuesto. Si es un ingreso extra (ventas, trabajos), elige otra categoría.</span></label>
                 <label class="field" id="txn-line-field"><span class="field-label">Rubro del presupuesto</span>
@@ -1173,12 +1183,13 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                     <span class="help">Elígelo si este dinero es lo que esperabas de un ingreso mensual (así se marca como recibido). Si no, cuenta como ingreso extra del mes.</span></label>
                 <label class="field hidden" id="txn-member-field"><span class="field-label">¿Quién?</span>
                     <select id="txn-member" class="input"></select></label>
-                <label class="field"><span class="field-label">Forma de pago</span>
+                <label class="field" id="txn-payment-field"><span class="field-label">Forma de pago</span>
                     <select id="txn-payment" class="input">
                         <option>Efectivo</option><option>Tarjeta de Débito</option><option>Tarjeta de Crédito</option><option>Transferencia</option>
                     </select></label>
                 <label class="field"><span class="field-label"><span>Monto (<span class="cur">$</span>)</span></span>
                     <input type="number" id="txn-amount" class="input" step="0.01" min="0" placeholder="Ej: 25.50"></label>
+                <label class="check-row self-end" id="txn-refund-field"><input type="checkbox" id="txn-refund"> <span>Es un <strong>reembolso o devolución</strong>: resta de lo gastado en su categoría</span></label>
                 <label class="field"><span class="field-label">Fecha</span>
                     <input type="date" id="txn-date" class="input" data-change="txn.dateChanged"></label>
                 <label class="field" id="txn-repeat-field"><span class="field-label">Repetir</span>
@@ -1217,7 +1228,7 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                     <select id="txn-f-year" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-month" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-type" class="cell-input" style="width:auto" data-change="txn.filter">
-                        <option value="all">Ingresos y gastos</option><option value="Ingreso">Solo ingresos</option><option value="Gasto">Solo gastos</option>
+                        <option value="all">Todo</option><option value="Ingreso">Solo ingresos</option><option value="Gasto">Solo gastos</option><option value="Transferencia">Solo transferencias</option>
                     </select>
                     <select id="txn-f-category" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-member" class="cell-input hidden" style="width:auto" data-change="txn.filter" aria-label="Persona"></select>
@@ -1238,6 +1249,7 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkLine"><i class="fa-solid fa-table-list"></i> Rubro</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkMember"><i class="fa-solid fa-user"></i> Persona</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkPayment"><i class="fa-solid fa-credit-card"></i> Forma de pago</button>
+                    <button type="button" class="mini-btn" data-needs data-action="txn.bulkTransfer"><i class="fa-solid fa-right-left"></i> Es transferencia</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkRule"><i class="fa-solid fa-wand-magic-sparkles"></i> Crear regla</button>
                     <button type="button" class="mini-btn text-red-600" data-needs data-action="txn.bulkDelete"><i class="fa-solid fa-trash-can"></i> Eliminar</button>
                 </div>
@@ -4435,6 +4447,28 @@ I18n.add('en', {
 "¿A dónde va cada dólar? ·": "Where does every dollar go? ·",
 });
 I18n.add('en', { "En jubilación (no disponible)": "In retirement accounts (not available)", "Dinero disponible (sin jubilación)": "Available money (not counting retirement)" });
+// Transfers and refunds
+I18n.add('en', {
+    "Transferencia o pago de tarjeta": "Transfer or card payment", "Solo transferencias": "Transfers only",
+    "Hacia": "To", "Marcar": "Mark", "Registrar": "Log", "Pagar: {0}": "Pay: {0}",
+    "Otra cuenta": "Other account", "Otra cuenta (no registrada)": "Other account (not listed)",
+    "Mover dinero entre tus cuentas o pagar la tarjeta no es un gasto: lo que compraste con la tarjeta ya se contó. Si abonas a una deuda antigua de tu plan, regístralo como gasto en su rubro.": "Moving money between your accounts or paying your card isn't spending: what you bought with the card was already counted. If you're paying down an old debt in your plan, log it as an expense in its budget line.",
+    "Es un": "It's a", "reembolso o devolución": "refund or reimbursement", ": resta de lo gastado en su categoría": ": it lowers what you spent in its category",
+    "Elige cuentas distintas en \"Desde\" y \"Hacia\".": "Pick different accounts in \"From\" and \"To\".",
+    "Transferencia: no es ingreso ni gasto": "Transfer: not income or spending",
+    "Reembolso: resta de lo gastado": "Refund: lowers what you spent",
+    "Registrar un reembolso o devolución de esta compra": "Log a refund or reimbursement for this purchase",
+    "Registrar reembolso o devolución": "Log a refund or reimbursement",
+    "De «{0}» ({1}). Resta de lo gastado en {2}, en el mes en que te devuelven el dinero.": "For «{0}» ({1}). It lowers what you spent in {2}, in the month you get the money back.",
+    "Monto devuelto": "Amount returned", "Escribe un monto mayor a $0.": "Enter an amount over $0.", "Elige una fecha.": "Pick a date.",
+    "No puede ser más que la compra ({0}).": "It can't be more than the purchase ({0}).",
+    "Reembolso de {0} registrado": "Refund of {0} logged",
+    "Es transferencia": "It's a transfer",
+    "Las transferencias no tienen categoría: quítalas de la selección.": "Transfers have no category: take them out of the selection.",
+    "Marcar {0} como transferencia{1}": "Mark {0} as transfer{1|s}",
+    "Dejan de contar como ingreso o gasto (por ejemplo, el pago de la tarjeta o lo que pasas a tus ahorros). Puedes elegir las cuentas editando cada una.": "They stop counting as income or spending (for example, your card payment or what you move to savings). You can pick the accounts by editing each one.",
+    "{0} transferencia{1}: ya no cuentan como ingreso o gasto": "{0} transfer{1|s}: no longer counted as income or spending"
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -5628,7 +5662,7 @@ I18n.country('US', {
             if (gig) c.add({ day: R.int(8, 20), type: 'Ingreso', parent: 'Ingresos Independientes', sub: 'Freelance/Consultoría', amount: gig - (y === prev ? 50 : 0), store: 'Venmo', desc: R.pick(['Photo session – family portraits', 'Photo session – senior pictures', 'Photo session – mini sessions']), pay: XFER, member: SARAH, route: 'extra' });
             if (y === prev && m === 6) c.add({ day: 20, type: 'Ingreso', parent: 'Ingresos Financieros', sub: 'Intereses', amount: 96.12, store: 'Capital One', desc: 'CD matured – interest', pay: XFER, route: 'extra' });
             if (m === 12) c.add({ day: 21, type: 'Ingreso', parent: 'Otros Ingresos', sub: 'Regalos Recibidos', amount: 200, store: 'Grandma & Grandpa', desc: 'Christmas check', pay: XFER, route: 'gifts' });
-            if (y === cur && m === 1) c.add({ day: 9, type: 'Ingreso', parent: 'Otros Ingresos', sub: 'Reembolsos', amount: 42.5, store: "Kohl's", desc: 'Return – winter boots', pay: CREDIT, member: SARAH, route: 'clothing' });
+            if (y === cur && m === 1) c.add({ day: 9, key: 'clothing', refund: true, amount: 42.5, store: "Kohl's", desc: 'Return – winter boots', sub: 'Ropa y Calzado', pay: CREDIT, member: SARAH });
             if (y === prev && m === 9) c.add({ day: 13, type: 'Ingreso', parent: 'Otros Ingresos', sub: 'Venta de Artículos Usados', amount: 120, store: 'Facebook Marketplace', desc: 'Sold the crib', pay: CASH, member: SARAH, route: 'extra' });
         }
 
@@ -6065,6 +6099,7 @@ I18n.country('US', {
                     if (o.member) t.memberId = o.member;
                     if (o.incomeId) t.incomeId = o.incomeId;
                     if (o.countAsExtra) t.countAsExtra = true;
+                    if (o.refund) t.refund = true;
                     if (o.rec) t._rec = o.rec;
                     if (o.route) t._route = o.route;
                     txns.push(t);
@@ -6151,6 +6186,29 @@ I18n.country('US', {
             if (extra > 0 && date <= todayISO) txns.push({ type: 'Gasto', description: US ? `Extra payment – ${d.name}` : `Pago extra – ${d.name}`, store: d.lender, parentCategory: 'Deudas', category: d.sub, amount: extra, date, paymentType: XFER, budgetLine: String(EXTRA_ID), memberId: P.members[0].id });
         });
 
+        // ------------------------------------------------------------ transfers + refunds
+        // Cash from the ATM twice a month (checking → wallet), and a few purchases returned:
+        // neither changes what the family earned, and a refund lowers what they spent.
+        const chk = P.accounts.find(a => a.kind === 'corriente'), wallet = P.accounts.find(a => a.kind === 'efectivo');
+        const firstISO = txns.reduce((m, t) => (t.date < m ? t.date : m), todayISO);
+        for (let d = new Date(Number(firstISO.slice(0, 4)), Number(firstISO.slice(5, 7)) - 1, 1); d <= T; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+            [3, 17].forEach(day => {
+                const date = iso(d.getFullYear(), d.getMonth() + 1, day);
+                if (date < firstISO || date > todayISO) return;
+                txns.push({ type: 'Transferencia', description: US ? 'ATM withdrawal' : 'Retiro en cajero', store: US ? 'LMCU ATM' : 'Cajero Banco Pichincha', parentCategory: 'Transferencia', category: '', amount: US ? R.pick([60, 80, 100]) : R.pick([40, 60]), date, paymentType: XFER, from: 'acc-' + chk.id, to: 'acc-' + wallet.id, memberId: P.members[R.int(0, 1)].id });
+            });
+        }
+        const returnable = txns.filter(t => t.type === 'Gasto' && !t._rec && !t.splits && t.parentCategory !== 'Deudas' && (t.paymentType === DEBIT || t.paymentType === CREDIT) && Number(t.amount) >= 35 && t.date <= isoOf(new Date(T.getFullYear(), T.getMonth(), T.getDate() - 10)));
+        const used = new Set();
+        for (let k = 0; k < 4 && returnable.length; k++) {
+            const t = R.pick(returnable);
+            if (used.has(t.date.slice(0, 7))) continue;
+            used.add(t.date.slice(0, 7));
+            const back = new Date(Number(t.date.slice(0, 4)), Number(t.date.slice(5, 7)) - 1, Number(t.date.slice(8, 10)) + R.int(4, 9));
+            txns.push({ type: 'Gasto', refund: true, description: (US ? 'Return: ' : 'Devolución: ') + t.description, store: t.store, parentCategory: t.parentCategory, category: t.category, amount: R.chance(0.5) ? t.amount : Math.round(t.amount * 0.5 * 100) / 100, date: isoOf(back), paymentType: t.paymentType, budgetLine: t.budgetLine, memberId: t.memberId, _refundOf: t });
+            if (!txns[txns.length - 1].budgetLine) delete txns[txns.length - 1].budgetLine;
+        }
+
         // ------------------------------------------------------------ recurring + ids
         txns.sort((a, b) => a.date.localeCompare(b.date) || (a.type === b.type ? 0 : a.type === 'Ingreso' ? -1 : 1));
         s.recurring = Object.keys(P.recurringDefs).map((rk, i) => {
@@ -6161,9 +6219,12 @@ I18n.country('US', {
             mine.forEach(x => { x.recurringId = rec.id; });
             return rec;
         });
-        s.transactions = txns.map((t, i) => {
-            const out = Object.assign({ id: i + 1 }, t);
-            delete out._rec; delete out._route;
+        txns.forEach((t, i) => { t._id = i + 1; });
+        s.transactions = txns.map(t => {
+            const out = Object.assign({ id: t._id }, t);
+            if (t._refundOf) out.refundOf = t._refundOf._id;
+            delete out._rec; delete out._route; delete out._refundOf; delete out._id;
+            if (!out.memberId) delete out.memberId;
             return out;
         });
 
@@ -6615,6 +6676,11 @@ I18n.country('US', {
     // ------------------------------------------------------------- transactions
 
     const txnType = (t) => t.type || 'Gasto';
+    // Money moved between your own accounts (or to pay a credit card): not income, not spending.
+    const isTransfer = (t) => t.type === 'Transferencia';
+    // A refund or reimbursement is logged as an expense that came back: it lowers what you spent
+    // in its category and budget line.
+    const amt = (t) => (t.refund ? -1 : 1) * num(t.amount);
     const txnDate = (t) => new Date(t.date + 'T00:00:00');
 
     // How many months of a year's budget should have been "used" by today: all 12 for a
@@ -6633,7 +6699,7 @@ I18n.country('US', {
             const d = txnDate(t);
             if (d.getFullYear() !== year) return false;
             return month === 'base' || (d.getMonth() + 1) === Number(month);
-        }), t => num(t.amount));
+        }), amt);
     }
 
     // Budget target to compare real spending against. A single month compares against that
@@ -6676,7 +6742,7 @@ I18n.country('US', {
             if (month !== 'base' && (d.getMonth() + 1) !== Number(month)) return;
             // A split transaction puts parts of its amount on several lines; whatever isn't
             // split follows the usual rule below.
-            let rest = num(t.amount);
+            let rest = amt(t);
             (Array.isArray(t.splits) ? t.splits : []).forEach(sp => {
                 const k = sp && byLine[String(sp.line)] ? String(sp.line) : null;
                 const a = Math.min(rest, Math.max(0, num(sp && sp.amount)));
@@ -6685,14 +6751,14 @@ I18n.country('US', {
                 if (!byLine[k].txns.includes(t)) byLine[k].txns.push(t);
                 rest -= a;
             });
-            if (rest <= 0.005) return;
+            if (rest <= 0.005 && !t.refund) return;
             const explicit = t.budgetLine !== undefined && t.budgetLine !== null && t.budgetLine !== '' && byLine[String(t.budgetLine)] ? String(t.budgetLine) : null;
             const key = explicit || firstByCat[t.parentCategory] || null;
-            if (!key) { unassigned.push(rest === num(t.amount) ? t : Object.assign({}, t, { amount: rest })); return; }
+            if (!key) { unassigned.push(rest === num(t.amount) || t.refund ? t : Object.assign({}, t, { amount: rest })); return; }
             byLine[key].spent += rest;
             if (!byLine[key].txns.includes(t)) byLine[key].txns.push(t);
         });
-        return { byLine, unassigned, unassignedTotal: sum(unassigned, t => num(t.amount)) };
+        return { byLine, unassigned, unassignedTotal: sum(unassigned, t => (t.refund ? -1 : 1) * num(t.amount)) };
     }
 
     // Planned spending vs. everything actually spent (all expense transactions), per month.
@@ -6702,7 +6768,7 @@ I18n.country('US', {
                 if (txnType(t) !== 'Gasto') return false;
                 const d = txnDate(t);
                 return d.getFullYear() === Number(year) && (d.getMonth() + 1) === Number(m);
-            }), t => num(t.amount));
+            }), amt);
             return { month: Number(m), budgeted: sum(monthItems(yd, m), i => num(i.real)), actual };
         });
     }
@@ -6741,7 +6807,8 @@ I18n.country('US', {
             const k = isoDate(periodStart(txnDate(t), period));
             if (!index.has(k)) return;
             const r = rows[index.get(k)];
-            if (txnType(t) === 'Ingreso') r.income += num(t.amount); else r.expense += num(t.amount);
+            if (isTransfer(t)) return;
+            if (txnType(t) === 'Ingreso') r.income += num(t.amount); else r.expense += amt(t);
             r.count++;
         });
         return rows;
@@ -6788,7 +6855,7 @@ I18n.country('US', {
         const endIso = isoDate(new Date(end));
         const first = shiftPeriod(last, 'week', -(weeks - 1));
         const by = {};
-        (transactions || []).forEach(t => { if (txnType(t) === 'Gasto') { const k = isoDate(txnDate(t)); by[k] = (by[k] || 0) + num(t.amount); } });
+        (transactions || []).forEach(t => { if (txnType(t) === 'Gasto') { const k = isoDate(txnDate(t)); by[k] = (by[k] || 0) + amt(t); } });
         const out = [];
         let max = 0, total = 0;
         for (let w = 0; w < weeks; w++) {
@@ -6822,7 +6889,7 @@ I18n.country('US', {
             const k = keyOf(t);
             if (k === null || k === undefined) return;
             const row = series[k] || (series[k] = new Array(count).fill(0));
-            row[i] += value ? value(t) : num(t.amount);
+            row[i] += value ? value(t) : amt(t);
         });
         return { months, series };
     }
@@ -6840,7 +6907,7 @@ I18n.country('US', {
         const build = (yy, mm, upto) => {
             const days = daysIn(yy, mm);
             const daily = new Array(days).fill(0);
-            (transactions || []).forEach(x => { if (txnType(x) === 'Gasto' && inMonth(x, yy, mm)) daily[txnDate(x).getDate() - 1] += num(x.amount); });
+            (transactions || []).forEach(x => { if (txnType(x) === 'Gasto' && inMonth(x, yy, mm)) daily[txnDate(x).getDate() - 1] += amt(x); });
             let acc = 0;
             return daily.map((v, i) => { acc += v; return i < upto ? Math.round(acc * 100) / 100 : null; });
         };
@@ -6859,15 +6926,15 @@ I18n.country('US', {
             if (txnType(x) !== type || x.date < from || x.date > to) return;
             const k = x.parentCategory || 'Otros';
             by[k] = by[k] || { category: k, amount: 0, count: 0 };
-            by[k].amount += num(x.amount); by[k].count++;
-            total += num(x.amount);
+            by[k].amount += amt(x); by[k].count++;
+            total += amt(x);
         });
         return { total, items: Object.values(by).sort((a, b) => b.amount - a.amount).map(r => Object.assign(r, { share: total ? r.amount / total : 0 })) };
     }
 
     function cashFlow(transactions, y, m) {
         let income = 0, expense = 0;
-        (transactions || []).forEach(x => { if (!inMonth(x, y, m)) return; if (txnType(x) === 'Ingreso') income += num(x.amount); else expense += num(x.amount); });
+        (transactions || []).forEach(x => { if (!inMonth(x, y, m) || isTransfer(x)) return; if (txnType(x) === 'Ingreso') income += num(x.amount); else expense += amt(x); });
         return { income, expense, net: income - expense };
     }
 
@@ -7011,8 +7078,9 @@ I18n.country('US', {
         const none = { id: null, name: 'Sin asignar', income: 0, expense: 0 };
         (transactions || []).forEach(x => {
             if (!inMonth(x, y, m)) return;
+            if (isTransfer(x)) return;
             const r = rows.find(p => p.id === x.memberId) || none;
-            if (txnType(x) === 'Ingreso') r.income += num(x.amount); else r.expense += num(x.amount);
+            if (txnType(x) === 'Ingreso') r.income += num(x.amount); else r.expense += amt(x);
         });
         const all = rows.concat(none.income || none.expense ? [none] : []);
         const ti = sum(all, r => r.income), te = sum(all, r => r.expense);
@@ -7119,9 +7187,10 @@ I18n.country('US', {
         const yearly = monthKeys.size > 24;
         const income = {}, expense = {};
         transactions.forEach(t => {
+            if (isTransfer(t)) return;
             const k = key(txnDate(t), yearly);
             const bucket = txnType(t) === 'Ingreso' ? income : expense;
-            bucket[k] = (bucket[k] || 0) + num(t.amount);
+            bucket[k] = (bucket[k] || 0) + (bucket === income ? num(t.amount) : amt(t));
         });
         const keys = [...new Set([...Object.keys(income), ...Object.keys(expense)])].sort();
         return { yearly, keys, income: keys.map(k => income[k] || 0), expense: keys.map(k => expense[k] || 0) };
@@ -7652,9 +7721,14 @@ I18n.country('US', {
         const asOf = cash.map(a => a.updatedAt || '').sort().pop() || t;
         const base = sum(cash, a => num(a.balance));
         let adjust = 0;
+        const isCash = (ref) => cash.some(a => 'acc-' + a.id === ref);
         (transactions || []).forEach(x => {
-            if (!x.date || x.date <= asOf || x.date > t || x.paymentType === 'Tarjeta de Crédito') return;
-            adjust += (txnType(x) === 'Ingreso' ? 1 : -1) * num(x.amount);
+            if (!x.date || x.date <= asOf || x.date > t) return;
+            // A transfer leaves your cash unless it came from savings, and arrives if it went
+            // to a checking/cash account (paying a card or moving money to savings lowers it).
+            if (isTransfer(x)) { adjust += num(x.amount) * ((isCash(x.to) ? 1 : 0) - (!x.from || isCash(x.from) ? 1 : 0)); return; }
+            if (x.paymentType === 'Tarjeta de Crédito') return;
+            adjust += txnType(x) === 'Ingreso' ? num(x.amount) : -amt(x);
         });
         return { base, adjust, total: base + adjust, asOf, accounts: cash.length };
     }
@@ -7825,7 +7899,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -9700,7 +9774,7 @@ I18n.country('US', {
         const flexSpent = flex.reduce((a, i) => a + ((spend.byLine[String(i.id)] || {}).spent || 0), 0);
         const allow = Engine.dailyAllowance({ planned: flexPlanned, spent: flexSpent, today: t });
         const iso = Engine.isoDate(t);
-        const spentToday = txns.filter(x => (x.type || 'Gasto') === 'Gasto' && x.date === iso).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+        const spentToday = txns.filter(x => (x.type || 'Gasto') === 'Gasto' && x.date === iso).reduce((a, x) => a + Engine.spendAmount(x), 0);
         const pay = Engine.nextPayday(Cash.paySchedule(), t);
         const streak = Engine.loggingStreak(txns, t);
         const DOW = Fmt.DOW_SHORT;
@@ -10670,7 +10744,7 @@ I18n.country('US', {
             const monthItemsSm = Engine.monthItems(ctx.budgetYear, sm);
             const plannedSpend = monthItemsSm.filter(i => !Engine.isSavingsItem(i)).reduce((t, i) => t + (Number(i.real) || 0), 0);
             const spentAll = ctx.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && Number(t.date.slice(0, 4)) === ctx.state.activeYear && String(Number(t.date.slice(5, 7))) === sm)
-                .reduce((t, x) => t + (Number(x.amount) || 0), 0);
+                .reduce((t, x) => t + Engine.spendAmount(x), 0);
             const risk = Engine.overspendRisk({ planned: plannedSpend, spent: spentAll, year: ctx.state.activeYear, month: sm, today });
             const LBL = { none: ['Sin datos', 'tone-slate', 'Registra tus gastos para medirlo.'], low: ['Bajo', 'tone-emerald', 'Vas a buen ritmo.'], medium: ['Medio', 'tone-amber', 'Gastas un poco más rápido de lo planeado.'], high: ['Alto', 'tone-red', 'A este ritmo te pasarás del presupuesto.'] }[risk.level];
             riskBox.className = `kpi ${LBL[1]}`;
@@ -11567,6 +11641,45 @@ I18n.country('US', {
         fillLineSelect();
         fillMemberSelect();
         fillSubSelect();
+        applyType();
+    }
+
+    // ------------------------------------------------------------------ transfers & refunds
+    // A transfer moves money between your accounts (or pays a card): it has a "from" and a "to"
+    // instead of a category, and never counts as income or spending.
+    function transferPlaces() {
+        const s = Store.state;
+        const KIND = { corriente: 'Cuenta corriente', ahorros: 'Cuenta de ahorros', efectivo: 'Efectivo', retiro: 'Jubilación' };
+        return (s.accounts || []).map(a => ({ value: 'acc-' + a.id, label: `${a.name} (${KIND[a.kind] || KIND.corriente})` }))
+            .concat((s.debts || []).map(d => ({ value: 'debt-' + d.id, label: `Pagar: ${d.name}` })))
+            .concat([{ value: '', label: 'Otra cuenta (no registrada)' }]);
+    }
+    const placeName = (ref) => (transferPlaces().find(o => o.value === (ref || '')) || { label: 'Otra cuenta' }).label.replace(/ \(.*\)$/, '');
+
+    function fillTransferSelects(from, to) {
+        const opts = transferPlaces();
+        const pick = (v, fallback) => opts.some(o => o.value === v) ? v : fallback;
+        const cash = opts.find(o => o.value.startsWith('acc-')) || opts[opts.length - 1];
+        const fromSel = document.getElementById('txn-from'), toSel = document.getElementById('txn-to');
+        // First time: from your checking account to the next one listed.
+        const was = (sel, v) => v !== undefined ? v : sel.options.length ? sel.value : undefined;
+        fromSel.innerHTML = Views.selectOptions(opts, pick(was(fromSel, from), cash.value));
+        toSel.innerHTML = Views.selectOptions(opts, pick(was(toSel, to), (opts.find(o => o.value !== fromSel.value) || opts[0]).value));
+    }
+
+    // Show the fields that make sense for the chosen type.
+    function applyType() {
+        const type = document.getElementById('txn-type').value;
+        const tr = type === 'Transferencia';
+        ['txn-parent-field', 'txn-sub-field', 'txn-payment-field'].forEach(id => UI.show(id, !tr));
+        UI.show('txn-from-field', tr);
+        UI.show('txn-to-field', tr);
+        UI.show('txn-refund-field', type === 'Gasto');
+        if (tr) {
+            UI.show('txn-line-field', false);
+            UI.show('txn-income-field', false);
+            fillTransferSelects();
+        }
     }
 
     // ------------------------------------------------------------------ editing
@@ -11589,6 +11702,7 @@ I18n.country('US', {
         FORM_FIELDS.forEach(id => { document.getElementById(id).value = ''; });
         document.getElementById('txn-income').value = '';
         document.getElementById('txn-line').value = '';
+        document.getElementById('txn-refund').checked = false;
     }
 
     // Income lines of the budget (active year) that a new income can be the receipt of.
@@ -11616,7 +11730,7 @@ I18n.country('US', {
 
     // Budget lines of the transaction's month (its date decides which month's budget).
     function fillLineSelect(keep) {
-        const isExp = document.getElementById('txn-type').value !== 'Ingreso';
+        const isExp = document.getElementById('txn-type').value === 'Gasto';
         UI.show('txn-line-field', isExp);
         const sel = document.getElementById('txn-line');
         const prev = keep !== undefined ? String(keep || '') : sel.value;
@@ -11714,10 +11828,13 @@ I18n.country('US', {
 
     function txnItemHTML(t, assignOf) {
         const inc = (t.type || 'Gasto') === 'Ingreso';
+        const tr = Engine.isTransfer(t);
         const d = new Date(t.date + 'T00:00:00');
         let chip = '';
         let pending = false;
-        if (inc) {
+        if (tr) {
+            chip = `<span class="chip-note"><i class="fa-solid fa-right-left"></i> ${esc(placeName(t.from))} → ${esc(placeName(t.to))}</span>`;
+        } else if (inc) {
             const yd = Store.state.years[d.getFullYear()];
             const lines = (yd && yd.otherIncomes) || [];
             if (Engine.isPayrollTxn(t)) chip = '<span class="chip-note">Tu sueldo (ya contado)</span>';
@@ -11739,19 +11856,21 @@ I18n.country('US', {
         if (inc && Engine.isPayrollTxn(t)) notes.push(`<span class="text-amber-700">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>`);
         if (inc && t.countAsExtra) notes.push('<span class="text-emerald-700">Contado como ingreso extra</span>');
         if (inc && t.incomeId) notes.push(incomeLabel(t));
+        if (t.refund) notes.push('<span class="text-emerald-700"><i class="fa-solid fa-rotate-left"></i> Reembolso: resta de lo gastado</span>');
+        if (tr) notes.push('<span class="text-slate-500">Transferencia: no es ingreso ni gasto</span>');
         const picking = !!Store.ui.txnSelecting;
         const on = picking && selected.has(t.id);
-        return `<div class="txn-item ${Store.ui.txnEditing === t.id ? 'row-editing' : ''} ${on ? 'is-selected' : ''}" data-row="${t.id}" ${inc || picking ? '' : `draggable="true" data-txn="${t.id}"`}>
+        return `<div class="txn-item ${Store.ui.txnEditing === t.id ? 'row-editing' : ''} ${on ? 'is-selected' : ''}" data-row="${t.id}" ${inc || tr || picking ? '' : `draggable="true" data-txn="${t.id}"`}>
                 ${picking ? `<label class="txn-check"><input type="checkbox" data-action="txn.check" data-id="${t.id}" ${on ? 'checked' : ''} aria-label="Seleccionar"></label>` : ''}
-                <div class="txn-date ${inc ? 'inc' : 'exp'} ${pending ? 'pending' : ''}"><span>${Fmt.MONTH_SHORT[d.getMonth()]}</span><b>${d.getDate()}</b></div>
+                <div class="txn-date ${tr ? 'tr' : inc || t.refund ? 'inc' : 'exp'} ${pending ? 'pending' : ''}"><span>${Fmt.MONTH_SHORT[d.getMonth()]}</span><b>${d.getDate()}</b></div>
                 <div class="txn-main" ${picking ? `data-action="txn.check" data-id="${t.id}"` : ''}>
                     <div class="txn-desc">${memberBadge(t)}${esc(t.description)}</div>
-                    <div class="txn-meta">${[t.store, `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`, t.paymentType].filter(Boolean).map(esc).join(' · ')}</div>
+                    <div class="txn-meta">${(tr ? [t.store] : [t.store, `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`, t.paymentType]).filter(Boolean).map(esc).join(' · ')}</div>
                     ${notes.length ? `<div class="txn-notes">${notes.join(' ')}</div>` : ''}
                 </div>
-                <div class="txn-amt ${inc ? 'inc' : ''}">${inc ? '+' : '−'}${money(t.amount)}</div>
+                <div class="txn-amt ${inc || t.refund ? 'inc' : tr ? 'tr' : ''}">${tr ? '' : inc || t.refund ? '+' : '−'}${money(t.amount)}</div>
                 <div class="txn-chip">${chip}</div>
-                <div class="txn-actions">${t.recurringId ? '<span class="text-purple-500 text-xs px-1" title="Se repite"><i class="fa-solid fa-repeat"></i></span>' : `<button class="row-edit" data-action="txn.repeat" data-id="${t.id}" title="Repetir cada mes/semana/año" aria-label="Repetir"><i class="fa-solid fa-repeat"></i></button>`}<button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Editar" aria-label="Editar"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></div>
+                <div class="txn-actions">${t.refund ? '' : t.recurringId ? '<span class="text-purple-500 text-xs px-1" title="Se repite"><i class="fa-solid fa-repeat"></i></span>' : `<button class="row-edit" data-action="txn.repeat" data-id="${t.id}" title="Repetir cada mes/semana/año" aria-label="Repetir"><i class="fa-solid fa-repeat"></i></button>`}${!inc && !tr && !t.refund ? `<button class="row-edit" data-action="txn.refund" data-id="${t.id}" title="Registrar un reembolso o devolución de esta compra" aria-label="Reembolso"><i class="fa-solid fa-rotate-left"></i></button>` : ''}<button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Editar" aria-label="Editar"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></div>
             </div>`;
     }
 
@@ -11792,7 +11911,7 @@ I18n.country('US', {
             : Views.emptyState(q ? 'fa-magnifying-glass' : 'fa-receipt', q ? `Nada coincide con "${esc(q)}".` : 'No hay transacciones para este filtro.', q ? '' : '<button type="button" class="btn btn-primary btn-sm" data-action="quick.open"><i class="fa-solid fa-bolt"></i> Registro rápido</button>'));
 
         const inc = list.filter(t => t.type === 'Ingreso').reduce((s, t) => s + Number(t.amount || 0), 0);
-        const exp = list.filter(t => (t.type || 'Gasto') === 'Gasto').reduce((s, t) => s + Number(t.amount || 0), 0);
+        const exp = list.filter(t => (t.type || 'Gasto') === 'Gasto').reduce((s, t) => s + Engine.spendAmount(t), 0);
         UI.text('txn-sum-inc', money(inc));
         UI.text('txn-sum-exp', money(exp));
         UI.text('txn-sum-net', money(inc - exp));
@@ -11941,7 +12060,7 @@ I18n.country('US', {
         for (let i = 1; i <= 3; i++) {
             const d = new Date(t.getFullYear(), t.getMonth() - i, 1);
             const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            total += (transactions || []).filter(x => (x.type || 'Gasto') === 'Gasto' && String(x.date).startsWith(k)).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+            total += (transactions || []).filter(x => (x.type || 'Gasto') === 'Gasto' && String(x.date).startsWith(k)).reduce((a, x) => a + Engine.spendAmount(x), 0);
         }
         return total / 3;
     }
@@ -12113,6 +12232,27 @@ I18n.country('US', {
             UI.toast(`Regla «${rule.contains}»: ${rule.rename ? `«${rule.rename}», ` : ''}categoría ${rule.category}.`);
         },
         'txn.typeChanged': () => fillCategorySelects(),
+        // Money back for a purchase: a refund that counts against the same category and line.
+        'txn.refund': async (el) => {
+            const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
+            if (!t) return;
+            const r = await UI.form({
+                title: 'Registrar reembolso o devolución',
+                message: `De «${t.description}» (${money(t.amount)}). Resta de lo gastado en ${t.parentCategory}, en el mes en que te devuelven el dinero.`,
+                fields: [
+                    { name: 'amount', label: 'Monto devuelto', type: 'number', step: '0.01', min: 0, value: Number(t.amount) || '' },
+                    { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) }
+                ],
+                confirmText: 'Registrar',
+                validate: v => !(v.amount > 0) ? 'Escribe un monto mayor a $0.' : v.amount > Number(t.amount) + 0.005 ? `No puede ser más que la compra (${money(t.amount)}).` : !v.date ? 'Elige una fecha.' : null
+            });
+            if (!r) return;
+            const s = Store.state;
+            const back = { id: Store.nextId(s.transactions), type: 'Gasto', refund: true, refundOf: t.id, description: `Reembolso: ${t.description}`, store: t.store || '', parentCategory: t.parentCategory, category: t.category || '', amount: Math.round(r.amount * 100) / 100, date: r.date, paymentType: t.paymentType, createdAt: new Date().toISOString() };
+            if (t.budgetLine && !(Array.isArray(t.splits) && t.splits.length)) back.budgetLine = t.budgetLine;
+            if (t.memberId) back.memberId = t.memberId;
+            App.undoable(`Reembolso de ${money(back.amount)} registrado`, () => { s.transactions.push(back); });
+        },
         'txn.parentChanged': () => { fillSubSelect(); fillLineSelect(); },
         'txn.repeat': async (el) => {
             const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
@@ -12207,6 +12347,7 @@ I18n.country('US', {
         },
         'txn.bulkCategory': async () => {
             const list = picked();
+            if (list.some(t => Engine.isTransfer(t))) { UI.toast('Las transferencias no tienen categoría: quítalas de la selección.', 'warn'); return; }
             const kinds = new Set(list.map(t => isIncome(t)));
             if (kinds.size > 1) { UI.toast('Elige solo gastos o solo ingresos para cambiar la categoría.', 'warn'); return; }
             const inc = kinds.has(true);
@@ -12229,7 +12370,7 @@ I18n.country('US', {
             });
         },
         'txn.bulkLine': async () => {
-            const list = picked().filter(t => !isIncome(t));
+            const list = picked().filter(t => (t.type || 'Gasto') === 'Gasto');
             if (!list.length) { UI.toast('Los rubros son para gastos: selecciona al menos un gasto.', 'warn'); return; }
             const years = new Set(list.map(t => t.date.slice(0, 4)));
             if (years.size > 1) { UI.toast('Elige gastos de un solo año para cambiar el rubro.', 'warn'); return; }
@@ -12290,6 +12431,19 @@ I18n.country('US', {
                 s.transactions = s.transactions.filter(t => !ids.has(t.id));
             });
         },
+        // Imported card payments and moves to savings look like spending: mark them as transfers.
+        'txn.bulkTransfer': async () => {
+            const list = picked().filter(t => !Engine.isTransfer(t));
+            if (!list.length) return;
+            const ok = await UI.confirm({ title: `Marcar ${list.length} como transferencia${list.length === 1 ? '' : 's'}`, message: 'Dejan de contar como ingreso o gasto (por ejemplo, el pago de la tarjeta o lo que pasas a tus ahorros). Puedes elegir las cuentas editando cada una.', confirmText: 'Marcar' });
+            if (!ok) return;
+            const ids = new Set(list.map(t => t.id));
+            bulkApply(`${list.length} transferencia${list.length === 1 ? '' : 's'}: ya no cuentan como ingreso o gasto`, t => {
+                if (!ids.has(t.id)) return;
+                t.type = 'Transferencia'; t.parentCategory = 'Transferencia'; t.category = ''; t.paymentType = 'Transferencia';
+                ['budgetLine', 'splits', 'incomeId', 'refund', 'countAsExtra'].forEach(k => delete t[k]);
+            });
+        },
         // A rule so the next ones like these sort themselves (Importar → Reglas automáticas).
         'txn.bulkRule': () => {
             const list = picked();
@@ -12326,7 +12480,10 @@ I18n.country('US', {
         },
         'txn.add': () => {
             const get = (id) => document.getElementById(id);
-            const description = get('txn-description').value.trim();
+            const type = get('txn-type').value;
+            const tr = type === 'Transferencia';
+            if (tr && get('txn-from').value === get('txn-to').value) { UI.toast('Elige cuentas distintas en "Desde" y "Hacia".', 'error'); return; }
+            const description = get('txn-description').value.trim() || (tr ? `${placeName(get('txn-from').value)} → ${placeName(get('txn-to').value)}` : '');
             const amount = Fmt.parseNum(get('txn-amount').value, 0);
             if (!description || amount <= 0) {
                 UI.toast('Escribe una descripción y un monto mayor a $0.', 'error');
@@ -12335,17 +12492,20 @@ I18n.country('US', {
             }
             const s = Store.state;
             const values = {
-                type: get('txn-type').value,
+                type,
                 description,
                 store: get('txn-store').value.trim(),
-                parentCategory: get('txn-parent').value,
-                category: get('txn-sub').value,
+                parentCategory: tr ? 'Transferencia' : get('txn-parent').value,
+                category: tr ? '' : get('txn-sub').value,
                 amount,
                 date: get('txn-date').value || new Date().toISOString().slice(0, 10),
-                paymentType: get('txn-payment').value,
-                incomeId: get('txn-type').value === 'Ingreso' && get('txn-income').value ? Number(get('txn-income').value) : undefined,
-                budgetLine: get('txn-type').value !== 'Ingreso' && get('txn-line').value ? get('txn-line').value : undefined,
-                memberId: get('txn-member').value ? Number(get('txn-member').value) : undefined
+                paymentType: tr ? 'Transferencia' : get('txn-payment').value,
+                incomeId: type === 'Ingreso' && get('txn-income').value ? Number(get('txn-income').value) : undefined,
+                budgetLine: type === 'Gasto' && get('txn-line').value ? get('txn-line').value : undefined,
+                memberId: get('txn-member').value ? Number(get('txn-member').value) : undefined,
+                from: tr ? get('txn-from').value : undefined,
+                to: tr ? get('txn-to').value : undefined,
+                refund: type === 'Gasto' && get('txn-refund').checked ? true : undefined
             };
             Store.ui.lastMember = values.memberId || null;
             const editing = s.transactions.find(t => t.id === Store.ui.txnEditing);
@@ -12354,6 +12514,9 @@ I18n.country('US', {
                 if (!values.incomeId) delete editing.incomeId;
                 if (!values.budgetLine) delete editing.budgetLine;
                 if (!values.memberId) delete editing.memberId;
+                if (!tr) { delete editing.from; delete editing.to; }
+                if (!values.refund) delete editing.refund;
+                if (tr || values.refund) delete editing.splits;
                 setEditing(null);
                 clearForm();
                 App.changed({ structural: true, step: true });
@@ -12383,6 +12546,7 @@ I18n.country('US', {
                 UI.toast('Registrada con fecha futura. Para que se repita, elige una opción en "Repetir".', 'warn');
             }
             const added = Object.assign({ id: Store.nextId(s.transactions), createdAt: new Date().toISOString() }, values);
+            Object.keys(added).forEach(k => { if (added[k] === undefined) delete added[k]; });
             s.transactions.push(added);
             clearForm();
             App.changed({ structural: true, step: true });
@@ -12407,6 +12571,8 @@ I18n.country('US', {
             const pay = get('txn-payment');
             if (t.paymentType && ![...pay.options].some(o => o.value === t.paymentType)) pay.add(new Option(t.paymentType, t.paymentType));
             pay.value = t.paymentType || pay.options[0].value;
+            get('txn-refund').checked = !!t.refund;
+            if (Engine.isTransfer(t)) fillTransferSelects(t.from || '', t.to || '');
             setEditing(t);
             document.getElementById('txn-form-card').scrollIntoView({ block: 'start', behavior: 'smooth' });
             get('txn-description').focus();
@@ -13050,13 +13216,14 @@ I18n.country('US', {
                 default: return t.parentCategory || 'Otros';
             }
         };
-        const list = ctx.state.transactions.filter(t => t.date >= from && t.date <= to && (o.type === 'both' || (t.type || 'Gasto') === o.type));
+        // Transfers between your own accounts aren't income or spending: they stay out of reports.
+        const list = ctx.state.transactions.filter(t => t.date >= from && t.date <= to && !Engine.isTransfer(t) && (o.type === 'both' || (t.type || 'Gasto') === o.type));
         const groups = {};
         list.forEach(t => {
             const k = keyOf(t);
             const g = groups[k] || (groups[k] = { key: k, count: 0, income: 0, expense: 0 });
             g.count++;
-            if ((t.type || 'Gasto') === 'Ingreso') g.income += Number(t.amount) || 0; else g.expense += Number(t.amount) || 0;
+            if ((t.type || 'Gasto') === 'Ingreso') g.income += Number(t.amount) || 0; else g.expense += Engine.spendAmount(t);
         });
         const signed = (g) => o.type === 'Ingreso' ? g.income : o.type === 'Gasto' ? g.expense : g.income - g.expense;
         const rows = Object.values(groups).map(g => Object.assign(g, { total: signed(g) }));
@@ -13065,8 +13232,8 @@ I18n.country('US', {
         const total = rows.reduce((a, r) => a + r.total, 0);
         const absTotal = rows.reduce((a, r) => a + Math.abs(r.total), 0);
         // Each group's last 12 months (whatever the period), for the sparkline in its row.
-        const typed = ctx.state.transactions.filter(t => o.type === 'both' || (t.type || 'Gasto') === o.type);
-        const sign = (t) => (o.type === 'both' && (t.type || 'Gasto') !== 'Ingreso' ? -1 : 1) * (Number(t.amount) || 0);
+        const typed = ctx.state.transactions.filter(t => !Engine.isTransfer(t) && (o.type === 'both' || (t.type || 'Gasto') === o.type));
+        const sign = (t) => (t.type || 'Gasto') === 'Ingreso' ? Number(t.amount) || 0 : (o.type === 'both' ? -1 : 1) * Engine.spendAmount(t);
         const trend = timeBased ? null : Engine.monthlyByKey(typed, keyOf, { end: ctx.today, count: 12, value: sign });
         return { o, from, to, list, rows, total, absTotal, trend, timeBased };
     }
@@ -13182,7 +13349,7 @@ I18n.country('US', {
             const r = build(App.buildContext());
             const members = Store.state.members || [];
             const rows = [['Fecha', 'Tipo', 'Descripción', 'Lugar', 'Categoría', 'Subcategoría', 'Monto', 'Forma de pago', 'Persona']]
-                .concat(r.list.slice().sort((a, b) => a.date.localeCompare(b.date)).map(t => [t.date, t.type || 'Gasto', t.description, t.store || '', t.parentCategory, t.category || '', ((t.type || 'Gasto') === 'Ingreso' ? 1 : -1) * (Number(t.amount) || 0), t.paymentType || '', ((members.find(p => p.id === t.memberId) || {}).name) || '']));
+                .concat(r.list.slice().sort((a, b) => a.date.localeCompare(b.date)).map(t => [t.date, t.type || 'Gasto', t.description, t.store || '', t.parentCategory, t.category || '', ((t.type || 'Gasto') === 'Ingreso' ? 1 : -1) * Engine.spendAmount(t), t.paymentType || '', ((members.find(p => p.id === t.memberId) || {}).name) || '']));
             download(`transacciones_${r.from.replace('0000-01-01', 'inicio')}_${r.to.replace('9999-12-31', 'hoy')}.csv`, Importers.toCSV(rows));
         }
     });
@@ -13554,7 +13721,9 @@ I18n.country('US', {
         'wi.input': (el) => { if (!st) return; st[el.dataset.key] = el.value; results(); },
         'wi.record': () => {
             if (!st) return;
-            const v = { type: 'Gasto', description: st.description || '', amount: Number(st.amount) || '', budgetLine: st.line || undefined };
+            // Read the fields themselves too, in case the last keystroke hasn't reached `st` yet.
+            const field = (id) => (document.getElementById(id) || {}).value || '';
+            const v = { type: 'Gasto', description: st.description || field('wi-desc'), amount: Number(st.amount) || Number(field('wi-amount')) || '', budgetLine: st.line || undefined };
             const line = st.line && thisMonth().items.find(i => String(i.id) === String(st.line));
             if (line && line.linkedCategory && line.linkedCategory !== 'none') v.parent = line.linkedCategory;
             st.sheet.close();

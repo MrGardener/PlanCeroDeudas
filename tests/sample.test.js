@@ -75,6 +75,8 @@ function load(country, today = TODAY) {
         s.years[2026].budgetBase.forEach(i => used.add(i.linkedCategory));
         assert.deepEqual(Object.keys(tax.expense).filter(c => !used.has(c)), []);
         s.transactions.forEach(t => {
+            // Transfers (ATM cash) move money between accounts and carry no category.
+            if (t.type === 'Transferencia') { assert.ok(/^acc-\d+$/.test(t.from) && /^acc-\d+$/.test(t.to)); return; }
             const list = (t.type === 'Ingreso' ? tax.income : tax.expense)[t.parentCategory] || [];
             assert.ok(list.includes(t.category), `#${t.id} ${t.description}: ${t.parentCategory} / ${t.category}`);
             assert.ok(['Efectivo', 'Tarjeta de Débito', 'Tarjeta de Crédito', 'Transferencia'].includes(t.paymentType));
@@ -84,6 +86,11 @@ function load(country, today = TODAY) {
             const items = Store.effective(Number(t.date.slice(0, 4))).budgetBase;
             assert.ok(items.some(i => String(i.id) === t.budgetLine), `#${t.id} → line ${t.budgetLine}`);
         });
+        // A few returns, each pointing at the purchase it came from (same category, not more).
+        const refunds = s.transactions.filter(t => t.refund);
+        assert.ok(refunds.length >= 2, 'some refunds');
+        refunds.filter(r => r.refundOf).forEach(r => { const o = s.transactions.find(t => t.id === r.refundOf); assert.ok(o && o.parentCategory === r.parentCategory && r.amount <= o.amount && r.date > o.date); });
+        assert.ok(s.transactions.filter(t => t.type === 'Transferencia').length >= 20, 'ATM transfers');
         // Types like the templates use.
         const types = new Set(s.years[2026].budgetBase.map(i => i.type));
         ['Gasto Fijo', 'Gasto Variable', 'Ahorro', 'Deuda'].forEach(k => assert.ok(types.has(k), k));

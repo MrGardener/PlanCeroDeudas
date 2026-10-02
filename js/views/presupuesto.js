@@ -228,7 +228,7 @@
             const monthItemsSm = Engine.monthItems(ctx.budgetYear, sm);
             const plannedSpend = monthItemsSm.filter(i => !Engine.isSavingsItem(i)).reduce((t, i) => t + (Number(i.real) || 0), 0);
             const spentAll = ctx.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && Number(t.date.slice(0, 4)) === ctx.state.activeYear && String(Number(t.date.slice(5, 7))) === sm)
-                .reduce((t, x) => t + (Number(x.amount) || 0), 0);
+                .reduce((t, x) => t + Engine.spendAmount(x), 0);
             const risk = Engine.overspendRisk({ planned: plannedSpend, spent: spentAll, year: ctx.state.activeYear, month: sm, today });
             const LBL = { none: ['Sin datos', 'tone-slate', 'Registra tus gastos para medirlo.'], low: ['Bajo', 'tone-emerald', 'Vas a buen ritmo.'], medium: ['Medio', 'tone-amber', 'Gastas un poco más rápido de lo planeado.'], high: ['Alto', 'tone-red', 'A este ritmo te pasarás del presupuesto.'] }[risk.level];
             riskBox.className = `kpi ${LBL[1]}`;

@@ -888,3 +888,30 @@ test('monthly totals per group for sparklines', () => {
     // Months cross the year boundary.
     assert.deepEqual(E.monthlyByKey([], () => 'x', { end: new Date(2026, 0, 10), count: 2 }).months, ['2025-12', '2026-01']);
 });
+
+test('transfers are neither income nor spending; refunds lower spending', () => {
+    const items = [{ id: 1, name: 'Ropa', linkedCategory: 'Ropa', real: 200 }];
+    const txns = [
+        { id: 1, type: 'Gasto', parentCategory: 'Ropa', amount: 120, date: '2026-09-05' },
+        { id: 2, type: 'Gasto', parentCategory: 'Ropa', amount: 40, date: '2026-09-09', refund: true },
+        { id: 3, type: 'Transferencia', parentCategory: 'Transferencia', amount: 500, date: '2026-09-10', from: 'acc-1', to: 'acc-2' },
+        { id: 4, type: 'Ingreso', parentCategory: 'Sueldo', amount: 900, date: '2026-09-01' }
+    ];
+    assert.equal(E.lineSpend(items, txns, 2026, '9').byLine['1'].spent, 80);
+    assert.equal(E.categorySpend(txns, 'Ropa', 2026, '9'), 80);
+    assert.deepEqual(E.cashFlow(txns, 2026, 9), { income: 900, expense: 80, net: 820 });
+    assert.equal(E.categoryBreakdown(txns, { from: '2026-09-01', to: '2026-09-30' }).total, 80);
+    assert.equal(E.isTransfer(txns[2]), true);
+    assert.equal(E.spendAmount(txns[1]), -40);
+    // Cash: checking 1 and cash 3; savings 2. Moving money to savings or paying a card lowers
+    // cash, bringing it back from savings raises it, a refund to the debit card adds.
+    const accounts = [{ id: 1, kind: 'corriente', balance: 1000, updatedAt: '2026-09-01' }, { id: 2, kind: 'ahorros', balance: 0 }, { id: 3, kind: 'efectivo', balance: 0, updatedAt: '2026-09-01' }];
+    const moves = [
+        { type: 'Transferencia', amount: 300, date: '2026-09-02', from: 'acc-1', to: 'acc-2' },
+        { type: 'Transferencia', amount: 100, date: '2026-09-03', from: 'acc-2', to: 'acc-1' },
+        { type: 'Transferencia', amount: 250, date: '2026-09-04', from: 'acc-1', to: 'debt-7' },
+        { type: 'Transferencia', amount: 60, date: '2026-09-05', from: 'acc-1', to: 'acc-3' },
+        { type: 'Gasto', amount: 25, date: '2026-09-06', refund: true, paymentType: 'Tarjeta de Débito' }
+    ];
+    assert.equal(E.cashNow(accounts, moves, new Date(2026, 8, 15)).adjust, -300 + 100 - 250 + 0 + 25);
+});

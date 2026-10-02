@@ -2109,3 +2109,25 @@ I18n.add('en', {
 "¿A dónde va cada dólar? ·": "Where does every dollar go? ·",
 });
 I18n.add('en', { "En jubilación (no disponible)": "In retirement accounts (not available)", "Dinero disponible (sin jubilación)": "Available money (not counting retirement)" });
+// Transfers and refunds
+I18n.add('en', {
+    "Transferencia o pago de tarjeta": "Transfer or card payment", "Solo transferencias": "Transfers only",
+    "Hacia": "To", "Marcar": "Mark", "Registrar": "Log", "Pagar: {0}": "Pay: {0}",
+    "Otra cuenta": "Other account", "Otra cuenta (no registrada)": "Other account (not listed)",
+    "Mover dinero entre tus cuentas o pagar la tarjeta no es un gasto: lo que compraste con la tarjeta ya se contó. Si abonas a una deuda antigua de tu plan, regístralo como gasto en su rubro.": "Moving money between your accounts or paying your card isn't spending: what you bought with the card was already counted. If you're paying down an old debt in your plan, log it as an expense in its budget line.",
+    "Es un": "It's a", "reembolso o devolución": "refund or reimbursement", ": resta de lo gastado en su categoría": ": it lowers what you spent in its category",
+    "Elige cuentas distintas en \"Desde\" y \"Hacia\".": "Pick different accounts in \"From\" and \"To\".",
+    "Transferencia: no es ingreso ni gasto": "Transfer: not income or spending",
+    "Reembolso: resta de lo gastado": "Refund: lowers what you spent",
+    "Registrar un reembolso o devolución de esta compra": "Log a refund or reimbursement for this purchase",
+    "Registrar reembolso o devolución": "Log a refund or reimbursement",
+    "De «{0}» ({1}). Resta de lo gastado en {2}, en el mes en que te devuelven el dinero.": "For «{0}» ({1}). It lowers what you spent in {2}, in the month you get the money back.",
+    "Monto devuelto": "Amount returned", "Escribe un monto mayor a $0.": "Enter an amount over $0.", "Elige una fecha.": "Pick a date.",
+    "No puede ser más que la compra ({0}).": "It can't be more than the purchase ({0}).",
+    "Reembolso de {0} registrado": "Refund of {0} logged",
+    "Es transferencia": "It's a transfer",
+    "Las transferencias no tienen categoría: quítalas de la selección.": "Transfers have no category: take them out of the selection.",
+    "Marcar {0} como transferencia{1}": "Mark {0} as transfer{1|s}",
+    "Dejan de contar como ingreso o gasto (por ejemplo, el pago de la tarjeta o lo que pasas a tus ahorros). Puedes elegir las cuentas editando cada una.": "They stop counting as income or spending (for example, your card payment or what you move to savings). You can pick the accounts by editing each one.",
+    "{0} transferencia{1}: ya no cuentan como ingreso o gasto": "{0} transfer{1|s}: no longer counted as income or spending"
+});

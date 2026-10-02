@@ -281,6 +281,10 @@ input[type="file"].hidden { display: none; }
 .txn-date b { font-size: .9rem; }
 .txn-date.inc { border-color: #10b981; color: #047857; }
 .txn-date.pending { border-style: dashed; }
+.txn-date.tr { border-color: var(--faint); color: var(--muted); }
+.txn-amt.tr { color: var(--muted); }
+.check-row { display: flex; align-items: flex-start; gap: .4rem; padding-bottom: .55rem; font-size: var(--fs-xs); color: var(--ink-2); line-height: 1.35; cursor: pointer; }
+.check-row input { margin-top: .15rem; accent-color: var(--brand); }
 .txn-desc { font-size: .88rem; font-weight: 700; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .txn-meta { font-size: .7rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .txn-notes { font-size: var(--fs-2xs); margin-top: .15rem; }
@@ -419,7 +423,7 @@ html[data-theme="dark"] .bs-unassigned { background: rgba(245, 158, 11, .08); bo
 html[data-theme="dark"] .bs-add-group { border-color: #334155; color: #60a5fa; } html[data-theme="dark"] .bs-add-group:hover { background: rgba(37, 99, 235, .1); }
 html[data-theme="dark"] .txn-item { border-bottom-color: var(--line-soft); }
 html[data-theme="dark"] .txn-month { background: var(--surface-2); color: #cbd5e1; }
-html[data-theme="dark"] .txn-date { color: #93c5fd; border-color: #3b82f6; } html[data-theme="dark"] .txn-date.inc { color: #6ee7b7; border-color: #10b981; }
+html[data-theme="dark"] .txn-date { color: #93c5fd; border-color: #3b82f6; } html[data-theme="dark"] .txn-date.inc { color: #6ee7b7; border-color: #10b981; } html[data-theme="dark"] .txn-date.tr { color: var(--muted); border-color: var(--faint); }
 html[data-theme="dark"] .txn-amt.inc { color: #6ee7b7; }
 html[data-theme="dark"] .chip-select { background: rgba(37, 99, 235, .15); border-color: rgba(96, 165, 250, .45); color: #93c5fd; }
 html[data-theme="dark"] .chip-select.empty { background: transparent; border-color: #60a5fa; }

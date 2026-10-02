@@ -127,7 +127,9 @@
         'wi.input': (el) => { if (!st) return; st[el.dataset.key] = el.value; results(); },
         'wi.record': () => {
             if (!st) return;
-            const v = { type: 'Gasto', description: st.description || '', amount: Number(st.amount) || '', budgetLine: st.line || undefined };
+            // Read the fields themselves too, in case the last keystroke hasn't reached `st` yet.
+            const field = (id) => (document.getElementById(id) || {}).value || '';
+            const v = { type: 'Gasto', description: st.description || field('wi-desc'), amount: Number(st.amount) || Number(field('wi-amount')) || '', budgetLine: st.line || undefined };
             const line = st.line && thisMonth().items.find(i => String(i.id) === String(st.line));
             if (line && line.linkedCategory && line.linkedCategory !== 'none') v.parent = line.linkedCategory;
             st.sheet.close();

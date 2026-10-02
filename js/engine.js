@@ -398,6 +398,11 @@
     // ------------------------------------------------------------- transactions
 
     const txnType = (t) => t.type || 'Gasto';
+    // Money moved between your own accounts (or to pay a credit card): not income, not spending.
+    const isTransfer = (t) => t.type === 'Transferencia';
+    // A refund or reimbursement is logged as an expense that came back: it lowers what you spent
+    // in its category and budget line.
+    const amt = (t) => (t.refund ? -1 : 1) * num(t.amount);
     const txnDate = (t) => new Date(t.date + 'T00:00:00');
 
     // How many months of a year's budget should have been "used" by today: all 12 for a
@@ -416,7 +421,7 @@
             const d = txnDate(t);
             if (d.getFullYear() !== year) return false;
             return month === 'base' || (d.getMonth() + 1) === Number(month);
-        }), t => num(t.amount));
+        }), amt);
     }
 
     // Budget target to compare real spending against. A single month compares against that
@@ -459,7 +464,7 @@
             if (month !== 'base' && (d.getMonth() + 1) !== Number(month)) return;
             // A split transaction puts parts of its amount on several lines; whatever isn't
             // split follows the usual rule below.
-            let rest = num(t.amount);
+            let rest = amt(t);
             (Array.isArray(t.splits) ? t.splits : []).forEach(sp => {
                 const k = sp && byLine[String(sp.line)] ? String(sp.line) : null;
                 const a = Math.min(rest, Math.max(0, num(sp && sp.amount)));
@@ -468,14 +473,14 @@
                 if (!byLine[k].txns.includes(t)) byLine[k].txns.push(t);
                 rest -= a;
             });
-            if (rest <= 0.005) return;
+            if (rest <= 0.005 && !t.refund) return;
             const explicit = t.budgetLine !== undefined && t.budgetLine !== null && t.budgetLine !== '' && byLine[String(t.budgetLine)] ? String(t.budgetLine) : null;
             const key = explicit || firstByCat[t.parentCategory] || null;
-            if (!key) { unassigned.push(rest === num(t.amount) ? t : Object.assign({}, t, { amount: rest })); return; }
+            if (!key) { unassigned.push(rest === num(t.amount) || t.refund ? t : Object.assign({}, t, { amount: rest })); return; }
             byLine[key].spent += rest;
             if (!byLine[key].txns.includes(t)) byLine[key].txns.push(t);
         });
-        return { byLine, unassigned, unassignedTotal: sum(unassigned, t => num(t.amount)) };
+        return { byLine, unassigned, unassignedTotal: sum(unassigned, t => (t.refund ? -1 : 1) * num(t.amount)) };
     }
 
     // Planned spending vs. everything actually spent (all expense transactions), per month.
@@ -485,7 +490,7 @@
                 if (txnType(t) !== 'Gasto') return false;
                 const d = txnDate(t);
                 return d.getFullYear() === Number(year) && (d.getMonth() + 1) === Number(m);
-            }), t => num(t.amount));
+            }), amt);
             return { month: Number(m), budgeted: sum(monthItems(yd, m), i => num(i.real)), actual };
         });
     }
@@ -524,7 +529,8 @@
             const k = isoDate(periodStart(txnDate(t), period));
             if (!index.has(k)) return;
             const r = rows[index.get(k)];
-            if (txnType(t) === 'Ingreso') r.income += num(t.amount); else r.expense += num(t.amount);
+            if (isTransfer(t)) return;
+            if (txnType(t) === 'Ingreso') r.income += num(t.amount); else r.expense += amt(t);
             r.count++;
         });
         return rows;
@@ -571,7 +577,7 @@
         const endIso = isoDate(new Date(end));
         const first = shiftPeriod(last, 'week', -(weeks - 1));
         const by = {};
-        (transactions || []).forEach(t => { if (txnType(t) === 'Gasto') { const k = isoDate(txnDate(t)); by[k] = (by[k] || 0) + num(t.amount); } });
+        (transactions || []).forEach(t => { if (txnType(t) === 'Gasto') { const k = isoDate(txnDate(t)); by[k] = (by[k] || 0) + amt(t); } });
         const out = [];
         let max = 0, total = 0;
         for (let w = 0; w < weeks; w++) {
@@ -605,7 +611,7 @@
             const k = keyOf(t);
             if (k === null || k === undefined) return;
             const row = series[k] || (series[k] = new Array(count).fill(0));
-            row[i] += value ? value(t) : num(t.amount);
+            row[i] += value ? value(t) : amt(t);
         });
         return { months, series };
     }
@@ -623,7 +629,7 @@
         const build = (yy, mm, upto) => {
             const days = daysIn(yy, mm);
             const daily = new Array(days).fill(0);
-            (transactions || []).forEach(x => { if (txnType(x) === 'Gasto' && inMonth(x, yy, mm)) daily[txnDate(x).getDate() - 1] += num(x.amount); });
+            (transactions || []).forEach(x => { if (txnType(x) === 'Gasto' && inMonth(x, yy, mm)) daily[txnDate(x).getDate() - 1] += amt(x); });
             let acc = 0;
             return daily.map((v, i) => { acc += v; return i < upto ? Math.round(acc * 100) / 100 : null; });
         };
@@ -642,15 +648,15 @@
             if (txnType(x) !== type || x.date < from || x.date > to) return;
             const k = x.parentCategory || 'Otros';
             by[k] = by[k] || { category: k, amount: 0, count: 0 };
-            by[k].amount += num(x.amount); by[k].count++;
-            total += num(x.amount);
+            by[k].amount += amt(x); by[k].count++;
+            total += amt(x);
         });
         return { total, items: Object.values(by).sort((a, b) => b.amount - a.amount).map(r => Object.assign(r, { share: total ? r.amount / total : 0 })) };
     }
 
     function cashFlow(transactions, y, m) {
         let income = 0, expense = 0;
-        (transactions || []).forEach(x => { if (!inMonth(x, y, m)) return; if (txnType(x) === 'Ingreso') income += num(x.amount); else expense += num(x.amount); });
+        (transactions || []).forEach(x => { if (!inMonth(x, y, m) || isTransfer(x)) return; if (txnType(x) === 'Ingreso') income += num(x.amount); else expense += amt(x); });
         return { income, expense, net: income - expense };
     }
 
@@ -794,8 +800,9 @@
         const none = { id: null, name: 'Sin asignar', income: 0, expense: 0 };
         (transactions || []).forEach(x => {
             if (!inMonth(x, y, m)) return;
+            if (isTransfer(x)) return;
             const r = rows.find(p => p.id === x.memberId) || none;
-            if (txnType(x) === 'Ingreso') r.income += num(x.amount); else r.expense += num(x.amount);
+            if (txnType(x) === 'Ingreso') r.income += num(x.amount); else r.expense += amt(x);
         });
         const all = rows.concat(none.income || none.expense ? [none] : []);
         const ti = sum(all, r => r.income), te = sum(all, r => r.expense);
@@ -902,9 +909,10 @@
         const yearly = monthKeys.size > 24;
         const income = {}, expense = {};
         transactions.forEach(t => {
+            if (isTransfer(t)) return;
             const k = key(txnDate(t), yearly);
             const bucket = txnType(t) === 'Ingreso' ? income : expense;
-            bucket[k] = (bucket[k] || 0) + num(t.amount);
+            bucket[k] = (bucket[k] || 0) + (bucket === income ? num(t.amount) : amt(t));
         });
         const keys = [...new Set([...Object.keys(income), ...Object.keys(expense)])].sort();
         return { yearly, keys, income: keys.map(k => income[k] || 0), expense: keys.map(k => expense[k] || 0) };
@@ -1435,9 +1443,14 @@
         const asOf = cash.map(a => a.updatedAt || '').sort().pop() || t;
         const base = sum(cash, a => num(a.balance));
         let adjust = 0;
+        const isCash = (ref) => cash.some(a => 'acc-' + a.id === ref);
         (transactions || []).forEach(x => {
-            if (!x.date || x.date <= asOf || x.date > t || x.paymentType === 'Tarjeta de Crédito') return;
-            adjust += (txnType(x) === 'Ingreso' ? 1 : -1) * num(x.amount);
+            if (!x.date || x.date <= asOf || x.date > t) return;
+            // A transfer leaves your cash unless it came from savings, and arrives if it went
+            // to a checking/cash account (paying a card or moving money to savings lowers it).
+            if (isTransfer(x)) { adjust += num(x.amount) * ((isCash(x.to) ? 1 : 0) - (!x.from || isCash(x.from) ? 1 : 0)); return; }
+            if (x.paymentType === 'Tarjeta de Crédito') return;
+            adjust += txnType(x) === 'Ingreso' ? num(x.amount) : -amt(x);
         });
         return { base, adjust, total: base + adjust, asOf, accounts: cash.length };
     }
@@ -1608,7 +1621,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

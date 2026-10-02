@@ -409,7 +409,7 @@
             if (gig) c.add({ day: R.int(8, 20), type: 'Ingreso', parent: 'Ingresos Independientes', sub: 'Freelance/Consultoría', amount: gig - (y === prev ? 50 : 0), store: 'Venmo', desc: R.pick(['Photo session – family portraits', 'Photo session – senior pictures', 'Photo session – mini sessions']), pay: XFER, member: SARAH, route: 'extra' });
             if (y === prev && m === 6) c.add({ day: 20, type: 'Ingreso', parent: 'Ingresos Financieros', sub: 'Intereses', amount: 96.12, store: 'Capital One', desc: 'CD matured – interest', pay: XFER, route: 'extra' });
             if (m === 12) c.add({ day: 21, type: 'Ingreso', parent: 'Otros Ingresos', sub: 'Regalos Recibidos', amount: 200, store: 'Grandma & Grandpa', desc: 'Christmas check', pay: XFER, route: 'gifts' });
-            if (y === cur && m === 1) c.add({ day: 9, type: 'Ingreso', parent: 'Otros Ingresos', sub: 'Reembolsos', amount: 42.5, store: "Kohl's", desc: 'Return – winter boots', pay: CREDIT, member: SARAH, route: 'clothing' });
+            if (y === cur && m === 1) c.add({ day: 9, key: 'clothing', refund: true, amount: 42.5, store: "Kohl's", desc: 'Return – winter boots', sub: 'Ropa y Calzado', pay: CREDIT, member: SARAH });
             if (y === prev && m === 9) c.add({ day: 13, type: 'Ingreso', parent: 'Otros Ingresos', sub: 'Venta de Artículos Usados', amount: 120, store: 'Facebook Marketplace', desc: 'Sold the crib', pay: CASH, member: SARAH, route: 'extra' });
         }
 
@@ -846,6 +846,7 @@
                     if (o.member) t.memberId = o.member;
                     if (o.incomeId) t.incomeId = o.incomeId;
                     if (o.countAsExtra) t.countAsExtra = true;
+                    if (o.refund) t.refund = true;
                     if (o.rec) t._rec = o.rec;
                     if (o.route) t._route = o.route;
                     txns.push(t);
@@ -932,6 +933,29 @@
             if (extra > 0 && date <= todayISO) txns.push({ type: 'Gasto', description: US ? `Extra payment – ${d.name}` : `Pago extra – ${d.name}`, store: d.lender, parentCategory: 'Deudas', category: d.sub, amount: extra, date, paymentType: XFER, budgetLine: String(EXTRA_ID), memberId: P.members[0].id });
         });
 
+        // ------------------------------------------------------------ transfers + refunds
+        // Cash from the ATM twice a month (checking → wallet), and a few purchases returned:
+        // neither changes what the family earned, and a refund lowers what they spent.
+        const chk = P.accounts.find(a => a.kind === 'corriente'), wallet = P.accounts.find(a => a.kind === 'efectivo');
+        const firstISO = txns.reduce((m, t) => (t.date < m ? t.date : m), todayISO);
+        for (let d = new Date(Number(firstISO.slice(0, 4)), Number(firstISO.slice(5, 7)) - 1, 1); d <= T; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+            [3, 17].forEach(day => {
+                const date = iso(d.getFullYear(), d.getMonth() + 1, day);
+                if (date < firstISO || date > todayISO) return;
+                txns.push({ type: 'Transferencia', description: US ? 'ATM withdrawal' : 'Retiro en cajero', store: US ? 'LMCU ATM' : 'Cajero Banco Pichincha', parentCategory: 'Transferencia', category: '', amount: US ? R.pick([60, 80, 100]) : R.pick([40, 60]), date, paymentType: XFER, from: 'acc-' + chk.id, to: 'acc-' + wallet.id, memberId: P.members[R.int(0, 1)].id });
+            });
+        }
+        const returnable = txns.filter(t => t.type === 'Gasto' && !t._rec && !t.splits && t.parentCategory !== 'Deudas' && (t.paymentType === DEBIT || t.paymentType === CREDIT) && Number(t.amount) >= 35 && t.date <= isoOf(new Date(T.getFullYear(), T.getMonth(), T.getDate() - 10)));
+        const used = new Set();
+        for (let k = 0; k < 4 && returnable.length; k++) {
+            const t = R.pick(returnable);
+            if (used.has(t.date.slice(0, 7))) continue;
+            used.add(t.date.slice(0, 7));
+            const back = new Date(Number(t.date.slice(0, 4)), Number(t.date.slice(5, 7)) - 1, Number(t.date.slice(8, 10)) + R.int(4, 9));
+            txns.push({ type: 'Gasto', refund: true, description: (US ? 'Return: ' : 'Devolución: ') + t.description, store: t.store, parentCategory: t.parentCategory, category: t.category, amount: R.chance(0.5) ? t.amount : Math.round(t.amount * 0.5 * 100) / 100, date: isoOf(back), paymentType: t.paymentType, budgetLine: t.budgetLine, memberId: t.memberId, _refundOf: t });
+            if (!txns[txns.length - 1].budgetLine) delete txns[txns.length - 1].budgetLine;
+        }
+
         // ------------------------------------------------------------ recurring + ids
         txns.sort((a, b) => a.date.localeCompare(b.date) || (a.type === b.type ? 0 : a.type === 'Ingreso' ? -1 : 1));
         s.recurring = Object.keys(P.recurringDefs).map((rk, i) => {
@@ -942,9 +966,12 @@
             mine.forEach(x => { x.recurringId = rec.id; });
             return rec;
         });
-        s.transactions = txns.map((t, i) => {
-            const out = Object.assign({ id: i + 1 }, t);
-            delete out._rec; delete out._route;
+        txns.forEach((t, i) => { t._id = i + 1; });
+        s.transactions = txns.map(t => {
+            const out = Object.assign({ id: t._id }, t);
+            if (t._refundOf) out.refundOf = t._refundOf._id;
+            delete out._rec; delete out._route; delete out._refundOf; delete out._id;
+            if (!out.memberId) delete out.memberId;
             return out;
         });
 

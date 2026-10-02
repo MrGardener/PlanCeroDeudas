@@ -89,7 +89,7 @@
         const flexSpent = flex.reduce((a, i) => a + ((spend.byLine[String(i.id)] || {}).spent || 0), 0);
         const allow = Engine.dailyAllowance({ planned: flexPlanned, spent: flexSpent, today: t });
         const iso = Engine.isoDate(t);
-        const spentToday = txns.filter(x => (x.type || 'Gasto') === 'Gasto' && x.date === iso).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+        const spentToday = txns.filter(x => (x.type || 'Gasto') === 'Gasto' && x.date === iso).reduce((a, x) => a + Engine.spendAmount(x), 0);
         const pay = Engine.nextPayday(Cash.paySchedule(), t);
         const streak = Engine.loggingStreak(txns, t);
         const DOW = Fmt.DOW_SHORT;

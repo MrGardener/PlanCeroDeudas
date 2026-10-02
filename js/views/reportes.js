@@ -61,13 +61,14 @@
                 default: return t.parentCategory || 'Otros';
             }
         };
-        const list = ctx.state.transactions.filter(t => t.date >= from && t.date <= to && (o.type === 'both' || (t.type || 'Gasto') === o.type));
+        // Transfers between your own accounts aren't income or spending: they stay out of reports.
+        const list = ctx.state.transactions.filter(t => t.date >= from && t.date <= to && !Engine.isTransfer(t) && (o.type === 'both' || (t.type || 'Gasto') === o.type));
         const groups = {};
         list.forEach(t => {
             const k = keyOf(t);
             const g = groups[k] || (groups[k] = { key: k, count: 0, income: 0, expense: 0 });
             g.count++;
-            if ((t.type || 'Gasto') === 'Ingreso') g.income += Number(t.amount) || 0; else g.expense += Number(t.amount) || 0;
+            if ((t.type || 'Gasto') === 'Ingreso') g.income += Number(t.amount) || 0; else g.expense += Engine.spendAmount(t);
         });
         const signed = (g) => o.type === 'Ingreso' ? g.income : o.type === 'Gasto' ? g.expense : g.income - g.expense;
         const rows = Object.values(groups).map(g => Object.assign(g, { total: signed(g) }));
@@ -76,8 +77,8 @@
         const total = rows.reduce((a, r) => a + r.total, 0);
         const absTotal = rows.reduce((a, r) => a + Math.abs(r.total), 0);
         // Each group's last 12 months (whatever the period), for the sparkline in its row.
-        const typed = ctx.state.transactions.filter(t => o.type === 'both' || (t.type || 'Gasto') === o.type);
-        const sign = (t) => (o.type === 'both' && (t.type || 'Gasto') !== 'Ingreso' ? -1 : 1) * (Number(t.amount) || 0);
+        const typed = ctx.state.transactions.filter(t => !Engine.isTransfer(t) && (o.type === 'both' || (t.type || 'Gasto') === o.type));
+        const sign = (t) => (t.type || 'Gasto') === 'Ingreso' ? Number(t.amount) || 0 : (o.type === 'both' ? -1 : 1) * Engine.spendAmount(t);
         const trend = timeBased ? null : Engine.monthlyByKey(typed, keyOf, { end: ctx.today, count: 12, value: sign });
         return { o, from, to, list, rows, total, absTotal, trend, timeBased };
     }
@@ -193,7 +194,7 @@
             const r = build(App.buildContext());
             const members = Store.state.members || [];
             const rows = [['Fecha', 'Tipo', 'Descripción', 'Lugar', 'Categoría', 'Subcategoría', 'Monto', 'Forma de pago', 'Persona']]
-                .concat(r.list.slice().sort((a, b) => a.date.localeCompare(b.date)).map(t => [t.date, t.type || 'Gasto', t.description, t.store || '', t.parentCategory, t.category || '', ((t.type || 'Gasto') === 'Ingreso' ? 1 : -1) * (Number(t.amount) || 0), t.paymentType || '', ((members.find(p => p.id === t.memberId) || {}).name) || '']));
+                .concat(r.list.slice().sort((a, b) => a.date.localeCompare(b.date)).map(t => [t.date, t.type || 'Gasto', t.description, t.store || '', t.parentCategory, t.category || '', ((t.type || 'Gasto') === 'Ingreso' ? 1 : -1) * Engine.spendAmount(t), t.paymentType || '', ((members.find(p => p.id === t.memberId) || {}).name) || '']));
             download(`transacciones_${r.from.replace('0000-01-01', 'inicio')}_${r.to.replace('9999-12-31', 'hoy')}.csv`, Importers.toCSV(rows));
         }
     });

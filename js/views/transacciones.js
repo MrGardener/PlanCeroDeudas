@@ -20,6 +20,45 @@
         fillLineSelect();
         fillMemberSelect();
         fillSubSelect();
+        applyType();
+    }
+
+    // ------------------------------------------------------------------ transfers & refunds
+    // A transfer moves money between your accounts (or pays a card): it has a "from" and a "to"
+    // instead of a category, and never counts as income or spending.
+    function transferPlaces() {
+        const s = Store.state;
+        const KIND = { corriente: 'Cuenta corriente', ahorros: 'Cuenta de ahorros', efectivo: 'Efectivo', retiro: 'Jubilación' };
+        return (s.accounts || []).map(a => ({ value: 'acc-' + a.id, label: `${a.name} (${KIND[a.kind] || KIND.corriente})` }))
+            .concat((s.debts || []).map(d => ({ value: 'debt-' + d.id, label: `Pagar: ${d.name}` })))
+            .concat([{ value: '', label: 'Otra cuenta (no registrada)' }]);
+    }
+    const placeName = (ref) => (transferPlaces().find(o => o.value === (ref || '')) || { label: 'Otra cuenta' }).label.replace(/ \(.*\)$/, '');
+
+    function fillTransferSelects(from, to) {
+        const opts = transferPlaces();
+        const pick = (v, fallback) => opts.some(o => o.value === v) ? v : fallback;
+        const cash = opts.find(o => o.value.startsWith('acc-')) || opts[opts.length - 1];
+        const fromSel = document.getElementById('txn-from'), toSel = document.getElementById('txn-to');
+        // First time: from your checking account to the next one listed.
+        const was = (sel, v) => v !== undefined ? v : sel.options.length ? sel.value : undefined;
+        fromSel.innerHTML = Views.selectOptions(opts, pick(was(fromSel, from), cash.value));
+        toSel.innerHTML = Views.selectOptions(opts, pick(was(toSel, to), (opts.find(o => o.value !== fromSel.value) || opts[0]).value));
+    }
+
+    // Show the fields that make sense for the chosen type.
+    function applyType() {
+        const type = document.getElementById('txn-type').value;
+        const tr = type === 'Transferencia';
+        ['txn-parent-field', 'txn-sub-field', 'txn-payment-field'].forEach(id => UI.show(id, !tr));
+        UI.show('txn-from-field', tr);
+        UI.show('txn-to-field', tr);
+        UI.show('txn-refund-field', type === 'Gasto');
+        if (tr) {
+            UI.show('txn-line-field', false);
+            UI.show('txn-income-field', false);
+            fillTransferSelects();
+        }
     }
 
     // ------------------------------------------------------------------ editing
@@ -42,6 +81,7 @@
         FORM_FIELDS.forEach(id => { document.getElementById(id).value = ''; });
         document.getElementById('txn-income').value = '';
         document.getElementById('txn-line').value = '';
+        document.getElementById('txn-refund').checked = false;
     }
 
     // Income lines of the budget (active year) that a new income can be the receipt of.
@@ -69,7 +109,7 @@
 
     // Budget lines of the transaction's month (its date decides which month's budget).
     function fillLineSelect(keep) {
-        const isExp = document.getElementById('txn-type').value !== 'Ingreso';
+        const isExp = document.getElementById('txn-type').value === 'Gasto';
         UI.show('txn-line-field', isExp);
         const sel = document.getElementById('txn-line');
         const prev = keep !== undefined ? String(keep || '') : sel.value;
@@ -167,10 +207,13 @@
 
     function txnItemHTML(t, assignOf) {
         const inc = (t.type || 'Gasto') === 'Ingreso';
+        const tr = Engine.isTransfer(t);
         const d = new Date(t.date + 'T00:00:00');
         let chip = '';
         let pending = false;
-        if (inc) {
+        if (tr) {
+            chip = `<span class="chip-note"><i class="fa-solid fa-right-left"></i> ${esc(placeName(t.from))} → ${esc(placeName(t.to))}</span>`;
+        } else if (inc) {
             const yd = Store.state.years[d.getFullYear()];
             const lines = (yd && yd.otherIncomes) || [];
             if (Engine.isPayrollTxn(t)) chip = '<span class="chip-note">Tu sueldo (ya contado)</span>';
@@ -192,19 +235,21 @@
         if (inc && Engine.isPayrollTxn(t)) notes.push(`<span class="text-amber-700">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>`);
         if (inc && t.countAsExtra) notes.push('<span class="text-emerald-700">Contado como ingreso extra</span>');
         if (inc && t.incomeId) notes.push(incomeLabel(t));
+        if (t.refund) notes.push('<span class="text-emerald-700"><i class="fa-solid fa-rotate-left"></i> Reembolso: resta de lo gastado</span>');
+        if (tr) notes.push('<span class="text-slate-500">Transferencia: no es ingreso ni gasto</span>');
         const picking = !!Store.ui.txnSelecting;
         const on = picking && selected.has(t.id);
-        return `<div class="txn-item ${Store.ui.txnEditing === t.id ? 'row-editing' : ''} ${on ? 'is-selected' : ''}" data-row="${t.id}" ${inc || picking ? '' : `draggable="true" data-txn="${t.id}"`}>
+        return `<div class="txn-item ${Store.ui.txnEditing === t.id ? 'row-editing' : ''} ${on ? 'is-selected' : ''}" data-row="${t.id}" ${inc || tr || picking ? '' : `draggable="true" data-txn="${t.id}"`}>
                 ${picking ? `<label class="txn-check"><input type="checkbox" data-action="txn.check" data-id="${t.id}" ${on ? 'checked' : ''} aria-label="Seleccionar"></label>` : ''}
-                <div class="txn-date ${inc ? 'inc' : 'exp'} ${pending ? 'pending' : ''}"><span>${Fmt.MONTH_SHORT[d.getMonth()]}</span><b>${d.getDate()}</b></div>
+                <div class="txn-date ${tr ? 'tr' : inc || t.refund ? 'inc' : 'exp'} ${pending ? 'pending' : ''}"><span>${Fmt.MONTH_SHORT[d.getMonth()]}</span><b>${d.getDate()}</b></div>
                 <div class="txn-main" ${picking ? `data-action="txn.check" data-id="${t.id}"` : ''}>
                     <div class="txn-desc">${memberBadge(t)}${esc(t.description)}</div>
-                    <div class="txn-meta">${[t.store, `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`, t.paymentType].filter(Boolean).map(esc).join(' · ')}</div>
+                    <div class="txn-meta">${(tr ? [t.store] : [t.store, `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`, t.paymentType]).filter(Boolean).map(esc).join(' · ')}</div>
                     ${notes.length ? `<div class="txn-notes">${notes.join(' ')}</div>` : ''}
                 </div>
-                <div class="txn-amt ${inc ? 'inc' : ''}">${inc ? '+' : '−'}${money(t.amount)}</div>
+                <div class="txn-amt ${inc || t.refund ? 'inc' : tr ? 'tr' : ''}">${tr ? '' : inc || t.refund ? '+' : '−'}${money(t.amount)}</div>
                 <div class="txn-chip">${chip}</div>
-                <div class="txn-actions">${t.recurringId ? '<span class="text-purple-500 text-xs px-1" title="Se repite"><i class="fa-solid fa-repeat"></i></span>' : `<button class="row-edit" data-action="txn.repeat" data-id="${t.id}" title="Repetir cada mes/semana/año" aria-label="Repetir"><i class="fa-solid fa-repeat"></i></button>`}<button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Editar" aria-label="Editar"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></div>
+                <div class="txn-actions">${t.refund ? '' : t.recurringId ? '<span class="text-purple-500 text-xs px-1" title="Se repite"><i class="fa-solid fa-repeat"></i></span>' : `<button class="row-edit" data-action="txn.repeat" data-id="${t.id}" title="Repetir cada mes/semana/año" aria-label="Repetir"><i class="fa-solid fa-repeat"></i></button>`}${!inc && !tr && !t.refund ? `<button class="row-edit" data-action="txn.refund" data-id="${t.id}" title="Registrar un reembolso o devolución de esta compra" aria-label="Reembolso"><i class="fa-solid fa-rotate-left"></i></button>` : ''}<button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Editar" aria-label="Editar"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></div>
             </div>`;
     }
 
@@ -245,7 +290,7 @@
             : Views.emptyState(q ? 'fa-magnifying-glass' : 'fa-receipt', q ? `Nada coincide con "${esc(q)}".` : 'No hay transacciones para este filtro.', q ? '' : '<button type="button" class="btn btn-primary btn-sm" data-action="quick.open"><i class="fa-solid fa-bolt"></i> Registro rápido</button>'));
 
         const inc = list.filter(t => t.type === 'Ingreso').reduce((s, t) => s + Number(t.amount || 0), 0);
-        const exp = list.filter(t => (t.type || 'Gasto') === 'Gasto').reduce((s, t) => s + Number(t.amount || 0), 0);
+        const exp = list.filter(t => (t.type || 'Gasto') === 'Gasto').reduce((s, t) => s + Engine.spendAmount(t), 0);
         UI.text('txn-sum-inc', money(inc));
         UI.text('txn-sum-exp', money(exp));
         UI.text('txn-sum-net', money(inc - exp));
@@ -394,7 +439,7 @@
         for (let i = 1; i <= 3; i++) {
             const d = new Date(t.getFullYear(), t.getMonth() - i, 1);
             const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            total += (transactions || []).filter(x => (x.type || 'Gasto') === 'Gasto' && String(x.date).startsWith(k)).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+            total += (transactions || []).filter(x => (x.type || 'Gasto') === 'Gasto' && String(x.date).startsWith(k)).reduce((a, x) => a + Engine.spendAmount(x), 0);
         }
         return total / 3;
     }
@@ -566,6 +611,27 @@
             UI.toast(`Regla «${rule.contains}»: ${rule.rename ? `«${rule.rename}», ` : ''}categoría ${rule.category}.`);
         },
         'txn.typeChanged': () => fillCategorySelects(),
+        // Money back for a purchase: a refund that counts against the same category and line.
+        'txn.refund': async (el) => {
+            const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
+            if (!t) return;
+            const r = await UI.form({
+                title: 'Registrar reembolso o devolución',
+                message: `De «${t.description}» (${money(t.amount)}). Resta de lo gastado en ${t.parentCategory}, en el mes en que te devuelven el dinero.`,
+                fields: [
+                    { name: 'amount', label: 'Monto devuelto', type: 'number', step: '0.01', min: 0, value: Number(t.amount) || '' },
+                    { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) }
+                ],
+                confirmText: 'Registrar',
+                validate: v => !(v.amount > 0) ? 'Escribe un monto mayor a $0.' : v.amount > Number(t.amount) + 0.005 ? `No puede ser más que la compra (${money(t.amount)}).` : !v.date ? 'Elige una fecha.' : null
+            });
+            if (!r) return;
+            const s = Store.state;
+            const back = { id: Store.nextId(s.transactions), type: 'Gasto', refund: true, refundOf: t.id, description: `Reembolso: ${t.description}`, store: t.store || '', parentCategory: t.parentCategory, category: t.category || '', amount: Math.round(r.amount * 100) / 100, date: r.date, paymentType: t.paymentType, createdAt: new Date().toISOString() };
+            if (t.budgetLine && !(Array.isArray(t.splits) && t.splits.length)) back.budgetLine = t.budgetLine;
+            if (t.memberId) back.memberId = t.memberId;
+            App.undoable(`Reembolso de ${money(back.amount)} registrado`, () => { s.transactions.push(back); });
+        },
         'txn.parentChanged': () => { fillSubSelect(); fillLineSelect(); },
         'txn.repeat': async (el) => {
             const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
@@ -660,6 +726,7 @@
         },
         'txn.bulkCategory': async () => {
             const list = picked();
+            if (list.some(t => Engine.isTransfer(t))) { UI.toast('Las transferencias no tienen categoría: quítalas de la selección.', 'warn'); return; }
             const kinds = new Set(list.map(t => isIncome(t)));
             if (kinds.size > 1) { UI.toast('Elige solo gastos o solo ingresos para cambiar la categoría.', 'warn'); return; }
             const inc = kinds.has(true);
@@ -682,7 +749,7 @@
             });
         },
         'txn.bulkLine': async () => {
-            const list = picked().filter(t => !isIncome(t));
+            const list = picked().filter(t => (t.type || 'Gasto') === 'Gasto');
             if (!list.length) { UI.toast('Los rubros son para gastos: selecciona al menos un gasto.', 'warn'); return; }
             const years = new Set(list.map(t => t.date.slice(0, 4)));
             if (years.size > 1) { UI.toast('Elige gastos de un solo año para cambiar el rubro.', 'warn'); return; }
@@ -743,6 +810,19 @@
                 s.transactions = s.transactions.filter(t => !ids.has(t.id));
             });
         },
+        // Imported card payments and moves to savings look like spending: mark them as transfers.
+        'txn.bulkTransfer': async () => {
+            const list = picked().filter(t => !Engine.isTransfer(t));
+            if (!list.length) return;
+            const ok = await UI.confirm({ title: `Marcar ${list.length} como transferencia${list.length === 1 ? '' : 's'}`, message: 'Dejan de contar como ingreso o gasto (por ejemplo, el pago de la tarjeta o lo que pasas a tus ahorros). Puedes elegir las cuentas editando cada una.', confirmText: 'Marcar' });
+            if (!ok) return;
+            const ids = new Set(list.map(t => t.id));
+            bulkApply(`${list.length} transferencia${list.length === 1 ? '' : 's'}: ya no cuentan como ingreso o gasto`, t => {
+                if (!ids.has(t.id)) return;
+                t.type = 'Transferencia'; t.parentCategory = 'Transferencia'; t.category = ''; t.paymentType = 'Transferencia';
+                ['budgetLine', 'splits', 'incomeId', 'refund', 'countAsExtra'].forEach(k => delete t[k]);
+            });
+        },
         // A rule so the next ones like these sort themselves (Importar → Reglas automáticas).
         'txn.bulkRule': () => {
             const list = picked();
@@ -779,7 +859,10 @@
         },
         'txn.add': () => {
             const get = (id) => document.getElementById(id);
-            const description = get('txn-description').value.trim();
+            const type = get('txn-type').value;
+            const tr = type === 'Transferencia';
+            if (tr && get('txn-from').value === get('txn-to').value) { UI.toast('Elige cuentas distintas en "Desde" y "Hacia".', 'error'); return; }
+            const description = get('txn-description').value.trim() || (tr ? `${placeName(get('txn-from').value)} → ${placeName(get('txn-to').value)}` : '');
             const amount = Fmt.parseNum(get('txn-amount').value, 0);
             if (!description || amount <= 0) {
                 UI.toast('Escribe una descripción y un monto mayor a $0.', 'error');
@@ -788,17 +871,20 @@
             }
             const s = Store.state;
             const values = {
-                type: get('txn-type').value,
+                type,
                 description,
                 store: get('txn-store').value.trim(),
-                parentCategory: get('txn-parent').value,
-                category: get('txn-sub').value,
+                parentCategory: tr ? 'Transferencia' : get('txn-parent').value,
+                category: tr ? '' : get('txn-sub').value,
                 amount,
                 date: get('txn-date').value || new Date().toISOString().slice(0, 10),
-                paymentType: get('txn-payment').value,
-                incomeId: get('txn-type').value === 'Ingreso' && get('txn-income').value ? Number(get('txn-income').value) : undefined,
-                budgetLine: get('txn-type').value !== 'Ingreso' && get('txn-line').value ? get('txn-line').value : undefined,
-                memberId: get('txn-member').value ? Number(get('txn-member').value) : undefined
+                paymentType: tr ? 'Transferencia' : get('txn-payment').value,
+                incomeId: type === 'Ingreso' && get('txn-income').value ? Number(get('txn-income').value) : undefined,
+                budgetLine: type === 'Gasto' && get('txn-line').value ? get('txn-line').value : undefined,
+                memberId: get('txn-member').value ? Number(get('txn-member').value) : undefined,
+                from: tr ? get('txn-from').value : undefined,
+                to: tr ? get('txn-to').value : undefined,
+                refund: type === 'Gasto' && get('txn-refund').checked ? true : undefined
             };
             Store.ui.lastMember = values.memberId || null;
             const editing = s.transactions.find(t => t.id === Store.ui.txnEditing);
@@ -807,6 +893,9 @@
                 if (!values.incomeId) delete editing.incomeId;
                 if (!values.budgetLine) delete editing.budgetLine;
                 if (!values.memberId) delete editing.memberId;
+                if (!tr) { delete editing.from; delete editing.to; }
+                if (!values.refund) delete editing.refund;
+                if (tr || values.refund) delete editing.splits;
                 setEditing(null);
                 clearForm();
                 App.changed({ structural: true, step: true });
@@ -836,6 +925,7 @@
                 UI.toast('Registrada con fecha futura. Para que se repita, elige una opción en "Repetir".', 'warn');
             }
             const added = Object.assign({ id: Store.nextId(s.transactions), createdAt: new Date().toISOString() }, values);
+            Object.keys(added).forEach(k => { if (added[k] === undefined) delete added[k]; });
             s.transactions.push(added);
             clearForm();
             App.changed({ structural: true, step: true });
@@ -860,6 +950,8 @@
             const pay = get('txn-payment');
             if (t.paymentType && ![...pay.options].some(o => o.value === t.paymentType)) pay.add(new Option(t.paymentType, t.paymentType));
             pay.value = t.paymentType || pay.options[0].value;
+            get('txn-refund').checked = !!t.refund;
+            if (Engine.isTransfer(t)) fillTransferSelects(t.from || '', t.to || '');
             setEditing(t);
             document.getElementById('txn-form-card').scrollIntoView({ block: 'start', behavior: 'smooth' });
             get('txn-description').focus();
