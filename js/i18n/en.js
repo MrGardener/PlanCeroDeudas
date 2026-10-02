@@ -2302,3 +2302,17 @@ I18n.add('en', {
     "Guarda una copia de respaldo": "Save a backup", "Nunca has guardado una. Si se borran los datos del navegador, pierdes tu plan.": "You've never saved one. If the browser data is cleared, you lose your plan.", "La última fue hace {0} días.": "The last one was {0} days ago."
 });
 I18n.add('en', { "Aún no apartas para ellos: son {0} al año, {1} al mes.": "You're not setting money aside for them yet: {0} a year, {1} a month." });
+// Retirement need vs have
+I18n.add('en', {
+    "¿Te alcanza para jubilarte?": "Will you have enough to retire?",
+    "Lo que necesitarías tener ahorrado para vivir como quieres, frente a lo que vas camino a tener. Todo en dinero de hoy.": "What you'd need saved to live the way you want, against what you're on track to have. All in today's dollars.",
+    "Quieres vivir con ($/mes, de hoy)": "You want to live on ($/mo, today's dollars)", "Vacío = 80% de tu ingreso de hoy ({0}).": "Empty = 80% of your income today ({0}).",
+    "Necesitarías": "You'd need", "{0}/mes del ahorro (tu {1} pone {2})": "{0}/mo from savings (your {1} covers {2})", "pensión IESS": "IESS pension",
+    "Vas camino a tener": "You're on track to have", "a los {0} años": "at age {0}", "Vas al": "You're at",
+    "te faltarían {0}": "{0} short", "¡te alcanza!": "you'll have enough!",
+    "{0} más al mes": "{0} more a month", "(en dinero de hoy) lo cierras.": "(in today's dollars) closes it.", "Ahorrando": "Saving", "Probarlo en el simulador": "Try it in the simulator",
+    "Ya llegaste a tu edad de jubilación: el faltante tendría que salir de trabajar más años o gastar menos.": "You've reached your retirement age: the gap would have to come from working longer or spending less.",
+    "Con lo que ahorras hoy llegarías a vivir como quieres. Revísalo cada año.": "With what you save today you'd live the way you want. Check it every year.",
+    "Incluye {0} para los {1} años antes de que empiece tu {2}.": "Includes {0} for the {1} years before your {2} starts.",
+    "Regla del {0}%: por cada $1 al mes que quieras sacar de tus ahorros necesitas {1} ahorrados.": "The {0}% rule: for every $1 a month you want to draw from savings you need {1} saved."
+});

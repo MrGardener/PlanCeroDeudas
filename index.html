@@ -1071,6 +1071,16 @@
     </div>
 
     <div data-view="jubilacion" class="space-y-5 hidden">
+        <div class="card" id="ret-gap-card">
+            <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-scale-balanced text-indigo-600"></i> ¿Te alcanza para jubilarte?</div>
+                <div class="card-sub">Lo que necesitarías tener ahorrado para vivir como quieres, frente a lo que vas camino a tener. Todo en dinero de hoy.</div></div></div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <label class="field"><span class="field-label">Quieres vivir con ($/mes, de hoy)</span>
+                    <input type="number" class="input" min="0" step="100" id="ret-desired" data-input="ret.desired">
+                    <span class="help" id="ret-desired-help"></span></label>
+                <div class="lg:col-span-2" id="ret-gap"></div>
+            </div>
+        </div>
         <div class="card">
             <div class="card-head">
                 <div>

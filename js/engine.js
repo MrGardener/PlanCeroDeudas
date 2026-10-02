@@ -1039,6 +1039,23 @@
         return out;
     }
 
+    // ------------------------------------------------------------ retirement: need vs. have
+    // What you need saved (in today's dollars) to live on `desiredMonthly`: what the pension doesn't
+    // cover, divided by the safe withdrawal rate (4% → ×25), plus the years before the pension
+    // starts lived on savings alone. Compared with what you're on track to have; the gap becomes
+    // an extra monthly saving at the real (after-inflation) return.
+    function retirementGap({ desiredMonthly, pensionMonthly = 0, withdrawalPct = 4, haveToday = 0, months = 0, returnPct = 0, inflationPct = 0, bridgeYears = 0 }) {
+        const w = Math.max(0.1, num(withdrawalPct)) / 100;
+        const fromSavings = Math.max(0, num(desiredMonthly) - num(pensionMonthly));
+        const bridge = Math.max(0, Math.min(num(pensionMonthly), num(desiredMonthly))) * 12 * Math.max(0, num(bridgeYears));
+        const need = fromSavings * 12 / w + bridge;
+        const gap = Math.max(0, need - num(haveToday));
+        const r = Math.pow((1 + num(returnPct) / 100) / (1 + num(inflationPct) / 100), 1 / 12) - 1;
+        const n = Math.max(0, Math.round(num(months)));
+        const extra = gap <= 0 ? 0 : n <= 0 ? null : Math.abs(r) < 1e-9 ? gap / n : gap * r / (Math.pow(1 + r, n) - 1);
+        return { need: cents(need), have: cents(num(haveToday)), gap: cents(gap), pct: need > 0 ? Math.min(9.99, num(haveToday) / need) : 1, extraMonthly: extra === null ? null : cents(extra), bridge: cents(bridge) };
+    }
+
     // ------------------------------------------------------------ next moves
     // The three things worth doing next, ranked by what matters most for this household right
     // now (urgent first, then the current Baby Step, then housekeeping). `facts` are plain numbers
@@ -1876,7 +1893,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

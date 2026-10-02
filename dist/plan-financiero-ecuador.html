@@ -1802,6 +1802,16 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
     </div>
 
     <div data-view="jubilacion" class="space-y-5 hidden">
+        <div class="card" id="ret-gap-card">
+            <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-scale-balanced text-indigo-600"></i> ¿Te alcanza para jubilarte?</div>
+                <div class="card-sub">Lo que necesitarías tener ahorrado para vivir como quieres, frente a lo que vas camino a tener. Todo en dinero de hoy.</div></div></div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <label class="field"><span class="field-label">Quieres vivir con ($/mes, de hoy)</span>
+                    <input type="number" class="input" min="0" step="100" id="ret-desired" data-input="ret.desired">
+                    <span class="help" id="ret-desired-help"></span></label>
+                <div class="lg:col-span-2" id="ret-gap"></div>
+            </div>
+        </div>
         <div class="card">
             <div class="card-head">
                 <div>
@@ -4763,6 +4773,20 @@ I18n.add('en', {
     "Guarda una copia de respaldo": "Save a backup", "Nunca has guardado una. Si se borran los datos del navegador, pierdes tu plan.": "You've never saved one. If the browser data is cleared, you lose your plan.", "La última fue hace {0} días.": "The last one was {0} days ago."
 });
 I18n.add('en', { "Aún no apartas para ellos: son {0} al año, {1} al mes.": "You're not setting money aside for them yet: {0} a year, {1} a month." });
+// Retirement need vs have
+I18n.add('en', {
+    "¿Te alcanza para jubilarte?": "Will you have enough to retire?",
+    "Lo que necesitarías tener ahorrado para vivir como quieres, frente a lo que vas camino a tener. Todo en dinero de hoy.": "What you'd need saved to live the way you want, against what you're on track to have. All in today's dollars.",
+    "Quieres vivir con ($/mes, de hoy)": "You want to live on ($/mo, today's dollars)", "Vacío = 80% de tu ingreso de hoy ({0}).": "Empty = 80% of your income today ({0}).",
+    "Necesitarías": "You'd need", "{0}/mes del ahorro (tu {1} pone {2})": "{0}/mo from savings (your {1} covers {2})", "pensión IESS": "IESS pension",
+    "Vas camino a tener": "You're on track to have", "a los {0} años": "at age {0}", "Vas al": "You're at",
+    "te faltarían {0}": "{0} short", "¡te alcanza!": "you'll have enough!",
+    "{0} más al mes": "{0} more a month", "(en dinero de hoy) lo cierras.": "(in today's dollars) closes it.", "Ahorrando": "Saving", "Probarlo en el simulador": "Try it in the simulator",
+    "Ya llegaste a tu edad de jubilación: el faltante tendría que salir de trabajar más años o gastar menos.": "You've reached your retirement age: the gap would have to come from working longer or spending less.",
+    "Con lo que ahorras hoy llegarías a vivir como quieres. Revísalo cada año.": "With what you save today you'd live the way you want. Check it every year.",
+    "Incluye {0} para los {1} años antes de que empiece tu {2}.": "Includes {0} for the {1} years before your {2} starts.",
+    "Regla del {0}%: por cada $1 al mes que quieras sacar de tus ahorros necesitas {1} ahorrados.": "The {0}% rule: for every $1 a month you want to draw from savings you need {1} saved."
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -5362,7 +5386,7 @@ I18n.country('US', {
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
-            retirement: { edadActual: 30, edadJubilacion: 65, aporteMensual: 100, tasaRetiroSegura: 4, aniosAportados: 5, tasaReemplazo: 60, tasaRetorno: null, inflacion: null, sueldoPromedio: null, whatIfExtra: 0 },
+            retirement: { edadActual: 30, edadJubilacion: 65, aporteMensual: 100, tasaRetiroSegura: 4, aniosAportados: 5, tasaReemplazo: 60, tasaRetorno: null, inflacion: null, sueldoPromedio: null, whatIfExtra: 0, ingresoDeseado: null },
             debtPlan: { strategy: 'snowball', extraPayment: 0 }
         };
     }
@@ -7713,6 +7737,23 @@ I18n.country('US', {
         return out;
     }
 
+    // ------------------------------------------------------------ retirement: need vs. have
+    // What you need saved (in today's dollars) to live on `desiredMonthly`: what the pension doesn't
+    // cover, divided by the safe withdrawal rate (4% → ×25), plus the years before the pension
+    // starts lived on savings alone. Compared with what you're on track to have; the gap becomes
+    // an extra monthly saving at the real (after-inflation) return.
+    function retirementGap({ desiredMonthly, pensionMonthly = 0, withdrawalPct = 4, haveToday = 0, months = 0, returnPct = 0, inflationPct = 0, bridgeYears = 0 }) {
+        const w = Math.max(0.1, num(withdrawalPct)) / 100;
+        const fromSavings = Math.max(0, num(desiredMonthly) - num(pensionMonthly));
+        const bridge = Math.max(0, Math.min(num(pensionMonthly), num(desiredMonthly))) * 12 * Math.max(0, num(bridgeYears));
+        const need = fromSavings * 12 / w + bridge;
+        const gap = Math.max(0, need - num(haveToday));
+        const r = Math.pow((1 + num(returnPct) / 100) / (1 + num(inflationPct) / 100), 1 / 12) - 1;
+        const n = Math.max(0, Math.round(num(months)));
+        const extra = gap <= 0 ? 0 : n <= 0 ? null : Math.abs(r) < 1e-9 ? gap / n : gap * r / (Math.pow(1 + r, n) - 1);
+        return { need: cents(need), have: cents(num(haveToday)), gap: cents(gap), pct: need > 0 ? Math.min(9.99, num(haveToday) / need) : 1, extraMonthly: extra === null ? null : cents(extra), bridge: cents(bridge) };
+    }
+
     // ------------------------------------------------------------ next moves
     // The three things worth doing next, ranked by what matters most for this household right
     // now (urgent first, then the current Baby Step, then housekeeping). `facts` are plain numbers
@@ -8550,7 +8591,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -15775,8 +15816,32 @@ I18n.country('US', {
         note.innerHTML = isOverride ? `✎ Personalizado para este escenario. ${describe}` : `🔗 Enlazado: ${describe}`;
     }
 
+    // Need vs. have: the income you want (default 80% of what you live on today), minus the
+    // pension, through the 4% rule — against what your savings are on track to become.
+    function gap(ctx) {
+        const r = ctx.retirement, inp = ctx.retirementInputs, s = ctx.state;
+        const def = Math.round(ctx.baseBudget.income * 0.8 / 50) * 50;
+        const desired = s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? def : Number(s.retirement.ingresoDeseado) || 0;
+        const input = document.getElementById('ret-desired');
+        if (input && input !== document.activeElement) { input.value = s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? '' : desired; input.placeholder = money0(def); }
+        UI.text('ret-desired-help', s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? `Vacío = 80% de tu ingreso de hoy (${money0(def)}).` : '');
+        const g = Engine.retirementGap({ desiredMonthly: desired, pensionMonthly: r.pension, withdrawalPct: inp.tasaRetiroSegura, haveToday: r.valorFuturoHoy, months: r.aniosRestantes * 12, returnPct: r.tasaRetorno, inflationPct: r.inflacion, bridgeYears: r.aniosPuente });
+        const pct = Math.round(g.pct * 100);
+        const tone = g.pct >= 1 ? 'tone-emerald' : g.pct >= 0.7 ? 'tone-amber' : 'tone-red';
+        const pensionName = s.settings.country === 'US' ? 'Seguro Social' : 'pensión IESS';
+        UI.html('ret-gap', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="kpi tone-slate"><span class="kpi-label">Necesitarías</span><span class="kpi-value">${money0(g.need)}</span><span class="kpi-note">${money0(Math.max(0, desired - r.pension))}/mes del ahorro (tu ${pensionName} pone ${money0(r.pension)})</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">Vas camino a tener</span><span class="kpi-value">${money0(g.have)}</span><span class="kpi-note">a los ${r.edadJubilacion} años</span></div>
+                <div class="kpi ${tone}"><span class="kpi-label">Vas al</span><span class="kpi-value">${pct > 999 ? '999+' : pct}%</span><span class="kpi-note">${g.gap > 0 ? `te faltarían ${money0(g.gap)}` : '¡te alcanza!'}</span></div>
+            </div>
+            <div class="progress-track mt-3"><div class="progress-fill" style="width:${Math.min(100, pct)}%"></div></div>
+            <p class="text-xs mt-3">${g.gap > 0 ? (g.extraMonthly === null ? 'Ya llegaste a tu edad de jubilación: el faltante tendría que salir de trabajar más años o gastar menos.' : `Ahorrando <strong>${money0(g.extraMonthly)} más al mes</strong> (en dinero de hoy) lo cierras. <button type="button" class="link" data-action="ret.tryGap" data-extra="${Math.ceil(g.extraMonthly / 10) * 10}">Probarlo en el simulador</button>`) : 'Con lo que ahorras hoy llegarías a vivir como quieres. Revísalo cada año.'}${g.bridge > 0 ? ` <span class="text-slate-500">Incluye ${money0(g.bridge)} para los ${r.aniosPuente} años antes de que empiece tu ${pensionName}.</span>` : ''}</p>
+            <p class="help mt-1">Regla del ${inp.tasaRetiroSegura}%: por cada $1 al mes que quieras sacar de tus ahorros necesitas ${money0(1200 / Math.max(0.1, inp.tasaRetiroSegura))} ahorrados.</p>`);
+    }
+
     function update(ctx) {
         const r = ctx.retirement, inp = ctx.retirementInputs, s = ctx.state, yd = ctx.year;
+        gap(ctx);
         UI.text('ret-ahorro', money(inp.ahorroActual));
         UI.text('ret-aporte', money(inp.aporteMensual));
         UI.text('ret-aporte-sweep', ctx.baseBudget.sweep > 0 ? `, incluido el barrido de ${money0(ctx.baseBudget.sweep)}` : '');
@@ -15857,6 +15922,17 @@ I18n.country('US', {
             const input = document.getElementById({ tasaRetorno: 'ret-tasa', inflacion: 'ret-infl' }[el.dataset.field] || 'ret-sueldo');
             input.blur();
             App.changed();
+        },
+        'ret.desired': (el) => {
+            Store.state.retirement.ingresoDeseado = el.value === '' ? null : Math.max(0, Fmt.parseNum(el.value, 0));
+            App.changed({ step: true });
+        },
+        // Put the gap's monthly amount in the what-if slider and show it.
+        'ret.tryGap': (el) => {
+            Store.state.retirement.whatIfExtra = Number(el.dataset.extra) || 0;
+            App.changed();
+            const w = document.getElementById('ret-whatif');
+            if (w) { if (Number(w.max) < Number(el.dataset.extra)) w.max = el.dataset.extra; w.value = el.dataset.extra; w.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
         },
         'ret.whatIf': (el) => {
             Store.state.retirement.whatIfExtra = Number(el.value) || 0;

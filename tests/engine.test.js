@@ -1075,3 +1075,17 @@ test('next moves: urgent first, then the Baby Step, housekeeping last; snoozed o
     assert.deepEqual(E.nextMoves({ hasIncome: false }).map(x => x.key), ['setup']);
     assert.equal(E.nextMoves(Object.assign({}, base, { step: 4, target: null, savingsRate: 0.05 })).find(x => x.key === 'retire15').text.includes('$800'), true);
 });
+
+test('retirement need vs have: the 4% rule, the pension, the bridge years and the monthly fix', () => {
+    // $5,000/month wanted, $2,000 pension → $3,000 × 12 / 4% = $900,000.
+    const g = E.retirementGap({ desiredMonthly: 5000, pensionMonthly: 2000, haveToday: 450000, months: 300, returnPct: 7, inflationPct: 3 });
+    assert.equal(g.need, 900000);
+    assert.equal(g.gap, 450000);
+    assert.equal(g.pct, 0.5);
+    // Real return 1.07/1.03 − 1 ≈ 3.88%/yr (0.318%/mo); over 300 months the annuity factor is
+    // ≈ 500.7, so $450,000 ÷ 500.7 ≈ $899 more a month.
+    assert.ok(Math.abs(g.extraMonthly - 898.78) < 0.02, g.extraMonthly);
+    // Three years before the pension starts: those years come from savings too.
+    assert.equal(E.retirementGap({ desiredMonthly: 5000, pensionMonthly: 2000, bridgeYears: 3 }).need, 900000 + 72000);
+    assert.equal(E.retirementGap({ desiredMonthly: 3000, pensionMonthly: 1000, haveToday: 900000, months: 120 }).extraMonthly, 0);
+});

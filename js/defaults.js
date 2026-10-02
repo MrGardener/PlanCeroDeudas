@@ -185,7 +185,7 @@
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
-            retirement: { edadActual: 30, edadJubilacion: 65, aporteMensual: 100, tasaRetiroSegura: 4, aniosAportados: 5, tasaReemplazo: 60, tasaRetorno: null, inflacion: null, sueldoPromedio: null, whatIfExtra: 0 },
+            retirement: { edadActual: 30, edadJubilacion: 65, aporteMensual: 100, tasaRetiroSegura: 4, aniosAportados: 5, tasaReemplazo: 60, tasaRetorno: null, inflacion: null, sueldoPromedio: null, whatIfExtra: 0, ingresoDeseado: null },
             debtPlan: { strategy: 'snowball', extraPayment: 0 }
         };
     }

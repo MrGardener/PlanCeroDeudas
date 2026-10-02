@@ -22,8 +22,32 @@
         note.innerHTML = isOverride ? `✎ Personalizado para este escenario. ${describe}` : `🔗 Enlazado: ${describe}`;
     }
 
+    // Need vs. have: the income you want (default 80% of what you live on today), minus the
+    // pension, through the 4% rule — against what your savings are on track to become.
+    function gap(ctx) {
+        const r = ctx.retirement, inp = ctx.retirementInputs, s = ctx.state;
+        const def = Math.round(ctx.baseBudget.income * 0.8 / 50) * 50;
+        const desired = s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? def : Number(s.retirement.ingresoDeseado) || 0;
+        const input = document.getElementById('ret-desired');
+        if (input && input !== document.activeElement) { input.value = s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? '' : desired; input.placeholder = money0(def); }
+        UI.text('ret-desired-help', s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? `Vacío = 80% de tu ingreso de hoy (${money0(def)}).` : '');
+        const g = Engine.retirementGap({ desiredMonthly: desired, pensionMonthly: r.pension, withdrawalPct: inp.tasaRetiroSegura, haveToday: r.valorFuturoHoy, months: r.aniosRestantes * 12, returnPct: r.tasaRetorno, inflationPct: r.inflacion, bridgeYears: r.aniosPuente });
+        const pct = Math.round(g.pct * 100);
+        const tone = g.pct >= 1 ? 'tone-emerald' : g.pct >= 0.7 ? 'tone-amber' : 'tone-red';
+        const pensionName = s.settings.country === 'US' ? 'Seguro Social' : 'pensión IESS';
+        UI.html('ret-gap', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="kpi tone-slate"><span class="kpi-label">Necesitarías</span><span class="kpi-value">${money0(g.need)}</span><span class="kpi-note">${money0(Math.max(0, desired - r.pension))}/mes del ahorro (tu ${pensionName} pone ${money0(r.pension)})</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">Vas camino a tener</span><span class="kpi-value">${money0(g.have)}</span><span class="kpi-note">a los ${r.edadJubilacion} años</span></div>
+                <div class="kpi ${tone}"><span class="kpi-label">Vas al</span><span class="kpi-value">${pct > 999 ? '999+' : pct}%</span><span class="kpi-note">${g.gap > 0 ? `te faltarían ${money0(g.gap)}` : '¡te alcanza!'}</span></div>
+            </div>
+            <div class="progress-track mt-3"><div class="progress-fill" style="width:${Math.min(100, pct)}%"></div></div>
+            <p class="text-xs mt-3">${g.gap > 0 ? (g.extraMonthly === null ? 'Ya llegaste a tu edad de jubilación: el faltante tendría que salir de trabajar más años o gastar menos.' : `Ahorrando <strong>${money0(g.extraMonthly)} más al mes</strong> (en dinero de hoy) lo cierras. <button type="button" class="link" data-action="ret.tryGap" data-extra="${Math.ceil(g.extraMonthly / 10) * 10}">Probarlo en el simulador</button>`) : 'Con lo que ahorras hoy llegarías a vivir como quieres. Revísalo cada año.'}${g.bridge > 0 ? ` <span class="text-slate-500">Incluye ${money0(g.bridge)} para los ${r.aniosPuente} años antes de que empiece tu ${pensionName}.</span>` : ''}</p>
+            <p class="help mt-1">Regla del ${inp.tasaRetiroSegura}%: por cada $1 al mes que quieras sacar de tus ahorros necesitas ${money0(1200 / Math.max(0.1, inp.tasaRetiroSegura))} ahorrados.</p>`);
+    }
+
     function update(ctx) {
         const r = ctx.retirement, inp = ctx.retirementInputs, s = ctx.state, yd = ctx.year;
+        gap(ctx);
         UI.text('ret-ahorro', money(inp.ahorroActual));
         UI.text('ret-aporte', money(inp.aporteMensual));
         UI.text('ret-aporte-sweep', ctx.baseBudget.sweep > 0 ? `, incluido el barrido de ${money0(ctx.baseBudget.sweep)}` : '');
@@ -104,6 +128,17 @@
             const input = document.getElementById({ tasaRetorno: 'ret-tasa', inflacion: 'ret-infl' }[el.dataset.field] || 'ret-sueldo');
             input.blur();
             App.changed();
+        },
+        'ret.desired': (el) => {
+            Store.state.retirement.ingresoDeseado = el.value === '' ? null : Math.max(0, Fmt.parseNum(el.value, 0));
+            App.changed({ step: true });
+        },
+        // Put the gap's monthly amount in the what-if slider and show it.
+        'ret.tryGap': (el) => {
+            Store.state.retirement.whatIfExtra = Number(el.dataset.extra) || 0;
+            App.changed();
+            const w = document.getElementById('ret-whatif');
+            if (w) { if (Number(w.max) < Number(el.dataset.extra)) w.max = el.dataset.extra; w.value = el.dataset.extra; w.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
         },
         'ret.whatIf': (el) => {
             Store.state.retirement.whatIfExtra = Number(el.value) || 0;
