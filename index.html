@@ -814,6 +814,27 @@
             </div>
         </div>
 
+        <details class="card group-card" id="metas-runway">
+            <summary class="flex items-center justify-between gap-3">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-life-ring text-red-500"></i> ¿Y si pierdo mi trabajo?</div>
+                    <div class="card-sub">Cuántos meses aguantarían con lo que tienen ahorrado, gastando solo lo indispensable. Marca lo que seguirías pagando.</div>
+                </div>
+                <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+            </summary>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4" id="runway-kpis"></div>
+            <p id="runway-tip" class="text-xs mb-3"></p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 content-start" id="runway-inputs"></div>
+                <div>
+                    <div class="text-xs font-bold text-slate-600 mb-2">Lo que seguirías pagando cada mes</div>
+                    <div id="runway-lines" class="runway-lines"></div>
+                </div>
+            </div>
+            <div class="section-label mt-4"><i class="fa-solid fa-chart-column text-blue-600"></i> Lo que te quedaría mes a mes</div>
+            <div class="chart-box"><canvas id="runway-chart"></canvas></div>
+        </details>
+
         <div class="card" id="metas-debts">
             <div class="card-head">
                 <div>
@@ -1479,6 +1500,7 @@
 <script src="js/views/whatif.js"></script>
 <script src="js/views/quick.js"></script>
 <script src="js/views/metas.js"></script>
+<script src="js/views/runway.js"></script>
 <script src="js/views/ahorro.js"></script>
 <script src="js/views/hipoteca.js"></script>
 <script src="js/views/jubilacion.js"></script>

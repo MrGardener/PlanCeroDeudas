@@ -1039,6 +1039,26 @@
         return out;
     }
 
+    // ------------------------------------------------------------ job-loss runway
+    // If the paycheck stopped today: the money you can reach, minus what you'd still have to pay
+    // each month, plus what keeps coming in (other income, unemployment benefit for its months, a
+    // one-time severance). How many months it lasts (fractional), and the balance month by month.
+    function jobLossRunway({ cash = 0, monthlyNeeds = 0, otherIncome = 0, benefits = [], lumpSum = 0, maxMonths = 60 }) {
+        let bal = num(cash) + num(lumpSum);
+        const path = [cents(bal)];
+        const needs = num(monthlyNeeds);
+        for (let i = 0; i < maxMonths; i++) {
+            const net = needs - num(otherIncome) - num(benefits[i]);
+            if (net > 0 && bal - net < 0) return { months: cents(i + (net > 0 ? Math.max(0, bal) / net : 0)), path, forever: false, gap: cents(net) };
+            bal -= net;
+            path.push(cents(bal));
+        }
+        return { months: maxMonths, path, forever: needs <= num(otherIncome), gap: cents(Math.max(0, needs - num(otherIncome))) };
+    }
+    // Ecuador's IESS unemployment insurance: five monthly payments of 70%, 65%, 60%, 55% and 50%
+    // of the average salary of the last 12 months (estimate; the IESS confirms the amount).
+    const iessUnemployment = (salary) => [70, 65, 60, 55, 50].map(p => cents(num(salary) * p / 100));
+
     // ------------------------------------------------------------ month close
     // How a month went, line by line: what you planned, what you spent, where you went over or
     // had money left, the expenses that never got a line, and what was left of what came in.
@@ -1789,7 +1809,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

@@ -1030,3 +1030,16 @@ test('tags: normalized, parsed from a comma list, ranked by use; reports can cou
     const r = E.monthlyByKey([{ date: '2026-09-02', amount: 10, tags: ['x', 'y'] }], t => t.tags, { end: new Date(2026, 8, 30), count: 1 });
     assert.deepEqual(r.series, { x: [10], y: [10] });
 });
+
+test('job-loss runway: months the money lasts, with benefits and income that continue', () => {
+    // $9,000, $3,000/month of needs → 3 months.
+    assert.equal(E.jobLossRunway({ cash: 9000, monthlyNeeds: 3000 }).months, 3);
+    // A partner's $1,000 and 2 months of $1,500 benefit: 9000 → 9000-500 → 8000-500 → then -2000/month for 3.75.
+    const r = E.jobLossRunway({ cash: 9000, monthlyNeeds: 3000, otherIncome: 1000, benefits: [1500, 1500] });
+    assert.equal(r.months, 2 + 8000 / 2000);
+    assert.deepEqual(r.path.slice(0, 3), [9000, 8500, 8000]);
+    // Severance counts from day one; when income covers needs it lasts indefinitely.
+    assert.equal(E.jobLossRunway({ cash: 0, lumpSum: 6000, monthlyNeeds: 2000 }).months, 3);
+    assert.equal(E.jobLossRunway({ cash: 100, monthlyNeeds: 900, otherIncome: 1000 }).forever, true);
+    assert.deepEqual(E.iessUnemployment(1000), [700, 650, 600, 550, 500]);
+});

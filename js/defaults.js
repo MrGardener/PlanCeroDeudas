@@ -180,6 +180,8 @@
             netWorthHistory: [],
             // Milestones reached: key → 'YYYY-MM-DD' (or 'antes' when it was already true). null until first checked.
             milestones: null,
+            // "¿Y si pierdo mi trabajo?": lines kept or cut, income that continues, benefit, severance.
+            runway: { keep: {}, other: null, benefit: 0, benefitMonths: 0, lump: 0 },
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.

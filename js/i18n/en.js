@@ -2236,3 +2236,26 @@ I18n.add('en', {
     "Escribe una etiqueta.": "Type a tag.",
     "#{0} en {1} transacci{2}": "#{0} on {1} transaction{2}", "#{0} quitada": "#{0} removed"
 });
+// Job-loss runway
+I18n.add('en', {
+    "¿Y si pierdo mi trabajo?": "What if I lose my job?",
+    "Cuántos meses aguantarían con lo que tienen ahorrado, gastando solo lo indispensable. Marca lo que seguirías pagando.": "How many months your household could last on what you've saved, spending only what can't be cut. Check what you'd keep paying.",
+    "Aguantarían": "You'd last", "Dinero a la mano": "Money on hand", "Gasto indispensable": "Bare-bones spending",
+    "Lo que sigue entrando cubre lo indispensable.": "What keeps coming in covers the essentials.", "hasta {0}": "until {0}",
+    "fondo de emergencia {0} + cuentas {1}{2}": "emergency fund {0} + accounts {1}{2}", " + liquidación {0}": " + severance {0}",
+    "menos {0} que sigue entrando": "minus {0} that keeps coming in", "sin otros ingresos": "no other income",
+    "Si recortas a la mitad {0}, llegarías a": "If you cut {0} in half, you'd reach",
+    "Otro ingreso que seguiría entrando ($/mes)": "Other income that would keep coming ($/mo)",
+    "Vacío = tus otros ingresos del presupuesto ({0}).": "Empty = the other income in your budget ({0}).",
+    "Seguro de desempleo ($/mes)": "Unemployment benefit ($/mo)", "¿Por cuántos meses?": "For how many months?",
+    "El IESS paga 5 meses si tienes al menos 24 aportes.": "The IESS pays 5 months if you have at least 24 contributions.", "Estimarlo con mi sueldo": "Estimate it from my salary",
+    "Depende de tu estado (en Michigan, hasta 26 semanas). Revisa lo que te corresponde.": "It depends on your state (in Michigan, up to 26 weeks). Check what you'd get.",
+    "Liquidación / desahucio al salir ($)": "Severance when leaving ($)", "Indemnización al salir ($)": "Severance when leaving ($)",
+    "Seguro de desempleo IESS estimado (5 meses). Verifícalo en el IESS.": "IESS unemployment insurance estimated (5 months). Confirm it with the IESS.",
+    "Quitar el estimado": "Remove the estimate", "Estimado quitado": "Estimate removed",
+    "Lo que seguirías pagando cada mes": "What you'd keep paying each month", "mín.": "min.",
+    "Arma tu presupuesto para ver qué gastos seguirían.": "Build your budget to see which expenses would continue.",
+    "Lo que te quedaría mes a mes": "What you'd have left, month by month", "Te quedaría": "You'd have left",
+    "Seguro IESS estimado: {0}.": "Estimated IESS insurance: {0}."
+});
+I18n.add('en', { "Si recortas a la mitad": "If you cut in half", "llegarías a": "you'd reach" });
