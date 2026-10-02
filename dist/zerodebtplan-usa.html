@@ -304,6 +304,11 @@ input[type="file"].hidden { display: none; }
 .txn-date.pending { border-style: dashed; }
 .txn-date.tr { border-color: var(--faint); color: var(--muted); }
 .txn-amt.tr { color: var(--muted); }
+.milestone { font-size: var(--fs-xs); color: var(--ink); }
+.milestone.done { display: flex; align-items: center; gap: .5rem; padding: .35rem .55rem; border-radius: var(--r-md); background: color-mix(in srgb, var(--pos) 9%, transparent); }
+.milestone.done i { color: var(--pos); }
+.progress-track { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 999px; background: var(--brand); }
 .found-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .45rem .6rem; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); }
 .annual-steps { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
 .annual-step { border: 1px solid var(--line); border-radius: var(--r-md); padding: .55rem .7rem; font-size: var(--fs-xs); background: var(--surface); }
@@ -1875,6 +1880,20 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Concepto</th><th class="num">Monto</th></tr></thead><tbody id="nw-compare-table"></tbody></table></div>
             </details>
         </div>
+    </div>
+
+    <div class="card" id="nw-progress">
+        <div class="card-head">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-trophy text-amber-500"></i> Tu progreso y tus logros</div>
+                <div class="card-sub">Tu patrimonio se guarda solo cada mes, y cada meta que alcanzas queda con su fecha.</div>
+            </div>
+        </div>
+        <div class="section-label"><i class="fa-solid fa-chart-line text-blue-600"></i> Patrimonio neto mes a mes</div>
+        <div id="nw-month-empty" class="help hidden"></div>
+        <div class="chart-box" id="nw-month-box"><canvas id="nw-month-chart"></canvas></div>
+        <div class="section-label mt-5"><i class="fa-solid fa-medal text-amber-500"></i> Logros</div>
+        <div id="nw-milestones" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
     </div>
 
     <div class="card" id="nw-accounts">
@@ -4579,6 +4598,20 @@ I18n.add('en', {
     "Cierra {0}:": "Close {0}:", "mira cómo te fue y decide qué hacer con lo que sobró.": "see how it went and decide what to do with what's left."
 });
 I18n.add('en', { "Cerrar {0}": "Close {0}", "planeaste {0}": "you planned {0}" });
+// Net worth month by month and milestones
+I18n.add('en', {
+    "Tu progreso y tus logros": "Your progress and milestones",
+    "Tu patrimonio se guarda solo cada mes, y cada meta que alcanzas queda con su fecha.": "Your net worth is saved on its own every month, and every milestone you reach keeps its date.",
+    "Patrimonio neto mes a mes": "Net worth month by month",
+    "Cada mes guardamos tu patrimonio neto solo. Vuelve el próximo mes para ver la línea.": "We save your net worth on its own every month. Come back next month to see the line.",
+    "Logros": "Milestones", "Logrados ({0})": "Reached ({0})", "Lo que sigue": "Up next",
+    "Tu primer logro está cerca: mira a la derecha.": "Your first milestone is close: look to the right.",
+    "¡Los lograste todos! 🎉": "You reached them all! 🎉", "🎉 ¡Logro! {0}": "🎉 Milestone! {0}",
+    "Fondo de emergencia inicial: {0}": "Starter emergency fund: {0}",
+    "3 meses de gastos ahorrados": "3 months of expenses saved", "6 meses de gastos ahorrados": "6 months of expenses saved",
+    "«{0}» pagada": "«{0}» paid off", "Libre de deudas (menos la casa)": "Debt-free (except the house)",
+    "Patrimonio neto en positivo": "Positive net worth", "Patrimonio neto de {0}": "Net worth of {0}"
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -5169,6 +5202,10 @@ I18n.country('US', {
             annualBills: [],
             // Months reviewed with "Cerrar el mes": 'YYYY-MM' → { closedAt, income, spent, leftover, planned, note }.
             monthCloses: {},
+            // Net worth month by month ({ month: 'YYYY-MM', assets, liabilities, value }), kept on its own.
+            netWorthHistory: [],
+            // Milestones reached: key → 'YYYY-MM-DD' (or 'antes' when it was already true). null until first checked.
+            milestones: null,
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -5181,7 +5218,7 @@ I18n.country('US', {
     // (taxonomies, cooperativas) because they are configuration, not personal data.
     function emptyState(today) {
         const s = newState(today);
-        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = []; s.annualBills = []; s.monthCloses = {};
+        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = []; s.annualBills = []; s.monthCloses = {}; s.netWorthHistory = []; s.milestones = null;
         return s;
     }
 
@@ -6440,6 +6477,27 @@ I18n.country('US', {
             yd.netWorth = y === cur ? now : P.pastNetWorth(y);
             yd.netWorthTouched = Object.fromEntries(Engine.NET_WORTH_FIELDS.map(f => [f, true]));
         }
+
+        // Net worth month by month since January of last year: between year-ends, with a small
+        // wobble (markets, the card balance), ending exactly on today's figure.
+        const ends = {};
+        for (let y = P.firstYear; y <= cur; y++) ends[y] = Engine.netWorth(s.years, s.assets, y);
+        const curM = T.getMonth() + 1;
+        s.netWorthHistory = [];
+        for (let y = Math.max(P.firstYear + 1, cur - 1); y <= cur; y++) {
+            const from = ends[y - 1] || ends[y], to = ends[y], span = y === cur ? curM : 12;
+            for (let m = 1; m <= span; m++) {
+                const f = m / span, last = y === cur && m === span, wob = last ? 1 : 1 + (R.int(-6, 6) / 1000);
+                const assets = round2((from.assets + (to.assets - from.assets) * f) * wob), liabilities = round2(from.liabilities + (to.liabilities - from.liabilities) * f);
+                s.netWorthHistory.push({ month: `${y}-${pad2(m)}`, assets, liabilities, value: round2(assets - liabilities) });
+            }
+        }
+        // When each net-worth step was first reached (App dates the rest as "already had it").
+        const seed = s.settings.milestonesSeed = {};
+        [0, 10000, 25000, 50000, 100000, 250000, 500000, 1000000].forEach(v => {
+            const hit = s.netWorthHistory.find(h => (v === 0 ? h.value > 0 : h.value >= v));
+            if (hit && hit !== s.netWorthHistory[0]) seed['nw' + v] = hit.month + '-15';
+        });
         return s;
     }
 
@@ -7449,6 +7507,35 @@ I18n.country('US', {
     // rubros), plus the whole line of any debt already paid off, rolls to the debt the strategy
     // targets (snowball: smallest balance; avalanche: highest rate). No money is assumed that
     // the budget doesn't assign. A minimums-only run gives the time/interest the plan saves.
+    // ------------------------------------------------- net worth month by month & milestones
+    // One entry per month (the latest figure of that month), oldest first, at most 20 years.
+    function recordNetWorthMonth(history, key, { assets, liabilities }) {
+        const row = { month: key, assets: cents(num(assets)), liabilities: cents(num(liabilities)), value: cents(num(assets) - num(liabilities)) };
+        return (history || []).filter(h => h.month !== key).concat([row]).sort((a, b) => a.month.localeCompare(b.month)).slice(-240);
+    }
+
+    // The moments worth celebrating on the way, each with how close you are (0–1).
+    const NW_STEPS = [0, 10000, 25000, 50000, 100000, 250000, 500000, 1000000];
+    function milestones({ netWorth = 0, liquid = 0, monthsCovered = 0, debts = [], money = (v) => '$' + Math.round(v).toLocaleString('en-US') }) {
+        const clamp = (v) => Math.max(0, Math.min(1, v));
+        const out = [
+            { key: 'ef1000', group: 'ahorro', label: `Fondo de emergencia inicial: ${money(1000)}`, done: liquid >= 1000, progress: clamp(liquid / 1000) },
+            { key: 'ef3', group: 'ahorro', label: '3 meses de gastos ahorrados', done: monthsCovered >= 3, progress: clamp(monthsCovered / 3) },
+            { key: 'ef6', group: 'ahorro', label: '6 meses de gastos ahorrados', done: monthsCovered >= 6, progress: clamp(monthsCovered / 6) }
+        ];
+        const consumer = (debts || []).filter(d => num(d.originalBalance) > 0 || num(d.balance) > 0);
+        consumer.forEach(d => {
+            const orig = Math.max(num(d.originalBalance), num(d.balance));
+            out.push({ key: 'debt-' + d.id, group: 'deudas', label: `«${d.name}» pagada`, done: num(d.balance) <= 0.005, progress: clamp(orig > 0 ? 1 - num(d.balance) / orig : 1) });
+        });
+        if (consumer.length > 1) {
+            const owed = sum(consumer, d => Math.max(0, num(d.balance))), orig = sum(consumer, d => Math.max(num(d.originalBalance), num(d.balance)));
+            out.push({ key: 'debtfree', group: 'deudas', label: 'Libre de deudas (menos la casa)', done: owed <= 0.005, progress: clamp(orig > 0 ? 1 - owed / orig : 1) });
+        }
+        NW_STEPS.forEach(v => out.push({ key: 'nw' + v, group: 'patrimonio', label: v === 0 ? 'Patrimonio neto en positivo' : `Patrimonio neto de ${money(v)}`, done: v === 0 ? netWorth > 0 : netWorth >= v, progress: v === 0 ? (netWorth > 0 ? 1 : 0) : clamp(netWorth / v) }));
+        return out;
+    }
+
     // ------------------------------------------------------------ month close
     // How a month went, line by line: what you planned, what you spent, where you went over or
     // had money left, the expenses that never got a line, and what was left of what came in.
@@ -8199,7 +8286,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -9662,9 +9749,32 @@ I18n.country('US', {
         keys.forEach(k => { const v = Math.round(want[k] * 100) / 100; if (Math.abs((Number(nw[k]) || 0) - v) > 0.004 || !touched[k]) { nw[k] = v; touched[k] = true; } });
     }
 
+    // Each change keeps this month's net worth (so a month-by-month line builds up on its own)
+    // and notices milestones reached: the first time, everything already true is just recorded;
+    // after that, a new one is dated and celebrated.
+    function trackProgress() {
+        const s = Store.state, t = new Date(), y = t.getFullYear();
+        if (y < s.configStartYear || y > s.configEndYear) return;
+        const nw = Engine.netWorth(s.years, s.assets, y);
+        if (nw.assets > 0 || nw.liabilities > 0) s.netWorthHistory = Engine.recordNetWorthMonth(s.netWorthHistory, Engine.isoDate(t).slice(0, 7), nw);
+        const ctx = buildContext();
+        const list = Engine.milestones({ netWorth: nw.value, liquid: ctx.ef.liquid, monthsCovered: ctx.ef.monthsCovered, debts: s.debts, money: Fmt.money0 });
+        const first = !s.milestones;
+        const got = s.milestones || (s.milestones = {});
+        const fresh = [];
+        const seed = s.settings.milestonesSeed || {};
+        delete s.settings.milestonesSeed;
+        list.forEach(m => {
+            if (m.done && !got[m.key]) { got[m.key] = first ? seed[m.key] || 'antes' : Engine.isoDate(t); if (!first) fresh.push(m); }
+            else if (!m.done && got[m.key]) delete got[m.key];
+        });
+        if (fresh.length) setTimeout(() => UI.toast(`🎉 ¡Logro! ${fresh.map(m => m.label).join(' · ')}`, 'ok'), 400);
+    }
+
     function changed(opts = {}) {
         if (!opts.keepUndo) dismissUndo();
         syncNetWorth();
+        trackProgress();
         recordChange();
         if (opts.step) commitHistory();
         Store.scheduleSave();
@@ -9731,6 +9841,7 @@ I18n.country('US', {
         if (E.appName) { UI.text('brand-title', E.appName); UI.text('brand-sub', E.appSub || ''); }
         Store.init();
         syncNetWorth();
+        trackProgress();
         hist.committed = snapshot();
         UI.initEvents();
         // Ctrl+Z / Ctrl+Y (⌘ on Mac). Inside a text box the browser's own undo for that box wins.
@@ -15293,8 +15404,32 @@ I18n.country('US', {
         return ['text-emerald-800', 'Excelente: estás construyendo riqueza real.'];
     }
 
+    // Net worth month by month (state.netWorthHistory, kept by App on each change) and the
+    // milestones: reached ones with their date, and the next few with how close you are.
+    function progress(ctx) {
+        const s = ctx.state, pal = UI.palette();
+        const h = s.netWorthHistory || [];
+        const enough = h.length >= 2;
+        UI.show('nw-month-box', enough);
+        UI.show('nw-month-empty', !enough);
+        if (!enough) UI.html('nw-month-empty', 'Cada mes guardamos tu patrimonio neto solo. Vuelve el próximo mes para ver la línea.');
+        else UI.chart('nw-month-chart', {
+            type: 'line',
+            data: { labels: h.map(x => Fmt.monthYear(new Date(x.month + '-01T00:00:00'))), datasets: [{ label: 'Patrimonio neto', data: h.map(x => x.value), borderColor: pal.blue, backgroundColor: pal.alpha(pal.blue, 0.1), borderWidth: 2, fill: true, tension: 0, pointRadius: h.length > 24 ? 0 : 3, pointBackgroundColor: pal.blue, pointBorderColor: pal.surface, pointBorderWidth: 2 }] },
+            options: { scales: { y: { beginAtZero: false } }, plugins: { legend: { display: false } } }
+        });
+        const list = Engine.milestones({ netWorth: Engine.netWorth(s.years, s.assets, ctx.today.getFullYear()).value, liquid: ctx.ef.liquid, monthsCovered: ctx.ef.monthsCovered, debts: s.debts, money: money0 });
+        const got = s.milestones || {};
+        const done = list.filter(m => m.done);
+        const next = list.filter(m => !m.done).sort((a, b) => b.progress - a.progress).slice(0, 4);
+        const when = (k) => got[k] && got[k] !== 'antes' ? Fmt.monthYear(new Date(got[k] + 'T00:00:00')) : null;
+        UI.html('nw-milestones', `<div><div class="text-xs font-bold text-slate-600 mb-2">Logrados (${done.length})</div>${done.length ? `<ul class="space-y-1.5">${done.map(m => `<li class="milestone done"><i class="fa-solid fa-circle-check"></i><span class="flex-1 min-w-0">${esc(m.label)}</span>${when(m.key) ? `<span class="text-[11px] text-slate-500 whitespace-nowrap">${esc(when(m.key))}</span>` : ''}</li>`).join('')}</ul>` : '<p class="help">Tu primer logro está cerca: mira a la derecha.</p>'}</div>
+            <div><div class="text-xs font-bold text-slate-600 mb-2">Lo que sigue</div>${next.length ? `<ul class="space-y-2.5">${next.map(m => `<li class="milestone"><div class="flex justify-between gap-2 text-xs"><span class="min-w-0">${esc(m.label)}</span><span class="font-bold whitespace-nowrap">${Math.floor(m.progress * 100)}%</span></div><div class="progress-track mt-1"><div class="progress-fill" style="width:${(m.progress * 100).toFixed(1)}%"></div></div></li>`).join('')}</ul>` : '<p class="help">¡Los lograste todos! 🎉</p>'}</div>`);
+    }
+
     function update(ctx) {
         updateHoldings(ctx);
+        progress(ctx);
         const s = ctx.state, nw = ctx.netWorth, year = s.activeYear;
         UI.$$('[data-registry]').forEach(el => { el.textContent = money(nw.registry[el.dataset.registry] || 0); });
         // This year, figures the app already knows fill themselves (read-only here).

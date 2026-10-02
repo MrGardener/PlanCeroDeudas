@@ -283,6 +283,11 @@ input[type="file"].hidden { display: none; }
 .txn-date.pending { border-style: dashed; }
 .txn-date.tr { border-color: var(--faint); color: var(--muted); }
 .txn-amt.tr { color: var(--muted); }
+.milestone { font-size: var(--fs-xs); color: var(--ink); }
+.milestone.done { display: flex; align-items: center; gap: .5rem; padding: .35rem .55rem; border-radius: var(--r-md); background: color-mix(in srgb, var(--pos) 9%, transparent); }
+.milestone.done i { color: var(--pos); }
+.progress-track { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 999px; background: var(--brand); }
 .found-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .45rem .6rem; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); }
 .annual-steps { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
 .annual-step { border: 1px solid var(--line); border-radius: var(--r-md); padding: .55rem .7rem; font-size: var(--fs-xs); background: var(--surface); }

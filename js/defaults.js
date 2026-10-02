@@ -176,6 +176,10 @@
             annualBills: [],
             // Months reviewed with "Cerrar el mes": 'YYYY-MM' → { closedAt, income, spent, leftover, planned, note }.
             monthCloses: {},
+            // Net worth month by month ({ month: 'YYYY-MM', assets, liabilities, value }), kept on its own.
+            netWorthHistory: [],
+            // Milestones reached: key → 'YYYY-MM-DD' (or 'antes' when it was already true). null until first checked.
+            milestones: null,
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -188,7 +192,7 @@
     // (taxonomies, cooperativas) because they are configuration, not personal data.
     function emptyState(today) {
         const s = newState(today);
-        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = []; s.annualBills = []; s.monthCloses = {};
+        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = []; s.annualBills = []; s.monthCloses = {}; s.netWorthHistory = []; s.milestones = null;
         return s;
     }
 

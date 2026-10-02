@@ -72,8 +72,32 @@
         return ['text-emerald-800', 'Excelente: estás construyendo riqueza real.'];
     }
 
+    // Net worth month by month (state.netWorthHistory, kept by App on each change) and the
+    // milestones: reached ones with their date, and the next few with how close you are.
+    function progress(ctx) {
+        const s = ctx.state, pal = UI.palette();
+        const h = s.netWorthHistory || [];
+        const enough = h.length >= 2;
+        UI.show('nw-month-box', enough);
+        UI.show('nw-month-empty', !enough);
+        if (!enough) UI.html('nw-month-empty', 'Cada mes guardamos tu patrimonio neto solo. Vuelve el próximo mes para ver la línea.');
+        else UI.chart('nw-month-chart', {
+            type: 'line',
+            data: { labels: h.map(x => Fmt.monthYear(new Date(x.month + '-01T00:00:00'))), datasets: [{ label: 'Patrimonio neto', data: h.map(x => x.value), borderColor: pal.blue, backgroundColor: pal.alpha(pal.blue, 0.1), borderWidth: 2, fill: true, tension: 0, pointRadius: h.length > 24 ? 0 : 3, pointBackgroundColor: pal.blue, pointBorderColor: pal.surface, pointBorderWidth: 2 }] },
+            options: { scales: { y: { beginAtZero: false } }, plugins: { legend: { display: false } } }
+        });
+        const list = Engine.milestones({ netWorth: Engine.netWorth(s.years, s.assets, ctx.today.getFullYear()).value, liquid: ctx.ef.liquid, monthsCovered: ctx.ef.monthsCovered, debts: s.debts, money: money0 });
+        const got = s.milestones || {};
+        const done = list.filter(m => m.done);
+        const next = list.filter(m => !m.done).sort((a, b) => b.progress - a.progress).slice(0, 4);
+        const when = (k) => got[k] && got[k] !== 'antes' ? Fmt.monthYear(new Date(got[k] + 'T00:00:00')) : null;
+        UI.html('nw-milestones', `<div><div class="text-xs font-bold text-slate-600 mb-2">Logrados (${done.length})</div>${done.length ? `<ul class="space-y-1.5">${done.map(m => `<li class="milestone done"><i class="fa-solid fa-circle-check"></i><span class="flex-1 min-w-0">${esc(m.label)}</span>${when(m.key) ? `<span class="text-[11px] text-slate-500 whitespace-nowrap">${esc(when(m.key))}</span>` : ''}</li>`).join('')}</ul>` : '<p class="help">Tu primer logro está cerca: mira a la derecha.</p>'}</div>
+            <div><div class="text-xs font-bold text-slate-600 mb-2">Lo que sigue</div>${next.length ? `<ul class="space-y-2.5">${next.map(m => `<li class="milestone"><div class="flex justify-between gap-2 text-xs"><span class="min-w-0">${esc(m.label)}</span><span class="font-bold whitespace-nowrap">${Math.floor(m.progress * 100)}%</span></div><div class="progress-track mt-1"><div class="progress-fill" style="width:${(m.progress * 100).toFixed(1)}%"></div></div></li>`).join('')}</ul>` : '<p class="help">¡Los lograste todos! 🎉</p>'}</div>`);
+    }
+
     function update(ctx) {
         updateHoldings(ctx);
+        progress(ctx);
         const s = ctx.state, nw = ctx.netWorth, year = s.activeYear;
         UI.$$('[data-registry]').forEach(el => { el.textContent = money(nw.registry[el.dataset.registry] || 0); });
         // This year, figures the app already knows fill themselves (read-only here).

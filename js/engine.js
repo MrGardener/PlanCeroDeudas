@@ -997,6 +997,35 @@
     // rubros), plus the whole line of any debt already paid off, rolls to the debt the strategy
     // targets (snowball: smallest balance; avalanche: highest rate). No money is assumed that
     // the budget doesn't assign. A minimums-only run gives the time/interest the plan saves.
+    // ------------------------------------------------- net worth month by month & milestones
+    // One entry per month (the latest figure of that month), oldest first, at most 20 years.
+    function recordNetWorthMonth(history, key, { assets, liabilities }) {
+        const row = { month: key, assets: cents(num(assets)), liabilities: cents(num(liabilities)), value: cents(num(assets) - num(liabilities)) };
+        return (history || []).filter(h => h.month !== key).concat([row]).sort((a, b) => a.month.localeCompare(b.month)).slice(-240);
+    }
+
+    // The moments worth celebrating on the way, each with how close you are (0–1).
+    const NW_STEPS = [0, 10000, 25000, 50000, 100000, 250000, 500000, 1000000];
+    function milestones({ netWorth = 0, liquid = 0, monthsCovered = 0, debts = [], money = (v) => '$' + Math.round(v).toLocaleString('en-US') }) {
+        const clamp = (v) => Math.max(0, Math.min(1, v));
+        const out = [
+            { key: 'ef1000', group: 'ahorro', label: `Fondo de emergencia inicial: ${money(1000)}`, done: liquid >= 1000, progress: clamp(liquid / 1000) },
+            { key: 'ef3', group: 'ahorro', label: '3 meses de gastos ahorrados', done: monthsCovered >= 3, progress: clamp(monthsCovered / 3) },
+            { key: 'ef6', group: 'ahorro', label: '6 meses de gastos ahorrados', done: monthsCovered >= 6, progress: clamp(monthsCovered / 6) }
+        ];
+        const consumer = (debts || []).filter(d => num(d.originalBalance) > 0 || num(d.balance) > 0);
+        consumer.forEach(d => {
+            const orig = Math.max(num(d.originalBalance), num(d.balance));
+            out.push({ key: 'debt-' + d.id, group: 'deudas', label: `«${d.name}» pagada`, done: num(d.balance) <= 0.005, progress: clamp(orig > 0 ? 1 - num(d.balance) / orig : 1) });
+        });
+        if (consumer.length > 1) {
+            const owed = sum(consumer, d => Math.max(0, num(d.balance))), orig = sum(consumer, d => Math.max(num(d.originalBalance), num(d.balance)));
+            out.push({ key: 'debtfree', group: 'deudas', label: 'Libre de deudas (menos la casa)', done: owed <= 0.005, progress: clamp(orig > 0 ? 1 - owed / orig : 1) });
+        }
+        NW_STEPS.forEach(v => out.push({ key: 'nw' + v, group: 'patrimonio', label: v === 0 ? 'Patrimonio neto en positivo' : `Patrimonio neto de ${money(v)}`, done: v === 0 ? netWorth > 0 : netWorth >= v, progress: v === 0 ? (netWorth > 0 ? 1 : 0) : clamp(netWorth / v) }));
+        return out;
+    }
+
     // ------------------------------------------------------------ month close
     // How a month went, line by line: what you planned, what you spent, where you went over or
     // had money left, the expenses that never got a line, and what was left of what came in.
@@ -1747,7 +1776,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

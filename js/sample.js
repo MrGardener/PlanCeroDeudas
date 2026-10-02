@@ -1049,6 +1049,27 @@
             yd.netWorth = y === cur ? now : P.pastNetWorth(y);
             yd.netWorthTouched = Object.fromEntries(Engine.NET_WORTH_FIELDS.map(f => [f, true]));
         }
+
+        // Net worth month by month since January of last year: between year-ends, with a small
+        // wobble (markets, the card balance), ending exactly on today's figure.
+        const ends = {};
+        for (let y = P.firstYear; y <= cur; y++) ends[y] = Engine.netWorth(s.years, s.assets, y);
+        const curM = T.getMonth() + 1;
+        s.netWorthHistory = [];
+        for (let y = Math.max(P.firstYear + 1, cur - 1); y <= cur; y++) {
+            const from = ends[y - 1] || ends[y], to = ends[y], span = y === cur ? curM : 12;
+            for (let m = 1; m <= span; m++) {
+                const f = m / span, last = y === cur && m === span, wob = last ? 1 : 1 + (R.int(-6, 6) / 1000);
+                const assets = round2((from.assets + (to.assets - from.assets) * f) * wob), liabilities = round2(from.liabilities + (to.liabilities - from.liabilities) * f);
+                s.netWorthHistory.push({ month: `${y}-${pad2(m)}`, assets, liabilities, value: round2(assets - liabilities) });
+            }
+        }
+        // When each net-worth step was first reached (App dates the rest as "already had it").
+        const seed = s.settings.milestonesSeed = {};
+        [0, 10000, 25000, 50000, 100000, 250000, 500000, 1000000].forEach(v => {
+            const hit = s.netWorthHistory.find(h => (v === 0 ? h.value > 0 : h.value >= v));
+            if (hit && hit !== s.netWorthHistory[0]) seed['nw' + v] = hit.month + '-15';
+        });
         return s;
     }
 

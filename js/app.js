@@ -322,9 +322,32 @@
         keys.forEach(k => { const v = Math.round(want[k] * 100) / 100; if (Math.abs((Number(nw[k]) || 0) - v) > 0.004 || !touched[k]) { nw[k] = v; touched[k] = true; } });
     }
 
+    // Each change keeps this month's net worth (so a month-by-month line builds up on its own)
+    // and notices milestones reached: the first time, everything already true is just recorded;
+    // after that, a new one is dated and celebrated.
+    function trackProgress() {
+        const s = Store.state, t = new Date(), y = t.getFullYear();
+        if (y < s.configStartYear || y > s.configEndYear) return;
+        const nw = Engine.netWorth(s.years, s.assets, y);
+        if (nw.assets > 0 || nw.liabilities > 0) s.netWorthHistory = Engine.recordNetWorthMonth(s.netWorthHistory, Engine.isoDate(t).slice(0, 7), nw);
+        const ctx = buildContext();
+        const list = Engine.milestones({ netWorth: nw.value, liquid: ctx.ef.liquid, monthsCovered: ctx.ef.monthsCovered, debts: s.debts, money: Fmt.money0 });
+        const first = !s.milestones;
+        const got = s.milestones || (s.milestones = {});
+        const fresh = [];
+        const seed = s.settings.milestonesSeed || {};
+        delete s.settings.milestonesSeed;
+        list.forEach(m => {
+            if (m.done && !got[m.key]) { got[m.key] = first ? seed[m.key] || 'antes' : Engine.isoDate(t); if (!first) fresh.push(m); }
+            else if (!m.done && got[m.key]) delete got[m.key];
+        });
+        if (fresh.length) setTimeout(() => UI.toast(`🎉 ¡Logro! ${fresh.map(m => m.label).join(' · ')}`, 'ok'), 400);
+    }
+
     function changed(opts = {}) {
         if (!opts.keepUndo) dismissUndo();
         syncNetWorth();
+        trackProgress();
         recordChange();
         if (opts.step) commitHistory();
         Store.scheduleSave();
@@ -391,6 +414,7 @@
         if (E.appName) { UI.text('brand-title', E.appName); UI.text('brand-sub', E.appSub || ''); }
         Store.init();
         syncNetWorth();
+        trackProgress();
         hist.committed = snapshot();
         UI.initEvents();
         // Ctrl+Z / Ctrl+Y (⌘ on Mac). Inside a text box the browser's own undo for that box wins.

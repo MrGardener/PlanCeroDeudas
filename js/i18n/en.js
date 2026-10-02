@@ -2211,3 +2211,17 @@ I18n.add('en', {
     "Cierra {0}:": "Close {0}:", "mira cómo te fue y decide qué hacer con lo que sobró.": "see how it went and decide what to do with what's left."
 });
 I18n.add('en', { "Cerrar {0}": "Close {0}", "planeaste {0}": "you planned {0}" });
+// Net worth month by month and milestones
+I18n.add('en', {
+    "Tu progreso y tus logros": "Your progress and milestones",
+    "Tu patrimonio se guarda solo cada mes, y cada meta que alcanzas queda con su fecha.": "Your net worth is saved on its own every month, and every milestone you reach keeps its date.",
+    "Patrimonio neto mes a mes": "Net worth month by month",
+    "Cada mes guardamos tu patrimonio neto solo. Vuelve el próximo mes para ver la línea.": "We save your net worth on its own every month. Come back next month to see the line.",
+    "Logros": "Milestones", "Logrados ({0})": "Reached ({0})", "Lo que sigue": "Up next",
+    "Tu primer logro está cerca: mira a la derecha.": "Your first milestone is close: look to the right.",
+    "¡Los lograste todos! 🎉": "You reached them all! 🎉", "🎉 ¡Logro! {0}": "🎉 Milestone! {0}",
+    "Fondo de emergencia inicial: {0}": "Starter emergency fund: {0}",
+    "3 meses de gastos ahorrados": "3 months of expenses saved", "6 meses de gastos ahorrados": "6 months of expenses saved",
+    "«{0}» pagada": "«{0}» paid off", "Libre de deudas (menos la casa)": "Debt-free (except the house)",
+    "Patrimonio neto en positivo": "Positive net worth", "Patrimonio neto de {0}": "Net worth of {0}"
+});

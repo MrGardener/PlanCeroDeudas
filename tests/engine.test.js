@@ -1004,3 +1004,21 @@ test('month review: over and under lines, unassigned expenses and the leftover',
     assert.deepEqual([r.income, r.spent, r.leftover, r.planned], [1000, 700, 300, 700]);
     assert.equal(r.count, 5);
 });
+
+test('net worth month by month keeps one entry per month, oldest first', () => {
+    let h = E.recordNetWorthMonth([], '2026-09', { assets: 1000, liabilities: 400 });
+    h = E.recordNetWorthMonth(h, '2026-08', { assets: 900, liabilities: 400 });
+    h = E.recordNetWorthMonth(h, '2026-09', { assets: 1100, liabilities: 400 });
+    assert.deepEqual(h.map(x => [x.month, x.value]), [['2026-08', 500], ['2026-09', 700]]);
+});
+
+test('milestones: emergency fund, each debt, debt-free and net worth steps', () => {
+    const debts = [{ id: 1, name: 'Visa', balance: 0, originalBalance: 3000 }, { id: 2, name: 'Car', balance: 6000, originalBalance: 12000 }];
+    const m = E.milestones({ netWorth: 30000, liquid: 2500, monthsCovered: 1.5, debts });
+    const by = Object.fromEntries(m.map(x => [x.key, x]));
+    assert.equal(by.ef1000.done, true);
+    assert.equal(by.ef3.done, false); assert.equal(by.ef3.progress, 0.5);
+    assert.equal(by['debt-1'].done, true); assert.equal(by['debt-2'].progress, 0.5);
+    assert.equal(by.debtfree.done, false); assert.equal(by.debtfree.progress, 0.6);
+    assert.equal(by.nw0.done, true); assert.equal(by.nw25000.done, true); assert.equal(by.nw50000.progress, 0.6);
+});
