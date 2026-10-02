@@ -2316,3 +2316,18 @@ I18n.add('en', {
     "Incluye {0} para los {1} años antes de que empiece tu {2}.": "Includes {0} for the {1} years before your {2} starts.",
     "Regla del {0}%: por cada $1 al mes que quieras sacar de tus ahorros necesitas {1} ahorrados.": "The {0}% rule: for every $1 a month you want to draw from savings you need {1} saved."
 });
+// Health score
+I18n.add('en', {
+    "Tu salud financiera": "Your financial health", "Cómo estás hoy al gastar, ahorrar, deber y planear.": "How you're doing today at spending, saving, borrowing and planning.",
+    "Gastar": "Spend", "Ahorrar": "Save", "Deber": "Borrow", "Planear": "Plan", "Sana": "Healthy", "En camino": "Getting there", "Vulnerable": "Vulnerable",
+    "Gastas menos de lo que ganas": "You spend less than you earn", "Últimos 3 meses: gasto ÷ ingreso.": "Last 3 months: spending ÷ income.",
+    "Pagas tus cuentas a tiempo": "You pay your bills on time", "Pagos vencidos este mes.": "Overdue payments this month.",
+    "Tienes un colchón para imprevistos": "You have a cushion for surprises", "Meses de gastos esenciales ahorrados (3 o más = 100).": "Months of essential expenses saved (3 or more = 100).",
+    "Ahorras para el largo plazo": "You save for the long term", "Parte de tu sueldo que va a jubilación (15% = 100).": "Share of your pay going to retirement (15% = 100).",
+    "Tus deudas no ahogan tu ingreso": "Your debts don't swamp your income", "Pagos de deudas de consumo ÷ ingreso (10% o menos = 100).": "Consumer debt payments ÷ income (10% or less = 100).",
+    "Sin deudas caras": "No expensive debt", "Deudas al 10% o más, frente a tu ingreso del año.": "Debts at 10% or more, against your yearly income.",
+    "Cada dólar tiene un trabajo": "Every dollar has a job", "Tu presupuesto asigna todo tu ingreso, ni más ni menos.": "Your budget assigns all your income, no more, no less.",
+    "Vas bien para tu jubilación": "On track for retirement", "Lo que vas camino a tener ÷ lo que necesitarías.": "What you're on track to have ÷ what you'd need.",
+    "Donde más puedes subir:": "Where you can gain the most:", "Cómo se calcula": "How it's calculated", "{0} de 100": "{0} out of 100",
+    "Ocho indicadores de 0 a 100, en cuatro pilares (inspirado en el FinHealth Score). 80 o más: sana; 40 a 79: en camino; menos de 40: vulnerable.": "Eight indicators from 0 to 100 in four pillars (inspired by the FinHealth Score). 80 or more: healthy; 40 to 79: getting there; under 40: vulnerable."
+});

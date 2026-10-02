@@ -1056,6 +1056,37 @@
         return { need: cents(need), have: cents(num(haveToday)), gap: cents(gap), pct: need > 0 ? Math.min(9.99, num(haveToday) / need) : 1, extraMonthly: extra === null ? null : cents(extra), bridge: cents(bridge) };
     }
 
+    // ------------------------------------------------------------ financial health score
+    // Eight indicators in four pillars (spend, save, borrow, plan), each 0–100, inspired by the
+    // FinHealth Score. Indicators without data (null) are left out rather than counted as 0.
+    // Bands: 80+ healthy, 40–79 getting there, under 40 vulnerable.
+    const lin = (v, lo, hi) => Math.round(Math.max(0, Math.min(1, (v - lo) / (hi - lo))) * 100);
+    function healthScore(f) {
+        const ind = (key, label, score, note) => ({ key, label, score, note });
+        const has = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
+        const pillars = [
+            { key: 'spend', label: 'Gastar', items: [
+                has(f.spendRatio) ? ind('spendLess', 'Gastas menos de lo que ganas', lin(-f.spendRatio, -1.1, -0.9), 'Últimos 3 meses: gasto ÷ ingreso.') : null,
+                has(f.overdue) ? ind('onTime', 'Pagas tus cuentas a tiempo', f.overdue <= 0 ? 100 : f.overdue === 1 ? 50 : 0, 'Pagos vencidos este mes.') : null
+            ] },
+            { key: 'save', label: 'Ahorrar', items: [
+                has(f.monthsCovered) ? ind('cushion', 'Tienes un colchón para imprevistos', lin(f.monthsCovered, 0, 3), 'Meses de gastos esenciales ahorrados (3 o más = 100).') : null,
+                has(f.savingsRate) ? ind('longTerm', 'Ahorras para el largo plazo', lin(f.savingsRate, 0, 0.15), 'Parte de tu sueldo que va a jubilación (15% = 100).') : null
+            ] },
+            { key: 'borrow', label: 'Deber', items: [
+                has(f.debtToIncome) ? ind('dti', 'Tus deudas no ahogan tu ingreso', lin(-f.debtToIncome, -0.36, -0.10), 'Pagos de deudas de consumo ÷ ingreso (10% o menos = 100).') : null,
+                has(f.costlyDebtRatio) ? ind('costly', 'Sin deudas caras', lin(-f.costlyDebtRatio, -0.15, 0), 'Deudas al 10% o más, frente a tu ingreso del año.') : null
+            ] },
+            { key: 'plan', label: 'Planear', items: [
+                has(f.unassignedRatio) ? ind('budget', 'Cada dólar tiene un trabajo', Math.abs(f.unassignedRatio) <= 0.01 ? 100 : Math.abs(f.unassignedRatio) <= 0.05 ? 60 : 20, 'Tu presupuesto asigna todo tu ingreso, ni más ni menos.') : null,
+                has(f.retirePct) ? ind('retire', 'Vas bien para tu jubilación', lin(f.retirePct, 0, 1), 'Lo que vas camino a tener ÷ lo que necesitarías.') : null
+            ] }
+        ].map(p => { const items = p.items.filter(Boolean); return Object.assign(p, { items, score: items.length ? Math.round(sum(items, i => i.score) / items.length) : null }); });
+        const all = pillars.flatMap(p => p.items);
+        const score = all.length ? Math.round(sum(all, i => i.score) / all.length) : null;
+        return { score, band: score === null ? null : score >= 80 ? 'sano' : score >= 40 ? 'camino' : 'vulnerable', pillars, weakest: all.slice().sort((a, b) => a.score - b.score)[0] || null };
+    }
+
     // ------------------------------------------------------------ next moves
     // The three things worth doing next, ranked by what matters most for this household right
     // now (urgent first, then the current Baby Step, then housekeeping). `facts` are plain numbers
@@ -1893,7 +1924,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

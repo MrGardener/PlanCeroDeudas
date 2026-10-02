@@ -1089,3 +1089,16 @@ test('retirement need vs have: the 4% rule, the pension, the bridge years and th
     assert.equal(E.retirementGap({ desiredMonthly: 5000, pensionMonthly: 2000, bridgeYears: 3 }).need, 900000 + 72000);
     assert.equal(E.retirementGap({ desiredMonthly: 3000, pensionMonthly: 1000, haveToday: 900000, months: 120 }).extraMonthly, 0);
 });
+
+test('health score: eight indicators, bands, and missing data left out', () => {
+    const good = E.healthScore({ spendRatio: 0.85, overdue: 0, monthsCovered: 4, savingsRate: 0.16, debtToIncome: 0.05, costlyDebtRatio: 0, unassignedRatio: 0, retirePct: 1.2 });
+    assert.equal(good.score, 100); assert.equal(good.band, 'sano');
+    const mid = E.healthScore({ spendRatio: 1.0, overdue: 1, monthsCovered: 1.5, savingsRate: 0.05, debtToIncome: 0.23, costlyDebtRatio: 0.03, unassignedRatio: 0.03, retirePct: 0.5 });
+    // 50, 50, 50, 33, 50, 80, 60, 50 → 52.875 → 53
+    assert.equal(mid.score, 53); assert.equal(mid.band, 'camino');
+    assert.equal(mid.weakest.key, 'longTerm');
+    const partial = E.healthScore({ overdue: 0, monthsCovered: 0 });
+    assert.equal(partial.score, 50);
+    assert.equal(partial.pillars.find(p => p.key === 'borrow').score, null);
+    assert.equal(E.healthScore({}).score, null);
+});

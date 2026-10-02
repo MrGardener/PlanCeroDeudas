@@ -306,6 +306,9 @@ input[type="file"].hidden { display: none; }
 .txn-amt.tr { color: var(--muted); }
 .tag-chip { display: inline-block; margin: .1rem .25rem .1rem 0; padding: 0 .45rem; border-radius: 999px; font-size: var(--fs-2xs); font-weight: 700; color: var(--info, #2563eb); background: color-mix(in srgb, var(--info, #2563eb) 10%, transparent); line-height: 1.6; }
 .tag-chip:hover { background: color-mix(in srgb, var(--info, #2563eb) 18%, transparent); }
+.health-ring { width: 104px; height: 104px; }
+.health-track { fill: none; stroke: var(--surface-3); stroke-width: 8; }
+.health-num { font-size: 22px; font-weight: 900; fill: var(--ink); }
 .moves { display: grid; gap: .6rem; }
 .move { display: flex; align-items: flex-start; gap: .75rem; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
 .move-num { width: 1.6rem; height: 1.6rem; flex: none; border-radius: 999px; display: grid; place-items: center; font-weight: 800; font-size: .8rem; color: #fff; background: var(--brand); }
@@ -796,6 +799,11 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
         <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-list-check text-emerald-600"></i> Tus próximos pasos</div>
             <div class="card-sub">Lo que más le sirve hoy a tu plan, en orden.</div></div></div>
         <div id="dash-moves"></div>
+    </div>
+    <div class="card hidden" id="dash-health-card">
+        <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-heart-pulse text-red-500"></i> Tu salud financiera</div>
+            <div class="card-sub">Cómo estás hoy al gastar, ahorrar, deber y planear.</div></div></div>
+        <div id="dash-health"></div>
     </div>
     <div class="card hidden" id="dash-alerts-card">
         <div class="card-head"><div class="card-title"><i class="fa-solid fa-bell text-amber-500"></i> Alertas</div></div>
@@ -4787,6 +4795,21 @@ I18n.add('en', {
     "Incluye {0} para los {1} años antes de que empiece tu {2}.": "Includes {0} for the {1} years before your {2} starts.",
     "Regla del {0}%: por cada $1 al mes que quieras sacar de tus ahorros necesitas {1} ahorrados.": "The {0}% rule: for every $1 a month you want to draw from savings you need {1} saved."
 });
+// Health score
+I18n.add('en', {
+    "Tu salud financiera": "Your financial health", "Cómo estás hoy al gastar, ahorrar, deber y planear.": "How you're doing today at spending, saving, borrowing and planning.",
+    "Gastar": "Spend", "Ahorrar": "Save", "Deber": "Borrow", "Planear": "Plan", "Sana": "Healthy", "En camino": "Getting there", "Vulnerable": "Vulnerable",
+    "Gastas menos de lo que ganas": "You spend less than you earn", "Últimos 3 meses: gasto ÷ ingreso.": "Last 3 months: spending ÷ income.",
+    "Pagas tus cuentas a tiempo": "You pay your bills on time", "Pagos vencidos este mes.": "Overdue payments this month.",
+    "Tienes un colchón para imprevistos": "You have a cushion for surprises", "Meses de gastos esenciales ahorrados (3 o más = 100).": "Months of essential expenses saved (3 or more = 100).",
+    "Ahorras para el largo plazo": "You save for the long term", "Parte de tu sueldo que va a jubilación (15% = 100).": "Share of your pay going to retirement (15% = 100).",
+    "Tus deudas no ahogan tu ingreso": "Your debts don't swamp your income", "Pagos de deudas de consumo ÷ ingreso (10% o menos = 100).": "Consumer debt payments ÷ income (10% or less = 100).",
+    "Sin deudas caras": "No expensive debt", "Deudas al 10% o más, frente a tu ingreso del año.": "Debts at 10% or more, against your yearly income.",
+    "Cada dólar tiene un trabajo": "Every dollar has a job", "Tu presupuesto asigna todo tu ingreso, ni más ni menos.": "Your budget assigns all your income, no more, no less.",
+    "Vas bien para tu jubilación": "On track for retirement", "Lo que vas camino a tener ÷ lo que necesitarías.": "What you're on track to have ÷ what you'd need.",
+    "Donde más puedes subir:": "Where you can gain the most:", "Cómo se calcula": "How it's calculated", "{0} de 100": "{0} out of 100",
+    "Ocho indicadores de 0 a 100, en cuatro pilares (inspirado en el FinHealth Score). 80 o más: sana; 40 a 79: en camino; menos de 40: vulnerable.": "Eight indicators from 0 to 100 in four pillars (inspired by the FinHealth Score). 80 or more: healthy; 40 to 79: getting there; under 40: vulnerable."
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -7754,6 +7777,37 @@ I18n.country('US', {
         return { need: cents(need), have: cents(num(haveToday)), gap: cents(gap), pct: need > 0 ? Math.min(9.99, num(haveToday) / need) : 1, extraMonthly: extra === null ? null : cents(extra), bridge: cents(bridge) };
     }
 
+    // ------------------------------------------------------------ financial health score
+    // Eight indicators in four pillars (spend, save, borrow, plan), each 0–100, inspired by the
+    // FinHealth Score. Indicators without data (null) are left out rather than counted as 0.
+    // Bands: 80+ healthy, 40–79 getting there, under 40 vulnerable.
+    const lin = (v, lo, hi) => Math.round(Math.max(0, Math.min(1, (v - lo) / (hi - lo))) * 100);
+    function healthScore(f) {
+        const ind = (key, label, score, note) => ({ key, label, score, note });
+        const has = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
+        const pillars = [
+            { key: 'spend', label: 'Gastar', items: [
+                has(f.spendRatio) ? ind('spendLess', 'Gastas menos de lo que ganas', lin(-f.spendRatio, -1.1, -0.9), 'Últimos 3 meses: gasto ÷ ingreso.') : null,
+                has(f.overdue) ? ind('onTime', 'Pagas tus cuentas a tiempo', f.overdue <= 0 ? 100 : f.overdue === 1 ? 50 : 0, 'Pagos vencidos este mes.') : null
+            ] },
+            { key: 'save', label: 'Ahorrar', items: [
+                has(f.monthsCovered) ? ind('cushion', 'Tienes un colchón para imprevistos', lin(f.monthsCovered, 0, 3), 'Meses de gastos esenciales ahorrados (3 o más = 100).') : null,
+                has(f.savingsRate) ? ind('longTerm', 'Ahorras para el largo plazo', lin(f.savingsRate, 0, 0.15), 'Parte de tu sueldo que va a jubilación (15% = 100).') : null
+            ] },
+            { key: 'borrow', label: 'Deber', items: [
+                has(f.debtToIncome) ? ind('dti', 'Tus deudas no ahogan tu ingreso', lin(-f.debtToIncome, -0.36, -0.10), 'Pagos de deudas de consumo ÷ ingreso (10% o menos = 100).') : null,
+                has(f.costlyDebtRatio) ? ind('costly', 'Sin deudas caras', lin(-f.costlyDebtRatio, -0.15, 0), 'Deudas al 10% o más, frente a tu ingreso del año.') : null
+            ] },
+            { key: 'plan', label: 'Planear', items: [
+                has(f.unassignedRatio) ? ind('budget', 'Cada dólar tiene un trabajo', Math.abs(f.unassignedRatio) <= 0.01 ? 100 : Math.abs(f.unassignedRatio) <= 0.05 ? 60 : 20, 'Tu presupuesto asigna todo tu ingreso, ni más ni menos.') : null,
+                has(f.retirePct) ? ind('retire', 'Vas bien para tu jubilación', lin(f.retirePct, 0, 1), 'Lo que vas camino a tener ÷ lo que necesitarías.') : null
+            ] }
+        ].map(p => { const items = p.items.filter(Boolean); return Object.assign(p, { items, score: items.length ? Math.round(sum(items, i => i.score) / items.length) : null }); });
+        const all = pillars.flatMap(p => p.items);
+        const score = all.length ? Math.round(sum(all, i => i.score) / all.length) : null;
+        return { score, band: score === null ? null : score >= 80 ? 'sano' : score >= 40 ? 'camino' : 'vulnerable', pillars, weakest: all.slice().sort((a, b) => a.score - b.score)[0] || null };
+    }
+
     // ------------------------------------------------------------ next moves
     // The three things worth doing next, ranked by what matters most for this household right
     // now (urgent first, then the current Baby Step, then housekeeping). `facts` are plain numbers
@@ -8591,7 +8645,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -10404,7 +10458,17 @@ I18n.country('US', {
         UI.$$('details', el).forEach((d, i) => { if (open[i]) d.open = true; });
     }
 
-    root.Views = { guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions, dollarHTML, htmlKeepOpen };
+    // Retirement need vs. have (Engine.retirementGap) from the context: the income wanted
+    // (default 80% of today's income) and the projection the Retirement view shows.
+    function retireGap(ctx) {
+        const r = ctx.retirement, inp = ctx.retirementInputs, want = ctx.state.retirement.ingresoDeseado;
+        const def = Math.round(ctx.baseBudget.income * 0.8 / 50) * 50;
+        const desired = want === null || want === undefined ? def : Number(want) || 0;
+        const g = Engine.retirementGap({ desiredMonthly: desired, pensionMonthly: r.pension, withdrawalPct: inp.tasaRetiroSegura, haveToday: r.valorFuturoHoy, months: r.aniosRestantes * 12, returnPct: r.tasaRetorno, inflationPct: r.inflacion, bridgeYears: r.aniosPuente });
+        return { g, desired, def, custom: !(want === null || want === undefined) };
+    }
+
+    root.Views = { retireGap, guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions, dollarHTML, htmlKeepOpen };
 })(this);
 </script>
 <script>/* js/views/resumen.js */
@@ -10477,8 +10541,47 @@ I18n.country('US', {
             backupDays: last ? Math.floor((t - last) / 86400000) : null
         };
     }
+    // ---------------------------------------------------------------- health score
+    const GOTO = { spendLess: ['transacciones/reportes'], onTime: ['resumen', 'dash-bills-card'], cushion: ['futuro/metas', 'metas-ef'], longTerm: ['futuro/jubilacion'], dti: ['futuro/metas', 'metas-debts'], costly: ['futuro/metas', 'metas-debts'], budget: ['presupuesto/plan'], retire: ['futuro/jubilacion'] };
+    function healthFacts(ctx, overdue) {
+        const s = ctx.state, t = ctx.today, inc = ctx.baseBudget.income;
+        let i3 = 0, e3 = 0;
+        for (let k = 1; k <= 3; k++) { const d = new Date(t.getFullYear(), t.getMonth() - k, 1); const cf = Engine.cashFlow(s.transactions, d.getFullYear(), d.getMonth() + 1); i3 += cf.income; e3 += cf.expense; }
+        const consumer = (s.debts || []).filter(d => Number(d.balance) > 0);
+        return {
+            spendRatio: i3 > 0 ? e3 / i3 : null,
+            overdue,
+            monthsCovered: ctx.ef.monthlyEssential > 0 ? ctx.ef.monthsCovered : null,
+            savingsRate: inc > 0 ? ctx.savingsRate : null,
+            debtToIncome: inc > 0 ? consumer.reduce((a, d) => a + (Number(d.minPayment) || 0), 0) / inc : null,
+            costlyDebtRatio: inc > 0 ? consumer.filter(d => Number(d.rate) >= 10).reduce((a, d) => a + Number(d.balance), 0) / (inc * 12) : null,
+            unassignedRatio: inc > 0 ? ctx.baseBudget.balanceReal / inc : null,
+            retirePct: inc > 0 && ctx.retirement.aniosRestantes > 0 ? Views.retireGap(ctx).g.pct : null
+        };
+    }
+    function healthHTML(ctx, overdue) {
+        const h = Engine.healthScore(healthFacts(ctx, overdue));
+        if (h.score === null) return '';
+        const BAND = { sano: ['Sana', 'tone-emerald', '#10b981'], camino: ['En camino', 'tone-amber', '#f59e0b'], vulnerable: ['Vulnerable', 'tone-red', '#ef4444'] }[h.band];
+        const C = 2 * Math.PI * 34, dash = (h.score / 100) * C;
+        const ring = `<svg viewBox="0 0 80 80" class="health-ring" role="img" aria-label="${h.score} de 100"><circle cx="40" cy="40" r="34" class="health-track"/><circle cx="40" cy="40" r="34" fill="none" stroke="${BAND[2]}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${dash.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 40 40)"/><text x="40" y="45" text-anchor="middle" class="health-num">${h.score}</text></svg>`;
+        const pill = (p) => `<div class="health-pillar"><div class="flex justify-between text-xs"><span class="font-bold">${esc(p.label)}</span><span class="font-bold">${p.score === null ? '—' : p.score}</span></div><div class="progress-track mt-1"><div class="progress-fill" style="width:${p.score || 0}%;background:${p.score >= 80 ? '#10b981' : p.score >= 40 ? '#f59e0b' : '#ef4444'}"></div></div></div>`;
+        const rows = h.pillars.flatMap(p => p.items).map(i => { const [g, f] = GOTO[i.key]; return `<li class="flex items-center justify-between gap-3"><span class="min-w-0"><span class="font-semibold">${esc(i.label)}</span><span class="block text-[11px] text-slate-500">${esc(i.note)}</span></span><a href="#" class="link whitespace-nowrap font-bold" data-goto="${g}" ${f ? `data-focus="${f}"` : ''}>${i.score}</a></li>`; }).join('');
+        return `<div class="flex flex-col sm:flex-row gap-5 items-center">
+                <div class="text-center shrink-0">${ring}<span class="badge ${BAND[1]} mt-1">${BAND[0]}</span></div>
+                <div class="grid grid-cols-2 gap-3 flex-1 w-full">${h.pillars.map(pill).join('')}</div>
+            </div>
+            ${h.weakest && h.weakest.score < 80 ? `<p class="text-xs mt-3"><i class="fa-solid fa-arrow-trend-up text-emerald-600"></i> Donde más puedes subir: <strong>${esc(h.weakest.label)}</strong> (${h.weakest.score}/100).</p>` : ''}
+            <details class="mt-2"><summary class="text-xs font-bold text-slate-600 cursor-pointer">Cómo se calcula</summary><ul class="space-y-2 text-xs mt-2">${rows}</ul>
+            <p class="help mt-2">Ocho indicadores de 0 a 100, en cuatro pilares (inspirado en el FinHealth Score). 80 o más: sana; 40 a 79: en camino; menos de 40: vulnerable.</p></details>`;
+    }
+
     function movesHTML(ctx) {
-        const moves = Engine.nextMoves(moveFacts(ctx), { snoozed: ctx.state.settings.movesSnoozed || {}, today: ctx.today, money: money0 });
+        const facts = moveFacts(ctx);
+        const hh = healthHTML(ctx, facts.overdueBills.length);
+        UI.html('dash-health', hh);
+        UI.show('dash-health-card', !!hh);
+        const moves = Engine.nextMoves(facts, { snoozed: ctx.state.settings.movesSnoozed || {}, today: ctx.today, money: money0 });
         if (!moves.length) return '';
         return `<ol class="moves">${moves.map((mv, i) => {
             const go = mv.action ? `data-action="${mv.action}" ${Object.keys(mv.data || {}).map(k => `data-${k}="${esc(String(mv.data[k]))}"`).join(' ')}` : `data-goto="${mv.goto}" ${mv.focus ? `data-focus="${mv.focus}"` : ''}`;
@@ -15820,12 +15923,10 @@ I18n.country('US', {
     // pension, through the 4% rule — against what your savings are on track to become.
     function gap(ctx) {
         const r = ctx.retirement, inp = ctx.retirementInputs, s = ctx.state;
-        const def = Math.round(ctx.baseBudget.income * 0.8 / 50) * 50;
-        const desired = s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? def : Number(s.retirement.ingresoDeseado) || 0;
+        const { g, desired, def } = Views.retireGap(ctx);
         const input = document.getElementById('ret-desired');
         if (input && input !== document.activeElement) { input.value = s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? '' : desired; input.placeholder = money0(def); }
         UI.text('ret-desired-help', s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? `Vacío = 80% de tu ingreso de hoy (${money0(def)}).` : '');
-        const g = Engine.retirementGap({ desiredMonthly: desired, pensionMonthly: r.pension, withdrawalPct: inp.tasaRetiroSegura, haveToday: r.valorFuturoHoy, months: r.aniosRestantes * 12, returnPct: r.tasaRetorno, inflationPct: r.inflacion, bridgeYears: r.aniosPuente });
         const pct = Math.round(g.pct * 100);
         const tone = g.pct >= 1 ? 'tone-emerald' : g.pct >= 0.7 ? 'tone-amber' : 'tone-red';
         const pensionName = s.settings.country === 'US' ? 'Seguro Social' : 'pensión IESS';

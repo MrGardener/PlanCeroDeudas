@@ -285,6 +285,9 @@ input[type="file"].hidden { display: none; }
 .txn-amt.tr { color: var(--muted); }
 .tag-chip { display: inline-block; margin: .1rem .25rem .1rem 0; padding: 0 .45rem; border-radius: 999px; font-size: var(--fs-2xs); font-weight: 700; color: var(--info, #2563eb); background: color-mix(in srgb, var(--info, #2563eb) 10%, transparent); line-height: 1.6; }
 .tag-chip:hover { background: color-mix(in srgb, var(--info, #2563eb) 18%, transparent); }
+.health-ring { width: 104px; height: 104px; }
+.health-track { fill: none; stroke: var(--surface-3); stroke-width: 8; }
+.health-num { font-size: 22px; font-weight: 900; fill: var(--ink); }
 .moves { display: grid; gap: .6rem; }
 .move { display: flex; align-items: flex-start; gap: .75rem; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
 .move-num { width: 1.6rem; height: 1.6rem; flex: none; border-radius: 999px; display: grid; place-items: center; font-weight: 800; font-size: .8rem; color: #fff; background: var(--brand); }

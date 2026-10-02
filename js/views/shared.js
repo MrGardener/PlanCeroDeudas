@@ -180,5 +180,15 @@
         UI.$$('details', el).forEach((d, i) => { if (open[i]) d.open = true; });
     }
 
-    root.Views = { guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions, dollarHTML, htmlKeepOpen };
+    // Retirement need vs. have (Engine.retirementGap) from the context: the income wanted
+    // (default 80% of today's income) and the projection the Retirement view shows.
+    function retireGap(ctx) {
+        const r = ctx.retirement, inp = ctx.retirementInputs, want = ctx.state.retirement.ingresoDeseado;
+        const def = Math.round(ctx.baseBudget.income * 0.8 / 50) * 50;
+        const desired = want === null || want === undefined ? def : Number(want) || 0;
+        const g = Engine.retirementGap({ desiredMonthly: desired, pensionMonthly: r.pension, withdrawalPct: inp.tasaRetiroSegura, haveToday: r.valorFuturoHoy, months: r.aniosRestantes * 12, returnPct: r.tasaRetorno, inflationPct: r.inflacion, bridgeYears: r.aniosPuente });
+        return { g, desired, def, custom: !(want === null || want === undefined) };
+    }
+
+    root.Views = { retireGap, guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions, dollarHTML, htmlKeepOpen };
 })(this);

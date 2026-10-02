@@ -26,12 +26,10 @@
     // pension, through the 4% rule — against what your savings are on track to become.
     function gap(ctx) {
         const r = ctx.retirement, inp = ctx.retirementInputs, s = ctx.state;
-        const def = Math.round(ctx.baseBudget.income * 0.8 / 50) * 50;
-        const desired = s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? def : Number(s.retirement.ingresoDeseado) || 0;
+        const { g, desired, def } = Views.retireGap(ctx);
         const input = document.getElementById('ret-desired');
         if (input && input !== document.activeElement) { input.value = s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? '' : desired; input.placeholder = money0(def); }
         UI.text('ret-desired-help', s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? `Vacío = 80% de tu ingreso de hoy (${money0(def)}).` : '');
-        const g = Engine.retirementGap({ desiredMonthly: desired, pensionMonthly: r.pension, withdrawalPct: inp.tasaRetiroSegura, haveToday: r.valorFuturoHoy, months: r.aniosRestantes * 12, returnPct: r.tasaRetorno, inflationPct: r.inflacion, bridgeYears: r.aniosPuente });
         const pct = Math.round(g.pct * 100);
         const tone = g.pct >= 1 ? 'tone-emerald' : g.pct >= 0.7 ? 'tone-amber' : 'tone-red';
         const pensionName = s.settings.country === 'US' ? 'Seguro Social' : 'pensión IESS';

@@ -67,8 +67,47 @@
             backupDays: last ? Math.floor((t - last) / 86400000) : null
         };
     }
+    // ---------------------------------------------------------------- health score
+    const GOTO = { spendLess: ['transacciones/reportes'], onTime: ['resumen', 'dash-bills-card'], cushion: ['futuro/metas', 'metas-ef'], longTerm: ['futuro/jubilacion'], dti: ['futuro/metas', 'metas-debts'], costly: ['futuro/metas', 'metas-debts'], budget: ['presupuesto/plan'], retire: ['futuro/jubilacion'] };
+    function healthFacts(ctx, overdue) {
+        const s = ctx.state, t = ctx.today, inc = ctx.baseBudget.income;
+        let i3 = 0, e3 = 0;
+        for (let k = 1; k <= 3; k++) { const d = new Date(t.getFullYear(), t.getMonth() - k, 1); const cf = Engine.cashFlow(s.transactions, d.getFullYear(), d.getMonth() + 1); i3 += cf.income; e3 += cf.expense; }
+        const consumer = (s.debts || []).filter(d => Number(d.balance) > 0);
+        return {
+            spendRatio: i3 > 0 ? e3 / i3 : null,
+            overdue,
+            monthsCovered: ctx.ef.monthlyEssential > 0 ? ctx.ef.monthsCovered : null,
+            savingsRate: inc > 0 ? ctx.savingsRate : null,
+            debtToIncome: inc > 0 ? consumer.reduce((a, d) => a + (Number(d.minPayment) || 0), 0) / inc : null,
+            costlyDebtRatio: inc > 0 ? consumer.filter(d => Number(d.rate) >= 10).reduce((a, d) => a + Number(d.balance), 0) / (inc * 12) : null,
+            unassignedRatio: inc > 0 ? ctx.baseBudget.balanceReal / inc : null,
+            retirePct: inc > 0 && ctx.retirement.aniosRestantes > 0 ? Views.retireGap(ctx).g.pct : null
+        };
+    }
+    function healthHTML(ctx, overdue) {
+        const h = Engine.healthScore(healthFacts(ctx, overdue));
+        if (h.score === null) return '';
+        const BAND = { sano: ['Sana', 'tone-emerald', '#10b981'], camino: ['En camino', 'tone-amber', '#f59e0b'], vulnerable: ['Vulnerable', 'tone-red', '#ef4444'] }[h.band];
+        const C = 2 * Math.PI * 34, dash = (h.score / 100) * C;
+        const ring = `<svg viewBox="0 0 80 80" class="health-ring" role="img" aria-label="${h.score} de 100"><circle cx="40" cy="40" r="34" class="health-track"/><circle cx="40" cy="40" r="34" fill="none" stroke="${BAND[2]}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${dash.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 40 40)"/><text x="40" y="45" text-anchor="middle" class="health-num">${h.score}</text></svg>`;
+        const pill = (p) => `<div class="health-pillar"><div class="flex justify-between text-xs"><span class="font-bold">${esc(p.label)}</span><span class="font-bold">${p.score === null ? '—' : p.score}</span></div><div class="progress-track mt-1"><div class="progress-fill" style="width:${p.score || 0}%;background:${p.score >= 80 ? '#10b981' : p.score >= 40 ? '#f59e0b' : '#ef4444'}"></div></div></div>`;
+        const rows = h.pillars.flatMap(p => p.items).map(i => { const [g, f] = GOTO[i.key]; return `<li class="flex items-center justify-between gap-3"><span class="min-w-0"><span class="font-semibold">${esc(i.label)}</span><span class="block text-[11px] text-slate-500">${esc(i.note)}</span></span><a href="#" class="link whitespace-nowrap font-bold" data-goto="${g}" ${f ? `data-focus="${f}"` : ''}>${i.score}</a></li>`; }).join('');
+        return `<div class="flex flex-col sm:flex-row gap-5 items-center">
+                <div class="text-center shrink-0">${ring}<span class="badge ${BAND[1]} mt-1">${BAND[0]}</span></div>
+                <div class="grid grid-cols-2 gap-3 flex-1 w-full">${h.pillars.map(pill).join('')}</div>
+            </div>
+            ${h.weakest && h.weakest.score < 80 ? `<p class="text-xs mt-3"><i class="fa-solid fa-arrow-trend-up text-emerald-600"></i> Donde más puedes subir: <strong>${esc(h.weakest.label)}</strong> (${h.weakest.score}/100).</p>` : ''}
+            <details class="mt-2"><summary class="text-xs font-bold text-slate-600 cursor-pointer">Cómo se calcula</summary><ul class="space-y-2 text-xs mt-2">${rows}</ul>
+            <p class="help mt-2">Ocho indicadores de 0 a 100, en cuatro pilares (inspirado en el FinHealth Score). 80 o más: sana; 40 a 79: en camino; menos de 40: vulnerable.</p></details>`;
+    }
+
     function movesHTML(ctx) {
-        const moves = Engine.nextMoves(moveFacts(ctx), { snoozed: ctx.state.settings.movesSnoozed || {}, today: ctx.today, money: money0 });
+        const facts = moveFacts(ctx);
+        const hh = healthHTML(ctx, facts.overdueBills.length);
+        UI.html('dash-health', hh);
+        UI.show('dash-health-card', !!hh);
+        const moves = Engine.nextMoves(facts, { snoozed: ctx.state.settings.movesSnoozed || {}, today: ctx.today, money: money0 });
         if (!moves.length) return '';
         return `<ol class="moves">${moves.map((mv, i) => {
             const go = mv.action ? `data-action="${mv.action}" ${Object.keys(mv.data || {}).map(k => `data-${k}="${esc(String(mv.data[k]))}"`).join(' ')}` : `data-goto="${mv.goto}" ${mv.focus ? `data-focus="${mv.focus}"` : ''}`;
