@@ -38,15 +38,42 @@
         UI.html('mort-summary', html);
 
         const axis = Engine.chartAxis(base.schedule.length);
-        const color = system === 'aleman' ? '#059669' : '#3b82f6';
-        const opts = { scales: { x: { title: { display: true, text: axis.title, font: { size: 10 } } } } };
+        const pal = UI.palette();
+        // A single line needs no legend: the panel title names it.
+        const opts = { scales: { x: { title: { display: true, text: axis.title, font: { size: 10 } } } }, plugins: { legend: { display: !!extra } } };
         const dataset = (label, schedule, field, cumulative, dashed) => ({
             label, data: Engine.sampleSchedule(schedule, axis, field, cumulative),
-            borderColor: dashed ? '#eb6834' : color, borderDash: dashed ? [6, 4] : [], backgroundColor: dashed ? 'transparent' : 'rgba(59,130,246,.08)',
-            fill: !dashed, tension: .2, pointRadius: 0, spanGaps: false
+            borderColor: dashed ? pal.orange : pal.blue, borderDash: dashed ? [6, 4] : [], backgroundColor: dashed ? 'transparent' : pal.alpha(pal.blue, 0.1),
+            borderWidth: 2, fill: !dashed, tension: 0, pointRadius: 0, spanGaps: false
         });
         UI.chart('mort-balance-chart', { type: 'line', options: opts, data: { labels: axis.labels, datasets: [dataset('Saldo pendiente', base.schedule, 'balance', false, false)].concat(extra ? [dataset('Saldo con pago extra', extra.schedule, 'balance', false, true)] : []) } });
-        UI.chart('mort-interest-chart', { type: 'line', options: opts, data: { labels: axis.labels, datasets: [dataset('Interés acumulado', base.schedule, 'interest', true, false)].concat(extra ? [dataset('Interés con pago extra', extra.schedule, 'interest', true, true)] : []) } });
+
+        // Principal vs. interest paid each loan year (Engine.amortizationByYear): the early years
+        // are mostly interest. With an extra payment, a switch shows either scenario.
+        const useExtra = !!extra && Store.ui.mortSplit !== 'base';
+        UI.show('mort-split-toggle', !!extra);
+        UI.$$('#mort-split-toggle [data-plan]').forEach(b => b.classList.toggle('active', (b.dataset.plan === 'extra') === useExtra));
+        const years = Engine.amortizationByYear((useExtra ? extra : base).schedule);
+        const yearLabel = (y) => (y.months < 12 ? `Año ${y.year} (${y.months}m)` : `Año ${y.year}`);
+        const topRound = { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 };
+        UI.chart('mort-split-chart', {
+            type: 'bar',
+            data: {
+                labels: years.map(yearLabel),
+                datasets: [
+                    { label: 'Capital', data: years.map(y => Math.round(y.principal)), backgroundColor: pal.blue, stack: 'p', maxBarThickness: 24, borderSkipped: false, borderRadius: 0 },
+                    { label: 'Interés', data: years.map(y => Math.round(y.interest)), backgroundColor: pal.orange, stack: 'p', maxBarThickness: 24, borderColor: pal.surface, borderWidth: { bottom: 2, top: 0, left: 0, right: 0 }, borderSkipped: false, borderRadius: topRound }
+                ]
+            },
+            options: {
+                scales: { x: { stacked: true, ticks: { maxTicksLimit: 8, maxRotation: 0, autoSkip: true } }, y: { stacked: true } },
+                plugins: { legend: { position: 'top', align: 'start' } }
+            }
+        });
+        const firstY = years[0], lastY = years[years.length - 1];
+        const half = years.findIndex(y => y.principal >= y.interest);
+        UI.html('mort-split-note', firstY ? `<span>El año 1 pagas ${money0(firstY.interest)} de interés y ${money0(firstY.principal)} a capital${half > 0 ? `; desde el año ${half + 1}, la mayor parte va a capital` : ''}.</span> <span>${useExtra ? `Con el pago extra termina en el año ${lastY.year}.` : `Termina en el año ${lastY.year}.`}</span>` : '');
+        UI.html('mort-split-table', years.map(y => `<tr><td>${yearLabel(y)}</td><td class="num">${money0(y.principal)}</td><td class="num">${money0(y.interest)}</td><td class="num">${money0(y.balance)}</td></tr>`).join(''));
 
         const rows = (extra || base).schedule;
         UI.text('mort-table-note', extra ? `con ${money0(m.extraPayment)} extra al mes` : '');
@@ -54,6 +81,7 @@
     }
 
     UI.register({
+        'mortgage.split': (el) => { Store.ui.mortSplit = el.dataset.plan; App.update(); },
         'mortgage.slider': (el) => {
             Store.state.mortgage.extraPayment = Number(el.value) || 0;
             const input = document.querySelector('[data-bind="mortgage.extraPayment"]');

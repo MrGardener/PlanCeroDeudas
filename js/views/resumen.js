@@ -56,6 +56,11 @@
         // "Planeado" the budget shows, and what the curve adds up (every logged outflow).
         const plannedSpend = items.filter(i => i.type !== 'Ingreso').reduce((a, i) => a + (Number(i.real) || 0), 0);
 
+        // Where every dollar of this month's plan goes (compact; the full one is in the budget).
+        const mbNow = Engine.monthBudget(Store.effective(y), m);
+        UI.text('dash-dollar-month', `${Fmt.MONTH_NAMES[m - 1]} ${y}`);
+        UI.html('dash-dollar', Views.dollarHTML(Engine.budgetBuckets(items, { income: mbNow.income, sweep: mbNow.sweep }), { compact: true }));
+
         // Spending so far vs. last month, day by day.
         const curve = Engine.monthSpendCurve(txns, t);
         UI.text('dash-spent', money0(curve.spent));
@@ -116,13 +121,18 @@
         // Cash flow: money in vs. out this month, compared with last month.
         const cf = Engine.cashFlow(txns, y, m), cfp = Engine.cashFlow(txns, py, pm);
         const mx = Math.max(cf.income, cf.expense, 1);
+        // The last 6 months of money in and out (this month still running: drawn dashed/hollow).
+        const six = Engine.periodSeries(txns, { period: 'month', count: 6, end: t });
+        const pal = UI.palette();
+        const list = (field) => six.map(r => money0(r[field])).join(', ');
+        const trend = (field, color, label) => UI.sparkline(six.map(r => r[field]), { width: 64, height: 18, color, partialLast: true, label });
         const chg = (now, before, goodUp) => { const c = pctChange(now, before); if (c === null) return ''; const up = c > 0; return `<span class="text-[11px] font-bold ${up === goodUp ? 'text-emerald-700' : 'text-red-600'}">${up ? '▲' : '▼'} ${Math.abs(Math.round(c * 100))}%</span>`; };
         UI.html('dash-cash', `
             <div class="space-y-3 text-xs">
-                <div><div class="flex justify-between"><span class="font-semibold text-slate-600">Entró</span><span><strong class="text-slate-900">${money0(cf.income)}</strong> ${chg(cf.income, cfp.income, true)}</span></div>${bar(cf.income / mx, '#1baf7a')}</div>
-                <div><div class="flex justify-between"><span class="font-semibold text-slate-600">Salió</span><span><strong class="text-slate-900">${money0(cf.expense)}</strong> ${chg(cf.expense, cfp.expense, false)}</span></div>${bar(cf.expense / mx, '#2a78d6')}</div>
+                <div><div class="flex justify-between items-center gap-2"><span class="font-semibold text-slate-600">Entró</span><span class="flex items-center gap-2 ml-auto">${trend('income', pal.aqua, `Ingresos de los últimos 6 meses: ${list('income')}`)}<span><strong class="text-slate-900">${money0(cf.income)}</strong> ${chg(cf.income, cfp.income, true)}</span></span></div>${bar(cf.income / mx, '#1baf7a')}</div>
+                <div><div class="flex justify-between items-center gap-2"><span class="font-semibold text-slate-600">Salió</span><span class="flex items-center gap-2 ml-auto">${trend('expense', pal.blue, `Gastos de los últimos 6 meses: ${list('expense')}`)}<span><strong class="text-slate-900">${money0(cf.expense)}</strong> ${chg(cf.expense, cfp.expense, false)}</span></span></div>${bar(cf.expense / mx, '#2a78d6')}</div>
                 <div class="flex justify-between border-t border-slate-100 pt-2"><span class="font-semibold text-slate-600">Balance</span><strong class="${cf.net < 0 ? 'text-red-600' : 'text-emerald-700'}">${cf.net < 0 ? '−' : '+'}${money0(Math.abs(cf.net))}</strong></div>
-                <p class="help">Según tus transacciones registradas. ▲▼ comparado con ${Fmt.monthLower(pm - 1)}.</p>
+                <p class="help">Según tus transacciones registradas. ▲▼ comparado con ${Fmt.monthLower(pm - 1)}. Las líneas: últimos 6 meses (el actual, punteado, aún no termina).</p>
             </div>`);
 
         // Where the money went.
@@ -152,10 +162,12 @@
         const accts = s.accounts || [];
         UI.show('dash-accounts-card', accts.length > 0);
         if (accts.length) {
-            const KIND = { corriente: 'fa-building-columns', ahorros: 'fa-piggy-bank', efectivo: 'fa-money-bill-wave' };
-            const total = accts.reduce((a, x) => a + (Number(x.balance) || 0), 0);
+            const KIND = { corriente: 'fa-building-columns', ahorros: 'fa-piggy-bank', efectivo: 'fa-money-bill-wave', retiro: 'fa-umbrella-beach' };
+            // Retirement accounts (401(k)/IRA) aren't money you can use today.
+            const locked = Engine.accountTotal(accts, 'retiro');
+            const total = accts.reduce((a, x) => a + (Number(x.balance) || 0), 0) - locked;
             UI.html('dash-accounts', `<div class="space-y-2 text-xs">${accts.map(a => `<div class="flex items-center justify-between gap-2"><span class="flex items-center gap-2 min-w-0"><i class="fa-solid ${KIND[a.kind] || KIND.corriente} text-blue-600 w-4 text-center"></i><span class="truncate font-semibold text-slate-800">${esc(a.name)}</span></span><span class="text-right"><strong>${money(a.balance)}</strong><span class="block text-[11px] text-slate-400">${esc(a.updatedAt || '')}</span></span></div>`).join('')}
-                <div class="flex justify-between border-t border-slate-100 pt-2"><span class="font-semibold text-slate-600">Disponible</span><strong class="${total < 0 ? 'text-red-600' : 'text-emerald-700'}">${money(total)}</strong></div></div>`);
+                <div class="flex justify-between border-t border-slate-100 pt-2"><span class="font-semibold text-slate-600">Disponible</span><strong class="${total < 0 ? 'text-red-600' : 'text-emerald-700'}">${money(total)}</strong></div>${locked ? `<div class="flex justify-between text-slate-500"><span>En jubilación (no disponible)</span><span>${money(locked)}</span></div>` : ''}</div>`);
         }
 
         // Household contributions
@@ -265,13 +277,21 @@
         UI.html('dash-steps', Views.stepsHTML(ctx, { compact: true }));
 
         const bb = ctx.baseBudget, debts = ctx.debts, ef = ctx.ef, r = ctx.retirement;
+        // Sparklines where there's a trend: the debt plan ahead (dashed: a projection, from
+        // Engine.debtPayoff history) and net worth by year (Engine.netWorthYears, real years only).
+        const pal = UI.palette();
+        const debtSpark = debts.totalBalance > 0 && !debts.never && debts.history.length
+            ? UI.sparkline([debts.totalBalance].concat(debts.history), { width: 84, height: 26, dashed: true, color: pal.orange, label: `Tu plan: de ${money0(debts.totalBalance)} a $0 en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}` }) : '';
+        const nwYears = Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear());
+        const nwSpark = nwYears.length >= 2
+            ? UI.sparkline(nwYears.map(y => Engine.netWorth(s.years, s.assets, y).value), { width: 84, height: 26, zero: false, color: pal.blue, label: `Patrimonio neto ${nwYears[0]}–${nwYears[nwYears.length - 1]}` }) : '';
         const balNote = Math.abs(bb.balanceReal) < 0.005 ? '✓ Base cero: cada dólar asignado' : bb.balanceReal > 0 ? `${money(bb.balanceReal)} sin asignar` : `${money(-bb.balanceReal)} de más`;
         UI.html('dash-kpis', [
             Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-wallet', label: 'Ingreso neto mensual', value: money(bb.income), note: `Asignado: ${money(bb.expReal + bb.sweep)} · ${balNote}`, goto: 'presupuesto/plan' }),
-            Views.kpiCard({ tone: 'text-red-600', icon: 'fa-snowplow', label: 'Deudas de consumo', value: money0(debts.totalBalance), note: debts.totalBalance <= 0 ? '¡Sin deudas!' : debts.shortfall > 0 ? `Presupuesto no cubre mínimos (faltan ${money0(debts.shortfall)})` : debts.never ? 'Nunca terminas con este presupuesto' : `${money0(debts.pool)}/mes · libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}`, goto: 'futuro/metas', focus: 'metas-debts' }),
+            Views.kpiCard({ tone: 'text-red-600', icon: 'fa-snowplow', label: 'Deudas de consumo', value: money0(debts.totalBalance), note: debts.totalBalance <= 0 ? '¡Sin deudas!' : debts.shortfall > 0 ? `Presupuesto no cubre mínimos (faltan ${money0(debts.shortfall)})` : debts.never ? 'Nunca terminas con este presupuesto' : `${money0(debts.pool)}/mes · libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}`, goto: 'futuro/metas', focus: 'metas-debts', spark: debtSpark }),
             Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-shield-heart', label: 'Fondo de emergencia', value: money0(ef.liquid), note: `${ef.monthsCovered.toFixed(1)} meses de gastos esenciales cubiertos`, goto: 'futuro/metas', focus: 'metas-ef' }),
             Views.kpiCard({ tone: 'text-amber-500', icon: 'fa-piggy-bank', label: 'Ahorro DPF', value: money0(ctx.polizasCapital), note: `Proyección a ${s.configEndYear}: ${money0(ctx.projection.finalBalance)}`, goto: 'futuro/proyeccion' }),
-            Views.kpiCard({ tone: 'text-teal-600', icon: 'fa-scale-balanced', label: `Patrimonio neto ${s.activeYear}`, value: money0(ctx.netWorth.value), note: `Activos ${money0(ctx.netWorth.assets)} · Pasivos ${money0(ctx.netWorth.liabilities)}`, goto: 'patrimonio' }),
+            Views.kpiCard({ tone: 'text-teal-600', icon: 'fa-scale-balanced', label: `Patrimonio neto ${s.activeYear}`, value: money0(ctx.netWorth.value), note: `Activos ${money0(ctx.netWorth.assets)} · Pasivos ${money0(ctx.netWorth.liabilities)}`, goto: 'patrimonio', spark: nwSpark }),
             Views.kpiCard({ tone: 'text-indigo-600', icon: 'fa-person-cane', label: 'Jubilación estimada', value: `${money0(r.ingresoTotal)}/mes`, note: `A los ${r.edadJubilacion} años · ahorro ${money0(r.ingresoAhorro)} + IESS ${money0(r.pension)}`, goto: 'futuro/jubilacion' })
         ].join(''));
 
@@ -283,7 +303,7 @@
         const years = Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear());
         UI.chart('dash-nw-chart', {
             type: 'line',
-            data: { labels: years, datasets: [{ label: 'Patrimonio neto', data: years.map(y => Engine.netWorth(s.years, s.assets, y).value), borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,.1)', fill: true, cubicInterpolationMode: 'monotone', pointRadius: years.map(y => y === s.activeYear ? 5 : 3) }] },
+            data: { labels: years, datasets: [{ label: 'Patrimonio neto', data: years.map(y => Engine.netWorth(s.years, s.assets, y).value), borderColor: pal.blue, backgroundColor: pal.alpha(pal.blue, 0.1), borderWidth: 2, fill: true, tension: 0, pointRadius: years.map(y => y === s.activeYear ? 5 : 3), pointBackgroundColor: pal.blue, pointBorderColor: pal.surface, pointBorderWidth: 2 }] },
             options: { scales: { y: { beginAtZero: false } }, plugins: { legend: { display: false } } }
         });
     }

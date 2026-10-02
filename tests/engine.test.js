@@ -793,3 +793,98 @@ test('spending exactly the plan is complete, not over', () => {
     assert.equal(E.spendStatus(2144.76, 2144.75).kind, 'over');
     assert.equal(E.spendStatus(1800, 2000).kind, 'warning');
 });
+
+test('debt ladder: payoff and snowball month per debt, and the minimums-only path', () => {
+    const debts = [{ id: 1, balance: 300, rate: 0, minPayment: 50, monthly: 150 }, { id: 2, balance: 1000, rate: 0, minPayment: 100, monthly: 100 }];
+    const p = E.debtPayoff(debts, 'snowball', 0);
+    const a = p.items.find(i => i.id === 1), b = p.items.find(i => i.id === 2);
+    assert.deepEqual([a.attackMonth, a.payoffMonth], [1, 2]);
+    // The second debt gets the rolled-over money once the first is gone.
+    assert.deepEqual([b.attackMonth, b.payoffMonth], [3, 6]);
+    assert.deepEqual(p.history, [1050, 800, 550, 300, 50, 0]);
+    // Minimums only: 300/50 = 6 months and 1000/100 = 10 months.
+    assert.equal(p.minimumsMonths, 10);
+    assert.equal(p.minimumsHistory.length, 10);
+    assert.equal(p.minimumsHistory[0], 1150);
+    assert.equal(p.minimumsHistory[9], 0);
+    // A debt that only ever gets its own minimum has no snowball month.
+    const solo = E.debtPayoff([{ id: 1, balance: 200, rate: 0, minPayment: 100, monthly: 100 }], 'snowball', 0);
+    assert.equal(solo.items[0].attackMonth, null);
+    assert.equal(solo.items[0].payoffMonth, 2);
+});
+
+test('mortgage principal and interest by loan year', () => {
+    const am = E.amortization('frances', 100000, 6, 360, 0);
+    const years = E.amortizationByYear(am.schedule);
+    assert.equal(years.length, 30);
+    assert.equal(years[0].months, 12);
+    close(years.reduce((t, y) => t + y.principal, 0), 100000, 0.5);
+    close(years.reduce((t, y) => t + y.interest, 0), am.totalInterest, 0.5);
+    // Early years are mostly interest; late years mostly principal.
+    assert.ok(years[0].interest > years[0].principal && years[29].principal > years[29].interest);
+    close(years[0].balance, am.schedule[11].balance);
+    // An extra payment ends early, with a partial last year.
+    const extra = E.amortizationByYear(E.amortization('frances', 100000, 6, 360, 500).schedule);
+    assert.ok(extra.length < 30);
+    assert.ok(extra[extra.length - 1].months <= 12);
+    assert.deepEqual(E.amortizationByYear([]), []);
+});
+
+test('where every dollar goes: plan lines summed into fixed groups', () => {
+    const items = [
+        { name: 'Giving', type: 'Gasto Variable', real: 100, linkedCategory: 'Regalos, Celebraciones y Donaciones' },
+        { name: 'Diezmo', type: 'Gasto Variable', real: 50, linkedCategory: 'Otros' },
+        { name: 'Arriendo', type: 'Gasto Fijo', real: 800, linkedCategory: 'Vivienda' },
+        { name: 'Luz', type: 'Gasto Fijo', real: 40, linkedCategory: 'Servicios Básicos y Comunicación' },
+        { name: 'Comida', type: 'Gasto Variable', real: 300, linkedCategory: 'Alimentación' },
+        { name: 'Gasolina', type: 'Gasto Variable', real: 60, linkedCategory: 'Transporte' },
+        { name: 'Ropa', type: 'Gasto Variable', real: 30, linkedCategory: 'Vestimenta' },
+        { name: 'Tarjeta', type: 'Deuda', real: 200, linkedCategory: 'Deudas' },
+        { name: 'Fondo', type: 'Ahorro', real: 150, linkedCategory: 'Ahorro e Inversión' },
+        { name: 'Meta', type: 'Ahorro (meta)', real: 70 }
+    ];
+    const r = E.budgetBuckets(items, { income: 2000, sweep: 0 });
+    const by = Object.fromEntries(r.buckets.map(b => [b.key, b.amount]));
+    assert.deepEqual(r.buckets.map(b => b.key), ['dar', 'ahorro', 'vivienda', 'comida', 'transporte', 'otros', 'deudas']);
+    assert.deepEqual(by, { dar: 150, ahorro: 220, vivienda: 840, comida: 300, transporte: 60, otros: 30, deudas: 200 });
+    assert.equal(r.assigned, 1800);
+    assert.equal(r.left, 200);
+    // The auto-sweep is savings; assigning more than the income leaves a negative balance.
+    assert.equal(E.budgetBuckets(items, { income: 2000, sweep: 200 }).left, 0);
+    assert.equal(E.budgetBuckets(items, { income: 1500 }).left, -300);
+});
+
+test('daily spending for a calendar heatmap: whole weeks, Monday first, future days marked', () => {
+    const txns = [
+        { type: 'Gasto', date: '2026-10-01', amount: 20 },
+        { type: 'Gasto', date: '2026-10-01', amount: 5.5 },
+        { type: 'Ingreso', date: '2026-10-01', amount: 999 },
+        { date: '2026-09-21', amount: 40 },              // no type = expense
+        { type: 'Gasto', date: '2026-06-01', amount: 70 } // before the window
+    ];
+    const r = E.dailySpend(txns, { end: new Date(2026, 9, 2), weeks: 2 }); // Friday Oct 2, 2026
+    assert.equal(r.weeks.length, 2);
+    assert.equal(r.weeks[0].start, '2026-09-21');
+    assert.equal(r.weeks[1].start, '2026-09-28');
+    assert.equal(r.weeks[0].days[0].total, 40);
+    const thu = r.weeks[1].days[3];
+    assert.deepEqual([thu.date, thu.total, thu.future], ['2026-10-01', 25.5, false]);
+    assert.equal(r.weeks[1].days[5].future, true);   // Saturday after "today"
+    assert.equal(r.max, 40);
+    assert.equal(r.total, 65.5);
+});
+
+test('monthly totals per group for sparklines', () => {
+    const txns = [
+        { date: '2026-10-01', amount: 10, parentCategory: 'A' },
+        { date: '2026-09-15', amount: 5, parentCategory: 'A' },
+        { date: '2026-09-15', amount: 7, parentCategory: 'B' },
+        { date: '2025-01-15', amount: 7, parentCategory: 'B' }
+    ];
+    const r = E.monthlyByKey(txns, t => t.parentCategory, { end: new Date(2026, 9, 2), count: 3 });
+    assert.deepEqual(r.months, ['2026-08', '2026-09', '2026-10']);
+    assert.deepEqual(r.series.A, [0, 5, 10]);
+    assert.deepEqual(r.series.B, [0, 7, 0]);
+    // Months cross the year boundary.
+    assert.deepEqual(E.monthlyByKey([], () => 'x', { end: new Date(2026, 0, 10), count: 2 }).months, ['2025-12', '2026-01']);
+});

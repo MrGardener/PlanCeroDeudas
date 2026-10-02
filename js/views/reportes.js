@@ -1,7 +1,7 @@
 /* Presupuesto → Reportes: group transactions any way over any period; export CSV or print. */
 (function () {
     'use strict';
-    const { money, esc } = Fmt;
+    const { money, money0, esc } = Fmt;
 
     const BY_LABEL = { category: 'Categoría', sub: 'Subcategoría', line: 'Rubro del presupuesto', member: 'Persona', month: 'Mes', week: 'Semana', store: 'Lugar / comercio', payment: 'Forma de pago' };
     const opts = () => (Store.ui.report = Object.assign({ range: 'this-month', type: 'Gasto', by: 'category', from: '', to: '' }, Store.ui.report));
@@ -75,7 +75,11 @@
         rows.sort((a, b) => timeBased ? a.key.localeCompare(b.key) : Math.abs(b.total) - Math.abs(a.total));
         const total = rows.reduce((a, r) => a + r.total, 0);
         const absTotal = rows.reduce((a, r) => a + Math.abs(r.total), 0);
-        return { o, from, to, list, rows, total, absTotal };
+        // Each group's last 12 months (whatever the period), for the sparkline in its row.
+        const typed = ctx.state.transactions.filter(t => o.type === 'both' || (t.type || 'Gasto') === o.type);
+        const sign = (t) => (o.type === 'both' && (t.type || 'Gasto') !== 'Ingreso' ? -1 : 1) * (Number(t.amount) || 0);
+        const trend = timeBased ? null : Engine.monthlyByKey(typed, keyOf, { end: ctx.today, count: 12, value: sign });
+        return { o, from, to, list, rows, total, absTotal, trend, timeBased };
     }
 
     const label = (o, key) => {
@@ -84,8 +88,52 @@
         return key;
     };
 
+    // Spending calendar: one cell per day of the last 12 weeks (Engine.dailySpend), in one blue
+    // sequential scale binned by quintiles of the days with spending; a gray cell = no spending.
+    function heatmap(ctx) {
+        const pal = UI.palette();
+        const r = Engine.dailySpend(ctx.state.transactions, { end: ctx.today, weeks: 12 });
+        const vals = r.weeks.flatMap(w => w.days.filter(d => !d.future && d.total > 0).map(d => d.total)).sort((a, b) => a - b);
+        const q = (p) => vals[Math.min(vals.length - 1, Math.floor(p * vals.length))];
+        const cuts = vals.length ? [0.2, 0.4, 0.6, 0.8].map(q).map(v => Math.round(v)) : [];
+        const bin = (v) => cuts.filter(c => v > c).length;
+        const todayIso = Engine.isoDate(ctx.today);
+        const date = (iso) => new Date(iso + 'T00:00:00');
+        const dayName = (iso) => { const d = date(iso); return `${Fmt.WEEKDAYS[d.getDay()]} ${Fmt.dayMonth(d)}`; };
+        // Month names over the column whose week holds the 1st (or the first column).
+        const heads = r.weeks.map((w, i) => {
+            const first = w.days.find(d => d.date.slice(8) === '01');
+            if (first) return Fmt.MONTH_SHORT[Number(first.date.slice(5, 7)) - 1];
+            const nextHas = r.weeks[i + 1] && r.weeks[i + 1].days.some(d => d.date.slice(8) === '01');
+            return i === 0 && !nextHas ? Fmt.MONTH_SHORT[Number(w.start.slice(5, 7)) - 1] : '';
+        });
+        let html = `<div class="heat" style="--weeks:${r.weeks.length}" role="img" aria-label="${esc(`Gastos por día, últimas 12 semanas: total ${money(r.total)}`)}"><span></span>${heads.map((h, i) => `<span class="heat-m" style="grid-column:${i + 2}">${h}</span>`).join('')}`;
+        for (let d = 0; d < 7; d++) {
+            html += `<span class="heat-d" style="grid-row:${d + 2}">${Fmt.DOW_SHORT[d]}</span>`;
+            r.weeks.forEach((w, i) => {
+                const day = w.days[d];
+                const style = `grid-row:${d + 2};grid-column:${i + 2};` + (day.future ? '' : `background:${day.total > 0 ? pal.seq[bin(day.total)] : pal.seq0}`);
+                const cls = `heat-c${day.future ? ' is-future' : ''}${day.date === todayIso ? ' is-today' : ''}`;
+                html += day.future ? `<span class="${cls}" style="${style}"></span>` : `<span class="${cls}" style="${style}" title="${esc(dayName(day.date))}: ${money(day.total)}"></span>`;
+            });
+        }
+        UI.html('rep-heat', html + '</div>');
+        const lo = vals.length ? Math.round(vals[0]) : 0;
+        const ranges = cuts.length ? [`${money0(lo)}–${money0(cuts[0])}`].concat(cuts.map((c, i) => (i < cuts.length - 1 ? `${money0(c)}–${money0(cuts[i + 1])}` : `${money0(c)}+`))) : [];
+        UI.html('rep-heat-legend', `<span class="mr-1">Sin gasto</span><i style="background:${pal.seq0}"></i><span class="mx-1">Menos</span>${pal.seq.map((c, i) => `<i style="background:${c}" title="${esc(ranges[i] || '')}"></i>`).join('')}<span class="ml-1">Más</span>`
+            + (cuts.length ? `<span class="w-full mt-1">Cada tono es una quinta parte de tus días con gastos: ${ranges.join(' · ')}.</span>` : ''));
+        // Average by weekday (past days only), Monday first.
+        const avg = Array.from({ length: 7 }, (_, d) => { const days = r.weeks.map(w => w.days[d]).filter(x => !x.future); return days.length ? days.reduce((t, x) => t + x.total, 0) / days.length : 0; });
+        const top = Math.max(...avg, 1), peak = avg.indexOf(Math.max(...avg));
+        UI.html('rep-heat-dow', avg.map((v, d) => `<div class="grid grid-cols-[5.5rem_1fr_4rem] items-center gap-2"><span class="${d === peak && v > 0 ? 'font-bold text-slate-800' : 'text-slate-600'}">${Fmt.WEEKDAYS[(d + 1) % 7]}</span><div class="mini-bar" style="margin-top:0"><span style="width:${(v / top * 100).toFixed(1)}%;background:${pal.blue}"></span></div><span class="text-right font-semibold">${money0(v)}</span></div>`).join('')
+            + `<p class="help mt-2">Total en 12 semanas: ${money0(r.total)}.${avg[peak] > 0 ? ` Tu día de más gasto: ${Fmt.WEEKDAYS[(peak + 1) % 7]}.` : ''}</p>`);
+        UI.html('rep-heat-head', `<th>Semana del</th>${Fmt.DOW_SHORT.map(x => `<th class="num">${x}</th>`).join('')}<th class="num">Total</th>`);
+        UI.html('rep-heat-table', r.weeks.slice().reverse().map(w => `<tr><td class="whitespace-nowrap">${Fmt.dayMonth(date(w.start))}</td>${w.days.map(d => `<td class="num">${d.future ? '—' : money0(d.total)}</td>`).join('')}<td class="num font-bold">${money0(w.total)}</td></tr>`).join(''));
+    }
+
     function render(ctx) {
         if (window.TxnCharts) TxnCharts.update(ctx);
+        heatmap(ctx);
         const o = opts();
         ['range', 'type', 'by'].forEach(k => { document.getElementById('rep-' + k).value = o[k]; });
         UI.show('rep-from-field', o.range === 'custom');
@@ -101,8 +149,16 @@
             <div class="kpi tone-slate"><span class="kpi-label">Movimientos</span><span class="kpi-value">${r.list.length}</span><span class="kpi-note">en ${r.rows.length} grupo${r.rows.length === 1 ? '' : 's'}</span></div>
             <div class="kpi tone-slate"><span class="kpi-label">Promedio por movimiento</span><span class="kpi-value">${money(r.list.length ? r.total / r.list.length : 0)}</span></div>`);
         const max = Math.max(...r.rows.map(x => Math.abs(x.total)), 1);
+        UI.show('rep-spark-note', !r.timeBased);
+        const pal = UI.palette();
+        const spark = (g) => {
+            if (r.timeBased) return '';
+            const v = r.trend.series[g.key] || new Array(12).fill(0);
+            const names = r.trend.months.map((k, i) => `${Fmt.MONTH_SHORT[Number(k.slice(5)) - 1]} ${money(v[i])}`);
+            return `<div class="mt-1">${UI.sparkline(v, { width: 96, height: 20, color: pal.blue, partialLast: true, label: `${label(o, g.key)}, últimos 12 meses: ${names.join(', ')}` })}</div>`;
+        };
         UI.html('rep-body', r.rows.length ? r.rows.map(g => `<tr>
-                <td class="font-semibold">${esc(label(o, g.key))}</td>
+                <td><span class="font-semibold">${esc(label(o, g.key))}</span>${spark(g)}</td>
                 <td class="num">${g.count}</td>
                 <td class="num font-bold ${g.total < 0 ? 'text-red-600' : ''}">${money(g.total)}</td>
                 <td><div class="flex items-center gap-2"><div class="mini-bar flex-1"><span style="width:${(Math.abs(g.total) / max * 100).toFixed(1)}%;background:#2a78d6"></span></div><span class="text-[11px] text-slate-500 w-9 text-right">${r.absTotal ? Math.round(Math.abs(g.total) / r.absTotal * 100) : 0}%</span></div></td>

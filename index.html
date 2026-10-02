@@ -105,6 +105,10 @@
             <div class="card-head"><div class="card-title"><i class="fa-solid fa-lightbulb text-purple-600"></i> Lo que dicen tus números</div></div>
             <div id="dash-insights" class="space-y-3"></div>
         </div>
+        <div class="card lg:col-span-3" id="dash-dollar-card">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-chart-bar text-blue-600"></i><span>¿A dónde va cada dólar? · <span id="dash-dollar-month"></span></span></div><a href="#" class="link text-xs" data-goto="presupuesto/plan">Presupuesto →</a></div>
+            <div id="dash-dollar"></div>
+        </div>
         <div class="card hidden" id="dash-accounts-card">
             <div class="card-head"><div class="card-title"><i class="fa-solid fa-building-columns text-blue-600"></i> Tus cuentas</div><a href="#" class="link text-xs" data-goto="patrimonio" data-focus="nw-accounts">Editar →</a></div>
             <div id="dash-accounts"></div>
@@ -204,6 +208,10 @@
                     <span class="kpi-value" id="bud-risk">—</span>
                     <span class="kpi-note" id="bud-risk-note"></span>
                 </div>
+            </div>
+            <div class="mb-4" id="bud-dollar-card">
+                <div class="section-label"><i class="fa-solid fa-chart-bar text-blue-600"></i><span>¿A dónde va cada dólar? <span id="bud-dollar-month" class="normal-case font-semibold tracking-normal text-slate-500"></span></span></div>
+                <div id="bud-dollar"></div>
             </div>
 
             <div class="panel tone-emerald mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -680,6 +688,25 @@
                 </details>
             </div>
         </div>
+        <div class="card" id="rep-heat-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-calendar-days text-blue-600"></i> Calendario de gastos</div>
+                    <div class="card-sub">Cuánto gastaste cada día de las últimas 12 semanas: más oscuro, más gasto. Toca un día para ver el monto.</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div><div id="rep-heat"></div><div id="rep-heat-legend" class="heat-legend"></div></div>
+                <div>
+                    <div class="section-label"><i class="fa-solid fa-calendar-week text-blue-600"></i> Promedio por día de la semana</div>
+                    <div id="rep-heat-dow" class="space-y-1.5 text-xs"></div>
+                </div>
+            </div>
+            <details class="mt-3">
+                <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
+                <div class="table-wrap mt-2"><table class="table"><thead><tr id="rep-heat-head"></tr></thead><tbody id="rep-heat-table"></tbody></table></div>
+            </details>
+        </div>
         <div class="card" id="rep-card">
             <div class="card-head">
                 <div>
@@ -707,6 +734,7 @@
                     </select></label>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4" id="rep-kpis"></div>
+            <p class="help mb-2" id="rep-spark-note">Bajo cada grupo, la línea muestra sus últimos 12 meses (el mes actual, punteado, aún no termina).</p>
             <div class="table-wrap"><table class="table"><thead><tr><th id="rep-group-head">Categoría</th><th class="num">Movimientos</th><th class="num">Total</th><th style="min-width:10rem">Parte del total</th><th class="num">Promedio</th></tr></thead><tbody id="rep-body"></tbody></table></div>
         </div>
     </div>
@@ -783,6 +811,19 @@
                 <div class="kpi tone-emerald"><span class="kpi-label">Ahorro vs. solo mínimos</span><span class="kpi-value" id="debt-saved">$0</span><span class="kpi-note">Interés con tu plan: <strong id="debt-interest">$0</strong></span></div>
             </div>
             <div id="debt-warning" class="panel mb-4 hidden"></div>
+            <div id="debt-ladder" class="mb-4 hidden">
+                <div class="section-label"><i class="fa-solid fa-bars-staggered text-blue-600"></i> Cuándo terminas cada deuda</div>
+                <p class="help mb-2" id="debt-ladder-note"></p>
+                <div class="chart-box" id="debt-ladder-box"><canvas id="debt-ladder-chart" role="img" aria-label="Fecha en que terminas de pagar cada deuda"></canvas></div>
+                <div class="section-label mt-4"><i class="fa-solid fa-chart-area text-blue-600"></i> Lo que debes mes a mes</div>
+                <div class="chart-box"><canvas id="debt-owed-chart" role="img" aria-label="Total que debes con tu plan y solo con pagos mínimos"></canvas></div>
+                <p class="help mt-1" id="debt-owed-note"></p>
+                <details class="mt-2">
+                    <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
+                    <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Deuda</th><th class="num">Saldo hoy</th><th>Recibe la bola de nieve</th><th>Pagada</th></tr></thead><tbody id="debt-ladder-table"></tbody></table></div>
+                    <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Fecha</th><th class="num">Con tu plan</th><th class="num">Solo pagos mínimos</th></tr></thead><tbody id="debt-owed-table"></tbody></table></div>
+                </details>
+            </div>
             <details class="explain">
                 <summary>¿Bola de Nieve o Avalancha? ¿De dónde sale el dinero?</summary>
                 <div>
@@ -928,7 +969,21 @@
             <div id="mort-summary" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5"></div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
                 <div class="panel tone-slate"><div class="section-label"><i class="fa-solid fa-chart-line text-rose-500"></i> Saldo pendiente</div><div class="chart-box"><canvas id="mort-balance-chart"></canvas></div></div>
-                <div class="panel tone-slate"><div class="section-label"><i class="fa-solid fa-chart-area text-red-500"></i> Interés acumulado pagado</div><div class="chart-box"><canvas id="mort-interest-chart"></canvas></div></div>
+                <div class="panel tone-slate" id="mort-split">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div class="section-label mb-0"><i class="fa-solid fa-chart-column text-blue-600"></i> Capital e interés por año</div>
+                        <div class="segmented hidden" id="mort-split-toggle" role="tablist" aria-label="Escenario">
+                            <button type="button" data-action="mortgage.split" data-plan="extra" title="Con tu pago extra a capital">Con extra</button>
+                            <button type="button" data-action="mortgage.split" data-plan="base" title="Sin pago extra">Sin extra</button>
+                        </div>
+                    </div>
+                    <div class="chart-box"><canvas id="mort-split-chart" role="img" aria-label="Capital e interés pagados cada año del préstamo"></canvas></div>
+                    <p class="help mt-1" id="mort-split-note"></p>
+                    <details class="mt-2">
+                        <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
+                        <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Año</th><th class="num">Capital</th><th class="num">Interés</th><th class="num">Saldo al final</th></tr></thead><tbody id="mort-split-table"></tbody></table></div>
+                    </details>
+                </div>
             </div>
             <div class="panel tone-amber mb-5">
                 <div class="flex flex-wrap items-end gap-4">
@@ -1002,7 +1057,13 @@
                 <label class="field field-box tone-indigo" data-country="EC"><span class="field-label">Tasa de reemplazo (%)</span><input type="number" class="input" min="0" max="100" data-bind="retirement.tasaReemplazo"><span class="help">% del sueldo que recibirías de pensión (típico IESS: 40–75%).</span></label>
             </div>
 
-            <div class="panel tone-slate mb-5"><div class="section-label"><i class="fa-solid fa-chart-line text-emerald-600"></i> Crecimiento de tu ahorro hasta la jubilación (dólares de hoy)</div><div class="chart-box"><canvas id="ret-chart"></canvas></div></div>
+            <div class="panel tone-slate mb-5"><div class="section-label"><i class="fa-solid fa-chart-line text-emerald-600"></i> Crecimiento de tu ahorro hasta la jubilación (dólares de hoy)</div><div class="chart-box"><canvas id="ret-chart" role="img" aria-label="Crecimiento de tu ahorro hasta la jubilación, con un rango pesimista y optimista"></canvas></div>
+                <div id="ret-range" class="grid grid-cols-3 gap-2 mt-3"></div>
+                <p class="help mt-2" id="ret-range-note"></p>
+                <details class="mt-2">
+                    <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
+                    <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Edad</th><th class="num" id="ret-th-low">Pesimista</th><th class="num" id="ret-th-mid">Esperado</th><th class="num" id="ret-th-high">Optimista</th></tr></thead><tbody id="ret-range-table"></tbody></table></div>
+                </details></div>
 
             <div class="panel tone-purple mb-5">
                 <div class="flex flex-wrap justify-between items-center gap-2 mb-1">
@@ -1064,6 +1125,14 @@
             <span class="text-4xl font-black block my-1" id="nw-value">$0</span>
             <p class="text-sm font-bold" id="nw-verdict"></p>
         </div>
+        <div class="mt-5" id="nw-compare-card">
+            <div class="section-label"><i class="fa-solid fa-scale-balanced text-teal-600"></i> Lo que tienes y lo que debes</div>
+            <div id="nw-compare" role="img"></div>
+            <details class="mt-2">
+                <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
+                <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Concepto</th><th class="num">Monto</th></tr></thead><tbody id="nw-compare-table"></tbody></table></div>
+            </details>
+        </div>
     </div>
 
     <div class="card" id="nw-accounts">
@@ -1076,7 +1145,7 @@
         </div>
         <div class="table-wrap"><table class="table"><thead><tr><th>Cuenta</th><th>Tipo</th><th style="width:9rem">Saldo (<span class="cur">$</span>)</th><th>Actualizado</th><th></th></tr></thead>
             <tbody id="acct-body"></tbody>
-            <tfoot><tr><td colspan="2">Dinero disponible</td><td class="num" id="acct-total"></td><td colspan="2"></td></tr></tfoot></table></div>
+            <tfoot><tr><td colspan="2">Dinero disponible (sin jubilación)</td><td class="num" id="acct-total"></td><td colspan="2"></td></tr></tfoot></table></div>
     </div>
     <div class="card" id="nw-holdings">
         <div class="card-head">

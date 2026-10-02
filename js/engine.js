@@ -530,6 +530,86 @@
         return rows;
     }
 
+    // "Where every dollar goes": a month's plan summed into a few fixed groups, in the order
+    // Dave Ramsey lists them (giving, saving, the four walls, everything else, debt). A line goes
+    // by its type (savings, debt) or by the category it's linked to. The auto-sweep counts as
+    // savings. Returns every group (amount 0 when empty, so colors stay with the group), the
+    // income, what's assigned, and what's left to assign (negative = assigned more than income).
+    const BUCKETS = [
+        { key: 'dar', label: 'Dar' },
+        { key: 'ahorro', label: 'Ahorro' },
+        { key: 'vivienda', label: 'Vivienda y servicios' },
+        { key: 'comida', label: 'Comida' },
+        { key: 'transporte', label: 'Transporte' },
+        { key: 'otros', label: 'Otros gastos' },
+        { key: 'deudas', label: 'Deudas' }
+    ];
+    function bucketOf(item) {
+        const t = item.type || '', c = item.linkedCategory || '';
+        if (t.includes('Ahorro')) return 'ahorro';
+        if (t === 'Deuda') return 'deudas';
+        if (/Donaciones/.test(c) || /diezmo|ofrenda|donaci|caridad|iglesia|giving|tithe|charit/i.test(item.name || '')) return 'dar';
+        if (c === 'Vivienda' || c === 'Servicios Básicos y Comunicación') return 'vivienda';
+        if (c === 'Alimentación') return 'comida';
+        if (c === 'Transporte') return 'transporte';
+        return 'otros';
+    }
+    function budgetBuckets(items, { income = 0, sweep = 0 } = {}) {
+        const by = {};
+        BUCKETS.forEach(b => { by[b.key] = 0; });
+        (items || []).forEach(i => { if (i.type !== 'Ingreso') by[bucketOf(i)] += Math.max(0, num(i.real)); });
+        by.ahorro += Math.max(0, num(sweep));
+        const assigned = sum(BUCKETS, b => by[b.key]);
+        return { buckets: BUCKETS.map(b => ({ key: b.key, label: b.label, amount: by[b.key] })), income: num(income), assigned, left: num(income) - assigned };
+    }
+
+    // Spending per day over the last `weeks` whole weeks (Monday first) up to the week of `end`:
+    // { weeks: [{ start, total, days: [{ date, total, future }] }], max, total }. Days after `end`
+    // are marked future (no data yet, not "no spending").
+    function dailySpend(transactions, { end = new Date(), weeks = 12 } = {}) {
+        const last = periodStart(new Date(end), 'week');
+        const endIso = isoDate(new Date(end));
+        const first = shiftPeriod(last, 'week', -(weeks - 1));
+        const by = {};
+        (transactions || []).forEach(t => { if (txnType(t) === 'Gasto') { const k = isoDate(txnDate(t)); by[k] = (by[k] || 0) + num(t.amount); } });
+        const out = [];
+        let max = 0, total = 0;
+        for (let w = 0; w < weeks; w++) {
+            const start = shiftPeriod(first, 'week', w);
+            const days = [];
+            for (let d = 0; d < 7; d++) {
+                const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + d);
+                const date = isoDate(day), future = date > endIso;
+                const v = future ? 0 : Math.round((by[date] || 0) * 100) / 100;
+                if (v > max) max = v;
+                total += v;
+                days.push({ date, total: v, future });
+            }
+            out.push({ start: isoDate(start), total: sum(days, x => x.total), days });
+        }
+        return { weeks: out, max, total };
+    }
+
+    // Monthly totals per group for the last `count` months up to the month of `end` (included):
+    // { months: ['2026-01', …], series: { key: [total per month] } }. `keyOf(t)` names the group
+    // (null = skip); `value(t)` is what a transaction adds (default: its amount).
+    function monthlyByKey(transactions, keyOf, { end = new Date(), count = 12, value } = {}) {
+        const e = new Date(end);
+        const months = [];
+        for (let i = count - 1; i >= 0; i--) { const d = new Date(e.getFullYear(), e.getMonth() - i, 1); months.push(`${d.getFullYear()}-${pad2(d.getMonth() + 1)}`); }
+        const index = new Map(months.map((m, i) => [m, i]));
+        const series = {};
+        (transactions || []).forEach(t => {
+            const i = index.get(String(t.date || '').slice(0, 7));
+            if (i === undefined) return;
+            const k = keyOf(t);
+            if (k === null || k === undefined) return;
+            const row = series[k] || (series[k] = new Array(count).fill(0));
+            row[i] += value ? value(t) : num(t.amount);
+        });
+        return { months, series };
+    }
+
     // ------------------------------------------------------------ this month: insights
     const inMonth = (t, y, m) => { const d = txnDate(t); return d.getFullYear() === Number(y) && d.getMonth() + 1 === Number(m); };
     const prevMonth = (y, m) => (Number(m) === 1 ? [Number(y) - 1, 12] : [Number(y), Number(m) - 1]);
@@ -869,7 +949,9 @@
                 rate: Math.max(0, num(d.rate)),
                 minPayment: Math.max(0, num(d.minPayment)),
                 line: mode === 'minimums' ? Math.max(0, num(d.minPayment)) : line(d),
-                payoffMonth: null
+                payoffMonth: null,
+                // First month the debt gets more than its own line (the snowball reaches it).
+                attackMonth: null
             }));
             if (strategy === 'avalanche') items.sort((a, b) => b.rate - a.rate || a.balance - b.balance);
             else items.sort((a, b) => a.balance - b.balance);
@@ -897,6 +979,7 @@
                     const pay = Math.min(pool, d.balance);
                     d.balance -= pay;
                     pool -= pay;
+                    if (pay > 0.005 && d.attackMonth === null) d.attackMonth = month;
                 }
                 items.forEach(d => {
                     if (d.balance <= 0.01) {
@@ -926,7 +1009,10 @@
             extra: Math.max(0, pool - (totalMin - sum(underfunded, u => u.missing))),
             minimumsNever: minimums.never,
             monthsSaved: minimums.never ? 0 : Math.max(0, minimums.months - plan.months),
-            interestSaved: minimums.never ? 0 : Math.max(0, minimums.totalInterest - plan.totalInterest)
+            interestSaved: minimums.never ? 0 : Math.max(0, minimums.totalInterest - plan.totalInterest),
+            // Total owed after each month paying only the minimums (to compare with `history`).
+            minimumsHistory: minimums.history,
+            minimumsMonths: minimums.months
         };
     }
 
@@ -1029,6 +1115,21 @@
         let running = 0;
         const series = schedule.map(s => (cumulative ? (running += s[field]) : s[field]));
         return axis.marks.map(m => (m > series.length ? undefined : series[m - 1]));
+    }
+
+    // Principal and interest paid in each loan year (the last year may be partial), and the
+    // balance left at its end: [{ year, months, principal, interest, balance }].
+    function amortizationByYear(schedule) {
+        const out = [];
+        (schedule || []).forEach((r, i) => {
+            const y = Math.floor(i / 12);
+            const row = out[y] || (out[y] = { year: y + 1, months: 0, principal: 0, interest: 0, balance: 0 });
+            row.months++;
+            row.principal += num(r.principal);
+            row.interest += num(r.interest);
+            row.balance = num(r.balance);
+        });
+        return out;
     }
 
     // --------------------------------------------------------------- retirement
@@ -1511,7 +1612,8 @@
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
-        frenchPayment, amortization, yearMarks, chartAxis, sampleSchedule,
+        frenchPayment, amortization, amortizationByYear, yearMarks, chartAxis, sampleSchedule,
+        BUCKETS, bucketOf, budgetBuckets, dailySpend, monthlyByKey,
         futureValue, pension, iessPensionAge, retirement, DEFAULT_INFLATION, DEFAULT_RETURN,
         netWorthSource, netWorthYears, netWorthFromSources, netWorthField, netWorthSnapshot, assetValue, assetOwned, assetsByCategory, netWorth,
         emergencyFund, babySteps

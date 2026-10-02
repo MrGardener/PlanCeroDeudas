@@ -646,3 +646,54 @@ html[data-theme="dark"] .bud-sticky.over { background: #2a0d0d; color: #fca5a5; 
 .empty-state p { max-width: 32rem; }
 .empty-icon { width: 2.4rem; height: 2.4rem; border-radius: 999px; display: grid; place-items: center; background: var(--surface-3); color: var(--faint); font-size: 1rem; }
 .empty-row td .empty-state { margin: .25rem 0; white-space: normal; }
+
+/* Phase 3 charts ============================================================
+   New charts: "where every dollar goes" bar, sparklines, spending calendar, net worth
+   own vs. owe. Chart colors come from UI.palette() (js/ui/core.js), not from here. */
+.dollar-bar { position: relative; display: flex; gap: 2px; height: 22px; border-radius: 4px; overflow: hidden; }
+.dollar-wrap.is-compact .dollar-bar { height: 14px; }
+.dollar-seg { min-width: 2px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; white-space: nowrap; overflow: visible; }
+.dollar-left { background: repeating-linear-gradient(135deg, #e2e8f0 0 4px, #f1f5f9 4px 8px); color: #475569; }
+.dollar-income { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #0f172a; }
+.dollar-legend { display: flex; flex-wrap: wrap; gap: .3rem .9rem; margin-top: .55rem; font-size: 11px; color: #475569; }
+.dollar-legend li { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
+.dollar-legend i { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.dollar-legend li.is-left i { background: repeating-linear-gradient(135deg, #cbd5e1 0 2px, #f1f5f9 2px 4px); }
+.dollar-legend b { color: #0f172a; font-weight: 700; }
+.dollar-pct { color: #64748b; }
+.dollar-status { margin-top: .4rem; font-size: 11px; font-weight: 600; color: #92400e; }
+.dollar-status.is-ok { color: #047857; } .dollar-status.is-over { color: #b91c1c; }
+html[data-theme="dark"] .dollar-left { background: repeating-linear-gradient(135deg, #22314d 0 4px, #1a2640 4px 8px); color: #cbd5e1; }
+html[data-theme="dark"] .dollar-legend li.is-left i { background: repeating-linear-gradient(135deg, #475569 0 2px, #1a2640 2px 4px); }
+html[data-theme="dark"] .dollar-income { background: #e2e8f0; }
+html[data-theme="dark"] .dollar-legend { color: #94a3b8; } html[data-theme="dark"] .dollar-legend b { color: #e2e8f0; }
+html[data-theme="dark"] .dollar-status { color: #fcd34d; } html[data-theme="dark"] .dollar-status.is-ok { color: #6ee7b7; } html[data-theme="dark"] .dollar-status.is-over { color: #fca5a5; }
+.spark { display: block; overflow: visible; flex: none; }
+.spark-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+/* Spending calendar: weeks are columns, Monday on top. */
+.heat { display: grid; grid-template-columns: 1.1rem repeat(var(--weeks, 12), minmax(0, 1fr)); gap: 3px; max-width: 24rem; font-size: 9px; color: #64748b; }
+.heat-m { grid-row: 1; white-space: nowrap; overflow: visible; line-height: 1.4; }
+.heat-d { display: flex; align-items: center; }
+.heat-c { aspect-ratio: 1; border-radius: 3px; min-width: 0; }
+.heat-c.is-future { background: transparent; box-shadow: inset 0 0 0 1px #e2e8f0; }
+.heat-c.is-today { box-shadow: 0 0 0 1.5px #0f172a; }
+.heat-legend { display: flex; align-items: center; gap: 3px; margin-top: .6rem; font-size: 10px; color: #64748b; flex-wrap: wrap; }
+.heat-legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+html[data-theme="dark"] .heat, html[data-theme="dark"] .heat-legend { color: #94a3b8; }
+html[data-theme="dark"] .heat-c.is-future { box-shadow: inset 0 0 0 1px #22314d; }
+html[data-theme="dark"] .heat-c.is-today { box-shadow: 0 0 0 1.5px #e2e8f0; }
+/* Net worth: what you own vs. what you owe, on one scale. */
+.nwc-row { display: grid; grid-template-columns: 5.5rem 1fr; align-items: center; gap: .6rem; margin-bottom: .45rem; }
+.nwc-label { font-size: 11px; font-weight: 700; color: #475569; line-height: 1.2; }
+.nwc-label b { display: block; font-size: 13px; color: #0f172a; }
+.nwc-track { position: relative; height: 22px; }
+.nwc-bar { display: flex; gap: 2px; height: 100%; }
+.nwc-bar > span { min-width: 2px; height: 100%; }
+.nwc-bar > span:last-child { border-radius: 0 4px 4px 0; }
+.nwc-gap { position: relative; height: 12px; }
+.nwc-comp { font-size: 10.5px; color: #64748b; margin: -.15rem 0 .55rem; line-height: 1.35; }
+html[data-theme="dark"] .nwc-comp { color: #94a3b8; }
+.nwc-gap > span { position: absolute; top: 2px; height: 8px; border: 1.5px solid #64748b; border-top: 0; }
+.nwc-note { font-size: 11px; font-weight: 700; color: #0f172a; }
+html[data-theme="dark"] .nwc-label { color: #94a3b8; } html[data-theme="dark"] .nwc-label b, html[data-theme="dark"] .nwc-note { color: #e2e8f0; }
+html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }

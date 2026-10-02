@@ -80,10 +80,96 @@
         UI.html('road-next', `<i class="fa-solid fa-location-dot text-blue-600"></i> ${next}`);
     }
 
+    // The payoff ladder: one bar per debt from today to the month it's paid off (lighter while it
+    // only gets its minimum, solid once the snowball reaches it), and the total owed month by
+    // month with this plan vs. paying only the minimums. Data: Engine.debtPayoff (ctx.debts).
+    function debtLadder(ctx) {
+        const s = ctx.state, plan = ctx.debts, pal = UI.palette();
+        const rows = plan.items.filter(i => i.balance > 0 || i.payoffMonth).map(i => ({ ...i, debt: s.debts.find(d => d.id === i.id) })).filter(r => r.debt && Number(r.debt.balance) > 0);
+        UI.show('debt-ladder', rows.length > 0);
+        if (!rows.length) return;
+        const when = (m) => Fmt.monthYear(Engine.addMonths(ctx.today, m));
+        const done = rows.filter(r => r.payoffMonth);
+        const end = Math.max(1, ...done.map(r => r.payoffMonth));
+        const raw = rows.some(r => !r.payoffMonth) ? Math.ceil(end * 1.25) + 1 : end;
+        const step = raw <= 12 ? 3 : raw <= 36 ? 6 : 12 * Math.ceil(raw / 60);
+        // The axis ends on a tick, so the last date label never collides with an extra one.
+        const max = Math.ceil(raw / step) * step;
+        const short = (name) => { const n = String(name || ''); return n.length > 18 ? n.slice(0, 17) + '…' : n; };
+        // Minimum-only stretch, then the snowball stretch; a debt never reached keeps the first.
+        const minPart = rows.map(r => { const stop = r.attackMonth ? r.attackMonth - 1 : (r.payoffMonth || max); return stop > 0 ? [0, stop] : null; });
+        const snowPart = rows.map(r => (r.attackMonth && r.payoffMonth ? [r.attackMonth - 1, r.payoffMonth] : null));
+        const box = document.getElementById('debt-ladder-box');
+        if (box) box.style.height = `${Math.max(120, rows.length * 34 + 64)}px`;
+        const rightEnd = { topRight: 4, bottomRight: 4, topLeft: 0, bottomLeft: 0 };
+        UI.chart('debt-ladder-chart', {
+            type: 'bar',
+            data: {
+                labels: rows.map(r => short(r.debt.name)),
+                datasets: [
+                    { label: 'Pagando su mínimo', data: minPart, backgroundColor: pal.seq[0], borderRadius: (c) => (snowPart[c.dataIndex] ? 0 : rightEnd), borderSkipped: false, barThickness: 18, grouped: false },
+                    { label: 'Con la bola de nieve', data: snowPart, backgroundColor: pal.blue, borderColor: pal.surface, borderWidth: { left: 2, right: 0, top: 0, bottom: 0 }, borderRadius: rightEnd, borderSkipped: false, barThickness: 18, grouped: false }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                layout: { padding: { right: 62 } },
+                interaction: { mode: 'nearest', axis: 'y', intersect: false },
+                scales: {
+                    x: { min: 0, max, ticks: { stepSize: step, callback: (v) => when(Math.round(v)), maxRotation: 0 }, grid: { display: true } },
+                    y: { beginAtZero: false, ticks: { callback(v) { return this.getLabelForValue(v); }, font: { size: 11 } }, grid: { display: false } }
+                },
+                plugins: {
+                    legend: { position: 'top', align: 'start' },
+                    tooltip: { callbacks: {
+                        title: (items) => (items[0] ? rows[items[0].dataIndex].debt.name : ''),
+                        label: (c) => (c.raw ? `${c.dataset.label}: ${when(c.raw[0])} → ${when(c.raw[1])}` : '')
+                    } },
+                    endLabels: { labels: rows.map(r => (r.payoffMonth ? when(r.payoffMonth) : 'Nunca')), dataset: rows.map((r, i) => (snowPart[i] ? 1 : 0)) }
+                }
+            }
+        });
+        const first = rows.find(r => r.payoffMonth);
+        UI.text('debt-ladder-note', `${s.debtPlan.strategy === 'avalanche' ? 'Avalancha' : 'Bola de nieve'}: cada barra va de hoy al mes en que pagas esa deuda. La parte clara es cuando solo recibe su mínimo; la oscura, cuando le llega la bola de nieve.${first ? ` La primera en caer: ${first.debt.name}, en ${when(first.payoffMonth)}.` : ''}`);
+
+        // Total owed: this plan vs. minimums only (one axis, same money).
+        const start = rows.reduce((t, r) => t + (Number(r.debt.balance) || 0), 0);
+        const planLine = [start].concat(plan.history);
+        const minLine = [start].concat(plan.minimumsHistory || []);
+        const CAP = 360;
+        const len = Math.min(CAP, Math.max(planLine.length, minLine.length));
+        const labels = Array.from({ length: len }, (_, i) => when(i));
+        const freeMin = plan.minimumsNever ? null : plan.minimumsMonths;
+        UI.chart('debt-owed-chart', {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    { label: plan.never ? 'Tu plan (nunca terminas)' : `Tu plan (libre en ${when(plan.months)})`, data: planLine.slice(0, len), borderColor: pal.blue, backgroundColor: pal.alpha(pal.blue, 0.1), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, fill: true, tension: 0 },
+                    { label: freeMin ? `Solo pagos mínimos (libre en ${when(freeMin)})` : 'Solo pagos mínimos (nunca terminas)', data: minLine.slice(0, len), borderColor: pal.muted, borderDash: [6, 4], borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, fill: false, tension: 0 }
+                ]
+            },
+            options: { scales: { x: { ticks: { maxTicksLimit: 6, maxRotation: 0 } } }, plugins: { legend: { position: 'top', align: 'start' } } }
+        });
+        UI.text('debt-owed-note', plan.minimumsNever || minLine.length > CAP
+            ? 'Solo con los pagos mínimos tus deudas no terminan en 30 años: el interés se come el pago.'
+            : plan.monthsSaved > 0 ? `Con tu plan terminas ${Fmt.monthsAsYears(plan.monthsSaved)} antes y pagas ${money0(plan.interestSaved)} menos de interés que solo con los mínimos.` : '');
+
+        UI.html('debt-ladder-table', rows.map(r => `<tr><td class="font-semibold" data-i18n-skip>${esc(r.debt.name)}</td><td class="num">${money0(r.debt.balance)}</td>
+            <td>${r.attackMonth ? (r.attackMonth <= 1 ? 'Desde hoy' : when(r.attackMonth - 1)) : '—'}</td>
+            <td>${r.payoffMonth ? `${when(r.payoffMonth)} (mes ${r.payoffMonth})` : 'Nunca'}</td></tr>`).join(''));
+        const marks = [];
+        for (let m = 0; m < len; m += 12) marks.push(m);
+        if (marks[marks.length - 1] !== len - 1) marks.push(len - 1);
+        const cell = (line, m) => (m < line.length ? money0(line[m]) : money0(0));
+        UI.html('debt-owed-table', marks.map(m => `<tr><td>${when(m)}</td><td class="num">${cell(planLine, m)}</td><td class="num">${cell(minLine, m)}</td></tr>`).join(''));
+    }
+
     function update(ctx) {
         const s = ctx.state;
         UI.html('metas-steps', Views.stepsHTML(ctx));
         roadmap(ctx);
+        debtLadder(ctx);
 
         // Emergency fund
         const ef = ctx.ef;

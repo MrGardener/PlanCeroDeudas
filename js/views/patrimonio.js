@@ -102,17 +102,54 @@
         v.textContent = text;
         document.getElementById('nw-result').className = `mt-5 rounded-xl p-5 text-center border-t-4 bg-slate-50 ${nw.value >= 0 ? 'border-emerald-500' : 'border-red-500'}`;
 
+        compare(nw);
         const years = Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear());
+        const pal = UI.palette();
         UI.chart('nw-chart', {
             type: 'line',
-            data: { labels: years, datasets: [{ label: 'Patrimonio neto', data: years.map(y => Engine.netWorth(s.years, s.assets, y).value), borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,.1)', fill: true, cubicInterpolationMode: 'monotone', pointRadius: years.map(y => y === year ? 5 : 3) }] },
+            data: { labels: years, datasets: [{ label: 'Patrimonio neto', data: years.map(y => Engine.netWorth(s.years, s.assets, y).value), borderColor: pal.blue, backgroundColor: pal.alpha(pal.blue, 0.1), borderWidth: 2, fill: true, tension: 0, pointRadius: years.map(y => y === year ? 5 : 3), pointBackgroundColor: pal.blue, pointBorderColor: pal.surface, pointBorderWidth: 2 }] },
             options: { scales: { y: { beginAtZero: false } }, plugins: { legend: { display: false } } }
         });
+    }
+
+    // Own vs. owe: what you have and what you owe as two bars on one scale (Engine.netWorth
+    // fields + registry); the gap between their ends is your net worth. Each bar is split, with
+    // 2px gaps, into its parts (named underneath and in the table).
+    function compare(nw) {
+        const pal = UI.palette();
+        const part = (d) => ({ label: d.label, value: d.registry ? (nw.registry[d.registry] || 0) : (nw.fields[d.field] || 0) });
+        // Checking and savings read as one "cuentas" part.
+        const own = [{ label: 'Cuentas y efectivo', value: (nw.fields.checking || 0) + (nw.fields.savings || 0) }].concat(ASSET_FIELDS.slice(2).map(part)).filter(p => p.value > 0.5);
+        const owe = LIABILITY_FIELDS.map(part).filter(p => p.value > 0.5);
+        const scale = Math.max(nw.assets, nw.liabilities, 1);
+        const pctOf = (v) => (v / scale * 100).toFixed(2);
+        const bar = (parts, total, color) => `<div class="nwc-bar" style="width:${pctOf(total)}%">${parts.map(p => `<span style="flex:${p.value} 1 0;background:${color}" title="${esc(p.label)}: ${money0(p.value)}"></span>`).join('')}</div>`;
+        const names = (parts) => parts.slice().sort((a, b) => b.value - a.value).map(p => `<span>${esc(p.label)}</span> ${money0(p.value)}`).join(" · ");
+        const lo = Math.min(nw.assets, nw.liabilities), hi = Math.max(nw.assets, nw.liabilities);
+        const gapText = nw.value >= 0 ? `Patrimonio neto: ${money0(nw.value)}` : `Debes ${money0(-nw.value)} más de lo que tienes`;
+        const el = document.getElementById('nw-compare');
+        if (el) el.setAttribute('aria-label', `Tienes ${money0(nw.assets)}; debes ${money0(nw.liabilities)}. ${gapText}.`);
+        UI.html('nw-compare', `
+            <div class="nwc-row"><div class="nwc-label">Tienes<b>${money0(nw.assets)}</b></div><div class="nwc-track">${bar(own, nw.assets, pal.blue)}</div></div>
+            <div class="nwc-row"><span></span><div class="nwc-comp">${own.length ? names(own) : 'Aún no registras lo que tienes.'}</div></div>
+            <div class="nwc-row"><div class="nwc-label">Debes<b>${money0(nw.liabilities)}</b></div><div class="nwc-track">${bar(owe, nw.liabilities, pal.orange)}</div></div>
+            <div class="nwc-row"><span></span><div class="nwc-comp">${owe.length ? names(owe) : '¡Sin deudas!'}</div></div>
+            <div class="nwc-row" style="margin-bottom:0"><span></span><div>
+                <div class="nwc-gap">${hi - lo > 0.5 ? `<span style="left:${pctOf(lo)}%;width:${(Number(pctOf(hi)) - Number(pctOf(lo))).toFixed(2)}%"></span>` : ''}</div>
+                <div class="nwc-note" style="text-align:right;padding-right:${(100 - Number(pctOf(hi))).toFixed(2)}%">${gapText}</div>
+            </div></div>`);
+        UI.html('nw-compare-table', own.map(p => `<tr><td>${esc(p.label)}</td><td class="num">${money0(p.value)}</td></tr>`).join('')
+            + `<tr class="font-bold"><td>Total que tienes</td><td class="num">${money0(nw.assets)}</td></tr>`
+            + owe.map(p => `<tr><td>${esc(p.label)}</td><td class="num">${money0(p.value)}</td></tr>`).join('')
+            + `<tr class="font-bold"><td>Total que debes</td><td class="num">${money0(nw.liabilities)}</td></tr>`
+            + `<tr class="font-bold"><td>Patrimonio neto</td><td class="num">${money0(nw.value)}</td></tr>`);
     }
 
     const find = (el) => Store.state.assets.find(a => a.id === Number(el.dataset.id));
 
     // ------------------------------------------------------------ accounts
+    // Money you can use: everything but retirement accounts (401(k)/IRA).
+    const availableTotal = (list) => list.filter(a => a.kind !== 'retiro').reduce((t, a) => t + (Number(a.balance) || 0), 0);
     const ACCT_KINDS = [{ value: 'corriente', label: 'Cuenta corriente' }, { value: 'ahorros', label: 'Cuenta de ahorros' }, { value: 'efectivo', label: 'Efectivo' }, { value: 'retiro', label: 'Jubilación (401(k) / IRA)' }];
     function renderAccounts(ctx) {
         const list = ctx.state.accounts || [];
@@ -123,7 +160,7 @@
             <td class="text-[11px] text-slate-500" data-cell="when">${a.updatedAt ? esc(a.updatedAt) : '—'}</td>
             <td class="text-center"><button class="row-del" data-action="acct.delete" data-id="${a.id}" title="Eliminar cuenta" aria-label="Eliminar cuenta"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`).join('') : `<tr class="empty-row"><td colspan="5">${Views.emptyState('fa-building-columns', 'Agrega tus cuentas (Pichincha ahorros, Produbanco corriente, efectivo…) para ver tu dinero disponible de un vistazo.')}</td></tr>`);
-        UI.text('acct-total', money(list.reduce((t, a) => t + (Number(a.balance) || 0), 0)));
+        UI.text('acct-total', money(availableTotal(list)));
     }
 
     // ------------------------------------------------------------ investments
@@ -202,7 +239,7 @@
             a[f] = f === 'balance' ? parseNum(el.value, 0) : el.value;
             if (f === 'balance') a.updatedAt = Engine.isoDate(new Date());
             App.changed();
-            UI.text('acct-total', money((Store.state.accounts || []).reduce((t, x) => t + (Number(x.balance) || 0), 0)));
+            UI.text('acct-total', money(availableTotal(Store.state.accounts || [])));
         },
         'acct.delete': (el) => {
             const id = Number(el.dataset.id);

@@ -48,11 +48,12 @@
     }
 
     // A dashboard tile: the same KPI tile the tabs use, as a link to where the number lives.
-    function kpiCard({ tone, icon, label, value, note, goto, focus }) {
+    // spark: optional sparkline markup (UI.sparkline) shown beside the value.
+    function kpiCard({ tone, icon, label, value, note, goto, focus, spark }) {
         return `
             <button type="button" class="kpi tone-slate kpi-link dash-card" data-goto="${goto}" ${focus ? `data-focus="${focus}"` : ''}>
                 <span class="kpi-head"><span class="kpi-icon"><i class="fa-solid ${icon} ${tone}"></i></span><span class="kpi-label">${label}</span><i class="fa-solid fa-chevron-right kpi-chev"></i></span>
-                <span class="kpi-value">${value}</span>
+                ${spark ? `<span class="spark-row"><span class="kpi-value">${value}</span>${spark}</span>` : `<span class="kpi-value">${value}</span>`}
                 <span class="kpi-note">${note}</span>
             </button>`;
     }
@@ -130,5 +131,54 @@
         </div>`;
     }
 
-    root.Views = { guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions };
+    // "Where every dollar goes": one bar of the month's plan by group (Engine.budgetBuckets), on
+    // the scale of the income, so a zero-based plan fills it exactly. Each group keeps its color
+    // (fixed palette slot) whether or not the others are there; the gray end is money left to
+    // assign. Large segments carry their % inside; the legend and the table carry every amount.
+    // compact: the Overview version (bar + short legend, no table).
+    function dollarHTML(r, { compact = false, tableId = '' } = {}) {
+        const pal = UI.palette();
+        const tr = (s) => (root.I18n ? I18n.t(s) : s);
+        const income = Math.max(0, r.income);
+        const scale = Math.max(income, r.assigned, 1);
+        const pct = (v) => (income > 0 ? Math.round(v / income * 100) : 0);
+        const segs = r.buckets.map((b, i) => ({ ...b, color: pal.series[i % pal.series.length] })).filter(b => b.amount > 0.005);
+        const left = r.left > 0.005 ? r.left : 0;
+        const bar = segs.map(b => {
+            const share = b.amount / scale;
+            const label = !compact && share >= 0.09 ? `${pct(b.amount)}%` : '';
+            return `<span class="dollar-seg" style="flex:${share.toFixed(4)} 1 0;background:${b.color};color:${pal.inkOn(b.color)}" title="${esc(tr(b.label))}: ${money0(b.amount)} (${pct(b.amount)}%)">${label}</span>`;
+        }).join('') + (left ? `<span class="dollar-seg dollar-left" style="flex:${(left / scale).toFixed(4)} 1 0" title="${esc(tr('Por asignar'))}: ${money0(left)} (${pct(left)}%)">${!compact && left / scale >= 0.09 ? `${pct(left)}%` : ''}</span>` : '');
+        const over = r.left < -0.005;
+        const marker = over ? `<span class="dollar-income" style="left:${(income / scale * 100).toFixed(2)}%" title="${esc(tr('Tu ingreso'))}: ${money0(income)}"></span>` : '';
+        const item = (color, label, amount, cls = '') => `<li class="${cls}"><i style="background:${color}"></i><span>${esc(label)}</span>${compact ? '' : ` <b>${money0(amount)}</b>`} <span class="dollar-pct">${pct(amount)}%</span></li>`;
+        const legend = segs.map(b => item(b.color, b.label, b.amount)).join('') + (left ? item('', 'Por asignar', left, 'is-left') : '');
+        const status = over
+            ? `<p class="dollar-status is-over"><i class="fa-solid fa-triangle-exclamation"></i> Asignaste ${money0(-r.left)} más de lo que ganas: la línea marca tu ingreso.</p>`
+            : left ? `<p class="dollar-status"><i class="fa-solid fa-coins"></i> Te quedan ${money0(left)} por asignar.</p>`
+            : `<p class="dollar-status is-ok"><i class="fa-solid fa-circle-check"></i> Base cero: cada dólar tiene un destino.</p>`;
+        const aria = `${tr('Tu plan del mes por grupo')}: ${segs.map(b => `${tr(b.label)} ${pct(b.amount)}%`).join(', ')}${left ? `, ${tr('Por asignar')} ${pct(left)}%` : ''}`;
+        const table = compact ? '' : `<details class="mt-2">
+                <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
+                <div class="table-wrap mt-2"><table class="table"${tableId ? ` id="${tableId}"` : ''}><thead><tr><th>Grupo</th><th class="num">Planeado</th><th class="num">% del ingreso</th></tr></thead><tbody>
+                ${r.buckets.map(b => `<tr><td>${esc(b.label)}</td><td class="num">${money0(b.amount)}</td><td class="num">${pct(b.amount)}%</td></tr>`).join('')}
+                <tr class="font-bold"><td>Total asignado</td><td class="num">${money0(r.assigned)}</td><td class="num">${pct(r.assigned)}%</td></tr>
+                <tr><td>${over ? 'Te falta' : 'Por asignar'}</td><td class="num">${money0(r.left)}</td><td class="num">${pct(r.left)}%</td></tr>
+                <tr><td>Ingreso</td><td class="num">${money0(income)}</td><td class="num">100%</td></tr>
+                </tbody></table></div></details>`;
+        return `<div class="dollar-wrap${compact ? ' is-compact' : ''}"><div class="dollar-bar" role="img" aria-label="${esc(aria)}">${bar}${marker}</div>
+            <ul class="dollar-legend">${legend}</ul>${status}${table}</div>`;
+    }
+
+    // Replace a block's markup on every update without closing a "see the numbers" table the
+    // person opened.
+    function htmlKeepOpen(id, html) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const open = UI.$$('details', el).map(d => d.open);
+        el.innerHTML = html;
+        UI.$$('details', el).forEach((d, i) => { if (open[i]) d.open = true; });
+    }
+
+    root.Views = { guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions, dollarHTML, htmlKeepOpen };
 })(this);

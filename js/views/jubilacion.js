@@ -59,12 +59,38 @@
         }
         UI.show(delta, !!r.whatIf);
 
+        // The expected line with a range: the same plan at the return −2 and +2 points
+        // (Engine.retirement with tasaRetorno ± 2), shaded between; the what-if dashed on top.
+        const pal = UI.palette();
+        const rate = Number(inp.tasaRetorno) || 0;
+        const lowRate = Math.max(0, rate - 2), highRate = rate + 2;
+        const low = Engine.retirement({ ...inp, tasaRetorno: lowRate, whatIfExtra: 0 });
+        const high = Engine.retirement({ ...inp, tasaRetorno: highRate, whatIfExtra: 0 });
         const labels = r.schedule.map((_, i) => r.edadActual + i);
-        const datasets = [{ label: 'Con tu aporte actual', data: r.schedule, borderColor: '#059669', backgroundColor: 'rgba(16,185,129,.1)', fill: true, tension: .3, pointRadius: 0 }];
-        if (r.whatIf) datasets.push({ label: `Con +${money0(extra)}/mes`, data: r.whatIf.schedule, borderColor: '#9333ea', borderDash: [6, 4], fill: false, tension: .3, pointRadius: 0 });
+        const datasets = [
+            { label: `Pesimista (${lowRate}%)`, data: low.schedule, borderColor: 'transparent', backgroundColor: 'transparent', pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0 },
+            { label: `Optimista (${highRate}%)`, data: high.schedule, borderColor: 'transparent', backgroundColor: pal.alpha(pal.blue, 0.14), pointRadius: 0, pointHoverRadius: 0, fill: '-1', tension: 0 },
+            { label: `Esperado (${rate}%)`, data: r.schedule, borderColor: pal.blue, backgroundColor: pal.blue, borderWidth: 2, fill: false, tension: 0, pointRadius: 0, pointHoverRadius: 4 }
+        ];
+        if (r.whatIf) datasets.push({ label: `Con +${money0(extra)}/mes`, data: r.whatIf.schedule, borderColor: pal.orange, backgroundColor: pal.orange, borderDash: [6, 4], borderWidth: 2, fill: false, tension: 0, pointRadius: 0, pointHoverRadius: 4 });
         // Nothing saved or going in yet: keep a sensible axis instead of $0–$1 ticks.
-        const empty = !r.schedule.some(v => v > 0.5) && !(r.whatIf && r.whatIf.schedule.some(v => v > 0.5));
-        UI.chart('ret-chart', { type: 'line', data: { labels, datasets }, options: { scales: { x: { title: { display: true, text: 'Edad', font: { size: 10 } } }, y: { suggestedMax: empty ? 1000 : undefined } } } });
+        const empty = !high.schedule.some(v => v > 0.5) && !(r.whatIf && r.whatIf.schedule.some(v => v > 0.5));
+        // Legend: the band reads as one entry ("Rango"), not two invisible lines.
+        const bandLabel = `Rango ${lowRate}%–${highRate}%`;
+        UI.chart('ret-chart', {
+            type: 'line', data: { labels, datasets },
+            options: {
+                scales: { x: { title: { display: true, text: 'Edad', font: { size: 10 } } }, y: { suggestedMax: empty ? 1000 : undefined } },
+                plugins: {
+                    legend: { position: 'top', align: 'start', labels: { filter: (item) => item.datasetIndex !== 0, generateLabels: (chart) => Chart.defaults.plugins.legend.labels.generateLabels(chart).map(l => (l.datasetIndex === 1 ? Object.assign(l, { text: I18n.t(bandLabel), fillStyle: pal.alpha(pal.blue, 0.25), strokeStyle: 'transparent', lineWidth: 0 }) : l)) } },
+                    tooltip: { itemSort: (a, b) => b.datasetIndex - a.datasetIndex }
+                }
+            }
+        });
+        const tile = (label, value, rateTxt, strong) => `<div class="kpi tone-slate text-center" style="padding:.6rem .35rem"><span class="kpi-label">${label}</span><span class="kpi-value" title="${money0(value)}" style="font-size:${strong ? '1.05rem' : '.95rem'}">${Math.abs(value) >= 1e6 ? `${money(value / 1e6)}M` : money0(value)}</span><span class="kpi-note">${rateTxt}</span></div>`;
+        UI.html('ret-range', tile('Pesimista', low.valorFuturoHoy, `al ${lowRate}% anual`) + tile('Esperado', r.valorFuturoHoy, `al ${rate}% anual`, true) + tile('Optimista', high.valorFuturoHoy, `al ${highRate}% anual`));
+        UI.text('ret-range-note', `A los ${r.edadJubilacion} años, en dólares de hoy. Nadie sabe el retorno de los próximos ${r.aniosRestantes} años: con 2 puntos menos o más al año, tu ahorro terminaría entre ${money0(low.valorFuturoHoy)} y ${money0(high.valorFuturoHoy)}.`);
+        UI.html('ret-range-table', labels.map((age, i) => ({ age, i })).filter(({ i }) => i % 5 === 0 || i === labels.length - 1).map(({ age, i }) => `<tr><td>${age}</td><td class="num">${money0(low.schedule[i])}</td><td class="num font-bold">${money0(r.schedule[i])}</td><td class="num">${money0(high.schedule[i])}</td></tr>`).join(''));
     }
 
     UI.register({

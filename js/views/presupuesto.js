@@ -261,6 +261,9 @@
         }
         UI.text('bud-balance', money(bal));
         stickyBalance(bal);
+        // Where every dollar goes: this month's plan (Engine.monthItems + monthBudget) by group.
+        UI.text('bud-dollar-month', m === 'base' ? '· presupuesto base' : `· ${Fmt.MONTH_NAMES[m - 1]}`);
+        Views.htmlKeepOpen('bud-dollar', Views.dollarHTML(Engine.budgetBuckets(list, { income: mb.income, sweep: mb.sweep }), { tableId: 'bud-dollar-table' }));
 
         const sweepEl = document.getElementById('bud-sweep');
         const shortfall = yd.sweepSavings && bal < -0.005;

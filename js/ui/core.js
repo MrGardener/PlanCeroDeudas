@@ -206,6 +206,92 @@
         chartInstance(id) { return charts[id] || null; }
     };
 
+    // ---------------------------------------------------------- chart palette
+    // One set of chart colors for both themes (validated for color-blind separation and contrast
+    // against the card surface in each theme: see the dataviz validator). CSS variables override
+    // them when the design tokens define any: --chart-1…--chart-7, --chart-neg, --chart-muted,
+    // --chart-surface, --chart-text, --chart-text-2, --chart-seq-1…--chart-seq-5, --chart-seq-0.
+    // Categorical slots go in a fixed order (1 blue, 2 orange, 3 aqua, 4 yellow, 5 magenta,
+    // 6 green, 7 violet); sequential steps are one blue hue from little to a lot.
+    const PALETTE = {
+        light: {
+            series: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7'],
+            neg: '#d03b3b', muted: '#94a3b8', surface: '#ffffff', text: '#0f172a', text2: '#475569',
+            seq: ['#86b6ef', '#5598e7', '#2a78d6', '#1c5cab', '#0d366b'], seq0: '#eef2f7'
+        },
+        dark: {
+            series: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9'],
+            neg: '#e66767', muted: '#64748b', surface: '#111a2e', text: '#e2e8f0', text2: '#94a3b8',
+            seq: ['#184f95', '#256abf', '#3987e5', '#6da7ec', '#b7d3f6'], seq0: '#1c2742'
+        }
+    };
+    UI.palette = function palette() {
+        const doc = typeof document !== 'undefined' ? document.documentElement : null;
+        const dark = !!doc && doc.dataset.theme === 'dark';
+        const base = PALETTE[dark ? 'dark' : 'light'];
+        const css = doc && root.getComputedStyle ? root.getComputedStyle(doc) : null;
+        const v = (name, fallback) => (css && css.getPropertyValue(name).trim()) || fallback;
+        const series = base.series.map((c, i) => v(`--chart-${i + 1}`, c));
+        return {
+            dark, series,
+            blue: series[0], orange: series[1], aqua: series[2],
+            neg: v('--chart-neg', base.neg), muted: v('--chart-muted', base.muted),
+            surface: v('--chart-surface', base.surface), text: v('--chart-text', base.text), text2: v('--chart-text-2', base.text2),
+            seq: base.seq.map((c, i) => v(`--chart-seq-${i + 1}`, c)), seq0: v('--chart-seq-0', base.seq0),
+            // A color at some opacity (fills and bands: ~10%).
+            alpha: (hex, a) => {
+                const h = String(hex).replace('#', '');
+                if (!/^[0-9a-f]{6}$/i.test(h)) return hex;
+                return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${a})`;
+            },
+            // Text set inside a colored fill: white or ink, whichever reads on that fill.
+            inkOn: (hex) => {
+                const h = String(hex).replace('#', '');
+                if (!/^[0-9a-f]{6}$/i.test(h)) return '#fff';
+                const lin = (i) => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+                const L = 0.2126 * lin(0) + 0.7152 * lin(2) + 0.0722 * lin(4);
+                return (L + 0.05) / 0.05 > 1.05 / (L + 0.05) ? '#0f172a' : '#ffffff';
+            }
+        };
+    };
+
+    // ------------------------------------------------------------- sparkline
+    // A tiny trend line as SVG markup (no axes, no Chart.js), for tiles and table rows.
+    // values: numbers (null = no data). opts: { width, height, color, label (accessible name),
+    // partialLast (the last point is a period still running: its segment is dashed and the dot
+    // hollow), dashed (the whole line is a projection), fill (a 10% wash under the line) }.
+    UI.sparkline = function sparkline(values, opts = {}) {
+        const w = opts.width || 72, h = opts.height || 20, pad = 3;
+        const pal = UI.palette();
+        const color = opts.color || pal.blue;
+        const pts = (values || []).map((v, i) => [i, v]).filter(p => p[1] !== null && p[1] !== undefined && Number.isFinite(Number(p[1])));
+        const n = (values || []).length;
+        const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        const label = opts.label ? ` role="img" aria-label="${esc(opts.label)}"` : ' aria-hidden="true"';
+        if (pts.length < 2) return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"${label}></svg>`;
+        const ys = pts.map(p => Number(p[1]));
+        let lo = Math.min(...ys), hi = Math.max(...ys);
+        if (opts.zero !== false) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+        const span = hi - lo || 1;
+        const X = (i) => pad + (n > 1 ? i / (n - 1) : 0) * (w - pad * 2);
+        const Y = (v) => (hi === lo ? h / 2 : pad + (1 - (v - lo) / span) * (h - pad * 2));
+        const xy = pts.map(p => [X(p[0]), Y(Number(p[1]))].map(c => c.toFixed(1)));
+        const line = (list) => list.map((p, i) => `${i ? 'L' : 'M'}${p[0]},${p[1]}`).join('');
+        const partial = opts.partialLast && xy.length > 2;
+        const solid = partial ? xy.slice(0, -1) : xy;
+        const last = xy[xy.length - 1];
+        const stroke = `stroke="${color}" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"`;
+        let out = `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"${label}>`;
+        if (opts.label) out += `<title>${esc(opts.label)}</title>`;
+        if (opts.fill) out += `<path d="${line(xy)}L${last[0]},${(h - pad).toFixed(1)}L${xy[0][0]},${(h - pad).toFixed(1)}Z" fill="${color}" opacity=".1"/>`;
+        out += `<path d="${line(solid)}" ${stroke}${opts.dashed ? ' stroke-dasharray="3 2"' : ''}/>`;
+        if (partial) out += `<path d="${line(xy.slice(-2))}" ${stroke} stroke-dasharray="2 2" opacity=".75"/>`;
+        out += partial
+            ? `<circle cx="${last[0]}" cy="${last[1]}" r="2.25" fill="${pal.surface}" stroke="${color}" stroke-width="1.25"/>`
+            : `<circle cx="${last[0]}" cy="${last[1]}" r="2.25" fill="${color}"/>`;
+        return out + '</svg>';
+    };
+
     // A dashed vertical "Hoy" line at a category index: options.plugins.todayLine = { index, label }.
     let todayLineReady = false;
     function registerTodayLine() {
@@ -223,6 +309,29 @@
                 c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
                 c.globalAlpha = .9; c.setLineDash([]); c.fillStyle = Chart.defaults.color; c.font = '600 10px Inter, sans-serif'; c.textAlign = 'left';
                 c.fillText(opts.label || 'Hoy', x + 4, top + 10);
+                c.restore();
+            }
+        });
+        // Direct labels past the end of horizontal bars: options.plugins.endLabels =
+        // { dataset: index of the dataset whose bar ends get labels, labels: [text per bar] }.
+        // Leave room for them with layout.padding.right.
+        Chart.register({
+            id: 'endLabels',
+            afterDatasetsDraw(chart, args, opts) {
+                if (!opts || !Array.isArray(opts.labels)) return;
+                const c = chart.ctx;
+                c.save();
+                c.fillStyle = opts.color || Chart.defaults.color; c.font = '600 10px Inter, system-ui, sans-serif';
+                c.textAlign = 'left'; c.textBaseline = 'middle';
+                // dataset: one index for every bar, or one per bar (the dataset that ends last).
+                opts.labels.forEach((text, i) => {
+                    const di = Array.isArray(opts.dataset) ? opts.dataset[i] : opts.dataset;
+                    const meta = di >= 0 ? chart.getDatasetMeta(di) : null;
+                    const el = meta && !meta.hidden ? meta.data[i] : null;
+                    if (!text || !el) return;
+                    const { x, y } = el.getProps(['x', 'y'], true);
+                    c.fillText(root.I18n ? I18n.t(text) : text, x + 6, y);
+                });
                 c.restore();
             }
         });
