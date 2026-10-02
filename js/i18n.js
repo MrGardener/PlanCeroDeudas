@@ -89,9 +89,11 @@
             const m = key.match(/^([:·,;–—.-]\s*)(.+)$/);
             if (m) { const inner = t(m[2]); if (inner !== m[2]) hit = m[1] + inner; }
         }
-        if (hit === undefined && key.includes(' · ')) {
-            const parts = key.split(' · '), tr = parts.map(p => t(p));
-            if (tr.some((p, i) => p !== parts[i])) hit = tr.join(' · ');
+        // Lists joined with " · " or " + " ("Sueldo neto + otros ingresos ($1,900)"): piece by piece.
+        for (const sep of [' · ', ' + ']) {
+            if (hit !== undefined || !key.includes(sep)) continue;
+            const parts = key.split(sep), tr = parts.map(p => t(p));
+            if (tr.some((p, i) => p !== parts[i])) hit = tr.join(sep);
         }
         return hit;
     }

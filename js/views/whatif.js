@@ -37,7 +37,7 @@
                 ${safe.res ? change('Seguro para gastar hoy', safe.res.safe, safe.res.safe - amount) : '<li class="help">Agrega el saldo de tu cuenta para ver el efecto en tu efectivo.</li>'}
             </ul>
             <div class="section-label mt-3">Saldría de</div>
-            <ul class="wi-list">${r.takes.map(t => `<li class="wi-change"><span>${esc(t.name)}${t.kind === 'goal' ? ' <span class="badge badge-purple">meta</span>' : t.kind === 'savings' ? ' <span class="badge badge-info">ahorro</span>' : ''}</span><span class="num">−${money(t.take)}${t.take < t.available - 0.004 ? ` <span class="text-slate-500 text-[10px]">de ${money(t.available)}</span>` : ' <span class="text-slate-500 text-[10px]">(todo)</span>'}</span></li>`).join('') || '<li class="help">—</li>'}
+            <ul class="wi-list">${r.takes.map(t => `<li class="wi-change"><span>${esc(t.name)}${t.kind === 'goal' ? ' <span class="badge badge-purple">meta</span>' : t.kind === 'savings' ? ' <span class="badge badge-info">ahorro</span>' : ''}</span><span class="num">−${money(t.take)}${t.take < t.available - 0.004 ? ` <span class="text-slate-500 text-[11px]">de ${money(t.available)}</span>` : ' <span class="text-slate-500 text-[11px]">(todo)</span>'}</span></li>`).join('') || '<li class="help">—</li>'}
                 ${r.short > 0 ? `<li class="wi-change text-red-600 font-bold"><span>Faltan (sin rubro de dónde sacar)</span><span class="num">${money(r.short)}</span></li>` : ''}</ul>
             <p class="help mt-2">Los pagos fijos y de deudas no se tocan. Si lo haces, cambia esos rubros en tu presupuesto del mes.</p>
         </div>`;

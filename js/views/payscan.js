@@ -140,7 +140,7 @@
                     <td><select class="cell-input text-xs scan-group" data-i="${i}" data-change="scan.field">${Object.keys(GROUPS).map(g => `<option value="${g}" ${r.group === g ? 'selected' : ''}>${GROUPS[g]}</option>`).join('')}</select></td>
                     <td><input type="number" step="0.01" min="0" class="cell-input num scan-amount" data-i="${i}" data-change="scan.field" value="${r.amount}"></td>
                     <td class="num">${money(r.amount * f)}</td>
-                    <td class="text-[10px] text-slate-500">${COMPUTED[r.kind] ? `Ya lo calcula la app: ${money(COMPUTED[r.kind](p) / f)} por pago` : r.ytd ? `En el año: ${money(r.ytd)}` : ''}</td>
+                    <td class="text-[11px] text-slate-500">${COMPUTED[r.kind] ? `Ya lo calcula la app: ${money(COMPUTED[r.kind](p) / f)} por pago` : r.ytd ? `En el año: ${money(r.ytd)}` : ''}</td>
                 </tr>`).join('')}
             </tbody></table></div>
             ${stub.gross ? `<label class="check mt-3"><input type="checkbox" id="scan-gross" data-change="scan.field" ${d.useGross ? 'checked' : ''}> Usar el bruto del rol como mi sueldo bruto mensual (${money(stub.gross * f)}; hoy tienes ${money(p.sueldo)})</label>` : ''}

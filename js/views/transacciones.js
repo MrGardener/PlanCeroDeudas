@@ -115,8 +115,8 @@
                     <button class="row-del" data-action="cat.deleteParent" data-parent="${esc(p)}" title="Eliminar categoría"><i class="fa-solid fa-trash-can"></i></button>
                 </div>
                 <div class="flex flex-wrap gap-1.5">${tax[p].map(s => `
-                    <span class="inline-flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-full pl-2 pr-1 py-0.5 text-[10px]">${esc(s)}
-                        <button class="text-red-400 hover:text-red-700 font-bold px-1" data-action="cat.deleteSub" data-parent="${esc(p)}" data-sub="${esc(s)}" title="Eliminar subcategoría">×</button></span>`).join('') || '<span class="text-slate-400 text-[10px]">(sin subcategorías)</span>'}
+                    <span class="inline-flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-full pl-2 pr-1 py-0.5 text-[11px]">${esc(s)}
+                        <button class="text-red-400 hover:text-red-700 font-bold px-1" data-action="cat.deleteSub" data-parent="${esc(p)}" data-sub="${esc(s)}" title="Eliminar subcategoría">×</button></span>`).join('') || '<span class="text-slate-400 text-[11px]">(sin subcategorías)</span>'}
                 </div>
             </div>`).join('') : '<p class="help">No hay categorías. Agrega una con "+ Nueva".</p>');
     }
@@ -137,7 +137,7 @@
     function incomeLabel(t) {
         const yd = Store.state.years[Number(t.date.slice(0, 4))];
         const line = yd && (yd.otherIncomes || []).find(x => x.id === t.incomeId);
-        return line ? `<span class="block text-[10px] text-emerald-700"><i class="fa-solid fa-link"></i> Recibido de «${esc(line.name)}»</span>` : '';
+        return line ? `<span class="block text-[11px] text-emerald-700"><i class="fa-solid fa-link"></i> Recibido de «${esc(line.name)}»</span>` : '';
     }
 
     // Which budget line each expense counts in (explicit or automatic by category), per month.
@@ -238,7 +238,7 @@
         }
         if (list.length > shown) html.push(`<div class="text-center py-3"><button type="button" class="btn btn-secondary btn-sm" data-action="txn.more">Ver ${Math.min(PAGE * 2, list.length - shown)} más <span class="text-slate-400">(${list.length - shown} restantes)</span></button></div>`);
         UI.html('txn-body', groups.length ? html.join('')
-            : `<p class="empty-row text-center text-xs text-slate-400 py-6">${q ? `Nada coincide con "${esc(q)}".` : 'No hay transacciones para este filtro.'}</p>`);
+            : Views.emptyState(q ? 'fa-magnifying-glass' : 'fa-receipt', q ? `Nada coincide con "${esc(q)}".` : 'No hay transacciones para este filtro.', q ? '' : '<button type="button" class="btn btn-primary btn-sm" data-action="quick.open"><i class="fa-solid fa-bolt"></i> Registro rápido</button>'));
 
         const inc = list.filter(t => t.type === 'Ingreso').reduce((s, t) => s + Number(t.amount || 0), 0);
         const exp = list.filter(t => (t.type || 'Gasto') === 'Gasto').reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -269,13 +269,13 @@
             <div class="kpi tone-emerald"><span class="kpi-label">Ingresos programados</span><span class="kpi-value">${money(per(inc))}<span class="text-xs font-semibold text-slate-500">/mes</span></span><span class="kpi-note">${inc.length} movimiento${inc.length === 1 ? '' : 's'}</span></div>`);
         UI.html('rec-body', recs.length ? recs.map(({ r, next, due }) => `<tr>
                 <td class="whitespace-nowrap text-xs">${next ? esc(next) : '<span class="text-slate-400">Terminó</span>'}${due.length && r.auto === false ? `<span class="block"><button type="button" class="mini-btn" data-action="rec.postNow" data-id="${r.id}">Registrar ${due.length} pendiente${due.length === 1 ? '' : 's'}</button></span>` : ''}</td>
-                <td><div class="font-semibold text-xs">${esc(r.description)}${isSubscription(r) ? ' <span class="badge badge-purple">Suscripción</span>' : ''}</div><div class="text-[10px] text-slate-500">${esc(r.parentCategory)}</div></td>
+                <td><div class="font-semibold text-xs">${esc(r.description)}${isSubscription(r) ? ' <span class="badge badge-purple">Suscripción</span>' : ''}</div><div class="text-[11px] text-slate-500">${esc(r.parentCategory)}</div></td>
                 <td><select class="cell-input text-xs" data-change="rec.freq" data-id="${r.id}">${Object.keys(FREQ).map(k => `<option value="${k}" ${k === r.frequency ? 'selected' : ''}>${FREQ[k]}</option>`).join('')}</select></td>
                 <td class="num font-bold ${r.type === 'Ingreso' ? 'text-emerald-700' : ''}">${r.type === 'Ingreso' ? '+' : '−'}${money(r.amount)}</td>
                 <td class="num text-xs">${money(Engine.monthlyCost(r))}</td>
                 <td class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="rec.auto" data-id="${r.id}" ${r.auto === false ? '' : 'checked'} title="Registrar automáticamente"></td>
                 <td class="text-center"><button class="row-del" data-action="rec.delete" data-id="${r.id}" title="Dejar de repetir" aria-label="Dejar de repetir"><i class="fa-solid fa-trash-can"></i></button></td>
-            </tr>`).join('') : '<tr class="empty-row"><td colspan="7">Nada programado. Ejemplos: arriendo el 5 de cada mes, Netflix, tu sueldo quincenal.</td></tr>');
+            </tr>`).join('') : `<tr class="empty-row"><td colspan="7">${Views.emptyState('fa-repeat', 'Nada programado. Ejemplos: arriendo el 5 de cada mes, Netflix, tu sueldo quincenal.')}</td></tr>`);
     }
 
     // Post every repeating movement that's due (only those set to automatic unless `ids` given).

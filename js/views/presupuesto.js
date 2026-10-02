@@ -75,7 +75,7 @@
         });
         other.unplanned.forEach(u => {
             html += `<tr data-income="cat:${esc(u.category)}" class="bg-emerald-50/40">
-                <td><div class="px-1"><span class="font-semibold text-slate-800">${esc(u.category)}</span><span class="block text-[10px] text-slate-500">Registrado este mes: ${esc(u.txns.map(t => t.description).join(', '))}</span></div></td>
+                <td><div class="px-1"><span class="font-semibold text-slate-800">${esc(u.category)}</span><span class="block text-[11px] text-slate-500">Registrado este mes: ${esc(u.txns.map(t => t.description).join(', '))}</span></div></td>
                 <td class="text-xs text-slate-500 px-3">Transacciones</td><td class="text-center text-slate-300">—</td>${cells}
                 <td class="text-xs text-slate-500 px-3">${esc(u.category)}</td>
                 <td>${(ctx.year.otherIncomes || []).length ? `<select class="cell-input text-[11px] mb-1" data-change="income.linkTxns" data-category="${esc(u.category)}" title="Si este dinero es lo que recibiste de uno de tus ingresos mensuales, elígelo">
@@ -117,7 +117,7 @@
             else cell.innerHTML = (src.received + 0.005 >= src.planned
                 ? `<span class="badge badge-ok">Recibido ${money0(src.received)}</span>`
                 : `<span class="badge badge-warn">Recibido ${money0(src.received)} de ${money0(src.planned)}</span> <button type="button" class="mini-btn" data-action="income.markReceived" data-id="${src.id}" title="Registra una transacción de ingreso por lo que falta (${money(src.planned - src.received)})">Ya lo recibí</button>`)
-                + (src.txns.length ? `<span class="block text-[10px] text-slate-500 mt-0.5">${esc(src.txns.map(t => t.description).join(', '))}</span>` : '');
+                + (src.txns.length ? `<span class="block text-[11px] text-slate-500 mt-0.5">${esc(src.txns.map(t => t.description).join(', '))}</span>` : '');
         });
         other.unplanned.forEach(u => set(document.querySelector(`#bud-body tr[data-income="cat:${CSS.escape(u.category)}"]`), 0, u.amount));
         const g = document.querySelector('#bud-body tr.group-row[data-group="income"]');

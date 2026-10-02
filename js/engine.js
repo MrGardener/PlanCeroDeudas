@@ -432,7 +432,9 @@
         if (target <= 0) return spent > 0 ? { kind: 'unbudgeted', spent } : { kind: 'empty', spent: 0 };
         if (spent === 0) return { kind: 'untouched', spent, target };
         const ratio = spent / target;
-        if (ratio >= 1) return { kind: 'over', spent, target, ratio, over: spent - target };
+        // Spending exactly what was planned (a bill paid in full) is "complete", not "over".
+        if (spent > target + 0.005) return { kind: 'over', spent, target, ratio, over: spent - target };
+        if (spent >= target - 0.005) return { kind: 'complete', spent, target, ratio: 1 };
         if (ratio >= 0.8) return { kind: 'warning', spent, target, ratio };
         return { kind: 'ok', spent, target, ratio };
     }

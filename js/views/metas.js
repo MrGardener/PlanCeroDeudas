@@ -107,7 +107,7 @@
             const paidPct = orig > 0 ? paid / orig : 0;
             row.querySelector('[data-cell="payoff"]').innerHTML = (info && info.payoffMonth ? `Mes ${info.payoffMonth} · ${Fmt.monthYear(Engine.addMonths(ctx.today, info.payoffMonth))}` : (Number(d.balance) > 0 ? 'Nunca' : '—'))
                 + (under ? '<span class="block"><span class="badge badge-bad">Bajo el mínimo</span></span>' : '')
-                + (orig > 0 ? `<span class="block text-[10px] font-semibold text-slate-500 mt-1">Pagado ${money0(paid)} (${Math.round(paidPct * 100)}%)</span><div class="mini-bar"><span style="width:${(paidPct * 100).toFixed(1)}%;background:#059669"></span></div>` : '');
+                + (orig > 0 ? `<span class="block text-[11px] font-semibold text-slate-500 mt-1">Pagado ${money0(paid)} (${Math.round(paidPct * 100)}%)</span><div class="mini-bar"><span style="width:${(paidPct * 100).toFixed(1)}%;background:#059669"></span></div>` : '');
         });
         UI.text('debt-total', money0(plan.totalBalance));
         UI.text('debt-interest', money0(plan.totalInterest));
@@ -148,7 +148,7 @@
             const track = !sch || r.status === 'reached' ? ''
                 : sch.onTrack ? '<span class="badge badge-ok">A tiempo</span>'
                 : `<span class="badge badge-bad" title="Para llegar a tiempo">Atrasada: necesitas ${Fmt.money0(sch.required)}/mes</span>`;
-            cell.innerHTML = `<div class="flex justify-between text-[10px] text-slate-500"><span>${Fmt.money0(g.current)} de ${Fmt.money0(g.target)}</span><strong>${Math.round(pct * 100)}%</strong></div>
+            cell.innerHTML = `<div class="flex justify-between text-[11px] text-slate-500"><span>${Fmt.money0(g.current)} de ${Fmt.money0(g.target)}</span><strong>${Math.round(pct * 100)}%</strong></div>
                 <div class="mini-bar"><span style="width:${(pct * 100).toFixed(1)}%;background:#7c3aed"></span></div>
                 <div class="flex flex-wrap gap-1 mt-1">${eta}${track}</div>`;
         });

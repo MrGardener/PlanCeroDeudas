@@ -60,7 +60,7 @@
         const snap = ctx.netWorth.fields;
         UI.$$('[data-input="nw.set"]').forEach(el => { el.value = snap[el.dataset.field]; });
         const s = ctx.state;
-        UI.html('asset-body', s.assets.length ? s.assets.map(a => assetRow(a, s.activeYear)).join('') : '<tr class="empty-row"><td colspan="7">Aún no registras activos (casa, carro, terreno…).</td></tr>');
+        UI.html('asset-body', s.assets.length ? s.assets.map(a => assetRow(a, s.activeYear)).join('') : `<tr class="empty-row"><td colspan="7">${Views.emptyState('fa-house', 'Aún no registras activos (casa, carro, terreno…).')}</td></tr>`);
         update(ctx);
     }
 
@@ -122,7 +122,7 @@
             <td><input type="number" class="cell-input num money" step="any" value="${Number(a.balance) || 0}" data-input="acct.set" data-id="${a.id}" data-field="balance" aria-label="Saldo"></td>
             <td class="text-[11px] text-slate-500" data-cell="when">${a.updatedAt ? esc(a.updatedAt) : '—'}</td>
             <td class="text-center"><button class="row-del" data-action="acct.delete" data-id="${a.id}" title="Eliminar cuenta" aria-label="Eliminar cuenta"><i class="fa-solid fa-trash-can"></i></button></td>
-        </tr>`).join('') : '<tr class="empty-row"><td colspan="5">Agrega tus cuentas (Pichincha ahorros, Produbanco corriente, efectivo…) para ver tu dinero disponible de un vistazo.</td></tr>');
+        </tr>`).join('') : `<tr class="empty-row"><td colspan="5">${Views.emptyState('fa-building-columns', 'Agrega tus cuentas (Pichincha ahorros, Produbanco corriente, efectivo…) para ver tu dinero disponible de un vistazo.')}</td></tr>`);
         UI.text('acct-total', money(list.reduce((t, a) => t + (Number(a.balance) || 0), 0)));
     }
 
@@ -144,7 +144,7 @@
 
     function renderHoldings(ctx) {
         const list = ctx.state.holdings || [];
-        UI.html('hold-body', list.length ? list.map(holdingRow).join('') : '<tr class="empty-row"><td colspan="8">Agrega tus ETF, acciones o fondos: símbolo (ticker) y cuántas unidades tienes.</td></tr>');
+        UI.html('hold-body', list.length ? list.map(holdingRow).join('') : `<tr class="empty-row"><td colspan="8">${Views.emptyState('fa-chart-line', 'Agrega tus ETF, acciones o fondos: símbolo (ticker) y cuántas unidades tienes.')}</td></tr>`);
         updateHoldings(ctx);
     }
 

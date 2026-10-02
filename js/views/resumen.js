@@ -132,7 +132,7 @@
         const rest = br.items.slice(5).reduce((a, r) => a + r.amount, 0);
         UI.html('dash-top', br.total ? `<div class="space-y-2.5 text-xs">${top.map(r => `<div><div class="flex justify-between gap-2"><span class="font-semibold text-slate-700 truncate">${esc(r.category)}</span><span class="whitespace-nowrap"><strong>${money0(r.amount)}</strong> <span class="text-slate-400">${Math.round(r.share * 100)}%</span></span></div>${bar(r.amount / top[0].amount, '#2a78d6')}</div>`).join('')}
             ${rest ? `<div class="flex justify-between text-slate-500"><span>Otras categorías</span><span>${money0(rest)}</span></div>` : ''}
-            <p class="help">Total: ${money0(br.total)} en ${Fmt.monthLower(m - 1)}.</p></div>` : '<p class="help">Aún no registras gastos este mes.</p>');
+            <p class="help">Total: ${money0(br.total)} en ${Fmt.monthLower(m - 1)}.</p></div>` : Views.emptyState('fa-receipt', 'Aún no registras gastos este mes.', '<button type="button" class="btn btn-primary btn-sm" data-action="quick.open"><i class="fa-solid fa-plus"></i> Registrar un gasto</button>'));
 
         // Insights
         const ins = Engine.monthInsights(txns, t);
@@ -154,7 +154,7 @@
         if (accts.length) {
             const KIND = { corriente: 'fa-building-columns', ahorros: 'fa-piggy-bank', efectivo: 'fa-money-bill-wave' };
             const total = accts.reduce((a, x) => a + (Number(x.balance) || 0), 0);
-            UI.html('dash-accounts', `<div class="space-y-2 text-xs">${accts.map(a => `<div class="flex items-center justify-between gap-2"><span class="flex items-center gap-2 min-w-0"><i class="fa-solid ${KIND[a.kind] || KIND.corriente} text-blue-600 w-4 text-center"></i><span class="truncate font-semibold text-slate-800">${esc(a.name)}</span></span><span class="text-right"><strong>${money(a.balance)}</strong><span class="block text-[10px] text-slate-400">${esc(a.updatedAt || '')}</span></span></div>`).join('')}
+            UI.html('dash-accounts', `<div class="space-y-2 text-xs">${accts.map(a => `<div class="flex items-center justify-between gap-2"><span class="flex items-center gap-2 min-w-0"><i class="fa-solid ${KIND[a.kind] || KIND.corriente} text-blue-600 w-4 text-center"></i><span class="truncate font-semibold text-slate-800">${esc(a.name)}</span></span><span class="text-right"><strong>${money(a.balance)}</strong><span class="block text-[11px] text-slate-400">${esc(a.updatedAt || '')}</span></span></div>`).join('')}
                 <div class="flex justify-between border-t border-slate-100 pt-2"><span class="font-semibold text-slate-600">Disponible</span><strong class="${total < 0 ? 'text-red-600' : 'text-emerald-700'}">${money(total)}</strong></div></div>`);
         }
 
@@ -183,7 +183,7 @@
         const items = Engine.monthItems(Store.effective(y), m);
         const spend = Engine.lineSpend(items, s.transactions, y, m);
         const bills = Engine.billsDue({ items, spend, year: y, month: m, today: ctx.today });
-        if (!bills.length) return '<p class="text-xs text-slate-500">Aún no tienes fechas de pago. En tu presupuesto (vista Simple), toca el <i class="fa-regular fa-calendar"></i> junto a un rubro —arriendo, luz, internet, tarjeta— para decir qué día vence.</p>';
+        if (!bills.length) return Views.emptyState('fa-calendar-plus', 'Aún no tienes fechas de pago. En tu presupuesto, toca el <i class="fa-regular fa-calendar"></i> junto a un rubro —arriendo, luz, internet, tarjeta— para decir qué día vence.', '<a href="#" class="btn btn-secondary btn-sm" data-goto="presupuesto/plan">Ir al presupuesto</a>');
         const order = { overdue: 0, soon: 1, later: 2, paid: 3 };
         const label = (b) => b.status === 'paid' ? '<span class="badge badge-ok">Pagado</span>'
             : b.status === 'overdue' ? `<span class="badge badge-bad">Vencido hace ${-b.daysLeft} día${b.daysLeft === -1 ? '' : 's'}</span>`

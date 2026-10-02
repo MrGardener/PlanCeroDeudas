@@ -172,6 +172,7 @@
         const bar = row.querySelector('[data-bar]');
         const p = Math.max(0, Math.min(1, progress || 0));
         bar.style.width = (p * 100).toFixed(1) + '%';
+        bar.parentElement.classList.toggle('empty', p <= 0);
         bar.className = progress > 1.0001 ? 'over' : progress >= 0.8 && md !== 'planned' ? 'warn' : '';
         if (sub !== undefined) { const s = row.querySelector('[data-sub]'); if (s) s.innerHTML = sub; }
     }

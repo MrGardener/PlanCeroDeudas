@@ -1984,3 +1984,9 @@ I18n.add('en', {
 "Escribe el símbolo (ticker, ej. VOO, AAPL) y cuántas unidades tienes. El valor total entra solo a tu patrimonio de este año.": "Type the symbol (ticker, e.g. VOO, AAPL) and how many shares you own. The total goes into this year's net worth on its own.",
 "cuentas": "accounts", "deudas": "debts",
 });
+I18n.add('en', {
+"Aún no tienes fechas de pago. En tu presupuesto, toca el": "You don't have due dates yet. In your budget, tap the",
+"Ir al presupuesto": "Go to the budget",
+"Registrar un gasto": "Log an expense",
+});
+I18n.add('en', { "otros ingresos ({0})": "other income ({0})", "décimo ({0})": "bonus pay ({0})" });

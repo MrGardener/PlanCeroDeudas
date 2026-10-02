@@ -787,3 +787,9 @@ test('PMI: none at 80% loan-to-value; otherwise until the balance reaches 78% of
     assert.equal(p.pmiMonths, i + 1);
     assert.equal(E.pitiMonthly({ payment: 1500, amount: 240000, pmiRate: 0.5, homeValue: 300000, schedule: sch }).pmi, 0);
 });
+
+test('spending exactly the plan is complete, not over', () => {
+    assert.equal(E.spendStatus(2144.75, 2144.75).kind, 'complete');
+    assert.equal(E.spendStatus(2144.76, 2144.75).kind, 'over');
+    assert.equal(E.spendStatus(1800, 2000).kind, 'warning');
+});

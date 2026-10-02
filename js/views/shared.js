@@ -47,16 +47,19 @@
         }
     }
 
+    // A dashboard tile: the same KPI tile the tabs use, as a link to where the number lives.
     function kpiCard({ tone, icon, label, value, note, goto, focus }) {
         return `
-            <button type="button" class="card dash-card" data-goto="${goto}" ${focus ? `data-focus="${focus}"` : ''}>
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500"><i class="fa-solid ${icon} ${tone} mr-1"></i>${label}</span>
-                    <i class="fa-solid fa-arrow-right text-slate-300 text-xs"></i>
-                </div>
-                <div class="text-2xl font-black text-slate-900 tracking-tight">${value}</div>
-                <div class="text-xs text-slate-500 mt-1">${note}</div>
+            <button type="button" class="kpi tone-slate kpi-link dash-card" data-goto="${goto}" ${focus ? `data-focus="${focus}"` : ''}>
+                <span class="kpi-head"><span class="kpi-icon"><i class="fa-solid ${icon} ${tone}"></i></span><span class="kpi-label">${label}</span><i class="fa-solid fa-chevron-right kpi-chev"></i></span>
+                <span class="kpi-value">${value}</span>
+                <span class="kpi-note">${note}</span>
             </button>`;
+    }
+
+    // An empty screen says what goes here and offers the one next step (instead of a blank grid).
+    function emptyState(icon, text, cta) {
+        return `<div class="empty-state"><span class="empty-icon"><i class="fa-solid ${icon}"></i></span><p>${text}</p>${cta || ''}</div>`;
     }
 
     const selectOptions = (options, current) => options.map(o => {
@@ -127,5 +130,5 @@
         </div>`;
     }
 
-    root.Views = { guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, selectOptions, monthOptions };
+    root.Views = { guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions };
 })(this);
