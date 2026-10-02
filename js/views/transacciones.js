@@ -192,9 +192,12 @@
         if (inc && Engine.isPayrollTxn(t)) notes.push(`<span class="text-amber-700">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>`);
         if (inc && t.countAsExtra) notes.push('<span class="text-emerald-700">Contado como ingreso extra</span>');
         if (inc && t.incomeId) notes.push(incomeLabel(t));
-        return `<div class="txn-item ${Store.ui.txnEditing === t.id ? 'row-editing' : ''}" data-row="${t.id}" ${inc ? '' : `draggable="true" data-txn="${t.id}"`}>
+        const picking = !!Store.ui.txnSelecting;
+        const on = picking && selected.has(t.id);
+        return `<div class="txn-item ${Store.ui.txnEditing === t.id ? 'row-editing' : ''} ${on ? 'is-selected' : ''}" data-row="${t.id}" ${inc || picking ? '' : `draggable="true" data-txn="${t.id}"`}>
+                ${picking ? `<label class="txn-check"><input type="checkbox" data-action="txn.check" data-id="${t.id}" ${on ? 'checked' : ''} aria-label="Seleccionar"></label>` : ''}
                 <div class="txn-date ${inc ? 'inc' : 'exp'} ${pending ? 'pending' : ''}"><span>${Fmt.MONTH_SHORT[d.getMonth()]}</span><b>${d.getDate()}</b></div>
-                <div class="txn-main">
+                <div class="txn-main" ${picking ? `data-action="txn.check" data-id="${t.id}"` : ''}>
                     <div class="txn-desc">${memberBadge(t)}${esc(t.description)}</div>
                     <div class="txn-meta">${[t.store, `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`, t.paymentType].filter(Boolean).map(esc).join(' · ')}</div>
                     ${notes.length ? `<div class="txn-notes">${notes.join(' ')}</div>` : ''}
@@ -218,6 +221,7 @@
         const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q) && byMember(t))
             .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
         const assignOf = assignments(ctx);
+        lastList = list;
         // Grouped by month, newest first.
         const groups = [];
         list.forEach(t => {
@@ -248,8 +252,54 @@
         const pending = list.filter(t => (t.type || 'Gasto') === 'Gasto' && !assignOf(t).lineId).length;
         UI.html('txn-unassigned-note', pending ? `<i class="fa-solid fa-circle-exclamation text-amber-600"></i> ${pending} gasto${pending === 1 ? '' : 's'} sin rubro: elige su rubro en el botón punteado para que cuenten en tu presupuesto.` : '');
 
+        renderBulk();
         renderRecurring(ctx);
         renderTrash(ctx);
+    }
+
+    // ------------------------------------------------------------------ select several
+    // "Seleccionar" turns the list into checkboxes; the bar at the bottom changes them all at once.
+    const selected = new Set();
+    let lastList = [];
+    let lastChecked = null;
+
+    function renderBulk() {
+        const picking = !!Store.ui.txnSelecting;
+        const ids = new Set(Store.state.transactions.map(t => t.id));
+        [...selected].forEach(id => { if (!ids.has(id)) selected.delete(id); });
+        const body = document.getElementById('txn-body');
+        if (body) body.classList.toggle('select-mode', picking);
+        const btn = document.getElementById('txn-select-toggle');
+        if (btn) { btn.classList.toggle('active', picking); btn.setAttribute('aria-pressed', String(picking)); }
+        const bar = document.getElementById('txn-bulk');
+        if (!bar) return;
+        UI.show(bar, picking);
+        if (!picking) return;
+        const n = selected.size;
+        const all = lastList.length > 0 && lastList.every(t => selected.has(t.id));
+        UI.html('txn-bulk-count', n ? `<b>${n}</b> seleccionada${n === 1 ? '' : 's'}` : 'Toca las transacciones que quieras cambiar');
+        UI.html('txn-bulk-all', all ? 'Quitar selección' : `Seleccionar las ${lastList.length} filtradas`);
+        bar.querySelectorAll('[data-needs]').forEach(b => { b.disabled = !n; });
+    }
+
+    const picked = () => Store.state.transactions.filter(t => selected.has(t.id));
+    const isIncome = (t) => (t.type || 'Gasto') === 'Ingreso';
+    const ones = (n) => n === 1 ? 'ón' : 'ones';
+
+    // Change every selected transaction in one step (one undo).
+    function bulkApply(message, fn) {
+        const list = picked();
+        if (!list.length) return;
+        App.undoable(message, () => list.forEach(fn));
+    }
+
+    // The longest text all the selected descriptions start with — a starting point for a rule.
+    function commonText(list) {
+        const words = list.map(t => String(t.description || '').trim().toLowerCase());
+        let pre = words[0] || '';
+        words.forEach(w => { while (pre && !w.startsWith(pre)) pre = pre.slice(0, -1); });
+        pre = pre.trim();
+        return pre.length >= 2 ? (list[0].description || '').trim().slice(0, pre.length) : (list[0].description || '').trim().slice(0, 40);
     }
 
     // ------------------------------------------------------------------ recurring
@@ -582,6 +632,123 @@
             Store.ui.txnLimit = PAGE;
             clearTimeout(searchTimer);
             searchTimer = setTimeout(() => App.update(), 220);
+        },
+        'txn.selectMode': () => {
+            Store.ui.txnSelecting = !Store.ui.txnSelecting;
+            selected.clear();
+            lastChecked = null;
+            if (Store.ui.txnSelecting && Store.ui.txnEditing) { setEditing(null); clearForm(); }
+            App.update();
+        },
+        // Shift+click selects everything between the last two clicks (on a computer).
+        'txn.check': (el, e) => {
+            const id = Number(el.dataset.id);
+            const on = el.type === 'checkbox' ? el.checked : !selected.has(id);
+            if (e && e.shiftKey && lastChecked !== null) {
+                const order = lastList.map(t => t.id);
+                const a = order.indexOf(lastChecked), b = order.indexOf(id);
+                if (a >= 0 && b >= 0) order.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(x => on ? selected.add(x) : selected.delete(x));
+            }
+            if (on) selected.add(id); else selected.delete(id);
+            lastChecked = id;
+            App.update();
+        },
+        'txn.selectAll': () => {
+            const all = lastList.length > 0 && lastList.every(t => selected.has(t.id));
+            if (all) selected.clear(); else lastList.forEach(t => selected.add(t.id));
+            App.update();
+        },
+        'txn.bulkCategory': async () => {
+            const list = picked();
+            const kinds = new Set(list.map(t => isIncome(t)));
+            if (kinds.size > 1) { UI.toast('Elige solo gastos o solo ingresos para cambiar la categoría.', 'warn'); return; }
+            const inc = kinds.has(true);
+            const tax = taxonomyFor(inc ? 'Ingreso' : 'Gasto');
+            const options = [];
+            Object.keys(tax).forEach(p => {
+                options.push({ value: p + '|', label: p });
+                (tax[p] || []).forEach(sub => options.push({ value: p + '|' + sub, label: `${p} › ${sub}` }));
+            });
+            const r = await UI.form({
+                title: `Categoría de ${list.length} transacci${ones(list.length)}`,
+                fields: [{ name: 'cat', label: 'Nueva categoría', options }],
+                confirmText: 'Cambiar'
+            });
+            if (!r) return;
+            const [parent, sub] = r.cat.split('|');
+            bulkApply(`Categoría cambiada a «${parent}${sub ? ' › ' + sub : ''}» en ${list.length} transacci${ones(list.length)}`, t => {
+                t.parentCategory = parent;
+                t.category = sub || (tax[parent] || [])[0] || '';
+            });
+        },
+        'txn.bulkLine': async () => {
+            const list = picked().filter(t => !isIncome(t));
+            if (!list.length) { UI.toast('Los rubros son para gastos: selecciona al menos un gasto.', 'warn'); return; }
+            const years = new Set(list.map(t => t.date.slice(0, 4)));
+            if (years.size > 1) { UI.toast('Elige gastos de un solo año para cambiar el rubro.', 'warn'); return; }
+            const items = Engine.monthItems(Store.effective(Number([...years][0])), 'base');
+            const r = await UI.form({
+                title: `Rubro de ${list.length} gasto${list.length === 1 ? '' : 's'}`,
+                message: list.some(t => Array.isArray(t.splits) && t.splits.length) ? 'Las que estaban divididas entre rubros pasan a contar en uno solo.' : '',
+                fields: [{ name: 'line', label: 'Contar en el rubro', options: [{ value: '', label: 'Automático (según la categoría)' }].concat(items.map(i => ({ value: String(i.id), label: i.name }))) }],
+                confirmText: 'Cambiar'
+            });
+            if (!r) return;
+            const ids = new Set(list.map(t => t.id));
+            bulkApply(`Rubro cambiado en ${list.length} gasto${list.length === 1 ? '' : 's'}`, t => {
+                if (!ids.has(t.id)) return;
+                delete t.splits;
+                if (r.line) t.budgetLine = r.line; else delete t.budgetLine;
+            });
+        },
+        'txn.bulkMember': async () => {
+            const members = Store.state.members || [];
+            if (!members.length) { UI.toast('Primero agrega a las personas del hogar en Configuración.', 'warn'); return; }
+            const list = picked();
+            const r = await UI.form({
+                title: '¿De quién son las transacciones seleccionadas?',
+                fields: [{ name: 'member', label: 'Persona', options: members.map(p => ({ value: String(p.id), label: p.name })).concat([{ value: '', label: 'Sin persona' }]) }],
+                confirmText: 'Cambiar'
+            });
+            if (!r) return;
+            const who = members.find(p => String(p.id) === r.member);
+            bulkApply(who ? `${list.length} transacci${ones(list.length)} de ${who.name}` : 'Persona quitada', t => {
+                if (who) t.memberId = who.id; else delete t.memberId;
+            });
+        },
+        'txn.bulkPayment': async () => {
+            const list = picked();
+            const options = [...document.getElementById('txn-payment').options].map(o => o.value);
+            const r = await UI.form({
+                title: `Forma de pago de ${list.length} transacci${ones(list.length)}`,
+                fields: [{ name: 'pay', label: 'Forma de pago', options }],
+                confirmText: 'Cambiar'
+            });
+            if (!r) return;
+            bulkApply(`Forma de pago: ${r.pay}`, t => { t.paymentType = r.pay; });
+        },
+        'txn.bulkDelete': async () => {
+            const list = picked();
+            if (!list.length) return;
+            const ok = await UI.confirm({ title: `Eliminar ${list.length} transacci${ones(list.length)}`, message: 'Van a "Eliminadas recientemente" por 60 días, y puedes deshacerlo.', confirmText: 'Eliminar', danger: true });
+            if (!ok) return;
+            const ids = new Set(list.map(t => t.id));
+            if (ids.has(Store.ui.txnEditing)) { setEditing(null); clearForm(); }
+            selected.clear();
+            App.undoable(`${ids.size} transacci${ids.size === 1 ? 'ón eliminada' : 'ones eliminadas'} (en "Eliminadas recientemente")`, () => {
+                const s = Store.state;
+                const when = new Date().toISOString();
+                s.trash = s.trash || [];
+                s.transactions.forEach(t => { if (ids.has(t.id)) s.trash.push(Object.assign({}, t, { deletedAt: when })); });
+                s.transactions = s.transactions.filter(t => !ids.has(t.id));
+            });
+        },
+        // A rule so the next ones like these sort themselves (Importar → Reglas automáticas).
+        'txn.bulkRule': () => {
+            const list = picked();
+            if (!list.length) return;
+            const first = list[0];
+            UI.run('rule.add', { contains: commonText(list), cat: (isIncome(first) ? 'I|' : 'G|') + first.parentCategory });
         },
         'txn.more': () => { Store.ui.txnLimit = (Store.ui.txnLimit || PAGE) + PAGE * 2; App.update(); },
         'txn.openForm': () => { const c = document.getElementById('txn-form-card'); c.open = true; c.scrollIntoView({ block: 'start', behavior: 'smooth' }); setTimeout(() => document.getElementById('txn-amount').focus(), 300); },

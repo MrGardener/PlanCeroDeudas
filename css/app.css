@@ -288,9 +288,28 @@ input[type="file"].hidden { display: none; }
 .txn-amt { font-size: .9rem; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .txn-amt.inc { color: #047857; }
 .txn-actions { display: flex; gap: .1rem; }
+/* Select several: a checkbox column, the row tints, and a bar at the bottom of the screen. */
+.select-mode .txn-item { grid-template-columns: 1.4rem 2.9rem minmax(0, 1fr) auto auto; grid-template-areas: "check date main chip amt"; }
+.select-mode .txn-actions { display: none; }
+.select-mode .txn-main { cursor: pointer; }
+.txn-check { grid-area: check; display: flex; align-items: center; justify-content: center; }
+.txn-check input { width: 1.1rem; height: 1.1rem; accent-color: var(--brand); cursor: pointer; }
+.txn-item.is-selected { background: color-mix(in srgb, var(--brand) 9%, transparent); }
+#txn-select-toggle.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+.bulk-bar { position: sticky; bottom: .75rem; z-index: 30; margin-top: .75rem; padding: .6rem .75rem; border-radius: var(--r-lg, 14px); background: var(--surface); border: 1px solid var(--line); box-shadow: 0 10px 28px rgba(15, 23, 42, .18); }
+.bulk-head { display: flex; align-items: center; gap: .75rem; font-size: .8rem; margin-bottom: .45rem; }
+.bulk-head #txn-bulk-count { flex: 1; min-width: 0; }
+.bulk-close { width: 1.8rem; height: 1.8rem; border-radius: 999px; color: var(--muted); }
+.bulk-close:hover { background: var(--surface-2); }
+.bulk-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+/* The quick-add button would sit on top of the bar. */
+body:has(section:not(.hidden) > [data-view]:not(.hidden) #txn-bulk:not(.hidden)) .fab { display: none; }
+.bulk-actions .mini-btn:disabled { opacity: .45; cursor: not-allowed; }
 .chip-note { font-size: .7rem; color: #64748b; font-weight: 600; }
 @media (max-width: 639px) {
     .txn-item { grid-template-columns: 2.6rem minmax(0, 1fr) auto; grid-template-areas: "date main amt" "date chip actions"; }
+    .select-mode .txn-item { grid-template-columns: 1.4rem 2.6rem minmax(0, 1fr) auto; grid-template-areas: "check date main amt" "check date chip chip"; }
+    html.is-native .bulk-bar { bottom: calc(4.4rem + env(safe-area-inset-bottom, 0px)); }
     .txn-chip .chip-select { max-width: 100%; }
 }
 

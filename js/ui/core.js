@@ -20,6 +20,8 @@
         // Handlers are registered by name; markup refers to them with data-action (click),
         // data-input (every keystroke) or data-change (on commit). The element is passed in.
         register(map) { Object.assign(actions, map); },
+        // Run a registered handler from code (with a stand-in element carrying its data-*).
+        run(name, data = {}) { return actions[name] && actions[name]({ dataset: data }); },
 
         initEvents() {
             const dispatch = (attr) => (e) => {

@@ -1990,3 +1990,27 @@ I18n.add('en', {
 "Registrar un gasto": "Log an expense",
 });
 I18n.add('en', { "otros ingresos ({0})": "other income ({0})", "décimo ({0})": "bonus pay ({0})" });
+// Select several transactions
+I18n.add('en', {
+    "Seleccionar": "Select", "Listo": "Done", "seleccionada": "selected", "seleccionadas": "selected",
+    "Toca las transacciones que quieras cambiar": "Tap the transactions you want to change",
+    "Seleccionar las {0} filtradas": "Select all {0} shown", "Quitar selección": "Clear selection",
+    "Cambiar varias transacciones": "Change several transactions",
+    "Categoría de {0} transacci{1}": "Category for {0} transaction{1}",
+    "Categoría cambiada a «{0}{1}» en {2} transacci{3}": "Category changed to «{0}{1}» on {2} transaction{3}",
+    "Nueva categoría": "New category", "Cambiar": "Change",
+    "Elige solo gastos o solo ingresos para cambiar la categoría.": "Pick only expenses or only income to change the category.",
+    "Rubro de {0} gasto{1}": "Budget line for {0} expense{1|s}", "Rubro cambiado en {0} gasto{1}": "Budget line changed on {0} expense{1|s}",
+    "Contar en el rubro": "Count in the line",
+    "Los rubros son para gastos: selecciona al menos un gasto.": "Budget lines are for expenses: select at least one expense.",
+    "Elige gastos de un solo año para cambiar el rubro.": "Pick expenses from a single year to change the budget line.",
+    "Las que estaban divididas entre rubros pasan a contar en uno solo.": "Ones split across lines will count in just this one.",
+    "¿De quién son las transacciones seleccionadas?": "Whose are the selected transactions?",
+    "{0} transacci{1} de {2}": "{0} transaction{1} for {2}", "Persona quitada": "Person removed",
+    "Primero agrega a las personas del hogar en Configuración.": "First add the people in your household in Settings.",
+    "Forma de pago de {0} transacci{1}": "Payment method for {0} transaction{1}", "Forma de pago: {0}": "Payment method: {0}",
+    "Eliminar {0} transacci{1}": "Delete {0} transaction{1}",
+    "Van a \"Eliminadas recientemente\" por 60 días, y puedes deshacerlo.": "They go to \"Recently deleted\" for 60 days, and you can undo this.",
+    "{0} transacci{1} (en \"Eliminadas recientemente\")": "{0} transaction{1} (in \"Recently deleted\")",
+    "ón eliminada": " deleted", "ones eliminadas": "s deleted"
+});

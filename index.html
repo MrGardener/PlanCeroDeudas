@@ -513,6 +513,7 @@
                     </select>
                     <select id="txn-f-category" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-member" class="cell-input hidden" style="width:auto" data-change="txn.filter" aria-label="Persona"></select>
+                    <button type="button" id="txn-select-toggle" class="btn btn-secondary btn-sm" data-action="txn.selectMode" aria-pressed="false"><i class="fa-regular fa-square-check"></i> Seleccionar</button>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
@@ -522,6 +523,17 @@
             </div>
             <p class="help mb-2" id="txn-unassigned-note"></p>
             <div id="txn-body" class="txn-list"></div>
+            <div id="txn-bulk" class="bulk-bar hidden" role="toolbar" aria-label="Cambiar varias transacciones">
+                <div class="bulk-head"><span id="txn-bulk-count"></span><button type="button" class="link text-xs" id="txn-bulk-all" data-action="txn.selectAll"></button><button type="button" class="bulk-close" data-action="txn.selectMode" title="Listo" aria-label="Listo"><i class="fa-solid fa-xmark"></i></button></div>
+                <div class="bulk-actions">
+                    <button type="button" class="mini-btn" data-needs data-action="txn.bulkCategory"><i class="fa-solid fa-tag"></i> Categoría</button>
+                    <button type="button" class="mini-btn" data-needs data-action="txn.bulkLine"><i class="fa-solid fa-table-list"></i> Rubro</button>
+                    <button type="button" class="mini-btn" data-needs data-action="txn.bulkMember"><i class="fa-solid fa-user"></i> Persona</button>
+                    <button type="button" class="mini-btn" data-needs data-action="txn.bulkPayment"><i class="fa-solid fa-credit-card"></i> Forma de pago</button>
+                    <button type="button" class="mini-btn" data-needs data-action="txn.bulkRule"><i class="fa-solid fa-wand-magic-sparkles"></i> Crear regla</button>
+                    <button type="button" class="mini-btn text-red-600" data-needs data-action="txn.bulkDelete"><i class="fa-solid fa-trash-can"></i> Eliminar</button>
+                </div>
+            </div>
             <details class="mt-4 panel tone-slate" id="trash-panel">
                 <summary class="text-xs font-bold text-slate-700 cursor-pointer"><i class="fa-solid fa-trash-can-arrow-up text-slate-500"></i> Eliminadas recientemente (<span id="trash-count">0</span>)</summary>
                 <p class="help mt-2">Se guardan 60 días por si te arrepientes.</p>
