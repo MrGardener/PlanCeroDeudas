@@ -11,7 +11,7 @@
             case 1:
                 title = 'Paso 1: Junta tu fondo de emergencia inicial';
                 text = `Reúne $1,000 para imprevistos antes de atacar tus deudas. Hoy tienes ${money0(ef.liquid)} disponibles.`;
-                cta = 'Ver mi fondo de emergencia'; goto = 'metas'; focus = 'metas-ef'; break;
+                cta = 'Ver mi fondo de emergencia'; goto = 'futuro/metas'; focus = 'metas-ef'; break;
             case 2:
                 title = 'Paso 2: Sal de deudas con la Bola de Nieve';
                 text = debts.shortfall > 0
@@ -19,15 +19,15 @@
                     : debts.never
                     ? `Debes ${money0(debts.totalBalance)} y con lo que tu presupuesto asigna nunca terminarías. Asigna más dinero a tus deudas.`
                     : `Debes ${money0(debts.totalBalance)}. Tu presupuesto les envía ${money0(debts.pool)}/mes${debts.extra > 0 ? ` (${money0(debts.extra)} extra a la bola de nieve)` : ''}: quedas libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}.`;
-                cta = 'Ir a mi plan de deudas'; goto = 'metas'; focus = 'metas-debts'; break;
+                cta = 'Ir a mi plan de deudas'; goto = 'futuro/metas'; focus = 'metas-debts'; break;
             case 3:
                 title = 'Paso 3: Completa tu fondo de emergencia';
                 text = `Junta de 3 a 6 meses de gastos esenciales (${money0(ef.monthlyEssential)}/mes). Llevas ${ef.monthsCovered.toFixed(1)} meses cubiertos.`;
-                cta = 'Ver mi fondo de emergencia'; goto = 'metas'; focus = 'metas-ef'; break;
+                cta = 'Ver mi fondo de emergencia'; goto = 'futuro/metas'; focus = 'metas-ef'; break;
             case 4:
                 title = 'Pasos 4–6: Invierte, ahorra para tus hijos y paga tu casa';
                 text = `Ahorras el ${(ctx.savingsRate * 100).toFixed(0)}% de tu sueldo (meta: 15%). Tu jubilación estimada: ${money0(ctx.retirement.ingresoTotal)}/mes.`;
-                cta = 'Ver mi jubilación'; goto = 'jubilacion'; break;
+                cta = 'Ver mi jubilación'; goto = 'futuro/jubilacion'; break;
             default:
                 title = 'Paso 7: Construye riqueza y da con generosidad';
                 text = `Tu patrimonio neto en ${s.activeYear} es ${money0(ctx.netWorth.value)}. Sigue invirtiendo y ayudando a otros.`;
@@ -199,13 +199,13 @@
 
     function alerts(ctx) {
         const s = ctx.state, out = [];
-        const add = (tone, icon, html, goto) => out.push(`<button type="button" class="alert-item w-full text-left ${tone}" data-goto="${goto}"><i class="fa-solid ${icon} mt-0.5"></i><span>${html}</span></button>`);
+        const add = (tone, icon, html, goto, focus) => out.push(`<button type="button" class="alert-item w-full text-left ${tone}" data-goto="${goto}"${focus ? ` data-focus="${focus}"` : ''}><i class="fa-solid ${icon} mt-0.5"></i><span>${html}</span></button>`);
 
-        ctx.cosede.filter(c => c.exceeded).forEach(c => add('tone-red', 'fa-shield-halved text-red-600', `<strong>${esc(c.name)}</strong> supera la cobertura COSEDE (${money0(c.total)} de ${money0(c.limit)}).`, 'ahorro/polizas'));
+        ctx.cosede.filter(c => c.exceeded).forEach(c => add('tone-red', 'fa-shield-halved text-red-600', `<strong>${esc(c.name)}</strong> supera la cobertura COSEDE (${money0(c.total)} de ${money0(c.limit)}).`, 'futuro/polizas'));
         s.polizas.forEach(p => {
             const m = Engine.maturityStatus(p.maturityDate, ctx.today);
-            if (m && m.kind === 'vencida') add('tone-amber', 'fa-calendar-xmark text-amber-600', `Póliza <strong>${esc(p.number)}</strong> vencida: renuévala o registra dónde está ese dinero.`, 'ahorro/polizas');
-            else if (m && m.kind === 'pronto') add('tone-amber', 'fa-calendar-day text-amber-600', `Póliza <strong>${esc(p.number)}</strong> vence en ${m.days} días.`, 'ahorro/polizas');
+            if (m && m.kind === 'vencida') add('tone-amber', 'fa-calendar-xmark text-amber-600', `Póliza <strong>${esc(p.number)}</strong> vencida: renuévala o registra dónde está ese dinero.`, 'futuro/polizas');
+            else if (m && m.kind === 'pronto') add('tone-amber', 'fa-calendar-day text-amber-600', `Póliza <strong>${esc(p.number)}</strong> vence en ${m.days} días.`, 'futuro/polizas');
         });
         const bal = ctx.baseBudget.balanceReal;
         if (bal < -0.005) add('tone-red', 'fa-scale-unbalanced text-red-600', `Tu presupuesto base supera tu ingreso neto por <strong>${money(-bal)}</strong>.`, 'presupuesto/plan');
@@ -222,7 +222,7 @@
             });
             const bills = Engine.billsDue({ items, spend, year: s.activeYear, month: m, today: ctx.today });
             const late = bills.filter(b => b.status === 'overdue');
-            if (late.length) add('tone-red', 'fa-calendar-xmark text-red-600', `Pagos vencidos: ${late.map(b => `<strong>${esc(b.item.name)}</strong> (día ${b.day})`).join(', ')}.`, 'resumen');
+            if (late.length) add('tone-red', 'fa-calendar-xmark text-red-600', `Pagos vencidos: ${late.map(b => `<strong>${esc(b.item.name)}</strong> (día ${b.day})`).join(', ')}.`, 'resumen', 'dash-bills-card');
             if (over.length) add('tone-red', 'fa-cart-shopping text-red-600', `Este mes te pasaste en: <strong>${over.map(i => esc(i.name)).join(', ')}</strong>.`, 'presupuesto/plan');
         }
         const sync = Views.netWorthSync(ctx);
@@ -230,16 +230,16 @@
         const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
         const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
         if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no tienes una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
-        if (ctx.debts.totalBalance > 0 && ctx.debts.shortfall > 0) add('tone-red', 'fa-snowplow text-red-600', `Tu presupuesto no cubre los pagos mínimos de tus deudas: faltan <strong>${money0(ctx.debts.shortfall)}</strong> al mes.`, 'metas');
-        else if (ctx.debts.never && ctx.debts.totalBalance > 0) add('tone-red', 'fa-snowplow text-red-600', 'Con lo que tu presupuesto asigna, una deuda nunca termina de pagarse.', 'metas');
+        if (ctx.debts.totalBalance > 0 && ctx.debts.shortfall > 0) add('tone-red', 'fa-snowplow text-red-600', `Tu presupuesto no cubre los pagos mínimos de tus deudas: faltan <strong>${money0(ctx.debts.shortfall)}</strong> al mes.`, 'futuro/metas');
+        else if (ctx.debts.never && ctx.debts.totalBalance > 0) add('tone-red', 'fa-snowplow text-red-600', 'Con lo que tu presupuesto asigna, una deuda nunca termina de pagarse.', 'futuro/metas');
         if (ctx.steps.current >= 3) {
             const unfunded = s.goals.filter(g => Engine.goalMonths(g).status === 'never');
-            if (unfunded.length) add('tone-amber', 'fa-bullseye text-purple-600', `${unfunded.map(g => `<strong>${esc(g.name)}</strong>`).join(', ')} sin dinero asignado en tu presupuesto.`, 'metas');
+            if (unfunded.length) add('tone-amber', 'fa-bullseye text-purple-600', `${unfunded.map(g => `<strong>${esc(g.name)}</strong>`).join(', ')} sin dinero asignado en tu presupuesto.`, 'futuro/metas');
         }
         const p = ctx.pay;
         if (p.sriCap > 0 && p.deductibles.real < p.sriCap * 0.8 && p.rebajaRoom >= 1) add('tone-blue', 'fa-file-invoice-dollar text-blue-600', `Con <strong>${money0(p.sriCap - p.deductibles.real)}</strong> más en gastos personales, tu impuesto bajaría hasta <strong>${money0(p.rebajaRoom)}</strong>.`, 'presupuesto/ingresos');
 
-        return out.length ? out.join('') : '<div class="alert-item tone-emerald"><i class="fa-solid fa-circle-check text-emerald-600 mt-0.5"></i><span>Todo en orden. ¡Buen trabajo!</span></div>';
+        return out.join('');
     }
 
     function update(ctx) {
@@ -265,14 +265,17 @@
         const balNote = Math.abs(bb.balanceReal) < 0.005 ? '✓ Base cero: cada dólar asignado' : bb.balanceReal > 0 ? `${money(bb.balanceReal)} sin asignar` : `${money(-bb.balanceReal)} de más`;
         UI.html('dash-kpis', [
             Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-wallet', label: 'Ingreso neto mensual', value: money(bb.income), note: `Asignado: ${money(bb.expReal + bb.sweep)} · ${balNote}`, goto: 'presupuesto/plan' }),
-            Views.kpiCard({ tone: 'text-red-600', icon: 'fa-snowplow', label: 'Deudas de consumo', value: money0(debts.totalBalance), note: debts.totalBalance <= 0 ? '¡Sin deudas!' : debts.shortfall > 0 ? `Presupuesto no cubre mínimos (faltan ${money0(debts.shortfall)})` : debts.never ? 'Nunca terminas con este presupuesto' : `${money0(debts.pool)}/mes · libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}`, goto: 'metas', focus: 'metas-debts' }),
-            Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-shield-heart', label: 'Fondo de emergencia', value: money0(ef.liquid), note: `${ef.monthsCovered.toFixed(1)} meses de gastos esenciales cubiertos`, goto: 'metas', focus: 'metas-ef' }),
-            Views.kpiCard({ tone: 'text-amber-500', icon: 'fa-piggy-bank', label: 'Ahorro DPF', value: money0(ctx.polizasCapital), note: `Proyección a ${s.configEndYear}: ${money0(ctx.projection.finalBalance)}`, goto: 'ahorro/proyeccion' }),
+            Views.kpiCard({ tone: 'text-red-600', icon: 'fa-snowplow', label: 'Deudas de consumo', value: money0(debts.totalBalance), note: debts.totalBalance <= 0 ? '¡Sin deudas!' : debts.shortfall > 0 ? `Presupuesto no cubre mínimos (faltan ${money0(debts.shortfall)})` : debts.never ? 'Nunca terminas con este presupuesto' : `${money0(debts.pool)}/mes · libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}`, goto: 'futuro/metas', focus: 'metas-debts' }),
+            Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-shield-heart', label: 'Fondo de emergencia', value: money0(ef.liquid), note: `${ef.monthsCovered.toFixed(1)} meses de gastos esenciales cubiertos`, goto: 'futuro/metas', focus: 'metas-ef' }),
+            Views.kpiCard({ tone: 'text-amber-500', icon: 'fa-piggy-bank', label: 'Ahorro DPF', value: money0(ctx.polizasCapital), note: `Proyección a ${s.configEndYear}: ${money0(ctx.projection.finalBalance)}`, goto: 'futuro/proyeccion' }),
             Views.kpiCard({ tone: 'text-teal-600', icon: 'fa-scale-balanced', label: `Patrimonio neto ${s.activeYear}`, value: money0(ctx.netWorth.value), note: `Activos ${money0(ctx.netWorth.assets)} · Pasivos ${money0(ctx.netWorth.liabilities)}`, goto: 'patrimonio' }),
-            Views.kpiCard({ tone: 'text-indigo-600', icon: 'fa-person-cane', label: 'Jubilación estimada', value: `${money0(r.ingresoTotal)}/mes`, note: `A los ${r.edadJubilacion} años · ahorro ${money0(r.ingresoAhorro)} + IESS ${money0(r.pension)}`, goto: 'jubilacion' })
+            Views.kpiCard({ tone: 'text-indigo-600', icon: 'fa-person-cane', label: 'Jubilación estimada', value: `${money0(r.ingresoTotal)}/mes`, note: `A los ${r.edadJubilacion} años · ahorro ${money0(r.ingresoAhorro)} + IESS ${money0(r.pension)}`, goto: 'futuro/jubilacion' })
         ].join(''));
 
-        UI.html('dash-alerts', alerts(ctx));
+        // Alerts sit at the top, and only when there's something to do.
+        const al = alerts(ctx);
+        UI.html('dash-alerts', al);
+        UI.show('dash-alerts-card', !!al);
 
         const years = Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear());
         UI.chart('dash-nw-chart', {
@@ -305,5 +308,16 @@
         }
     });
 
-    App.defineView('resumen', { update });
+    // On a phone the long-term section starts folded: today's money comes first.
+    let folded = false;
+    function view(ctx) {
+        if (!folded) {
+            folded = true;
+            const lt = document.getElementById('dash-longterm');
+            if (lt && window.matchMedia && matchMedia('(max-width: 639px)').matches) lt.open = false;
+        }
+        update(ctx);
+    }
+
+    App.defineView('resumen', { update: view });
 })();

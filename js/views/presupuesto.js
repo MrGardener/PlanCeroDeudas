@@ -34,7 +34,7 @@
         const input = (field) => `<input type="number" class="cell-input num money" step="10" min="0" value="${Number(item[field]) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" data-field="${field}" aria-label="${field === 'prep' ? 'Presupuestado' : 'Real'}" title="Monto mensual para todo el año. También se edita en Deudas y Metas.">`;
         return `
             <tr data-row="${item.id}" class="bg-slate-50/60">
-                <td><div class="flex items-center gap-2 px-1"><span class="font-semibold text-slate-800 truncate">${esc(item.name)}</span><a href="#" class="badge ${isDebt ? 'badge-bad' : 'badge-purple'} shrink-0" data-goto="metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Se gestiona en Deudas y Metas"><i class="fa-solid fa-link"></i> ${isDebt ? 'Deuda' : 'Meta'}</a></div></td>
+                <td><div class="flex items-center gap-2 px-1"><span class="font-semibold text-slate-800 truncate">${esc(item.name)}</span><a href="#" class="badge ${isDebt ? 'badge-bad' : 'badge-purple'} shrink-0" data-goto="futuro/metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Se gestiona en Deudas y Metas"><i class="fa-solid fa-link"></i> ${isDebt ? 'Deuda' : 'Meta'}</a></div></td>
                 <td class="text-xs text-slate-500 px-3">${isDebt ? 'Pago Deuda' : 'Ahorro (meta)'}</td>
                 <td class="text-center text-slate-300">—</td>
                 <td>${input('prep')}</td>
@@ -42,7 +42,7 @@
                 <td class="num font-bold" data-cell="diff"></td>
                 <td class="text-xs text-slate-500 px-3">${esc(item.linkedCategory)}</td>
                 <td data-cell="spend"></td>
-                <td class="text-center"><a href="#" class="row-del" data-goto="metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Editar o eliminar en Deudas y Metas"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
+                <td class="text-center"><a href="#" class="row-del" data-goto="futuro/metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Editar o eliminar en Deudas y Metas"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
             </tr>`;
     }
 
@@ -81,7 +81,7 @@
                 <td>${(ctx.year.otherIncomes || []).length ? `<select class="cell-input text-[11px] mb-1" data-change="income.linkTxns" data-category="${esc(u.category)}" title="Si este dinero es lo que recibiste de uno de tus ingresos mensuales, elígelo">
                         <option value="">¿Es de un ingreso de arriba?</option>${(ctx.year.otherIncomes || []).map(x => `<option value="${x.id}">Es «${esc(x.name)}»</option>`).join('')}</select>` : ''}
                     <button type="button" class="mini-btn" data-action="income.fromCategory" data-category="${esc(u.category)}" data-amount="${u.amount}" title="Lo recibes todos los meses: agrégalo como ingreso mensual">Es mensual</button></td>
-                <td class="text-center"><a href="#" class="row-del" data-goto="presupuesto/transacciones" title="Ver transacciones"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
+                <td class="text-center"><a href="#" class="row-del" data-goto="transacciones/lista" title="Ver transacciones"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
             </tr>`;
         });
         if (other.payroll.length) {
@@ -280,7 +280,7 @@
         }
         const tip = yd.sweepSavings && mb.sweep > 0 && ctx.debts.totalBalance > 0;
         UI.show('bud-sweep-tip', tip);
-        if (tip) UI.html('bud-sweep-tip', `<i class="fa-solid fa-lightbulb"></i> Tienes deudas (Paso 2): el método recomienda enviar el dinero extra a la bola de nieve, no al ahorro. Para eso, súbelo en la línea de tu deuda en <a href="#" class="link" data-goto="metas" data-focus="metas-debts">Deudas y Metas</a>, o en su línea de este presupuesto.`);
+        if (tip) UI.html('bud-sweep-tip', `<i class="fa-solid fa-lightbulb"></i> Tienes deudas (Paso 2): el método recomienda enviar el dinero extra a la bola de nieve, no al ahorro. Para eso, súbelo en la línea de tu deuda en <a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts">Deudas y Metas</a>, o en su línea de este presupuesto.`);
 
         // Rows: diff and spend-vs-budget cells
         const period = m === 'base' ? 'base' : m;

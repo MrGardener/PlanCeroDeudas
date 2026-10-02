@@ -30,6 +30,7 @@
         Store.ui.txnEditing = t ? t.id : null;
         const card = document.getElementById('txn-form-card');
         card.classList.toggle('editing', !!t);
+        if (t) card.open = true;
         UI.text('txn-form-title', t ? 'Editar Transacción' : 'Registrar Transacción');
         UI.show('txn-cancel', !!t);
         UI.show('txn-repeat-field', !t);
@@ -181,8 +182,11 @@
             pending = !a.lineId;
             const split = Array.isArray(t.splits) && t.splits.length;
             const first = split ? `✂ Dividida en ${t.splits.length} rubro${t.splits.length === 1 ? '' : 's'}` : a.explicit ? 'Automático (por categoría)' : a.lineId ? `${a.line.name} (auto)` : '+ Asignar a un rubro';
-            chip = `<select class="chip-select ${split || a.explicit ? '' : a.lineId ? 'auto' : 'empty'}" data-change="txn.assignLine" data-id="${t.id}" aria-label="Rubro del presupuesto">
-                <option value="">${esc(first)}</option>${BudgetSimple.lineOptions(a.items, a.explicit && !split ? a.lineId : null)}<option value="__split">✂ Dividir entre rubros…</option></select>`;
+            // The full list of budget lines is filled in only when the menu is opened (see 'lazy').
+            const sel = a.explicit && !split ? a.lineId : null;
+            const current = sel ? (a.items.find(i => String(i.id) === String(sel)) || {}).name : null;
+            chip = `<select class="chip-select ${split || a.explicit ? '' : a.lineId ? 'auto' : 'empty'}" data-change="txn.assignLine" data-id="${t.id}" data-lazy="${esc(t.date)}" data-sel="${esc(sel || '')}" aria-label="Rubro del presupuesto">
+                <option value="">${esc(first)}</option>${current ? `<option value="${esc(sel)}" selected>${esc(current)}</option>` : ''}<option value="__split">✂ Dividir entre rubros…</option></select>`;
         }
         const notes = [];
         if (inc && Engine.isPayrollTxn(t)) notes.push(`<span class="text-amber-700">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>`);
@@ -221,7 +225,19 @@
             if (!groups.length || groups[groups.length - 1].key !== key) groups.push({ key, items: [] });
             groups[groups.length - 1].items.push(t);
         });
-        UI.html('txn-body', groups.length ? groups.map(g => `<div class="txn-month">${Fmt.MONTH_NAMES[Number(g.key.slice(5)) - 1]} ${g.key.slice(0, 4)}</div>` + g.items.map(t => txnItemHTML(t, assignOf)).join('')).join('')
+        // Long histories: the newest rows first, more on request (drawing thousands of rows on
+        // every keystroke made the list slow on a phone).
+        let shown = 0;
+        const limit = Store.ui.txnLimit || PAGE;
+        const html = [];
+        for (const g of groups) {
+            if (shown >= limit) break;
+            const items = g.items.slice(0, limit - shown);
+            shown += items.length;
+            html.push(`<div class="txn-month">${Fmt.MONTH_NAMES[Number(g.key.slice(5)) - 1]} ${g.key.slice(0, 4)}</div>` + items.map(t => txnItemHTML(t, assignOf)).join(''));
+        }
+        if (list.length > shown) html.push(`<div class="text-center py-3"><button type="button" class="btn btn-secondary btn-sm" data-action="txn.more">Ver ${Math.min(PAGE * 2, list.length - shown)} más <span class="text-slate-400">(${list.length - shown} restantes)</span></button></div>`);
+        UI.html('txn-body', groups.length ? html.join('')
             : `<p class="empty-row text-center text-xs text-slate-400 py-6">${q ? `Nada coincide con "${esc(q)}".` : 'No hay transacciones para este filtro.'}</p>`);
 
         const inc = list.filter(t => t.type === 'Ingreso').reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -232,7 +248,6 @@
         const pending = list.filter(t => (t.type || 'Gasto') === 'Gasto' && !assignOf(t).lineId).length;
         UI.html('txn-unassigned-note', pending ? `<i class="fa-solid fa-circle-exclamation text-amber-600"></i> ${pending} gasto${pending === 1 ? '' : 's'} sin rubro: elige su rubro en el botón punteado para que cuenten en tu presupuesto.` : '');
 
-        updateTrend(ctx);
         renderRecurring(ctx);
         renderTrash(ctx);
     }
@@ -442,7 +457,7 @@
 
     // Fill the form from elsewhere (e.g. a receipt photo) and let the person review it.
     function prefill(v) {
-        App.go('presupuesto/transacciones');
+        App.go('transacciones/lista');
         const get = (id) => document.getElementById(id);
         setEditing(null);
         get('txn-type').value = v.type || 'Gasto';
@@ -454,6 +469,7 @@
         if (v.paymentType) get('txn-payment').value = v.paymentType;
         if (v.date) { get('txn-date').value = v.date; fillLineSelect(); }
         if (v.budgetLine) fillLineSelect(v.budgetLine);
+        get('txn-form-card').open = true;
         get('txn-form-card').scrollIntoView({ block: 'start' });
         (v.amount ? get('txn-description') : get('txn-amount')).focus();
         UI.toast('Revisa los datos y toca "Agregar Transacción" para guardarla.');
@@ -467,7 +483,23 @@
         return true;
     }
 
+    let searchTimer = null;
     window.TxnForm = { prefill, warnIfImported };
+    // The trend and projected balances live in Reportes.
+    window.TxnCharts = { update: (ctx) => updateTrend(ctx) };
+
+    const PAGE = 100;
+    // Fill a row's budget-line menu the moment it's about to open.
+    function fillLazy(el) {
+        if (!el || !el.dataset || el.dataset.lazy === undefined || el.dataset.filled) return;
+        const y = Number(el.dataset.lazy.slice(0, 4)), m = String(Number(el.dataset.lazy.slice(5, 7)));
+        const items = Engine.monthItems(Store.effective(y), m);
+        const first = el.options[0].outerHTML, split = el.options[el.options.length - 1].outerHTML;
+        el.innerHTML = first + BudgetSimple.lineOptions(items, el.dataset.sel || null) + split;
+        if (!el.dataset.sel) el.value = '';
+        el.dataset.filled = '1';
+    }
+    ['pointerdown', 'focusin', 'keydown'].forEach(ev => document.addEventListener(ev, (e) => { const el = e.target && e.target.closest && e.target.closest('select[data-lazy]'); if (el) fillLazy(el); }, true));
 
     UI.register({
         // A matching automatic rule picks the category (and line) while typing a new one.
@@ -544,7 +576,15 @@
         'trash.empty': () => {
             App.undoable('Papelera vaciada', () => { Store.state.trash = []; });
         },
-        'txn.search': (el) => { Store.ui.txnSearch = el.value; App.update(); },
+        // Wait until typing pauses before filtering.
+        'txn.search': (el) => {
+            Store.ui.txnSearch = el.value;
+            Store.ui.txnLimit = PAGE;
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => App.update(), 220);
+        },
+        'txn.more': () => { Store.ui.txnLimit = (Store.ui.txnLimit || PAGE) + PAGE * 2; App.update(); },
+        'txn.openForm': () => { const c = document.getElementById('txn-form-card'); c.open = true; c.scrollIntoView({ block: 'start', behavior: 'smooth' }); setTimeout(() => document.getElementById('txn-amount').focus(), 300); },
         'trend.period': (el) => { Store.ui.trend.period = el.dataset.period; Store.ui.trend.count = DEFAULT_COUNT[el.dataset.period]; Store.ui.trend.ahead = DEFAULT_AHEAD[el.dataset.period]; App.update(); },
         'trend.ahead': (el) => { Store.ui.trend.ahead = Number(el.value); App.update(); },
         'trend.basis': (el) => { Store.ui.trend.basis = el.value; App.update(); },
@@ -560,6 +600,7 @@
         'txn.subChanged': () => payrollHint(),
         'txn.dateChanged': () => fillLineSelect(),
         'txn.filter': () => {
+            Store.ui.txnLimit = PAGE;
             Store.ui.txnFilters = {
                 year: document.getElementById('txn-f-year').value,
                 month: document.getElementById('txn-f-month').value,
@@ -716,5 +757,5 @@
         }
     });
 
-    App.defineView('presupuesto/transacciones', { render, update });
+    App.defineView('transacciones/lista', { render, update });
 })();

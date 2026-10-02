@@ -61,7 +61,7 @@
         if (item.sweep) input = '';
         else if (item.link) input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" aria-label="Planeado para ${esc(item.name)}">`;
         else input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.set" data-id="${id}" data-field="real" data-sync="prep" aria-label="Planeado para ${esc(item.name)}">`;
-        const badge = item.link ? `<a href="#" class="badge ${item.link === 'debt' ? 'badge-bad' : 'badge-purple'}" data-goto="metas" data-focus="${item.link === 'debt' ? 'metas-debts' : 'metas-goals'}"><i class="fa-solid fa-link"></i> ${item.link === 'debt' ? 'Deuda' : 'Meta'}</a>`
+        const badge = item.link ? `<a href="#" class="badge ${item.link === 'debt' ? 'badge-bad' : 'badge-purple'}" data-goto="futuro/metas" data-focus="${item.link === 'debt' ? 'metas-debts' : 'metas-goals'}"><i class="fa-solid fa-link"></i> ${item.link === 'debt' ? 'Deuda' : 'Meta'}</a>`
             : item.sweep ? '<span class="badge badge-ok"><i class="fa-solid fa-wand-magic-sparkles"></i> Automático</span>' : '';
         const canDue = !item.sweep && item.link !== 'goal';
         return `<div class="bs-row" data-line="${id}">
@@ -126,7 +126,7 @@
             const list = byGroup[g] || [];
             const gdef = (ctx.year.groups || []).find(x => x.name === name);
             const addType = isCustom ? ((gdef && gdef.type) || (list[0] && list[0].type) || 'Gasto Variable') : (g === 'Ahorro' ? 'Ahorro/Inversión' : g);
-            const foot = g === 'Deuda' ? '<a href="#" class="link" data-goto="metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Agregar deuda</a>'
+            const foot = g === 'Deuda' ? '<a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Agregar deuda</a>'
                 : GROUPS.some(x => x.type === g) || isCustom ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(addType)}" ${isCustom ? `data-group="${esc(name)}"` : ''}><i class="fa-solid fa-plus"></i> Agregar rubro</button>${isCustom && !list.length ? ` <button type="button" class="mini-btn text-red-600 ml-2" data-action="group.delete" data-name="${esc(name)}">Quitar grupo</button>` : ''}` : '<span></span>';
             return `<section class="bs-card" data-group="${esc(g)}">
                 <header class="bs-head"><span class="bs-title"><i class="fa-solid ${def.icon} text-slate-400"></i> ${esc(def.label)}</span>${colsHTML(MODES)}</header>
@@ -369,7 +369,7 @@
             return `<label class="field mt-3 max-w-sm"><span class="field-label">¿Para qué es este ahorro?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
                 <span class="help">El fondo de emergencia no cuenta como ahorro para la jubilación (Paso 4).</span></label>`;
         };
-        const settings = item.link ? `<p class="help">Es la línea de ${item.link === 'debt' ? 'una deuda' : 'una meta'}: se edita en <a href="#" class="link" data-goto="metas">Deudas y Metas</a>.</p>` : `
+        const settings = item.link ? `<p class="help">Es la línea de ${item.link === 'debt' ? 'una deuda' : 'una meta'}: se edita en <a href="#" class="link" data-goto="futuro/metas">Deudas y Metas</a>.</p>` : `
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <label class="field"><span class="field-label">Grupo</span><select class="input" data-change="line.setGroup" data-id="${esc(String(id))}"><option value="">Según su tipo</option>${custom.map(n => `<option ${n === item.group ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
                 <label class="field"><span class="field-label">Tipo</span><select class="input" data-change="line.setType" data-id="${esc(String(id))}">${Views.selectOptions(Defaults.BUDGET_TYPES, item.type)}</select></label>

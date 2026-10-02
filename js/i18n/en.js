@@ -1940,3 +1940,4 @@ I18n.add('en', {
 "· Supusimos que cobras el último día de cada mes:": "· We assumed you're paid on the last day of each month:",
 "· en dólares de hoy": "· in today's dollars",
 });
+I18n.add('en', { "Futuro": "Future", "Historial": "History" });

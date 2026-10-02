@@ -152,6 +152,6 @@
         }
     });
 
-    App.defineView('ahorro/proyeccion', { update: updateProjection });
-    App.defineView('ahorro/polizas', { render: renderPolizas, update: updatePolizas });
+    App.defineView('futuro/proyeccion', { update: updateProjection });
+    App.defineView('futuro/polizas', { render: renderPolizas, update: updatePolizas });
 })();

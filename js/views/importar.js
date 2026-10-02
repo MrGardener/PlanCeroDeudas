@@ -504,7 +504,7 @@
         }
     });
 
-    App.defineView('presupuesto/importar', { render, update: render });
+    App.defineView('transacciones/importar', { render, update: render });
     // For tests and for other views.
     window.ImportSession = { get: () => session, start: startSession, resolve };
 })();

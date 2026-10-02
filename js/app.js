@@ -18,21 +18,30 @@
         { id: 'resumen', label: 'Resumen', icon: 'fa-gauge-high' },
         { id: 'presupuesto', label: 'Presupuesto', icon: 'fa-wallet', subviews: [
             { id: 'plan', label: 'Presupuesto del Mes', icon: 'fa-table-list' },
-            { id: 'ingresos', label: 'Ingresos e Impuestos', icon: 'fa-receipt' },
-            { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping' },
+            { id: 'ingresos', label: 'Ingresos e Impuestos', icon: 'fa-receipt' }
+        ] },
+        { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping', subviews: [
+            { id: 'lista', label: 'Historial', icon: 'fa-list' },
             { id: 'importar', label: 'Importar', icon: 'fa-file-import' },
             { id: 'reportes', label: 'Reportes', icon: 'fa-chart-pie' }
         ] },
-        { id: 'metas', label: 'Deudas y Metas', icon: 'fa-bullseye' },
-        { id: 'ahorro', label: 'Ahorro DPF', icon: 'fa-piggy-bank', subviews: [
-            { id: 'proyeccion', label: 'Proyección', icon: 'fa-chart-area' },
-            { id: 'polizas', label: 'Pólizas y Cooperativas', icon: 'fa-file-contract' }
+        { id: 'futuro', label: 'Futuro', icon: 'fa-road', subviews: [
+            { id: 'metas', label: 'Deudas y Metas', icon: 'fa-bullseye' },
+            { id: 'proyeccion', label: 'Ahorro DPF', icon: 'fa-piggy-bank' },
+            { id: 'polizas', label: 'Pólizas y Cooperativas', icon: 'fa-file-contract' },
+            { id: 'hipoteca', label: 'Hipoteca', icon: 'fa-house-chimney' },
+            { id: 'jubilacion', label: 'Jubilación', icon: 'fa-person-cane' }
         ] },
-        { id: 'hipoteca', label: 'Hipoteca', icon: 'fa-house-chimney' },
-        { id: 'jubilacion', label: 'Jubilación', icon: 'fa-person-cane' },
         { id: 'patrimonio', label: 'Patrimonio', icon: 'fa-scale-balanced' },
-        { id: 'config', label: 'Configuración', icon: 'fa-gears' }
+        // Reached from the gear in the header, not from the tab bar.
+        { id: 'config', label: 'Configuración', icon: 'fa-gears', nav: false }
     ];
+    // Where the screens used to live (links, bookmarks and #hashes from before the 5-tab layout).
+    const ALIASES = {
+        'presupuesto/transacciones': 'transacciones/lista', 'presupuesto/importar': 'transacciones/importar', 'presupuesto/reportes': 'transacciones/reportes',
+        metas: 'futuro/metas', ahorro: 'futuro/proyeccion', 'ahorro/proyeccion': 'futuro/proyeccion', 'ahorro/polizas': 'futuro/polizas',
+        hipoteca: 'futuro/hipoteca', jubilacion: 'futuro/jubilacion'
+    };
     const views = {};
 
     // ------------------------------------------------------------- bindings
@@ -152,7 +161,7 @@
     }
 
     function go(target, opts = {}) {
-        const [tabId, subId] = String(target).split('/');
+        const [tabId, subId] = String(ALIASES[target] || target).split('/');
         const tab = tabs.find(t => t.id === tabId);
         if (!tab) return;
         Store.ui.tab = tabId;
@@ -160,6 +169,7 @@
         const hash = '#' + currentKey();
         if (location.hash !== hash) history.replaceState(null, '', hash);
         UI.$$('[data-tab]').forEach(sec => sec.classList.toggle('hidden', sec.dataset.tab !== tabId));
+        document.getElementById('cfg-gear')?.classList.toggle('active', tabId === 'config');
         UI.$$('#main-nav [data-goto]').forEach(b => {
             const on = b.dataset.goto.split('/')[0] === tabId;
             b.classList.toggle('active', on);
@@ -168,8 +178,12 @@
         });
         if (tab.subviews) {
             const sub = Store.ui.sub[tabId];
-            UI.$$(`[data-tab="${tabId}"] [data-view]`).forEach(v => v.classList.toggle('hidden', v.dataset.view !== sub));
-            UI.$$(`[data-tab="${tabId}"] .segmented [data-goto]`).forEach(b => b.classList.toggle('active', b.dataset.goto === `${tabId}/${sub}`));
+            UI.$$(`[data-tab="${tabId}"] > [data-view]`).forEach(v => v.classList.toggle('hidden', v.dataset.view !== sub));
+            UI.$$(`[data-tab="${tabId}"] .tab-segmented [data-goto]`).forEach(b => {
+                const on = b.dataset.goto === `${tabId}/${sub}`;
+                b.classList.toggle('active', on);
+                if (on && b.scrollIntoView && opts.scroll !== false) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            });
         }
         render();
         if (opts.scroll !== false) window.scrollTo({ top: 0 });
@@ -178,13 +192,13 @@
 
     function buildNav() {
         const nav = document.getElementById('main-nav');
-        nav.innerHTML = tabs.map((t, i) => `
+        nav.innerHTML = tabs.filter(t => t.nav !== false).map((t, i) => `
             <button type="button" class="nav-tab" data-goto="${t.id}" role="tab">
                 <i class="fa-solid ${t.icon}"></i><span class="nav-num">${i + 1}</span><span>${t.label}</span>
             </button>`).join('');
         tabs.forEach(t => {
             if (!t.subviews) return;
-            const host = document.querySelector(`[data-tab="${t.id}"] .segmented`);
+            const host = document.querySelector(`[data-tab="${t.id}"] .tab-segmented`);
             if (host) host.innerHTML = t.subviews.map(v => `<button type="button" data-goto="${t.id}/${v.id}"><i class="fa-solid ${v.icon}"></i> ${v.label}</button>`).join('');
         });
     }
@@ -227,8 +241,11 @@
     // Every change can be undone from the header (or Ctrl+Z). The history holds snapshots of
     // the whole saved state; quick successive changes (typing a number, dragging a slider)
     // are grouped into one step, so "Deshacer" goes back one action, not one keystroke.
-    const HISTORY_MAX = 60, GROUP_MS = 800;
+    const HISTORY_MAX = 40, GROUP_MS = 800;
     const hist = { past: [], future: [], committed: null, base: null, timer: null, field: null };
+    // Snapshots leave out the saved baselines (full copies of the plan, managed in Configuración):
+    // keeping them in every step multiplied the memory used with a long history.
+    const snapshot = () => JSON.stringify(Object.assign({}, Store.state, { baselines: undefined }));
 
     // Grouping only continues while the same field is being edited: any other action first
     // closes the pending step (before it changes anything, so steps never blur together).
@@ -244,7 +261,7 @@
 
     function commitHistory() {
         clearTimeout(hist.timer);
-        const now = Store.serialize();
+        const now = snapshot();
         if (hist.base !== null && hist.base !== now) {
             hist.past.push(hist.base);
             if (hist.past.length > HISTORY_MAX) hist.past.shift();
@@ -255,11 +272,12 @@
         renderHistoryButtons();
     }
 
-    function restore(snapshot) {
-        const ui = Store.state.activeYear;
-        Store.state = Store.migrate(JSON.parse(snapshot));
+    function restore(snap) {
+        const ui = Store.state.activeYear, baselines = Store.state.baselines;
+        Store.state = Store.migrate(JSON.parse(snap));
+        Store.state.baselines = baselines;
         Store.year(Store.state.activeYear || ui);
-        hist.committed = Store.serialize();
+        hist.committed = snapshot();
         dismissUndo();
         Store.scheduleSave();
         render();
@@ -347,7 +365,7 @@
         const E = root.APP_EDITION || {};
         if (E.appName) { UI.text('brand-title', E.appName); UI.text('brand-sub', E.appSub || ''); }
         Store.init();
-        hist.committed = Store.serialize();
+        hist.committed = snapshot();
         UI.initEvents();
         // Ctrl+Z / Ctrl+Y (⌘ on Mac). Inside a text box the browser's own undo for that box wins.
         document.addEventListener('keydown', (e) => {
@@ -394,7 +412,7 @@
         });
         const start = location.hash.slice(1);
         const openQuick = !!quickLink();
-        go(tabs.some(t => t.id === start.split('/')[0]) ? start : 'resumen', { scroll: false });
+        go(tabs.some(t => t.id === String(ALIASES[start] || start).split('/')[0]) ? start : 'resumen', { scroll: false });
         if (openQuick && !document.documentElement.classList.contains('app-locked')) QuickEntry.open();
         else if (openQuick) Store.ui.quickAfterUnlock = true;
         // Post repeating transactions that came due since the app was last opened.

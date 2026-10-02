@@ -233,5 +233,5 @@
         }
     });
 
-    App.defineView('metas', { render, update });
+    App.defineView('futuro/metas', { render, update });
 })();

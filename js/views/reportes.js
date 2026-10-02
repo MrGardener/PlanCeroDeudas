@@ -85,6 +85,7 @@
     };
 
     function render(ctx) {
+        if (window.TxnCharts) TxnCharts.update(ctx);
         const o = opts();
         ['range', 'type', 'by'].forEach(k => { document.getElementById('rep-' + k).value = o[k]; });
         UI.show('rep-from-field', o.range === 'custom');
@@ -141,6 +142,6 @@
         }
     });
 
-    App.defineView('presupuesto/reportes', { render, update: render });
+    App.defineView('transacciones/reportes', { render, update: render });
     window.Reports = { build };
 })();

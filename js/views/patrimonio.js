@@ -84,7 +84,7 @@
         });
         const sync = Views.netWorthSync(ctx);
         UI.show('nw-sync-hint', !!sync);
-        if (sync) UI.html('nw-sync-hint', `<span><i class="fa-solid fa-circle-info"></i> Tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas</a> suman <strong>${money0(sync.polizas)}</strong>${sync.holdings ? `, tus <a href="#" class="link" data-goto="patrimonio" data-focus="nw-holdings">inversiones</a> <strong>${money0(sync.holdings)}</strong>` : ''} y tus <a href="#" class="link" data-goto="metas" data-focus="metas-debts">deudas</a> <strong>${money0(sync.debts)}</strong>, pero tu patrimonio de ${year} no coincide.</span><button class="btn btn-blue btn-sm" data-action="nw.prefill">Actualizar ahora</button>`);
+        if (sync) UI.html('nw-sync-hint', `<span><i class="fa-solid fa-circle-info"></i> Tus <a href="#" class="link" data-goto="futuro/polizas">pólizas</a> suman <strong>${money0(sync.polizas)}</strong>${sync.holdings ? `, tus <a href="#" class="link" data-goto="patrimonio" data-focus="nw-holdings">inversiones</a> <strong>${money0(sync.holdings)}</strong>` : ''} y tus <a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts">deudas</a> <strong>${money0(sync.debts)}</strong>, pero tu patrimonio de ${year} no coincide.</span><button class="btn btn-blue btn-sm" data-action="nw.prefill">Actualizar ahora</button>`);
         UI.text('nw-assets', money0(nw.assets));
         UI.text('nw-liabilities', money0(nw.liabilities));
         UI.text('nw-value', money(nw.value));

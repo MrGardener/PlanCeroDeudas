@@ -542,7 +542,7 @@ html.is-native [data-web-only], html:not(.is-native) [data-app-only] { display: 
 @media (max-width: 767px) {
     html.is-native body { padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); }
     html.is-native .main-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; max-width: none; margin: 0; padding: .2rem .25rem calc(.2rem + env(safe-area-inset-bottom, 0px)); gap: 0; background: #0f172a; box-shadow: 0 -2px 10px rgba(15, 23, 42, .3); }
-    html.is-native .nav-tab { flex: 1 0 4.4rem; flex-direction: column; justify-content: center; gap: .2rem; padding: .4rem .25rem; font-size: .66rem; border-bottom: 0; border-top: 3px solid transparent; border-radius: 0 0 .5rem .5rem; white-space: normal; text-align: center; line-height: 1.1; }
+    html.is-native .nav-tab { flex: 1 1 0; min-width: 0; flex-direction: column; justify-content: center; gap: .2rem; padding: .4rem .25rem; font-size: .66rem; border-bottom: 0; border-top: 3px solid transparent; border-radius: 0 0 .5rem .5rem; white-space: normal; text-align: center; line-height: 1.1; }
     html.is-native .nav-tab i { font-size: 1.1rem; }
     html.is-native .nav-tab.active { border-top-color: #10b981; }
     html.is-native .nav-tab .nav-num { display: none; }
@@ -570,3 +570,11 @@ html[data-theme="dark"] .step.current .step-num { background: #3b82f6; color: #f
 html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .25); }
 /* An empty-state line inside the bills grid spans the whole row. */
 .bills-list > p { grid-column: 1 / -1; }
+
+/* Five tabs: on a phone the tab numbers and the year-picker icon go, so everything fits. */
+@media (max-width: 639px) {
+    .nav-tab .nav-num { display: none; }
+    .year-picker > i { display: none; }
+    .year-picker { padding-left: .35rem; padding-right: .35rem; }
+}
+#cfg-gear.active { color: #34d399; }

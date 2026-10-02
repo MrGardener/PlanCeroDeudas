@@ -102,7 +102,7 @@
                 <p class="text-sm text-slate-600">Para saber cuánto puedes gastar hoy sin quedarte corto, dinos cuánto hay en tu cuenta corriente o en efectivo. Lo restamos de tus pagos pendientes, tus metas y tu colchón.</p>
                 <div class="flex flex-wrap gap-2 shrink-0">
                     <button type="button" class="btn btn-primary btn-sm" data-action="safe.addAccount"><i class="fa-solid fa-building-columns"></i> Agregar mi saldo</button>
-                    <a href="#" class="btn btn-secondary btn-sm" data-goto="presupuesto/importar">Importar estado de cuenta</a>
+                    <a href="#" class="btn btn-secondary btn-sm" data-goto="transacciones/importar">Importar estado de cuenta</a>
                 </div></div>`;
             return;
         }

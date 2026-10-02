@@ -563,7 +563,7 @@ html.is-native [data-web-only], html:not(.is-native) [data-app-only] { display: 
 @media (max-width: 767px) {
     html.is-native body { padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); }
     html.is-native .main-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; max-width: none; margin: 0; padding: .2rem .25rem calc(.2rem + env(safe-area-inset-bottom, 0px)); gap: 0; background: #0f172a; box-shadow: 0 -2px 10px rgba(15, 23, 42, .3); }
-    html.is-native .nav-tab { flex: 1 0 4.4rem; flex-direction: column; justify-content: center; gap: .2rem; padding: .4rem .25rem; font-size: .66rem; border-bottom: 0; border-top: 3px solid transparent; border-radius: 0 0 .5rem .5rem; white-space: normal; text-align: center; line-height: 1.1; }
+    html.is-native .nav-tab { flex: 1 1 0; min-width: 0; flex-direction: column; justify-content: center; gap: .2rem; padding: .4rem .25rem; font-size: .66rem; border-bottom: 0; border-top: 3px solid transparent; border-radius: 0 0 .5rem .5rem; white-space: normal; text-align: center; line-height: 1.1; }
     html.is-native .nav-tab i { font-size: 1.1rem; }
     html.is-native .nav-tab.active { border-top-color: #10b981; }
     html.is-native .nav-tab .nav-num { display: none; }
@@ -591,6 +591,14 @@ html[data-theme="dark"] .step.current .step-num { background: #3b82f6; color: #f
 html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .25); }
 /* An empty-state line inside the bills grid spans the whole row. */
 .bills-list > p { grid-column: 1 / -1; }
+
+/* Five tabs: on a phone the tab numbers and the year-picker icon go, so everything fits. */
+@media (max-width: 639px) {
+    .nav-tab .nav-num { display: none; }
+    .year-picker > i { display: none; }
+    .year-picker { padding-left: .35rem; padding-right: .35rem; }
+}
+#cfg-gear.active { color: #34d399; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -615,7 +623,8 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
             <button class="icon-btn hide-mobile" id="hist-redo" data-action="app.redo" title="Rehacer (Ctrl+Y)" aria-label="Rehacer" disabled><i class="fa-solid fa-rotate-right"></i></button>
             <button class="icon-btn lang-btn hide-mobile" id="lang-toggle" data-action="device.toggleLang" title="Switch to English" aria-label="Idioma / Language">EN</button>
             <button class="icon-btn hide-mobile" id="theme-toggle" data-action="device.toggleTheme" title="Usar tema oscuro" aria-label="Cambiar tema"><i class="fa-solid fa-moon"></i></button>
-            <button class="icon-btn" data-action="app.help" title="Cómo usar la app" aria-label="Ayuda"><i class="fa-solid fa-circle-question"></i></button>
+            <button class="icon-btn hide-mobile" data-action="app.help" title="Cómo usar la app" aria-label="Ayuda"><i class="fa-solid fa-circle-question"></i></button>
+            <button class="icon-btn" id="cfg-gear" data-goto="config" title="Configuración" aria-label="Configuración"><i class="fa-solid fa-gear"></i></button>
             <button class="icon-btn hide-mobile" data-web-only data-action="app.print" title="Imprimir esta pestaña" aria-label="Imprimir"><i class="fa-solid fa-print"></i></button>
         </div>
     </div>
@@ -629,8 +638,10 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
 <section data-tab="resumen" class="space-y-5">
     <div id="dash-welcome" class="card hidden" style="border-color:#a7f3d0"></div>
     <div id="dash-hero" class="hero"></div>
-    <div id="dash-steps" class="steps steps-compact"></div>
-    <div id="dash-kpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    <div class="card hidden" id="dash-alerts-card">
+        <div class="card-head"><div class="card-title"><i class="fa-solid fa-bell text-amber-500"></i> Alertas</div></div>
+        <div id="dash-alerts" class="space-y-2"></div>
+    </div>
     <div class="card" id="dash-safe-card">
         <div class="card-head">
             <div>
@@ -664,7 +675,7 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
             <div id="dash-cash"></div>
         </div>
         <div class="card">
-            <div class="card-head"><div class="card-title"><i class="fa-solid fa-ranking-star text-amber-500"></i> Principales gastos</div><a href="#" class="link text-xs" data-goto="presupuesto/transacciones">Ver todo →</a></div>
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-ranking-star text-amber-500"></i> Principales gastos</div><a href="#" class="link text-xs" data-goto="transacciones/lista">Ver todo →</a></div>
             <div id="dash-top"></div>
         </div>
         <div class="card">
@@ -690,40 +701,42 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
         </div>
         <div id="dash-bills" class="bills-list"></div>
     </div>
-    <div class="card" id="dash-cal-card">
-        <div class="card-head">
+    <details class="card group-card" id="dash-cal-card">
+        <summary class="flex items-center justify-between gap-3">
             <div>
                 <div class="card-title"><i class="fa-regular fa-calendar text-blue-600"></i> Calendario de dinero · <span id="dash-cal-month"></span></div>
                 <div class="card-sub">Cuándo llega tu sueldo y cuándo vencen tus pagos, con el saldo que tendrías cada día. Los días rojos o ámbar son los que hay que preparar.</div>
             </div>
-            <div class="flex gap-1">
-                <button type="button" class="icon-btn icon-btn-light" data-action="cal.move" data-step="-1" aria-label="Mes anterior"><i class="fa-solid fa-chevron-left"></i></button>
-                <button type="button" class="icon-btn icon-btn-light" data-action="cal.move" data-step="1" aria-label="Mes siguiente"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
+            <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+        </summary>
+        <div class="flex gap-1 justify-end mt-3">
+            <button type="button" class="icon-btn icon-btn-light" data-action="cal.move" data-step="-1" aria-label="Mes anterior"><i class="fa-solid fa-chevron-left"></i></button>
+            <button type="button" class="icon-btn icon-btn-light" data-action="cal.move" data-step="1" aria-label="Mes siguiente"><i class="fa-solid fa-chevron-right"></i></button>
         </div>
         <div id="dash-cal"></div>
-    </div>
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="card lg:col-span-2">
-            <div class="card-head">
-                <div>
-                    <div class="card-title"><i class="fa-solid fa-scale-balanced text-teal-600"></i> Patrimonio Neto por Año</div>
-                    <div class="card-sub">Lo que tienes menos lo que debes, año a año (<span class="range-label"></span>).</div>
+    </details>
+    <details class="card group-card" id="dash-longterm" open>
+        <summary class="flex items-center justify-between gap-3">
+            <div><div class="card-title"><i class="fa-solid fa-road text-emerald-600"></i> Tu plan a largo plazo</div><div class="card-sub">Tus pasos, deudas, fondo de emergencia, jubilación y patrimonio.</div></div>
+            <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+        </summary>
+        <div class="space-y-4 mt-4">
+            <div id="dash-steps" class="steps steps-compact"></div>
+            <div id="dash-kpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            <div class="panel tone-slate">
+                <div class="flex items-center justify-between gap-3 mb-2">
+                    <div class="section-label"><i class="fa-solid fa-scale-balanced text-teal-600"></i> Patrimonio neto por año</div>
+                    <a href="#" data-goto="patrimonio" class="link text-xs">Editar →</a>
                 </div>
-                <a href="#" data-goto="patrimonio" class="link text-xs">Editar →</a>
+                <div class="chart-box"><canvas id="dash-nw-chart"></canvas></div>
             </div>
-            <div class="chart-box"><canvas id="dash-nw-chart"></canvas></div>
         </div>
-        <div class="card">
-            <div class="card-head"><div class="card-title"><i class="fa-solid fa-bell text-amber-500"></i> Alertas</div></div>
-            <div id="dash-alerts" class="space-y-2"></div>
-        </div>
-    </div>
+    </details>
 </section>
 
 <!-- ======================================================== PRESUPUESTO -->
 <section data-tab="presupuesto" class="hidden space-y-5">
-    <div class="segmented"></div>
+    <div class="segmented tab-segmented"></div>
 
     <!-- ---- Presupuesto del mes -->
     <div data-view="plan" class="space-y-5">
@@ -776,7 +789,7 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
 
             <div id="bud-opportunities" class="panel tone-blue mb-4 hidden">
                 <p class="text-xs font-bold text-blue-900"><i class="fa-solid fa-piggy-bank"></i> Oportunidad de ahorro: <span id="bud-opp-total"></span> presupuestados sin gastos registrados en el período</p>
-                <p class="text-[11px] text-blue-800 mt-1"><span id="bud-opp-list" class="font-semibold"></span>. Si de verdad no los necesitas, destínalos a tus <a href="#" class="link" data-goto="metas">Deudas y Metas</a> o a tu <a href="#" class="link" data-goto="jubilacion">Jubilación</a>.</p>
+                <p class="text-[11px] text-blue-800 mt-1"><span id="bud-opp-list" class="font-semibold"></span>. Si de verdad no los necesitas, destínalos a tus <a href="#" class="link" data-goto="futuro/metas">Deudas y Metas</a> o a tu <a href="#" class="link" data-goto="futuro/jubilacion">Jubilación</a>.</p>
             </div>
 
             <div id="bud-simple" class="hidden"></div>
@@ -984,16 +997,27 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
             </div>
         </details>
     </div>
+</section>
+
+<!-- ======================================================= TRANSACCIONES -->
+<section data-tab="transacciones" class="hidden space-y-5">
+    <div class="segmented tab-segmented"></div>
 
     <!-- ---- Transacciones -->
-    <div data-view="transacciones" class="space-y-5 hidden">
-        <div class="card" id="txn-form-card">
-            <div class="card-head">
+    <div data-view="lista" class="space-y-5">
+        <div class="flex flex-wrap gap-2 items-center">
+            <button type="button" class="btn btn-primary" data-action="quick.open"><i class="fa-solid fa-bolt"></i> Registro rápido</button>
+            <button type="button" class="btn btn-secondary" data-action="txn.openForm"><i class="fa-solid fa-pen-to-square"></i> Formulario completo</button>
+            <a href="#" class="link text-xs ml-auto" data-goto="transacciones/importar"><i class="fa-solid fa-file-import"></i> Importar estado de cuenta</a>
+        </div>
+        <details class="card group-card" id="txn-form-card">
+            <summary class="flex items-center justify-between gap-3">
                 <div>
                     <div class="card-title"><i class="fa-solid fa-receipt text-blue-600"></i> <span id="txn-form-title">Registrar Transacción</span></div>
                     <div class="card-sub" id="txn-form-sub">Anota cada compra o ingreso. Con el tiempo verás a dónde se va tu dinero, y tu presupuesto compara lo planeado con lo real. Para corregir una ya registrada, usa el lápiz <i class="fa-solid fa-pen"></i> en la lista.</div>
                 </div>
-            </div>
+                <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+            </summary>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <label class="field"><span class="field-label">Tipo</span>
                     <select id="txn-type" class="input" data-change="txn.typeChanged">
@@ -1051,56 +1075,8 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
                     <div id="cat-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
                 </div>
             </details>
-        </div>
+        </details>
 
-        <div class="card" id="txn-trend-card">
-            <div class="card-head">
-                <div>
-                    <div class="card-title"><i class="fa-solid fa-chart-line text-blue-600"></i> Tendencia de ingresos y gastos</div>
-                    <div class="card-sub">Elige el período (semana, mes o año), cuánto hacia atrás y cuánto hacia adelante.</div>
-                </div>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 mb-3">
-                <div class="segmented" role="tablist" aria-label="Período">
-                    <button type="button" data-action="trend.period" data-period="week">Semana</button>
-                    <button type="button" data-action="trend.period" data-period="month">Mes</button>
-                    <button type="button" data-action="trend.period" data-period="year">Año</button>
-                </div>
-                <select id="trend-count" class="cell-input" style="width:auto" data-change="trend.count" aria-label="Cuántos períodos"></select>
-                <select id="trend-ahead" class="cell-input" style="width:auto" data-change="trend.ahead" aria-label="Cuánto hacia adelante"></select>
-                <select id="trend-basis" class="cell-input" style="width:auto" data-change="trend.basis" aria-label="Base de la proyección"><option value="plan">Gastos según mi presupuesto</option><option value="history">Gastos según mi historial</option></select>
-                <select id="trend-show" class="cell-input" style="width:auto" data-change="trend.show" aria-label="Qué mostrar">
-                    <option value="both">Ingresos y gastos</option><option value="expense">Solo gastos</option><option value="income">Solo ingresos</option>
-                </select>
-                <select id="trend-category" class="cell-input" style="width:auto" data-change="trend.category" aria-label="Categoría"></select>
-            </div>
-            <p class="help mb-2" id="trend-note"></p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3" id="trend-kpis"></div>
-            <div id="txn-trend-empty" class="text-xs text-slate-400 text-center py-8 hidden">No hay transacciones en este período.</div>
-            <div class="chart-box"><canvas id="txn-trend-chart"></canvas></div>
-            <details class="mt-3">
-                <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
-                <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Período</th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">Neto</th></tr></thead><tbody id="trend-table"></tbody></table></div>
-            </details>
-        </div>
-        <div class="card" id="bal-forecast">
-            <div class="card-head">
-                <div>
-                    <div class="card-title"><i class="fa-solid fa-scale-balanced text-teal-600"></i> Saldos proyectados</div>
-                    <div class="card-sub">Cuánto tendrías en tus cuentas, tus ahorros y tus deudas al final de cada mes si sigues tu presupuesto. Usa el mismo "Próximos" de arriba.</div>
-                </div>
-            </div>
-            <p id="bal-forecast-empty" class="help hidden">Elige "Próximos…" en la tendencia para ver tus saldos a futuro.</p>
-            <div id="bal-forecast-body">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3" id="bal-forecast-kpis"></div>
-                <div class="chart-box"><canvas id="bal-forecast-chart"></canvas></div>
-                <p class="help mt-2">Efectivo: tus cuentas corrientes y efectivo + ingresos − gastos − lo que ahorras − pagos de deudas. Ahorros: cuentas de ahorro, pólizas e inversiones + lo que apartas + interés (tasa DPF del año). Cuando terminas de pagar tus deudas, esos pagos pasan a tus ahorros. Es una estimación: no incluye compras ni ingresos que no estén en tu plan.</p>
-                <details class="mt-2">
-                    <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
-                    <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Mes</th><th class="num">Efectivo</th><th class="num">Ahorros e inversiones</th><th class="num">Deudas</th></tr></thead><tbody id="bal-forecast-table"></tbody></table></div>
-                </details>
-            </div>
-        </div>
         <div class="card" id="rec-card">
             <div class="card-head">
                 <div>
@@ -1220,6 +1196,54 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
         </div>
     </div>
     <div data-view="reportes" class="space-y-5 hidden">
+        <div class="card" id="txn-trend-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-chart-line text-blue-600"></i> Tendencia de ingresos y gastos</div>
+                    <div class="card-sub">Elige el período (semana, mes o año), cuánto hacia atrás y cuánto hacia adelante.</div>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+                <div class="segmented" role="tablist" aria-label="Período">
+                    <button type="button" data-action="trend.period" data-period="week">Semana</button>
+                    <button type="button" data-action="trend.period" data-period="month">Mes</button>
+                    <button type="button" data-action="trend.period" data-period="year">Año</button>
+                </div>
+                <select id="trend-count" class="cell-input" style="width:auto" data-change="trend.count" aria-label="Cuántos períodos"></select>
+                <select id="trend-ahead" class="cell-input" style="width:auto" data-change="trend.ahead" aria-label="Cuánto hacia adelante"></select>
+                <select id="trend-basis" class="cell-input" style="width:auto" data-change="trend.basis" aria-label="Base de la proyección"><option value="plan">Gastos según mi presupuesto</option><option value="history">Gastos según mi historial</option></select>
+                <select id="trend-show" class="cell-input" style="width:auto" data-change="trend.show" aria-label="Qué mostrar">
+                    <option value="both">Ingresos y gastos</option><option value="expense">Solo gastos</option><option value="income">Solo ingresos</option>
+                </select>
+                <select id="trend-category" class="cell-input" style="width:auto" data-change="trend.category" aria-label="Categoría"></select>
+            </div>
+            <p class="help mb-2" id="trend-note"></p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3" id="trend-kpis"></div>
+            <div id="txn-trend-empty" class="text-xs text-slate-400 text-center py-8 hidden">No hay transacciones en este período.</div>
+            <div class="chart-box"><canvas id="txn-trend-chart"></canvas></div>
+            <details class="mt-3">
+                <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
+                <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Período</th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">Neto</th></tr></thead><tbody id="trend-table"></tbody></table></div>
+            </details>
+        </div>
+        <div class="card" id="bal-forecast">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-scale-balanced text-teal-600"></i> Saldos proyectados</div>
+                    <div class="card-sub">Cuánto tendrías en tus cuentas, tus ahorros y tus deudas al final de cada mes si sigues tu presupuesto. Usa el mismo "Próximos" de arriba.</div>
+                </div>
+            </div>
+            <p id="bal-forecast-empty" class="help hidden">Elige "Próximos…" en la tendencia para ver tus saldos a futuro.</p>
+            <div id="bal-forecast-body">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3" id="bal-forecast-kpis"></div>
+                <div class="chart-box"><canvas id="bal-forecast-chart"></canvas></div>
+                <p class="help mt-2">Efectivo: tus cuentas corrientes y efectivo + ingresos − gastos − lo que ahorras − pagos de deudas. Ahorros: cuentas de ahorro, pólizas e inversiones + lo que apartas + interés (tasa DPF del año). Cuando terminas de pagar tus deudas, esos pagos pasan a tus ahorros. Es una estimación: no incluye compras ni ingresos que no estén en tu plan.</p>
+                <details class="mt-2">
+                    <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
+                    <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Mes</th><th class="num">Efectivo</th><th class="num">Ahorros e inversiones</th><th class="num">Deudas</th></tr></thead><tbody id="bal-forecast-table"></tbody></table></div>
+                </details>
+            </div>
+        </div>
         <div class="card" id="rep-card">
             <div class="card-head">
                 <div>
@@ -1251,123 +1275,124 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
         </div>
     </div>
 </section>
-<!-- ======================================================= DEUDAS Y METAS -->
-<section data-tab="metas" class="hidden space-y-5">
-    <div class="card">
-        <div class="card-head">
-            <div>
-                <div class="card-title"><i class="fa-solid fa-route text-emerald-600"></i> Tu camino: los 7 Baby Steps (adaptados a Ecuador)</div>
-                <div class="card-sub">Tu progreso, calculado con tus propios datos. Completa los pasos en orden; del 4 al 6 se trabajan a la vez.</div>
+<!-- ============================================================== FUTURO -->
+<!-- Deudas y metas, ahorro, hipoteca y jubilación: el plan hacia adelante. -->
+<section data-tab="futuro" class="hidden space-y-5">
+    <div class="segmented tab-segmented"></div>
+
+    <div data-view="metas" class="space-y-5">
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-route text-emerald-600"></i> Tu camino: los 7 Baby Steps (adaptados a Ecuador)</div>
+                    <div class="card-sub">Tu progreso, calculado con tus propios datos. Completa los pasos en orden; del 4 al 6 se trabajan a la vez.</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="road-kpis"></div>
+            <div class="chart-box mb-2"><canvas id="road-chart"></canvas></div>
+            <p class="help mb-4" id="road-note"></p>
+            <div id="road-next" class="panel tone-blue mb-4 text-xs text-blue-900"></div>
+            <div id="metas-steps" class="steps"></div>
+        </div>
+
+        <div class="card" id="metas-ef">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-shield-heart text-emerald-600"></i> Fondo de Emergencia</div>
+                    <div class="card-sub">Dinero disponible = tus <a href="#" class="link" data-goto="futuro/polizas">pólizas DPF</a> + tus cuentas de ahorro en <a href="#" class="link" data-goto="patrimonio">Patrimonio</a>. Gastos esenciales = rubros fijos y variables de tu presupuesto base.</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="kpi tone-slate"><span class="kpi-label">Disponible hoy</span><span class="kpi-value" id="ef-liquid">$0</span><span class="kpi-note" id="ef-essential"></span></div>
+                <div class="panel tone-emerald text-emerald-600">
+                    <div class="flex justify-between text-xs font-bold text-emerald-900 mb-2"><span>Paso 1: $1,000 iniciales</span><span id="ef-step1-label"></span></div>
+                    <div class="progress"><span id="ef-step1-bar" style="width:0%"></span></div>
+                </div>
+                <div class="panel tone-blue text-blue-600">
+                    <div class="flex justify-between text-xs font-bold text-blue-900 mb-2"><span>Paso 3: 3–6 meses de gastos</span><span id="ef-step3-label"></span></div>
+                    <div class="progress"><span id="ef-step3-bar" style="width:0%"></span></div>
+                </div>
             </div>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="road-kpis"></div>
-        <div class="chart-box mb-2"><canvas id="road-chart"></canvas></div>
-        <p class="help mb-4" id="road-note"></p>
-        <div id="road-next" class="panel tone-blue mb-4 text-xs text-blue-900"></div>
-        <div id="metas-steps" class="steps"></div>
+
+        <div class="card" id="metas-debts">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-snowplow text-red-600"></i> Plan para Salir de Deudas (Paso 2)</div>
+                    <div class="card-sub">Registra tus deudas de consumo (la hipoteca va en <a href="#" class="link" data-goto="patrimonio">Patrimonio</a>). Cada deuda entra automáticamente a tu <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a>, y el plan solo usa el dinero que ahí le asignas.</div>
+                </div>
+                <button class="btn btn-danger" data-action="debt.add"><i class="fa-solid fa-plus"></i> Agregar Deuda</button>
+            </div>
+            <div class="table-wrap mb-4">
+                <table class="table">
+                    <thead><tr><th style="min-width:11rem">Deuda</th><th>Tipo</th><th style="width:8rem">Saldo (<span class="cur">$</span>)</th><th style="width:6.5rem">Tasa (%)</th><th style="width:8rem">Pago mínimo (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th class="text-center">Orden</th><th class="text-center">Se paga en</th><th></th></tr></thead>
+                    <tbody id="debt-body"></tbody>
+                </table>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                <label class="field field-box">
+                    <span class="field-label">Estrategia</span>
+                    <select class="input" data-bind="debtPlan.strategy">
+                        <option value="snowball">Bola de Nieve</option>
+                        <option value="avalanche">Avalancha</option>
+                    </select>
+                    <span class="help">Bola de Nieve: menor saldo primero. Avalancha: mayor tasa primero.</span>
+                </label>
+                <div class="kpi tone-slate" id="debt-funding">
+                    <span class="kpi-label">Tu presupuesto para deudas</span>
+                    <span class="kpi-value" id="debt-pool">$0/mes</span>
+                    <span class="kpi-note" id="debt-pool-note"></span>
+                </div>
+                <div class="kpi tone-red"><span class="kpi-label">Libre de deudas</span><span class="kpi-value" id="debt-free-date">—</span><span class="kpi-note">Deuda total: <strong id="debt-total">$0</strong></span></div>
+                <div class="kpi tone-emerald"><span class="kpi-label">Ahorro vs. solo mínimos</span><span class="kpi-value" id="debt-saved">$0</span><span class="kpi-note">Interés con tu plan: <strong id="debt-interest">$0</strong></span></div>
+            </div>
+            <div id="debt-warning" class="panel mb-4 hidden"></div>
+            <details class="explain">
+                <summary>¿Bola de Nieve o Avalancha? ¿De dónde sale el dinero?</summary>
+                <div>
+                    <p><strong>Bola de Nieve (recomendada por Dave Ramsey):</strong> paga primero el saldo MÁS PEQUEÑO manteniendo los mínimos en las demás. Al eliminar una deuda, su pago se suma a la siguiente. Las victorias rápidas mantienen la motivación.</p>
+                    <p><strong>Avalancha:</strong> paga primero la TASA más alta. Ahorra más interés total, pero las primeras victorias tardan más.</p>
+                    <p><strong>El dinero:</strong> el plan usa todo lo que tu presupuesto base de <span class="active-year"></span> asigna a "Pagos de deudas". Primero cubre el pago mínimo de cada deuda; lo que sobra va completo a la deuda que toca según la estrategia. Al terminar una deuda, su dinero pasa a la siguiente. Para salir antes, sube el monto de una deuda aquí o en el presupuesto (y bájalo en otro rubro para que te alcance).</p>
+                </div>
+            </details>
+        </div>
+
+        <div class="card" id="metas-goals">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-bullseye text-purple-600"></i> Metas de Ahorro Sin Deuda</div>
+                    <div class="card-sub">Cuánto tiempo necesitas para comprar algo 100% en efectivo ahorrando en DPF. Cada meta entra automáticamente a la sección de Ahorro de tu <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a>: si no le asignas dinero, nunca llega.</div>
+                </div>
+                <button class="btn btn-secondary" data-action="goal.add"><i class="fa-solid fa-plus"></i> Nueva Meta</button>
+            </div>
+            <div class="table-wrap mb-4">
+                <table class="table">
+                    <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo (<span class="cur">$</span>)</th><th style="width:8rem">Ahorrado (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th style="width:9rem">¿Para cuándo?</th><th style="min-width:13rem">Progreso</th><th></th></tr></thead>
+                    <tbody id="goal-body"></tbody>
+                </table>
+            </div>
+            <div id="goal-warning" class="panel tone-amber mb-4 text-xs text-amber-900 hidden"></div>
+            <details class="explain">
+                <summary>¿Cómo se calcula el tiempo? (NPER)</summary>
+                <div>
+                    <p>Meses = ln[(Meta × r + Aporte) / (Ahorrado × r + Aporte)] / ln(1 + r), con r = tasa anual ÷ 12. Tu dinero ya ahorrado también gana interés, por eso el tiempo real es menor que dividir lo que falta entre el aporte.</p>
+                </div>
+            </details>
+        </div>
     </div>
 
-    <div class="card" id="metas-ef">
-        <div class="card-head">
-            <div>
-                <div class="card-title"><i class="fa-solid fa-shield-heart text-emerald-600"></i> Fondo de Emergencia</div>
-                <div class="card-sub">Dinero disponible = tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas DPF</a> + tus cuentas de ahorro en <a href="#" class="link" data-goto="patrimonio">Patrimonio</a>. Gastos esenciales = rubros fijos y variables de tu presupuesto base.</div>
-            </div>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="kpi tone-slate"><span class="kpi-label">Disponible hoy</span><span class="kpi-value" id="ef-liquid">$0</span><span class="kpi-note" id="ef-essential"></span></div>
-            <div class="panel tone-emerald text-emerald-600">
-                <div class="flex justify-between text-xs font-bold text-emerald-900 mb-2"><span>Paso 1: $1,000 iniciales</span><span id="ef-step1-label"></span></div>
-                <div class="progress"><span id="ef-step1-bar" style="width:0%"></span></div>
-            </div>
-            <div class="panel tone-blue text-blue-600">
-                <div class="flex justify-between text-xs font-bold text-blue-900 mb-2"><span>Paso 3: 3–6 meses de gastos</span><span id="ef-step3-label"></span></div>
-                <div class="progress"><span id="ef-step3-bar" style="width:0%"></span></div>
-            </div>
-        </div>
-    </div>
 
-    <div class="card" id="metas-debts">
-        <div class="card-head">
-            <div>
-                <div class="card-title"><i class="fa-solid fa-snowplow text-red-600"></i> Plan para Salir de Deudas (Paso 2)</div>
-                <div class="card-sub">Registra tus deudas de consumo (la hipoteca va en <a href="#" class="link" data-goto="patrimonio">Patrimonio</a>). Cada deuda entra automáticamente a tu <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a>, y el plan solo usa el dinero que ahí le asignas.</div>
-            </div>
-            <button class="btn btn-danger" data-action="debt.add"><i class="fa-solid fa-plus"></i> Agregar Deuda</button>
-        </div>
-        <div class="table-wrap mb-4">
-            <table class="table">
-                <thead><tr><th style="min-width:11rem">Deuda</th><th>Tipo</th><th style="width:8rem">Saldo (<span class="cur">$</span>)</th><th style="width:6.5rem">Tasa (%)</th><th style="width:8rem">Pago mínimo (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th class="text-center">Orden</th><th class="text-center">Se paga en</th><th></th></tr></thead>
-                <tbody id="debt-body"></tbody>
-            </table>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-            <label class="field field-box">
-                <span class="field-label">Estrategia</span>
-                <select class="input" data-bind="debtPlan.strategy">
-                    <option value="snowball">Bola de Nieve</option>
-                    <option value="avalanche">Avalancha</option>
-                </select>
-                <span class="help">Bola de Nieve: menor saldo primero. Avalancha: mayor tasa primero.</span>
-            </label>
-            <div class="kpi tone-slate" id="debt-funding">
-                <span class="kpi-label">Tu presupuesto para deudas</span>
-                <span class="kpi-value" id="debt-pool">$0/mes</span>
-                <span class="kpi-note" id="debt-pool-note"></span>
-            </div>
-            <div class="kpi tone-red"><span class="kpi-label">Libre de deudas</span><span class="kpi-value" id="debt-free-date">—</span><span class="kpi-note">Deuda total: <strong id="debt-total">$0</strong></span></div>
-            <div class="kpi tone-emerald"><span class="kpi-label">Ahorro vs. solo mínimos</span><span class="kpi-value" id="debt-saved">$0</span><span class="kpi-note">Interés con tu plan: <strong id="debt-interest">$0</strong></span></div>
-        </div>
-        <div id="debt-warning" class="panel mb-4 hidden"></div>
-        <details class="explain">
-            <summary>¿Bola de Nieve o Avalancha? ¿De dónde sale el dinero?</summary>
-            <div>
-                <p><strong>Bola de Nieve (recomendada por Dave Ramsey):</strong> paga primero el saldo MÁS PEQUEÑO manteniendo los mínimos en las demás. Al eliminar una deuda, su pago se suma a la siguiente. Las victorias rápidas mantienen la motivación.</p>
-                <p><strong>Avalancha:</strong> paga primero la TASA más alta. Ahorra más interés total, pero las primeras victorias tardan más.</p>
-                <p><strong>El dinero:</strong> el plan usa todo lo que tu presupuesto base de <span class="active-year"></span> asigna a "Pagos de deudas". Primero cubre el pago mínimo de cada deuda; lo que sobra va completo a la deuda que toca según la estrategia. Al terminar una deuda, su dinero pasa a la siguiente. Para salir antes, sube el monto de una deuda aquí o en el presupuesto (y bájalo en otro rubro para que te alcance).</p>
-            </div>
-        </details>
-    </div>
-
-    <div class="card" id="metas-goals">
-        <div class="card-head">
-            <div>
-                <div class="card-title"><i class="fa-solid fa-bullseye text-purple-600"></i> Metas de Ahorro Sin Deuda</div>
-                <div class="card-sub">Cuánto tiempo necesitas para comprar algo 100% en efectivo ahorrando en DPF. Cada meta entra automáticamente a la sección de Ahorro de tu <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a>: si no le asignas dinero, nunca llega.</div>
-            </div>
-            <button class="btn btn-secondary" data-action="goal.add"><i class="fa-solid fa-plus"></i> Nueva Meta</button>
-        </div>
-        <div class="table-wrap mb-4">
-            <table class="table">
-                <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo (<span class="cur">$</span>)</th><th style="width:8rem">Ahorrado (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th style="width:9rem">¿Para cuándo?</th><th style="min-width:13rem">Progreso</th><th></th></tr></thead>
-                <tbody id="goal-body"></tbody>
-            </table>
-        </div>
-        <div id="goal-warning" class="panel tone-amber mb-4 text-xs text-amber-900 hidden"></div>
-        <details class="explain">
-            <summary>¿Cómo se calcula el tiempo? (NPER)</summary>
-            <div>
-                <p>Meses = ln[(Meta × r + Aporte) / (Ahorrado × r + Aporte)] / ln(1 + r), con r = tasa anual ÷ 12. Tu dinero ya ahorrado también gana interés, por eso el tiempo real es menor que dividir lo que falta entre el aporte.</p>
-            </div>
-        </details>
-    </div>
-</section>
-
-<!-- =========================================================== AHORRO DPF -->
-<section data-tab="ahorro" class="hidden space-y-5">
-    <div class="segmented"></div>
-
-    <div data-view="proyeccion" class="space-y-5">
+    <div data-view="proyeccion" class="space-y-5 hidden">
         <div class="card">
             <div class="card-head">
                 <div>
                     <div class="card-title"><i class="fa-solid fa-chart-line text-amber-500"></i> Proyección de tu Ahorro DPF</div>
-                    <div class="card-sub">Parte de lo que tienes hoy (tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas registradas</a>) y suma cada año el ahorro de tu <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a> a la tasa DPF de ese año. Desde <strong id="proj-start"></strong> hasta <strong class="end-year"></strong>.</div>
+                    <div class="card-sub">Parte de lo que tienes hoy (tus <a href="#" class="link" data-goto="futuro/polizas">pólizas registradas</a>) y suma cada año el ahorro de tu <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a> a la tasa DPF de ese año. Desde <strong id="proj-start"></strong> hasta <strong class="end-year"></strong>.</div>
                 </div>
                 <label class="field field-box tone-amber w-full sm:w-64">
                     <span class="field-label">Tasa DPF referencial <span class="active-year"></span> (%)</span>
                     <input type="number" class="input" step="0.1" min="0" data-bind="year.tasa">
-                    <span class="help">También es la tasa enlazada de tu <a href="#" class="link" data-goto="jubilacion">Jubilación</a>.</span>
+                    <span class="help">También es la tasa enlazada de tu <a href="#" class="link" data-goto="futuro/jubilacion">Jubilación</a>.</span>
                 </label>
             </div>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
@@ -1439,147 +1464,145 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
             </div>
         </div>
     </div>
-</section>
 
-<!-- ============================================================= HIPOTECA -->
-<section data-tab="hipoteca" class="hidden space-y-5">
-    <div class="card">
-        <div class="card-head">
+    <div data-view="hipoteca" class="space-y-5 hidden">
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-house-chimney text-rose-500"></i> Calculadora de Préstamo Hipotecario</div>
+                    <div class="card-sub">Cuota, interés total y tabla de amortización, y cuánto ahorras con un pago extra a capital.</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+                <label class="field field-box"><span class="field-label"><span>Monto del préstamo (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1000" min="0" data-bind="mortgage.amount"></label>
+                <label class="field field-box"><span class="field-label">Tasa de interés anual (%)</span><input type="number" class="input" step="0.1" min="0" data-bind="mortgage.rate"></label>
+                <label class="field field-box"><span class="field-label">Plazo (años)</span><input type="number" class="input" step="1" min="1" max="40" data-bind="mortgage.years"></label>
+                <div class="field-box tone-blue">
+                    <span class="field-label">Sistema de amortización</span>
+                    <div class="input input-readonly text-xs" id="mort-system"></div>
+                    <a href="#" class="mini-btn" data-goto="config" data-focus="cfg-prefs">Cambiar en Configuración →</a>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-5" data-country="US">
+                <label class="field field-box"><span class="field-label"><span>Impuesto a la propiedad al año (<span class="cur">$</span>)</span></span><input type="number" class="input" step="100" min="0" data-bind="mortgage.propertyTax"></label>
+                <label class="field field-box"><span class="field-label"><span>Seguro de vivienda al año (<span class="cur">$</span>)</span></span><input type="number" class="input" step="100" min="0" data-bind="mortgage.homeInsurance"></label>
+                <label class="field field-box"><span class="field-label"><span>Valor de la casa al comprarla (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1000" min="0" data-bind="mortgage.homeValue"><span class="help">Para saber cuándo se quita el PMI.</span></label>
+                <label class="field field-box"><span class="field-label">PMI (% del préstamo al año)</span><input type="number" class="input" step="0.05" min="0" data-bind="mortgage.pmiRate"><span class="help">Si das menos del 20% de entrada. Se quita cuando debes el 78% del valor de la casa.</span></label>
+                <label class="field field-box"><span class="field-label"><span>HOA al mes (<span class="cur">$</span>)</span></span><input type="number" class="input" step="10" min="0" data-bind="mortgage.hoa"></label>
+            </div>
+            <div id="mort-summary" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+                <div class="panel tone-slate"><div class="section-label"><i class="fa-solid fa-chart-line text-rose-500"></i> Saldo pendiente</div><div class="chart-box"><canvas id="mort-balance-chart"></canvas></div></div>
+                <div class="panel tone-slate"><div class="section-label"><i class="fa-solid fa-chart-area text-red-500"></i> Interés acumulado pagado</div><div class="chart-box"><canvas id="mort-interest-chart"></canvas></div></div>
+            </div>
+            <div class="panel tone-amber mb-5">
+                <div class="flex flex-wrap items-end gap-4">
+                    <label class="field w-full sm:w-56"><span class="field-label"><span>Pago extra mensual a capital (<span class="cur">$</span>)</span></span><input type="number" class="input" step="10" min="0" data-bind="mortgage.extraPayment"></label>
+                    <div class="flex-1 min-w-[12rem]"><input type="range" id="mort-extra-slider" min="0" step="10" data-input="mortgage.slider" aria-label="Pago extra"></div>
+                </div>
+                <p class="help text-amber-800">Un abono adicional cada mes, directo al capital. Mira cómo cambian las líneas punteadas de arriba y el resumen.</p>
+            </div>
+            <details class="explain mb-5">
+                <summary>¿Cómo se calculan los sistemas Francés y Alemán?</summary>
+                <div>
+                    <p><strong>Francés (cuota fija):</strong> Cuota = Capital × i / (1 − (1+i)⁻ⁿ), con i la tasa mensual y n los meses. El interés baja y el abono a capital sube, pero la cuota no cambia. Es el sistema de casi todos los créditos en Ecuador.</p>
+                    <p><strong>Alemán (cuota decreciente):</strong> Abono a capital fijo = Capital / n; el interés se calcula sobre el saldo, así que la cuota empieza alta y baja. Se paga menos interés total, pero exige más al inicio.</p>
+                </div>
+            </details>
+            <div class="section-label"><i class="fa-solid fa-table text-slate-500"></i> Tabla de amortización <span id="mort-table-note" class="normal-case font-semibold tracking-normal text-emerald-700"></span></div>
+            <div class="table-wrap tall">
+                <table class="table">
+                    <thead><tr><th class="text-center">Mes</th><th class="num">Cuota</th><th class="num">Interés</th><th class="num">Abono a capital</th><th class="num">Saldo</th></tr></thead>
+                    <tbody id="mort-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div data-view="jubilacion" class="space-y-5 hidden">
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-person-cane text-indigo-600"></i> Calculadora de Jubilación (Paso 4)</div>
+                    <div class="card-sub">Combina el valor futuro de tu ahorro DPF (verde) con tu pensión IESS estimada (azul): ¿cuánto ingreso mensual tendrás al jubilarte?</div>
+                </div>
+                <span class="badge badge-warn">Estimación educativa, no oficial</span>
+            </div>
+
+            <div class="section-label text-emerald-800"><i class="fa-solid fa-piggy-bank text-emerald-600"></i> Tu ahorro DPF</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+                <label class="field field-box"><span class="field-label">Edad actual</span><input type="number" class="input" min="18" max="80" data-bind="retirement.edadActual"></label>
+                <label class="field field-box"><span class="field-label">Edad de jubilación deseada</span><input type="number" class="input" min="40" max="85" data-bind="retirement.edadJubilacion"></label>
+                <div class="field-box tone-emerald">
+                    <span class="field-label"><span>Ya ahorrado para la jubilación (<span class="cur">$</span>)</span></span>
+                    <div class="input input-readonly" id="ret-ahorro"></div>
+                    <span class="linked">🔗 Automático: lo que ya tienes ahorrado e invertido más allá de tu fondo de emergencia (<a href="#" class="link" data-goto="futuro/polizas">pólizas</a>, cuentas e inversiones).</span>
+                </div>
+                <div class="field-box tone-emerald">
+                    <span class="field-label"><span>Aporte mensual para el retiro (<span class="cur">$</span>)</span></span>
+                    <div class="input input-readonly" id="ret-aporte"></div>
+                    <span class="linked">🔗 Automático: tus rubros de Ahorro del <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a> (sin contar metas)<span id="ret-aporte-sweep"></span>. Para aportar más, súbelo ahí. Para solo explorar, usa el simulador de abajo.</span>
+                </div>
+                <div class="field-box tone-emerald">
+                    <span class="field-label"><span>Retorno anual esperado (%)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="tasaRetorno" title="Volver a enlazar con la Tasa DPF">↻ enlazar</button></span>
+                    <input type="number" class="input" step="0.1" min="0" id="ret-tasa" data-input="ret.override" data-field="tasaRetorno">
+                    <span class="linked" id="ret-tasa-note"></span>
+                </div>
+                <div class="field-box tone-emerald">
+                    <span class="field-label"><span>Inflación anual esperada (%)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="inflacion" title="Volver al promedio histórico">↻ enlazar</button></span>
+                    <input type="number" class="input" step="0.1" min="0" id="ret-infl" data-input="ret.override" data-field="inflacion">
+                    <span class="linked" id="ret-infl-note"></span>
+                </div>
+                <label class="field field-box tone-emerald"><span class="field-label">Tasa de retiro segura anual (%)</span><input type="number" class="input" step="0.5" min="0" max="20" data-bind="retirement.tasaRetiroSegura"><span class="help">% de tu ahorro que retiras cada año sin agotarlo (regla del 4%).</span></label>
+            </div>
+
+            <div class="section-label text-indigo-800"><i class="fa-solid fa-building-columns text-indigo-600"></i> Tu pensión IESS</div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+                <label class="field field-box tone-indigo"><span class="field-label">Años ya aportados al IESS</span><input type="number" class="input" min="0" max="60" data-bind="retirement.aniosAportados"><span class="help">Más años = pensión más alta, hasta una carrera completa de 30 años.</span></label>
+                <div class="field-box tone-indigo">
+                    <span class="field-label"><span>Sueldo promedio mensual (<span class="cur">$</span>)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="sueldoPromedio" title="Volver a enlazar con tu sueldo">↻ enlazar</button></span>
+                    <input type="number" class="input" step="50" min="0" id="ret-sueldo" data-input="ret.override" data-field="sueldoPromedio">
+                    <span class="linked" id="ret-sueldo-note"></span>
+                </div>
+                <label class="field field-box tone-indigo" data-country="EC"><span class="field-label">Tasa de reemplazo (%)</span><input type="number" class="input" min="0" max="100" data-bind="retirement.tasaReemplazo"><span class="help">% del sueldo que recibirías de pensión (típico IESS: 40–75%).</span></label>
+            </div>
+
+            <div class="panel tone-slate mb-5"><div class="section-label"><i class="fa-solid fa-chart-line text-emerald-600"></i> Crecimiento de tu ahorro hasta la jubilación (dólares de hoy)</div><div class="chart-box"><canvas id="ret-chart"></canvas></div></div>
+
+            <div class="panel tone-purple mb-5">
+                <div class="flex flex-wrap justify-between items-center gap-2 mb-1">
+                    <span class="text-xs font-extrabold text-purple-900 uppercase"><i class="fa-solid fa-wand-magic-sparkles"></i> ¿Y si aportaras un poco más?</span>
+                    <span class="text-sm font-black text-purple-900" id="ret-whatif-label">+$0/mes</span>
+                </div>
+                <input type="range" id="ret-whatif" min="0" step="10" data-input="ret.whatIf" aria-label="Aporte extra simulado">
+                <p class="text-xs text-purple-800 mt-2 font-medium" id="ret-whatif-text"></p>
+                <p class="help text-purple-700">Simulador: no cambia tu aporte real. Mira la línea punteada de la gráfica y el ingreso total de abajo.</p>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                <div class="kpi tone-slate"><span class="kpi-label">Años hasta jubilarte</span><span class="kpi-value" id="ret-years">0</span></div>
+                <div class="kpi tone-emerald"><span class="kpi-label">Valor futuro del ahorro</span><span class="kpi-value" id="ret-fv">$0</span><span class="kpi-note" id="ret-fv-note"></span></div>
+                <div class="kpi tone-emerald"><span class="kpi-label">Ingreso mensual del ahorro</span><span class="kpi-value" id="ret-income-savings">$0</span></div>
+                <div class="kpi tone-indigo"><span class="kpi-label">Pensión IESS mensual</span><span class="kpi-value" id="ret-pension">$0</span><span class="kpi-note" id="ret-pension-note"></span></div>
+            </div>
+            <div class="panel tone-amber text-xs text-amber-900 mb-4 hidden" id="ret-bridge"></div>
+            <div class="panel tone-slate flex flex-wrap justify-between items-center gap-3 mb-4" style="background:linear-gradient(90deg,#ecfdf5,#eef2ff)">
+                <div><span class="text-xs font-extrabold text-slate-700 uppercase block">Ingreso mensual total en la jubilación</span><span class="text-[11px] text-slate-500"><span class="text-emerald-700 font-bold">Ahorro DPF</span> + <span class="text-indigo-700 font-bold">Pensión IESS</span> · en dólares de hoy</span></div>
+                <div class="text-right"><span class="text-2xl font-black text-slate-900 block" id="ret-total">$0</span><span class="text-xs font-bold text-purple-700 hidden" id="ret-total-delta"></span></div>
+            </div>
+            <p class="panel tone-amber text-[11px] text-amber-900 leading-relaxed" data-country="US"><i class="fa-solid fa-triangle-exclamation text-amber-600"></i> <strong>Estimación del Seguro Social</strong>: usa tu sueldo actual como promedio de 35 años (con el tope anual), la fórmula de beneficio (90% / 32% / 15%) y tu edad de retiro (menos antes de los 67, más hasta los 70). Tu estimado real está en <a href="https://www.ssa.gov/myaccount/" target="_blank" rel="noopener" class="link">ssa.gov/myaccount</a>.</p>
+            <p class="panel tone-amber text-[11px] text-amber-900 leading-relaxed" data-country="EC"><i class="fa-solid fa-triangle-exclamation text-amber-600"></i> <strong>La fórmula real del IESS es más compleja</strong> (historial de aportes, años mínimos, reformas). Aquí la pensión se reduce proporcionalmente si tu carrera total es menor a 30 años. Verifica tu caso en <a href="https://www.iess.gob.ec" target="_blank" rel="noopener" class="link">iess.gob.ec</a>.</p>
+        </div>
+        <details class="explain">
+            <summary>¿Cómo se calcula?</summary>
             <div>
-                <div class="card-title"><i class="fa-solid fa-house-chimney text-rose-500"></i> Calculadora de Préstamo Hipotecario</div>
-                <div class="card-sub">Cuota, interés total y tabla de amortización, y cuánto ahorras con un pago extra a capital.</div>
-            </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-            <label class="field field-box"><span class="field-label"><span>Monto del préstamo (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1000" min="0" data-bind="mortgage.amount"></label>
-            <label class="field field-box"><span class="field-label">Tasa de interés anual (%)</span><input type="number" class="input" step="0.1" min="0" data-bind="mortgage.rate"></label>
-            <label class="field field-box"><span class="field-label">Plazo (años)</span><input type="number" class="input" step="1" min="1" max="40" data-bind="mortgage.years"></label>
-            <div class="field-box tone-blue">
-                <span class="field-label">Sistema de amortización</span>
-                <div class="input input-readonly text-xs" id="mort-system"></div>
-                <a href="#" class="mini-btn" data-goto="config" data-focus="cfg-prefs">Cambiar en Configuración →</a>
-            </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-5" data-country="US">
-            <label class="field field-box"><span class="field-label"><span>Impuesto a la propiedad al año (<span class="cur">$</span>)</span></span><input type="number" class="input" step="100" min="0" data-bind="mortgage.propertyTax"></label>
-            <label class="field field-box"><span class="field-label"><span>Seguro de vivienda al año (<span class="cur">$</span>)</span></span><input type="number" class="input" step="100" min="0" data-bind="mortgage.homeInsurance"></label>
-            <label class="field field-box"><span class="field-label"><span>Valor de la casa al comprarla (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1000" min="0" data-bind="mortgage.homeValue"><span class="help">Para saber cuándo se quita el PMI.</span></label>
-            <label class="field field-box"><span class="field-label">PMI (% del préstamo al año)</span><input type="number" class="input" step="0.05" min="0" data-bind="mortgage.pmiRate"><span class="help">Si das menos del 20% de entrada. Se quita cuando debes el 78% del valor de la casa.</span></label>
-            <label class="field field-box"><span class="field-label"><span>HOA al mes (<span class="cur">$</span>)</span></span><input type="number" class="input" step="10" min="0" data-bind="mortgage.hoa"></label>
-        </div>
-        <div id="mort-summary" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5"></div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
-            <div class="panel tone-slate"><div class="section-label"><i class="fa-solid fa-chart-line text-rose-500"></i> Saldo pendiente</div><div class="chart-box"><canvas id="mort-balance-chart"></canvas></div></div>
-            <div class="panel tone-slate"><div class="section-label"><i class="fa-solid fa-chart-area text-red-500"></i> Interés acumulado pagado</div><div class="chart-box"><canvas id="mort-interest-chart"></canvas></div></div>
-        </div>
-        <div class="panel tone-amber mb-5">
-            <div class="flex flex-wrap items-end gap-4">
-                <label class="field w-full sm:w-56"><span class="field-label"><span>Pago extra mensual a capital (<span class="cur">$</span>)</span></span><input type="number" class="input" step="10" min="0" data-bind="mortgage.extraPayment"></label>
-                <div class="flex-1 min-w-[12rem]"><input type="range" id="mort-extra-slider" min="0" step="10" data-input="mortgage.slider" aria-label="Pago extra"></div>
-            </div>
-            <p class="help text-amber-800">Un abono adicional cada mes, directo al capital. Mira cómo cambian las líneas punteadas de arriba y el resumen.</p>
-        </div>
-        <details class="explain mb-5">
-            <summary>¿Cómo se calculan los sistemas Francés y Alemán?</summary>
-            <div>
-                <p><strong>Francés (cuota fija):</strong> Cuota = Capital × i / (1 − (1+i)⁻ⁿ), con i la tasa mensual y n los meses. El interés baja y el abono a capital sube, pero la cuota no cambia. Es el sistema de casi todos los créditos en Ecuador.</p>
-                <p><strong>Alemán (cuota decreciente):</strong> Abono a capital fijo = Capital / n; el interés se calcula sobre el saldo, así que la cuota empieza alta y baja. Se paga menos interés total, pero exige más al inicio.</p>
+                <p><strong>Valor futuro:</strong> VF = Ahorro × (1+i)ⁿ + Aporte × [((1+i)ⁿ − 1) / i], con i la tasa mensual y n los meses hasta jubilarte.</p>
+                <p><strong>Ingreso del ahorro:</strong> (VF × tasa de retiro segura) / 12.</p>
+                <p data-country="EC"><strong>Pensión IESS:</strong> Sueldo promedio × tasa de reemplazo × mín(1, años totales / 30).</p>
+                <p data-country="US"><strong>Seguro Social:</strong> promedio mensual de tus 35 mejores años (con el tope anual) → 90% de los primeros $1,286 + 32% hasta $7,749 + 15% del resto; menos si lo pides antes de los 67, 8% más por año hasta los 70.</p>
             </div>
         </details>
-        <div class="section-label"><i class="fa-solid fa-table text-slate-500"></i> Tabla de amortización <span id="mort-table-note" class="normal-case font-semibold tracking-normal text-emerald-700"></span></div>
-        <div class="table-wrap tall">
-            <table class="table">
-                <thead><tr><th class="text-center">Mes</th><th class="num">Cuota</th><th class="num">Interés</th><th class="num">Abono a capital</th><th class="num">Saldo</th></tr></thead>
-                <tbody id="mort-body"></tbody>
-            </table>
-        </div>
     </div>
-</section>
-
-<!-- =========================================================== JUBILACION -->
-<section data-tab="jubilacion" class="hidden space-y-5">
-    <div class="card">
-        <div class="card-head">
-            <div>
-                <div class="card-title"><i class="fa-solid fa-person-cane text-indigo-600"></i> Calculadora de Jubilación (Paso 4)</div>
-                <div class="card-sub">Combina el valor futuro de tu ahorro DPF (verde) con tu pensión IESS estimada (azul): ¿cuánto ingreso mensual tendrás al jubilarte?</div>
-            </div>
-            <span class="badge badge-warn">Estimación educativa, no oficial</span>
-        </div>
-
-        <div class="section-label text-emerald-800"><i class="fa-solid fa-piggy-bank text-emerald-600"></i> Tu ahorro DPF</div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
-            <label class="field field-box"><span class="field-label">Edad actual</span><input type="number" class="input" min="18" max="80" data-bind="retirement.edadActual"></label>
-            <label class="field field-box"><span class="field-label">Edad de jubilación deseada</span><input type="number" class="input" min="40" max="85" data-bind="retirement.edadJubilacion"></label>
-            <div class="field-box tone-emerald">
-                <span class="field-label"><span>Ya ahorrado para la jubilación (<span class="cur">$</span>)</span></span>
-                <div class="input input-readonly" id="ret-ahorro"></div>
-                <span class="linked">🔗 Automático: lo que ya tienes ahorrado e invertido más allá de tu fondo de emergencia (<a href="#" class="link" data-goto="ahorro/polizas">pólizas</a>, cuentas e inversiones).</span>
-            </div>
-            <div class="field-box tone-emerald">
-                <span class="field-label"><span>Aporte mensual para el retiro (<span class="cur">$</span>)</span></span>
-                <div class="input input-readonly" id="ret-aporte"></div>
-                <span class="linked">🔗 Automático: tus rubros de Ahorro del <a href="#" class="link" data-goto="presupuesto/plan">presupuesto</a> (sin contar metas)<span id="ret-aporte-sweep"></span>. Para aportar más, súbelo ahí. Para solo explorar, usa el simulador de abajo.</span>
-            </div>
-            <div class="field-box tone-emerald">
-                <span class="field-label"><span>Retorno anual esperado (%)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="tasaRetorno" title="Volver a enlazar con la Tasa DPF">↻ enlazar</button></span>
-                <input type="number" class="input" step="0.1" min="0" id="ret-tasa" data-input="ret.override" data-field="tasaRetorno">
-                <span class="linked" id="ret-tasa-note"></span>
-            </div>
-            <div class="field-box tone-emerald">
-                <span class="field-label"><span>Inflación anual esperada (%)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="inflacion" title="Volver al promedio histórico">↻ enlazar</button></span>
-                <input type="number" class="input" step="0.1" min="0" id="ret-infl" data-input="ret.override" data-field="inflacion">
-                <span class="linked" id="ret-infl-note"></span>
-            </div>
-            <label class="field field-box tone-emerald"><span class="field-label">Tasa de retiro segura anual (%)</span><input type="number" class="input" step="0.5" min="0" max="20" data-bind="retirement.tasaRetiroSegura"><span class="help">% de tu ahorro que retiras cada año sin agotarlo (regla del 4%).</span></label>
-        </div>
-
-        <div class="section-label text-indigo-800"><i class="fa-solid fa-building-columns text-indigo-600"></i> Tu pensión IESS</div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-            <label class="field field-box tone-indigo"><span class="field-label">Años ya aportados al IESS</span><input type="number" class="input" min="0" max="60" data-bind="retirement.aniosAportados"><span class="help">Más años = pensión más alta, hasta una carrera completa de 30 años.</span></label>
-            <div class="field-box tone-indigo">
-                <span class="field-label"><span>Sueldo promedio mensual (<span class="cur">$</span>)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="sueldoPromedio" title="Volver a enlazar con tu sueldo">↻ enlazar</button></span>
-                <input type="number" class="input" step="50" min="0" id="ret-sueldo" data-input="ret.override" data-field="sueldoPromedio">
-                <span class="linked" id="ret-sueldo-note"></span>
-            </div>
-            <label class="field field-box tone-indigo" data-country="EC"><span class="field-label">Tasa de reemplazo (%)</span><input type="number" class="input" min="0" max="100" data-bind="retirement.tasaReemplazo"><span class="help">% del sueldo que recibirías de pensión (típico IESS: 40–75%).</span></label>
-        </div>
-
-        <div class="panel tone-slate mb-5"><div class="section-label"><i class="fa-solid fa-chart-line text-emerald-600"></i> Crecimiento de tu ahorro hasta la jubilación (dólares de hoy)</div><div class="chart-box"><canvas id="ret-chart"></canvas></div></div>
-
-        <div class="panel tone-purple mb-5">
-            <div class="flex flex-wrap justify-between items-center gap-2 mb-1">
-                <span class="text-xs font-extrabold text-purple-900 uppercase"><i class="fa-solid fa-wand-magic-sparkles"></i> ¿Y si aportaras un poco más?</span>
-                <span class="text-sm font-black text-purple-900" id="ret-whatif-label">+$0/mes</span>
-            </div>
-            <input type="range" id="ret-whatif" min="0" step="10" data-input="ret.whatIf" aria-label="Aporte extra simulado">
-            <p class="text-xs text-purple-800 mt-2 font-medium" id="ret-whatif-text"></p>
-            <p class="help text-purple-700">Simulador: no cambia tu aporte real. Mira la línea punteada de la gráfica y el ingreso total de abajo.</p>
-        </div>
-
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-            <div class="kpi tone-slate"><span class="kpi-label">Años hasta jubilarte</span><span class="kpi-value" id="ret-years">0</span></div>
-            <div class="kpi tone-emerald"><span class="kpi-label">Valor futuro del ahorro</span><span class="kpi-value" id="ret-fv">$0</span><span class="kpi-note" id="ret-fv-note"></span></div>
-            <div class="kpi tone-emerald"><span class="kpi-label">Ingreso mensual del ahorro</span><span class="kpi-value" id="ret-income-savings">$0</span></div>
-            <div class="kpi tone-indigo"><span class="kpi-label">Pensión IESS mensual</span><span class="kpi-value" id="ret-pension">$0</span><span class="kpi-note" id="ret-pension-note"></span></div>
-        </div>
-        <div class="panel tone-amber text-xs text-amber-900 mb-4 hidden" id="ret-bridge"></div>
-        <div class="panel tone-slate flex flex-wrap justify-between items-center gap-3 mb-4" style="background:linear-gradient(90deg,#ecfdf5,#eef2ff)">
-            <div><span class="text-xs font-extrabold text-slate-700 uppercase block">Ingreso mensual total en la jubilación</span><span class="text-[11px] text-slate-500"><span class="text-emerald-700 font-bold">Ahorro DPF</span> + <span class="text-indigo-700 font-bold">Pensión IESS</span> · en dólares de hoy</span></div>
-            <div class="text-right"><span class="text-2xl font-black text-slate-900 block" id="ret-total">$0</span><span class="text-xs font-bold text-purple-700 hidden" id="ret-total-delta"></span></div>
-        </div>
-        <p class="panel tone-amber text-[11px] text-amber-900 leading-relaxed" data-country="US"><i class="fa-solid fa-triangle-exclamation text-amber-600"></i> <strong>Estimación del Seguro Social</strong>: usa tu sueldo actual como promedio de 35 años (con el tope anual), la fórmula de beneficio (90% / 32% / 15%) y tu edad de retiro (menos antes de los 67, más hasta los 70). Tu estimado real está en <a href="https://www.ssa.gov/myaccount/" target="_blank" rel="noopener" class="link">ssa.gov/myaccount</a>.</p>
-        <p class="panel tone-amber text-[11px] text-amber-900 leading-relaxed" data-country="EC"><i class="fa-solid fa-triangle-exclamation text-amber-600"></i> <strong>La fórmula real del IESS es más compleja</strong> (historial de aportes, años mínimos, reformas). Aquí la pensión se reduce proporcionalmente si tu carrera total es menor a 30 años. Verifica tu caso en <a href="https://www.iess.gob.ec" target="_blank" rel="noopener" class="link">iess.gob.ec</a>.</p>
-    </div>
-    <details class="explain">
-        <summary>¿Cómo se calcula?</summary>
-        <div>
-            <p><strong>Valor futuro:</strong> VF = Ahorro × (1+i)ⁿ + Aporte × [((1+i)ⁿ − 1) / i], con i la tasa mensual y n los meses hasta jubilarte.</p>
-            <p><strong>Ingreso del ahorro:</strong> (VF × tasa de retiro segura) / 12.</p>
-            <p data-country="EC"><strong>Pensión IESS:</strong> Sueldo promedio × tasa de reemplazo × mín(1, años totales / 30).</p>
-            <p data-country="US"><strong>Seguro Social:</strong> promedio mensual de tus 35 mejores años (con el tope anual) → 90% de los primeros $1,286 + 32% hasta $7,749 + 15% del resto; menos si lo pides antes de los 67, 8% más por año hasta los 70.</p>
-        </div>
-    </details>
 </section>
 
 <!-- =========================================================== PATRIMONIO -->
@@ -1614,7 +1637,7 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
         <div class="card-head">
             <div>
                 <div class="card-title"><i class="fa-solid fa-building-columns text-blue-600"></i> Tus cuentas</div>
-                <div class="card-sub">Cuentas corrientes, de ahorro y efectivo, con su saldo de hoy. Actualízalas a mano o importando el estado de cuenta (columna "Saldo"). Las tarjetas y préstamos van en <a href="#" class="link" data-goto="metas" data-focus="metas-debts">Deudas</a>.</div>
+                <div class="card-sub">Cuentas corrientes, de ahorro y efectivo, con su saldo de hoy. Actualízalas a mano o importando el estado de cuenta (columna "Saldo"). Las tarjetas y préstamos van en <a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts">Deudas</a>.</div>
             </div>
             <button class="btn btn-primary" data-action="acct.add"><i class="fa-solid fa-plus"></i> Agregar cuenta</button>
         </div>
@@ -4037,6 +4060,7 @@ I18n.add('en', {
 "· Supusimos que cobras el último día de cada mes:": "· We assumed you're paid on the last day of each month:",
 "· en dólares de hoy": "· in today's dollars",
 });
+I18n.add('en', { "Futuro": "Future", "Historial": "History" });
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -7354,21 +7378,30 @@ I18n.country('US', {
         { id: 'resumen', label: 'Resumen', icon: 'fa-gauge-high' },
         { id: 'presupuesto', label: 'Presupuesto', icon: 'fa-wallet', subviews: [
             { id: 'plan', label: 'Presupuesto del Mes', icon: 'fa-table-list' },
-            { id: 'ingresos', label: 'Ingresos e Impuestos', icon: 'fa-receipt' },
-            { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping' },
+            { id: 'ingresos', label: 'Ingresos e Impuestos', icon: 'fa-receipt' }
+        ] },
+        { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping', subviews: [
+            { id: 'lista', label: 'Historial', icon: 'fa-list' },
             { id: 'importar', label: 'Importar', icon: 'fa-file-import' },
             { id: 'reportes', label: 'Reportes', icon: 'fa-chart-pie' }
         ] },
-        { id: 'metas', label: 'Deudas y Metas', icon: 'fa-bullseye' },
-        { id: 'ahorro', label: 'Ahorro DPF', icon: 'fa-piggy-bank', subviews: [
-            { id: 'proyeccion', label: 'Proyección', icon: 'fa-chart-area' },
-            { id: 'polizas', label: 'Pólizas y Cooperativas', icon: 'fa-file-contract' }
+        { id: 'futuro', label: 'Futuro', icon: 'fa-road', subviews: [
+            { id: 'metas', label: 'Deudas y Metas', icon: 'fa-bullseye' },
+            { id: 'proyeccion', label: 'Ahorro DPF', icon: 'fa-piggy-bank' },
+            { id: 'polizas', label: 'Pólizas y Cooperativas', icon: 'fa-file-contract' },
+            { id: 'hipoteca', label: 'Hipoteca', icon: 'fa-house-chimney' },
+            { id: 'jubilacion', label: 'Jubilación', icon: 'fa-person-cane' }
         ] },
-        { id: 'hipoteca', label: 'Hipoteca', icon: 'fa-house-chimney' },
-        { id: 'jubilacion', label: 'Jubilación', icon: 'fa-person-cane' },
         { id: 'patrimonio', label: 'Patrimonio', icon: 'fa-scale-balanced' },
-        { id: 'config', label: 'Configuración', icon: 'fa-gears' }
+        // Reached from the gear in the header, not from the tab bar.
+        { id: 'config', label: 'Configuración', icon: 'fa-gears', nav: false }
     ];
+    // Where the screens used to live (links, bookmarks and #hashes from before the 5-tab layout).
+    const ALIASES = {
+        'presupuesto/transacciones': 'transacciones/lista', 'presupuesto/importar': 'transacciones/importar', 'presupuesto/reportes': 'transacciones/reportes',
+        metas: 'futuro/metas', ahorro: 'futuro/proyeccion', 'ahorro/proyeccion': 'futuro/proyeccion', 'ahorro/polizas': 'futuro/polizas',
+        hipoteca: 'futuro/hipoteca', jubilacion: 'futuro/jubilacion'
+    };
     const views = {};
 
     // ------------------------------------------------------------- bindings
@@ -7488,7 +7521,7 @@ I18n.country('US', {
     }
 
     function go(target, opts = {}) {
-        const [tabId, subId] = String(target).split('/');
+        const [tabId, subId] = String(ALIASES[target] || target).split('/');
         const tab = tabs.find(t => t.id === tabId);
         if (!tab) return;
         Store.ui.tab = tabId;
@@ -7496,6 +7529,7 @@ I18n.country('US', {
         const hash = '#' + currentKey();
         if (location.hash !== hash) history.replaceState(null, '', hash);
         UI.$$('[data-tab]').forEach(sec => sec.classList.toggle('hidden', sec.dataset.tab !== tabId));
+        document.getElementById('cfg-gear')?.classList.toggle('active', tabId === 'config');
         UI.$$('#main-nav [data-goto]').forEach(b => {
             const on = b.dataset.goto.split('/')[0] === tabId;
             b.classList.toggle('active', on);
@@ -7504,8 +7538,12 @@ I18n.country('US', {
         });
         if (tab.subviews) {
             const sub = Store.ui.sub[tabId];
-            UI.$$(`[data-tab="${tabId}"] [data-view]`).forEach(v => v.classList.toggle('hidden', v.dataset.view !== sub));
-            UI.$$(`[data-tab="${tabId}"] .segmented [data-goto]`).forEach(b => b.classList.toggle('active', b.dataset.goto === `${tabId}/${sub}`));
+            UI.$$(`[data-tab="${tabId}"] > [data-view]`).forEach(v => v.classList.toggle('hidden', v.dataset.view !== sub));
+            UI.$$(`[data-tab="${tabId}"] .tab-segmented [data-goto]`).forEach(b => {
+                const on = b.dataset.goto === `${tabId}/${sub}`;
+                b.classList.toggle('active', on);
+                if (on && b.scrollIntoView && opts.scroll !== false) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            });
         }
         render();
         if (opts.scroll !== false) window.scrollTo({ top: 0 });
@@ -7514,13 +7552,13 @@ I18n.country('US', {
 
     function buildNav() {
         const nav = document.getElementById('main-nav');
-        nav.innerHTML = tabs.map((t, i) => `
+        nav.innerHTML = tabs.filter(t => t.nav !== false).map((t, i) => `
             <button type="button" class="nav-tab" data-goto="${t.id}" role="tab">
                 <i class="fa-solid ${t.icon}"></i><span class="nav-num">${i + 1}</span><span>${t.label}</span>
             </button>`).join('');
         tabs.forEach(t => {
             if (!t.subviews) return;
-            const host = document.querySelector(`[data-tab="${t.id}"] .segmented`);
+            const host = document.querySelector(`[data-tab="${t.id}"] .tab-segmented`);
             if (host) host.innerHTML = t.subviews.map(v => `<button type="button" data-goto="${t.id}/${v.id}"><i class="fa-solid ${v.icon}"></i> ${v.label}</button>`).join('');
         });
     }
@@ -7563,8 +7601,11 @@ I18n.country('US', {
     // Every change can be undone from the header (or Ctrl+Z). The history holds snapshots of
     // the whole saved state; quick successive changes (typing a number, dragging a slider)
     // are grouped into one step, so "Deshacer" goes back one action, not one keystroke.
-    const HISTORY_MAX = 60, GROUP_MS = 800;
+    const HISTORY_MAX = 40, GROUP_MS = 800;
     const hist = { past: [], future: [], committed: null, base: null, timer: null, field: null };
+    // Snapshots leave out the saved baselines (full copies of the plan, managed in Configuración):
+    // keeping them in every step multiplied the memory used with a long history.
+    const snapshot = () => JSON.stringify(Object.assign({}, Store.state, { baselines: undefined }));
 
     // Grouping only continues while the same field is being edited: any other action first
     // closes the pending step (before it changes anything, so steps never blur together).
@@ -7580,7 +7621,7 @@ I18n.country('US', {
 
     function commitHistory() {
         clearTimeout(hist.timer);
-        const now = Store.serialize();
+        const now = snapshot();
         if (hist.base !== null && hist.base !== now) {
             hist.past.push(hist.base);
             if (hist.past.length > HISTORY_MAX) hist.past.shift();
@@ -7591,11 +7632,12 @@ I18n.country('US', {
         renderHistoryButtons();
     }
 
-    function restore(snapshot) {
-        const ui = Store.state.activeYear;
-        Store.state = Store.migrate(JSON.parse(snapshot));
+    function restore(snap) {
+        const ui = Store.state.activeYear, baselines = Store.state.baselines;
+        Store.state = Store.migrate(JSON.parse(snap));
+        Store.state.baselines = baselines;
         Store.year(Store.state.activeYear || ui);
-        hist.committed = Store.serialize();
+        hist.committed = snapshot();
         dismissUndo();
         Store.scheduleSave();
         render();
@@ -7683,7 +7725,7 @@ I18n.country('US', {
         const E = root.APP_EDITION || {};
         if (E.appName) { UI.text('brand-title', E.appName); UI.text('brand-sub', E.appSub || ''); }
         Store.init();
-        hist.committed = Store.serialize();
+        hist.committed = snapshot();
         UI.initEvents();
         // Ctrl+Z / Ctrl+Y (⌘ on Mac). Inside a text box the browser's own undo for that box wins.
         document.addEventListener('keydown', (e) => {
@@ -7730,7 +7772,7 @@ I18n.country('US', {
         });
         const start = location.hash.slice(1);
         const openQuick = !!quickLink();
-        go(tabs.some(t => t.id === start.split('/')[0]) ? start : 'resumen', { scroll: false });
+        go(tabs.some(t => t.id === String(ALIASES[start] || start).split('/')[0]) ? start : 'resumen', { scroll: false });
         if (openQuick && !document.documentElement.classList.contains('app-locked')) QuickEntry.open();
         else if (openQuick) Store.ui.quickAfterUnlock = true;
         // Post repeating transactions that came due since the app was last opened.
@@ -7756,12 +7798,12 @@ I18n.country('US', {
 
     // Ecuador-adapted Baby Steps: what each step means and where in the app you work on it.
     const STEP_INFO = {
-        1: { text: '$1,000 líquidos para imprevistos sin recurrir a tarjetas.', goto: 'metas', focus: 'metas-ef' },
-        2: { text: 'Elimina las deudas de consumo, de la más pequeña a la más grande.', goto: 'metas', focus: 'metas-debts' },
-        3: { text: '3–6 meses de gastos esenciales para desempleo o imprevistos que el IESS no cubre.', goto: 'metas', focus: 'metas-ef' },
-        4: { text: 'Invierte el 15% de tu sueldo en DPF de cooperativas Segmento 1 (COSEDE).', goto: 'jubilacion' },
-        5: { text: 'Pólizas DPF acumulativas para los estudios de tus hijos.', goto: 'metas', focus: 'metas-goals' },
-        6: { text: 'Abonos extraordinarios a tu préstamo BIESS o bancario.', goto: 'hipoteca' },
+        1: { text: '$1,000 líquidos para imprevistos sin recurrir a tarjetas.', goto: 'futuro/metas', focus: 'metas-ef' },
+        2: { text: 'Elimina las deudas de consumo, de la más pequeña a la más grande.', goto: 'futuro/metas', focus: 'metas-debts' },
+        3: { text: '3–6 meses de gastos esenciales para desempleo o imprevistos que el IESS no cubre.', goto: 'futuro/metas', focus: 'metas-ef' },
+        4: { text: 'Invierte el 15% de tu sueldo en DPF de cooperativas Segmento 1 (COSEDE).', goto: 'futuro/jubilacion' },
+        5: { text: 'Pólizas DPF acumulativas para los estudios de tus hijos.', goto: 'futuro/metas', focus: 'metas-goals' },
+        6: { text: 'Abonos extraordinarios a tu préstamo BIESS o bancario.', goto: 'futuro/hipoteca' },
         7: { text: 'Libertad financiera: sigue invirtiendo y da con generosidad.', goto: 'patrimonio' }
     };
 
@@ -7890,8 +7932,8 @@ I18n.country('US', {
                 <ol class="space-y-2">
                     ${step(1, 'presupuesto/ingresos', 'Ingresos e Impuestos', 'tu sueldo y décimos.')}
                     ${step(2, 'presupuesto/plan', 'Presupuesto del Mes', 'asigna cada dólar a un rubro.')}
-                    ${step(3, 'metas', 'Deudas y Metas', 'registra tus deudas y metas.')}
-                    ${step(4, 'ahorro/polizas', 'Pólizas', 'registra tus DPF.')}
+                    ${step(3, 'futuro/metas', 'Deudas y Metas', 'registra tus deudas y metas.')}
+                    ${step(4, 'futuro/polizas', 'Pólizas', 'registra tus DPF.')}
                     ${step(5, 'patrimonio', 'Patrimonio', 'lo que tienes y lo que debes.')}
                     ${step(6, 'resumen', 'Resumen', 'te dice cuál es tu siguiente paso.')}
                 </ol>
@@ -7916,7 +7958,7 @@ I18n.country('US', {
             case 1:
                 title = 'Paso 1: Junta tu fondo de emergencia inicial';
                 text = `Reúne $1,000 para imprevistos antes de atacar tus deudas. Hoy tienes ${money0(ef.liquid)} disponibles.`;
-                cta = 'Ver mi fondo de emergencia'; goto = 'metas'; focus = 'metas-ef'; break;
+                cta = 'Ver mi fondo de emergencia'; goto = 'futuro/metas'; focus = 'metas-ef'; break;
             case 2:
                 title = 'Paso 2: Sal de deudas con la Bola de Nieve';
                 text = debts.shortfall > 0
@@ -7924,15 +7966,15 @@ I18n.country('US', {
                     : debts.never
                     ? `Debes ${money0(debts.totalBalance)} y con lo que tu presupuesto asigna nunca terminarías. Asigna más dinero a tus deudas.`
                     : `Debes ${money0(debts.totalBalance)}. Tu presupuesto les envía ${money0(debts.pool)}/mes${debts.extra > 0 ? ` (${money0(debts.extra)} extra a la bola de nieve)` : ''}: quedas libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}.`;
-                cta = 'Ir a mi plan de deudas'; goto = 'metas'; focus = 'metas-debts'; break;
+                cta = 'Ir a mi plan de deudas'; goto = 'futuro/metas'; focus = 'metas-debts'; break;
             case 3:
                 title = 'Paso 3: Completa tu fondo de emergencia';
                 text = `Junta de 3 a 6 meses de gastos esenciales (${money0(ef.monthlyEssential)}/mes). Llevas ${ef.monthsCovered.toFixed(1)} meses cubiertos.`;
-                cta = 'Ver mi fondo de emergencia'; goto = 'metas'; focus = 'metas-ef'; break;
+                cta = 'Ver mi fondo de emergencia'; goto = 'futuro/metas'; focus = 'metas-ef'; break;
             case 4:
                 title = 'Pasos 4–6: Invierte, ahorra para tus hijos y paga tu casa';
                 text = `Ahorras el ${(ctx.savingsRate * 100).toFixed(0)}% de tu sueldo (meta: 15%). Tu jubilación estimada: ${money0(ctx.retirement.ingresoTotal)}/mes.`;
-                cta = 'Ver mi jubilación'; goto = 'jubilacion'; break;
+                cta = 'Ver mi jubilación'; goto = 'futuro/jubilacion'; break;
             default:
                 title = 'Paso 7: Construye riqueza y da con generosidad';
                 text = `Tu patrimonio neto en ${s.activeYear} es ${money0(ctx.netWorth.value)}. Sigue invirtiendo y ayudando a otros.`;
@@ -8104,13 +8146,13 @@ I18n.country('US', {
 
     function alerts(ctx) {
         const s = ctx.state, out = [];
-        const add = (tone, icon, html, goto) => out.push(`<button type="button" class="alert-item w-full text-left ${tone}" data-goto="${goto}"><i class="fa-solid ${icon} mt-0.5"></i><span>${html}</span></button>`);
+        const add = (tone, icon, html, goto, focus) => out.push(`<button type="button" class="alert-item w-full text-left ${tone}" data-goto="${goto}"${focus ? ` data-focus="${focus}"` : ''}><i class="fa-solid ${icon} mt-0.5"></i><span>${html}</span></button>`);
 
-        ctx.cosede.filter(c => c.exceeded).forEach(c => add('tone-red', 'fa-shield-halved text-red-600', `<strong>${esc(c.name)}</strong> supera la cobertura COSEDE (${money0(c.total)} de ${money0(c.limit)}).`, 'ahorro/polizas'));
+        ctx.cosede.filter(c => c.exceeded).forEach(c => add('tone-red', 'fa-shield-halved text-red-600', `<strong>${esc(c.name)}</strong> supera la cobertura COSEDE (${money0(c.total)} de ${money0(c.limit)}).`, 'futuro/polizas'));
         s.polizas.forEach(p => {
             const m = Engine.maturityStatus(p.maturityDate, ctx.today);
-            if (m && m.kind === 'vencida') add('tone-amber', 'fa-calendar-xmark text-amber-600', `Póliza <strong>${esc(p.number)}</strong> vencida: renuévala o registra dónde está ese dinero.`, 'ahorro/polizas');
-            else if (m && m.kind === 'pronto') add('tone-amber', 'fa-calendar-day text-amber-600', `Póliza <strong>${esc(p.number)}</strong> vence en ${m.days} días.`, 'ahorro/polizas');
+            if (m && m.kind === 'vencida') add('tone-amber', 'fa-calendar-xmark text-amber-600', `Póliza <strong>${esc(p.number)}</strong> vencida: renuévala o registra dónde está ese dinero.`, 'futuro/polizas');
+            else if (m && m.kind === 'pronto') add('tone-amber', 'fa-calendar-day text-amber-600', `Póliza <strong>${esc(p.number)}</strong> vence en ${m.days} días.`, 'futuro/polizas');
         });
         const bal = ctx.baseBudget.balanceReal;
         if (bal < -0.005) add('tone-red', 'fa-scale-unbalanced text-red-600', `Tu presupuesto base supera tu ingreso neto por <strong>${money(-bal)}</strong>.`, 'presupuesto/plan');
@@ -8127,7 +8169,7 @@ I18n.country('US', {
             });
             const bills = Engine.billsDue({ items, spend, year: s.activeYear, month: m, today: ctx.today });
             const late = bills.filter(b => b.status === 'overdue');
-            if (late.length) add('tone-red', 'fa-calendar-xmark text-red-600', `Pagos vencidos: ${late.map(b => `<strong>${esc(b.item.name)}</strong> (día ${b.day})`).join(', ')}.`, 'resumen');
+            if (late.length) add('tone-red', 'fa-calendar-xmark text-red-600', `Pagos vencidos: ${late.map(b => `<strong>${esc(b.item.name)}</strong> (día ${b.day})`).join(', ')}.`, 'resumen', 'dash-bills-card');
             if (over.length) add('tone-red', 'fa-cart-shopping text-red-600', `Este mes te pasaste en: <strong>${over.map(i => esc(i.name)).join(', ')}</strong>.`, 'presupuesto/plan');
         }
         const sync = Views.netWorthSync(ctx);
@@ -8135,16 +8177,16 @@ I18n.country('US', {
         const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
         const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
         if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no tienes una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
-        if (ctx.debts.totalBalance > 0 && ctx.debts.shortfall > 0) add('tone-red', 'fa-snowplow text-red-600', `Tu presupuesto no cubre los pagos mínimos de tus deudas: faltan <strong>${money0(ctx.debts.shortfall)}</strong> al mes.`, 'metas');
-        else if (ctx.debts.never && ctx.debts.totalBalance > 0) add('tone-red', 'fa-snowplow text-red-600', 'Con lo que tu presupuesto asigna, una deuda nunca termina de pagarse.', 'metas');
+        if (ctx.debts.totalBalance > 0 && ctx.debts.shortfall > 0) add('tone-red', 'fa-snowplow text-red-600', `Tu presupuesto no cubre los pagos mínimos de tus deudas: faltan <strong>${money0(ctx.debts.shortfall)}</strong> al mes.`, 'futuro/metas');
+        else if (ctx.debts.never && ctx.debts.totalBalance > 0) add('tone-red', 'fa-snowplow text-red-600', 'Con lo que tu presupuesto asigna, una deuda nunca termina de pagarse.', 'futuro/metas');
         if (ctx.steps.current >= 3) {
             const unfunded = s.goals.filter(g => Engine.goalMonths(g).status === 'never');
-            if (unfunded.length) add('tone-amber', 'fa-bullseye text-purple-600', `${unfunded.map(g => `<strong>${esc(g.name)}</strong>`).join(', ')} sin dinero asignado en tu presupuesto.`, 'metas');
+            if (unfunded.length) add('tone-amber', 'fa-bullseye text-purple-600', `${unfunded.map(g => `<strong>${esc(g.name)}</strong>`).join(', ')} sin dinero asignado en tu presupuesto.`, 'futuro/metas');
         }
         const p = ctx.pay;
         if (p.sriCap > 0 && p.deductibles.real < p.sriCap * 0.8 && p.rebajaRoom >= 1) add('tone-blue', 'fa-file-invoice-dollar text-blue-600', `Con <strong>${money0(p.sriCap - p.deductibles.real)}</strong> más en gastos personales, tu impuesto bajaría hasta <strong>${money0(p.rebajaRoom)}</strong>.`, 'presupuesto/ingresos');
 
-        return out.length ? out.join('') : '<div class="alert-item tone-emerald"><i class="fa-solid fa-circle-check text-emerald-600 mt-0.5"></i><span>Todo en orden. ¡Buen trabajo!</span></div>';
+        return out.join('');
     }
 
     function update(ctx) {
@@ -8170,14 +8212,17 @@ I18n.country('US', {
         const balNote = Math.abs(bb.balanceReal) < 0.005 ? '✓ Base cero: cada dólar asignado' : bb.balanceReal > 0 ? `${money(bb.balanceReal)} sin asignar` : `${money(-bb.balanceReal)} de más`;
         UI.html('dash-kpis', [
             Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-wallet', label: 'Ingreso neto mensual', value: money(bb.income), note: `Asignado: ${money(bb.expReal + bb.sweep)} · ${balNote}`, goto: 'presupuesto/plan' }),
-            Views.kpiCard({ tone: 'text-red-600', icon: 'fa-snowplow', label: 'Deudas de consumo', value: money0(debts.totalBalance), note: debts.totalBalance <= 0 ? '¡Sin deudas!' : debts.shortfall > 0 ? `Presupuesto no cubre mínimos (faltan ${money0(debts.shortfall)})` : debts.never ? 'Nunca terminas con este presupuesto' : `${money0(debts.pool)}/mes · libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}`, goto: 'metas', focus: 'metas-debts' }),
-            Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-shield-heart', label: 'Fondo de emergencia', value: money0(ef.liquid), note: `${ef.monthsCovered.toFixed(1)} meses de gastos esenciales cubiertos`, goto: 'metas', focus: 'metas-ef' }),
-            Views.kpiCard({ tone: 'text-amber-500', icon: 'fa-piggy-bank', label: 'Ahorro DPF', value: money0(ctx.polizasCapital), note: `Proyección a ${s.configEndYear}: ${money0(ctx.projection.finalBalance)}`, goto: 'ahorro/proyeccion' }),
+            Views.kpiCard({ tone: 'text-red-600', icon: 'fa-snowplow', label: 'Deudas de consumo', value: money0(debts.totalBalance), note: debts.totalBalance <= 0 ? '¡Sin deudas!' : debts.shortfall > 0 ? `Presupuesto no cubre mínimos (faltan ${money0(debts.shortfall)})` : debts.never ? 'Nunca terminas con este presupuesto' : `${money0(debts.pool)}/mes · libre en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}`, goto: 'futuro/metas', focus: 'metas-debts' }),
+            Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-shield-heart', label: 'Fondo de emergencia', value: money0(ef.liquid), note: `${ef.monthsCovered.toFixed(1)} meses de gastos esenciales cubiertos`, goto: 'futuro/metas', focus: 'metas-ef' }),
+            Views.kpiCard({ tone: 'text-amber-500', icon: 'fa-piggy-bank', label: 'Ahorro DPF', value: money0(ctx.polizasCapital), note: `Proyección a ${s.configEndYear}: ${money0(ctx.projection.finalBalance)}`, goto: 'futuro/proyeccion' }),
             Views.kpiCard({ tone: 'text-teal-600', icon: 'fa-scale-balanced', label: `Patrimonio neto ${s.activeYear}`, value: money0(ctx.netWorth.value), note: `Activos ${money0(ctx.netWorth.assets)} · Pasivos ${money0(ctx.netWorth.liabilities)}`, goto: 'patrimonio' }),
-            Views.kpiCard({ tone: 'text-indigo-600', icon: 'fa-person-cane', label: 'Jubilación estimada', value: `${money0(r.ingresoTotal)}/mes`, note: `A los ${r.edadJubilacion} años · ahorro ${money0(r.ingresoAhorro)} + IESS ${money0(r.pension)}`, goto: 'jubilacion' })
+            Views.kpiCard({ tone: 'text-indigo-600', icon: 'fa-person-cane', label: 'Jubilación estimada', value: `${money0(r.ingresoTotal)}/mes`, note: `A los ${r.edadJubilacion} años · ahorro ${money0(r.ingresoAhorro)} + IESS ${money0(r.pension)}`, goto: 'futuro/jubilacion' })
         ].join(''));
 
-        UI.html('dash-alerts', alerts(ctx));
+        // Alerts sit at the top, and only when there's something to do.
+        const al = alerts(ctx);
+        UI.html('dash-alerts', al);
+        UI.show('dash-alerts-card', !!al);
 
         const years = Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear());
         UI.chart('dash-nw-chart', {
@@ -8210,7 +8255,18 @@ I18n.country('US', {
         }
     });
 
-    App.defineView('resumen', { update });
+    // On a phone the long-term section starts folded: today's money comes first.
+    let folded = false;
+    function view(ctx) {
+        if (!folded) {
+            folded = true;
+            const lt = document.getElementById('dash-longterm');
+            if (lt && window.matchMedia && matchMedia('(max-width: 639px)').matches) lt.open = false;
+        }
+        update(ctx);
+    }
+
+    App.defineView('resumen', { update: view });
 })();
 </script>
 <script>/* js/views/presupuesto-simple.js */
@@ -8277,7 +8333,7 @@ I18n.country('US', {
         if (item.sweep) input = '';
         else if (item.link) input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" aria-label="Planeado para ${esc(item.name)}">`;
         else input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.set" data-id="${id}" data-field="real" data-sync="prep" aria-label="Planeado para ${esc(item.name)}">`;
-        const badge = item.link ? `<a href="#" class="badge ${item.link === 'debt' ? 'badge-bad' : 'badge-purple'}" data-goto="metas" data-focus="${item.link === 'debt' ? 'metas-debts' : 'metas-goals'}"><i class="fa-solid fa-link"></i> ${item.link === 'debt' ? 'Deuda' : 'Meta'}</a>`
+        const badge = item.link ? `<a href="#" class="badge ${item.link === 'debt' ? 'badge-bad' : 'badge-purple'}" data-goto="futuro/metas" data-focus="${item.link === 'debt' ? 'metas-debts' : 'metas-goals'}"><i class="fa-solid fa-link"></i> ${item.link === 'debt' ? 'Deuda' : 'Meta'}</a>`
             : item.sweep ? '<span class="badge badge-ok"><i class="fa-solid fa-wand-magic-sparkles"></i> Automático</span>' : '';
         const canDue = !item.sweep && item.link !== 'goal';
         return `<div class="bs-row" data-line="${id}">
@@ -8342,7 +8398,7 @@ I18n.country('US', {
             const list = byGroup[g] || [];
             const gdef = (ctx.year.groups || []).find(x => x.name === name);
             const addType = isCustom ? ((gdef && gdef.type) || (list[0] && list[0].type) || 'Gasto Variable') : (g === 'Ahorro' ? 'Ahorro/Inversión' : g);
-            const foot = g === 'Deuda' ? '<a href="#" class="link" data-goto="metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Agregar deuda</a>'
+            const foot = g === 'Deuda' ? '<a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Agregar deuda</a>'
                 : GROUPS.some(x => x.type === g) || isCustom ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(addType)}" ${isCustom ? `data-group="${esc(name)}"` : ''}><i class="fa-solid fa-plus"></i> Agregar rubro</button>${isCustom && !list.length ? ` <button type="button" class="mini-btn text-red-600 ml-2" data-action="group.delete" data-name="${esc(name)}">Quitar grupo</button>` : ''}` : '<span></span>';
             return `<section class="bs-card" data-group="${esc(g)}">
                 <header class="bs-head"><span class="bs-title"><i class="fa-solid ${def.icon} text-slate-400"></i> ${esc(def.label)}</span>${colsHTML(MODES)}</header>
@@ -8585,7 +8641,7 @@ I18n.country('US', {
             return `<label class="field mt-3 max-w-sm"><span class="field-label">¿Para qué es este ahorro?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
                 <span class="help">El fondo de emergencia no cuenta como ahorro para la jubilación (Paso 4).</span></label>`;
         };
-        const settings = item.link ? `<p class="help">Es la línea de ${item.link === 'debt' ? 'una deuda' : 'una meta'}: se edita en <a href="#" class="link" data-goto="metas">Deudas y Metas</a>.</p>` : `
+        const settings = item.link ? `<p class="help">Es la línea de ${item.link === 'debt' ? 'una deuda' : 'una meta'}: se edita en <a href="#" class="link" data-goto="futuro/metas">Deudas y Metas</a>.</p>` : `
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <label class="field"><span class="field-label">Grupo</span><select class="input" data-change="line.setGroup" data-id="${esc(String(id))}"><option value="">Según su tipo</option>${custom.map(n => `<option ${n === item.group ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
                 <label class="field"><span class="field-label">Tipo</span><select class="input" data-change="line.setType" data-id="${esc(String(id))}">${Views.selectOptions(Defaults.BUDGET_TYPES, item.type)}</select></label>
@@ -8720,7 +8776,7 @@ I18n.country('US', {
         const input = (field) => `<input type="number" class="cell-input num money" step="10" min="0" value="${Number(item[field]) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" data-field="${field}" aria-label="${field === 'prep' ? 'Presupuestado' : 'Real'}" title="Monto mensual para todo el año. También se edita en Deudas y Metas.">`;
         return `
             <tr data-row="${item.id}" class="bg-slate-50/60">
-                <td><div class="flex items-center gap-2 px-1"><span class="font-semibold text-slate-800 truncate">${esc(item.name)}</span><a href="#" class="badge ${isDebt ? 'badge-bad' : 'badge-purple'} shrink-0" data-goto="metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Se gestiona en Deudas y Metas"><i class="fa-solid fa-link"></i> ${isDebt ? 'Deuda' : 'Meta'}</a></div></td>
+                <td><div class="flex items-center gap-2 px-1"><span class="font-semibold text-slate-800 truncate">${esc(item.name)}</span><a href="#" class="badge ${isDebt ? 'badge-bad' : 'badge-purple'} shrink-0" data-goto="futuro/metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Se gestiona en Deudas y Metas"><i class="fa-solid fa-link"></i> ${isDebt ? 'Deuda' : 'Meta'}</a></div></td>
                 <td class="text-xs text-slate-500 px-3">${isDebt ? 'Pago Deuda' : 'Ahorro (meta)'}</td>
                 <td class="text-center text-slate-300">—</td>
                 <td>${input('prep')}</td>
@@ -8728,7 +8784,7 @@ I18n.country('US', {
                 <td class="num font-bold" data-cell="diff"></td>
                 <td class="text-xs text-slate-500 px-3">${esc(item.linkedCategory)}</td>
                 <td data-cell="spend"></td>
-                <td class="text-center"><a href="#" class="row-del" data-goto="metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Editar o eliminar en Deudas y Metas"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
+                <td class="text-center"><a href="#" class="row-del" data-goto="futuro/metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Editar o eliminar en Deudas y Metas"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
             </tr>`;
     }
 
@@ -8767,7 +8823,7 @@ I18n.country('US', {
                 <td>${(ctx.year.otherIncomes || []).length ? `<select class="cell-input text-[11px] mb-1" data-change="income.linkTxns" data-category="${esc(u.category)}" title="Si este dinero es lo que recibiste de uno de tus ingresos mensuales, elígelo">
                         <option value="">¿Es de un ingreso de arriba?</option>${(ctx.year.otherIncomes || []).map(x => `<option value="${x.id}">Es «${esc(x.name)}»</option>`).join('')}</select>` : ''}
                     <button type="button" class="mini-btn" data-action="income.fromCategory" data-category="${esc(u.category)}" data-amount="${u.amount}" title="Lo recibes todos los meses: agrégalo como ingreso mensual">Es mensual</button></td>
-                <td class="text-center"><a href="#" class="row-del" data-goto="presupuesto/transacciones" title="Ver transacciones"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
+                <td class="text-center"><a href="#" class="row-del" data-goto="transacciones/lista" title="Ver transacciones"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
             </tr>`;
         });
         if (other.payroll.length) {
@@ -8966,7 +9022,7 @@ I18n.country('US', {
         }
         const tip = yd.sweepSavings && mb.sweep > 0 && ctx.debts.totalBalance > 0;
         UI.show('bud-sweep-tip', tip);
-        if (tip) UI.html('bud-sweep-tip', `<i class="fa-solid fa-lightbulb"></i> Tienes deudas (Paso 2): el método recomienda enviar el dinero extra a la bola de nieve, no al ahorro. Para eso, súbelo en la línea de tu deuda en <a href="#" class="link" data-goto="metas" data-focus="metas-debts">Deudas y Metas</a>, o en su línea de este presupuesto.`);
+        if (tip) UI.html('bud-sweep-tip', `<i class="fa-solid fa-lightbulb"></i> Tienes deudas (Paso 2): el método recomienda enviar el dinero extra a la bola de nieve, no al ahorro. Para eso, súbelo en la línea de tu deuda en <a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts">Deudas y Metas</a>, o en su línea de este presupuesto.`);
 
         // Rows: diff and spend-vs-budget cells
         const period = m === 'base' ? 'base' : m;
@@ -9798,6 +9854,7 @@ I18n.country('US', {
         Store.ui.txnEditing = t ? t.id : null;
         const card = document.getElementById('txn-form-card');
         card.classList.toggle('editing', !!t);
+        if (t) card.open = true;
         UI.text('txn-form-title', t ? 'Editar Transacción' : 'Registrar Transacción');
         UI.show('txn-cancel', !!t);
         UI.show('txn-repeat-field', !t);
@@ -9949,8 +10006,11 @@ I18n.country('US', {
             pending = !a.lineId;
             const split = Array.isArray(t.splits) && t.splits.length;
             const first = split ? `✂ Dividida en ${t.splits.length} rubro${t.splits.length === 1 ? '' : 's'}` : a.explicit ? 'Automático (por categoría)' : a.lineId ? `${a.line.name} (auto)` : '+ Asignar a un rubro';
-            chip = `<select class="chip-select ${split || a.explicit ? '' : a.lineId ? 'auto' : 'empty'}" data-change="txn.assignLine" data-id="${t.id}" aria-label="Rubro del presupuesto">
-                <option value="">${esc(first)}</option>${BudgetSimple.lineOptions(a.items, a.explicit && !split ? a.lineId : null)}<option value="__split">✂ Dividir entre rubros…</option></select>`;
+            // The full list of budget lines is filled in only when the menu is opened (see 'lazy').
+            const sel = a.explicit && !split ? a.lineId : null;
+            const current = sel ? (a.items.find(i => String(i.id) === String(sel)) || {}).name : null;
+            chip = `<select class="chip-select ${split || a.explicit ? '' : a.lineId ? 'auto' : 'empty'}" data-change="txn.assignLine" data-id="${t.id}" data-lazy="${esc(t.date)}" data-sel="${esc(sel || '')}" aria-label="Rubro del presupuesto">
+                <option value="">${esc(first)}</option>${current ? `<option value="${esc(sel)}" selected>${esc(current)}</option>` : ''}<option value="__split">✂ Dividir entre rubros…</option></select>`;
         }
         const notes = [];
         if (inc && Engine.isPayrollTxn(t)) notes.push(`<span class="text-amber-700">No se suma (es tu sueldo) · <button type="button" class="mini-btn" data-action="income.countExtra" data-id="${t.id}">Es un ingreso extra</button></span>`);
@@ -9989,7 +10049,19 @@ I18n.country('US', {
             if (!groups.length || groups[groups.length - 1].key !== key) groups.push({ key, items: [] });
             groups[groups.length - 1].items.push(t);
         });
-        UI.html('txn-body', groups.length ? groups.map(g => `<div class="txn-month">${Fmt.MONTH_NAMES[Number(g.key.slice(5)) - 1]} ${g.key.slice(0, 4)}</div>` + g.items.map(t => txnItemHTML(t, assignOf)).join('')).join('')
+        // Long histories: the newest rows first, more on request (drawing thousands of rows on
+        // every keystroke made the list slow on a phone).
+        let shown = 0;
+        const limit = Store.ui.txnLimit || PAGE;
+        const html = [];
+        for (const g of groups) {
+            if (shown >= limit) break;
+            const items = g.items.slice(0, limit - shown);
+            shown += items.length;
+            html.push(`<div class="txn-month">${Fmt.MONTH_NAMES[Number(g.key.slice(5)) - 1]} ${g.key.slice(0, 4)}</div>` + items.map(t => txnItemHTML(t, assignOf)).join(''));
+        }
+        if (list.length > shown) html.push(`<div class="text-center py-3"><button type="button" class="btn btn-secondary btn-sm" data-action="txn.more">Ver ${Math.min(PAGE * 2, list.length - shown)} más <span class="text-slate-400">(${list.length - shown} restantes)</span></button></div>`);
+        UI.html('txn-body', groups.length ? html.join('')
             : `<p class="empty-row text-center text-xs text-slate-400 py-6">${q ? `Nada coincide con "${esc(q)}".` : 'No hay transacciones para este filtro.'}</p>`);
 
         const inc = list.filter(t => t.type === 'Ingreso').reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -10000,7 +10072,6 @@ I18n.country('US', {
         const pending = list.filter(t => (t.type || 'Gasto') === 'Gasto' && !assignOf(t).lineId).length;
         UI.html('txn-unassigned-note', pending ? `<i class="fa-solid fa-circle-exclamation text-amber-600"></i> ${pending} gasto${pending === 1 ? '' : 's'} sin rubro: elige su rubro en el botón punteado para que cuenten en tu presupuesto.` : '');
 
-        updateTrend(ctx);
         renderRecurring(ctx);
         renderTrash(ctx);
     }
@@ -10210,7 +10281,7 @@ I18n.country('US', {
 
     // Fill the form from elsewhere (e.g. a receipt photo) and let the person review it.
     function prefill(v) {
-        App.go('presupuesto/transacciones');
+        App.go('transacciones/lista');
         const get = (id) => document.getElementById(id);
         setEditing(null);
         get('txn-type').value = v.type || 'Gasto';
@@ -10222,6 +10293,7 @@ I18n.country('US', {
         if (v.paymentType) get('txn-payment').value = v.paymentType;
         if (v.date) { get('txn-date').value = v.date; fillLineSelect(); }
         if (v.budgetLine) fillLineSelect(v.budgetLine);
+        get('txn-form-card').open = true;
         get('txn-form-card').scrollIntoView({ block: 'start' });
         (v.amount ? get('txn-description') : get('txn-amount')).focus();
         UI.toast('Revisa los datos y toca "Agregar Transacción" para guardarla.');
@@ -10235,7 +10307,23 @@ I18n.country('US', {
         return true;
     }
 
+    let searchTimer = null;
     window.TxnForm = { prefill, warnIfImported };
+    // The trend and projected balances live in Reportes.
+    window.TxnCharts = { update: (ctx) => updateTrend(ctx) };
+
+    const PAGE = 100;
+    // Fill a row's budget-line menu the moment it's about to open.
+    function fillLazy(el) {
+        if (!el || !el.dataset || el.dataset.lazy === undefined || el.dataset.filled) return;
+        const y = Number(el.dataset.lazy.slice(0, 4)), m = String(Number(el.dataset.lazy.slice(5, 7)));
+        const items = Engine.monthItems(Store.effective(y), m);
+        const first = el.options[0].outerHTML, split = el.options[el.options.length - 1].outerHTML;
+        el.innerHTML = first + BudgetSimple.lineOptions(items, el.dataset.sel || null) + split;
+        if (!el.dataset.sel) el.value = '';
+        el.dataset.filled = '1';
+    }
+    ['pointerdown', 'focusin', 'keydown'].forEach(ev => document.addEventListener(ev, (e) => { const el = e.target && e.target.closest && e.target.closest('select[data-lazy]'); if (el) fillLazy(el); }, true));
 
     UI.register({
         // A matching automatic rule picks the category (and line) while typing a new one.
@@ -10312,7 +10400,15 @@ I18n.country('US', {
         'trash.empty': () => {
             App.undoable('Papelera vaciada', () => { Store.state.trash = []; });
         },
-        'txn.search': (el) => { Store.ui.txnSearch = el.value; App.update(); },
+        // Wait until typing pauses before filtering.
+        'txn.search': (el) => {
+            Store.ui.txnSearch = el.value;
+            Store.ui.txnLimit = PAGE;
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => App.update(), 220);
+        },
+        'txn.more': () => { Store.ui.txnLimit = (Store.ui.txnLimit || PAGE) + PAGE * 2; App.update(); },
+        'txn.openForm': () => { const c = document.getElementById('txn-form-card'); c.open = true; c.scrollIntoView({ block: 'start', behavior: 'smooth' }); setTimeout(() => document.getElementById('txn-amount').focus(), 300); },
         'trend.period': (el) => { Store.ui.trend.period = el.dataset.period; Store.ui.trend.count = DEFAULT_COUNT[el.dataset.period]; Store.ui.trend.ahead = DEFAULT_AHEAD[el.dataset.period]; App.update(); },
         'trend.ahead': (el) => { Store.ui.trend.ahead = Number(el.value); App.update(); },
         'trend.basis': (el) => { Store.ui.trend.basis = el.value; App.update(); },
@@ -10328,6 +10424,7 @@ I18n.country('US', {
         'txn.subChanged': () => payrollHint(),
         'txn.dateChanged': () => fillLineSelect(),
         'txn.filter': () => {
+            Store.ui.txnLimit = PAGE;
             Store.ui.txnFilters = {
                 year: document.getElementById('txn-f-year').value,
                 month: document.getElementById('txn-f-month').value,
@@ -10484,7 +10581,7 @@ I18n.country('US', {
         }
     });
 
-    App.defineView('presupuesto/transacciones', { render, update });
+    App.defineView('transacciones/lista', { render, update });
 })();
 </script>
 <script>/* js/views/importar.js */
@@ -10994,7 +11091,7 @@ I18n.country('US', {
         }
     });
 
-    App.defineView('presupuesto/importar', { render, update: render });
+    App.defineView('transacciones/importar', { render, update: render });
     // For tests and for other views.
     window.ImportSession = { get: () => session, start: startSession, resolve };
 })();
@@ -11087,6 +11184,7 @@ I18n.country('US', {
     };
 
     function render(ctx) {
+        if (window.TxnCharts) TxnCharts.update(ctx);
         const o = opts();
         ['range', 'type', 'by'].forEach(k => { document.getElementById('rep-' + k).value = o[k]; });
         UI.show('rep-from-field', o.range === 'custom');
@@ -11143,7 +11241,7 @@ I18n.country('US', {
         }
     });
 
-    App.defineView('presupuesto/reportes', { render, update: render });
+    App.defineView('transacciones/reportes', { render, update: render });
     window.Reports = { build };
 })();
 </script>
@@ -11252,7 +11350,7 @@ I18n.country('US', {
                 <p class="text-sm text-slate-600">Para saber cuánto puedes gastar hoy sin quedarte corto, dinos cuánto hay en tu cuenta corriente o en efectivo. Lo restamos de tus pagos pendientes, tus metas y tu colchón.</p>
                 <div class="flex flex-wrap gap-2 shrink-0">
                     <button type="button" class="btn btn-primary btn-sm" data-action="safe.addAccount"><i class="fa-solid fa-building-columns"></i> Agregar mi saldo</button>
-                    <a href="#" class="btn btn-secondary btn-sm" data-goto="presupuesto/importar">Importar estado de cuenta</a>
+                    <a href="#" class="btn btn-secondary btn-sm" data-goto="transacciones/importar">Importar estado de cuenta</a>
                 </div></div>`;
             return;
         }
@@ -11869,7 +11967,7 @@ I18n.country('US', {
         }
     });
 
-    App.defineView('metas', { render, update });
+    App.defineView('futuro/metas', { render, update });
 })();
 </script>
 <script>/* js/views/ahorro.js */
@@ -12027,8 +12125,8 @@ I18n.country('US', {
         }
     });
 
-    App.defineView('ahorro/proyeccion', { update: updateProjection });
-    App.defineView('ahorro/polizas', { render: renderPolizas, update: updatePolizas });
+    App.defineView('futuro/proyeccion', { update: updateProjection });
+    App.defineView('futuro/polizas', { render: renderPolizas, update: updatePolizas });
 })();
 </script>
 <script>/* js/views/hipoteca.js */
@@ -12096,7 +12194,7 @@ I18n.country('US', {
         }
     });
 
-    App.defineView('hipoteca', { render, update });
+    App.defineView('futuro/hipoteca', { render, update });
 })();
 </script>
 <script>/* js/views/jubilacion.js */
@@ -12131,7 +12229,7 @@ I18n.country('US', {
         UI.text('ret-aporte-sweep', ctx.baseBudget.sweep > 0 ? `, incluido el barrido de ${money0(ctx.baseBudget.sweep)}` : '');
         linkedField('ret-tasa', 'ret-tasa-note', 'tasaRetorno', ctx.defaultReturn, s.retirement.tasaRetorno, yd.country === 'US'
             ? `${ctx.defaultReturn}% es el promedio histórico de la bolsa de EE. UU. (acciones, antes de inflación). Algunos años pierde; a 20-30 años suele acercarse a ese promedio.`
-            : `la Tasa DPF de <a href="#" class="link" data-goto="ahorro/proyeccion">${s.activeYear}</a> es ${Number(yd.tasa).toFixed(2)}%. Tu retorno en 20-30 años puede ser distinto a la tasa de hoy.`);
+            : `la Tasa DPF de <a href="#" class="link" data-goto="futuro/proyeccion">${s.activeYear}</a> es ${Number(yd.tasa).toFixed(2)}%. Tu retorno en 20-30 años puede ser distinto a la tasa de hoy.`);
         linkedField('ret-infl', 'ret-infl-note', 'inflacion', Engine.DEFAULT_INFLATION[yd.country === 'US' ? 'US' : 'EC'], s.retirement.inflacion, yd.country === 'US'
             ? 'promedio histórico de EE. UU. (~3% al año). Todo se muestra en dólares de hoy.'
             : 'promedio de Ecuador desde la dolarización (~2.5% al año). Todo se muestra en dólares de hoy.');
@@ -12187,7 +12285,7 @@ I18n.country('US', {
         }
     });
 
-    App.defineView('jubilacion', { render, update });
+    App.defineView('futuro/jubilacion', { render, update });
 })();
 </script>
 <script>/* js/views/patrimonio.js */
@@ -12277,7 +12375,7 @@ I18n.country('US', {
         });
         const sync = Views.netWorthSync(ctx);
         UI.show('nw-sync-hint', !!sync);
-        if (sync) UI.html('nw-sync-hint', `<span><i class="fa-solid fa-circle-info"></i> Tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas</a> suman <strong>${money0(sync.polizas)}</strong>${sync.holdings ? `, tus <a href="#" class="link" data-goto="patrimonio" data-focus="nw-holdings">inversiones</a> <strong>${money0(sync.holdings)}</strong>` : ''} y tus <a href="#" class="link" data-goto="metas" data-focus="metas-debts">deudas</a> <strong>${money0(sync.debts)}</strong>, pero tu patrimonio de ${year} no coincide.</span><button class="btn btn-blue btn-sm" data-action="nw.prefill">Actualizar ahora</button>`);
+        if (sync) UI.html('nw-sync-hint', `<span><i class="fa-solid fa-circle-info"></i> Tus <a href="#" class="link" data-goto="futuro/polizas">pólizas</a> suman <strong>${money0(sync.polizas)}</strong>${sync.holdings ? `, tus <a href="#" class="link" data-goto="patrimonio" data-focus="nw-holdings">inversiones</a> <strong>${money0(sync.holdings)}</strong>` : ''} y tus <a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts">deudas</a> <strong>${money0(sync.debts)}</strong>, pero tu patrimonio de ${year} no coincide.</span><button class="btn btn-blue btn-sm" data-action="nw.prefill">Actualizar ahora</button>`);
         UI.text('nw-assets', money0(nw.assets));
         UI.text('nw-liabilities', money0(nw.liabilities));
         UI.text('nw-value', money(nw.value));

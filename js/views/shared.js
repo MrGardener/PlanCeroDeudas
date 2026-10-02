@@ -5,12 +5,12 @@
 
     // Ecuador-adapted Baby Steps: what each step means and where in the app you work on it.
     const STEP_INFO = {
-        1: { text: '$1,000 líquidos para imprevistos sin recurrir a tarjetas.', goto: 'metas', focus: 'metas-ef' },
-        2: { text: 'Elimina las deudas de consumo, de la más pequeña a la más grande.', goto: 'metas', focus: 'metas-debts' },
-        3: { text: '3–6 meses de gastos esenciales para desempleo o imprevistos que el IESS no cubre.', goto: 'metas', focus: 'metas-ef' },
-        4: { text: 'Invierte el 15% de tu sueldo en DPF de cooperativas Segmento 1 (COSEDE).', goto: 'jubilacion' },
-        5: { text: 'Pólizas DPF acumulativas para los estudios de tus hijos.', goto: 'metas', focus: 'metas-goals' },
-        6: { text: 'Abonos extraordinarios a tu préstamo BIESS o bancario.', goto: 'hipoteca' },
+        1: { text: '$1,000 líquidos para imprevistos sin recurrir a tarjetas.', goto: 'futuro/metas', focus: 'metas-ef' },
+        2: { text: 'Elimina las deudas de consumo, de la más pequeña a la más grande.', goto: 'futuro/metas', focus: 'metas-debts' },
+        3: { text: '3–6 meses de gastos esenciales para desempleo o imprevistos que el IESS no cubre.', goto: 'futuro/metas', focus: 'metas-ef' },
+        4: { text: 'Invierte el 15% de tu sueldo en DPF de cooperativas Segmento 1 (COSEDE).', goto: 'futuro/jubilacion' },
+        5: { text: 'Pólizas DPF acumulativas para los estudios de tus hijos.', goto: 'futuro/metas', focus: 'metas-goals' },
+        6: { text: 'Abonos extraordinarios a tu préstamo BIESS o bancario.', goto: 'futuro/hipoteca' },
         7: { text: 'Libertad financiera: sigue invirtiendo y da con generosidad.', goto: 'patrimonio' }
     };
 
@@ -139,8 +139,8 @@
                 <ol class="space-y-2">
                     ${step(1, 'presupuesto/ingresos', 'Ingresos e Impuestos', 'tu sueldo y décimos.')}
                     ${step(2, 'presupuesto/plan', 'Presupuesto del Mes', 'asigna cada dólar a un rubro.')}
-                    ${step(3, 'metas', 'Deudas y Metas', 'registra tus deudas y metas.')}
-                    ${step(4, 'ahorro/polizas', 'Pólizas', 'registra tus DPF.')}
+                    ${step(3, 'futuro/metas', 'Deudas y Metas', 'registra tus deudas y metas.')}
+                    ${step(4, 'futuro/polizas', 'Pólizas', 'registra tus DPF.')}
                     ${step(5, 'patrimonio', 'Patrimonio', 'lo que tienes y lo que debes.')}
                     ${step(6, 'resumen', 'Resumen', 'te dice cuál es tu siguiente paso.')}
                 </ol>

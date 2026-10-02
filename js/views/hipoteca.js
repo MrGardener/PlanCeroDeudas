@@ -62,5 +62,5 @@
         }
     });
 
-    App.defineView('hipoteca', { render, update });
+    App.defineView('futuro/hipoteca', { render, update });
 })();
