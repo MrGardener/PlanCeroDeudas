@@ -1043,3 +1043,21 @@ test('job-loss runway: months the money lasts, with benefits and income that con
     assert.equal(E.jobLossRunway({ cash: 100, monthlyNeeds: 900, otherIncome: 1000 }).forever, true);
     assert.deepEqual(E.iessUnemployment(1000), [700, 650, 600, 550, 500]);
 });
+
+test('calculators: loan, credit card, compound growth, savings goal', () => {
+    // $20,000 at 6% for 60 months: $386.66/month (standard amortization).
+    assert.deepEqual(E.loanPayment(20000, 6, 60), { payment: 386.66, total: 23199.36, interest: 3199.36, months: 60 });
+    assert.equal(E.loanPayment(1200, 0, 12).payment, 100);
+    // $5,000 at 24% (2%/month) paying $200: −ln(1 − 0.02·5000/200)/ln 1.02 ≈ 35.0 → 36 payments.
+    const c = E.cardPayoff(5000, 24, 200);
+    assert.equal(c.fixed.months, 36);
+    assert.ok(c.minimum.months > 100 && c.minimum.interest > c.fixed.interest * 2);
+    assert.equal(E.cardPayoff(5000, 24, 90).fixed.never, true);           // below the interest
+    // $10,000 + $500/month at 10% for 30 years ≈ $1.33M; contributions $190,000.
+    const f = E.growthValue(10000, 500, 10, 30, 3);
+    assert.equal(f.contributed, 190000);
+    assert.ok(Math.abs(f.value - 1328568) < 1500, f.value);
+    assert.ok(f.today < f.value / 2.3 && f.today > f.value / 2.5);
+    assert.equal(E.monthlyToReach(1200, 0, 0, 12), 100);
+    assert.equal(E.monthlyToReach(1000, 2000, 5, 12), 0);
+});

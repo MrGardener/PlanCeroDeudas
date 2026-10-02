@@ -1155,6 +1155,35 @@
             </div>
         </details>
     </div>
+
+    <div data-view="calculadoras" class="space-y-5 hidden">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs text-slate-600"><i class="fa-solid fa-flask"></i> Pruebas rápidas: no cambian tu plan. Empiezan con tus números cuando los hay.</p>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="calc.reset"><i class="fa-solid fa-rotate-left"></i> Volver a mis números</button>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="card" id="calc-loan">
+            <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-hand-holding-dollar text-blue-600"></i> Préstamo: ¿cuánto pagaría?</div><div class="card-sub">Carro, préstamo personal o vivienda: la cuota y lo que te cuesta de verdad.</div></div></div>
+            <div class="grid grid-cols-2 gap-3" id="calc-loan-in"></div>
+            <div id="calc-loan-out" class="mt-3"></div>
+        </div>
+        <div class="card" id="calc-card">
+            <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-credit-card text-red-500"></i> Tarjeta de crédito: ¿cuándo la termino?</div><div class="card-sub">Con un pago fijo frente a pagar solo el mínimo.</div></div></div>
+            <div class="grid grid-cols-2 gap-3" id="calc-card-in"></div>
+            <div id="calc-card-out" class="mt-3"></div>
+        </div>
+        <div class="card" id="calc-grow">
+            <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-seedling text-emerald-600"></i> ¿Cuánto crecerá mi dinero?</div><div class="card-sub">Interés compuesto con depósitos cada mes, también en dinero de hoy.</div></div></div>
+            <div class="grid grid-cols-2 gap-3" id="calc-grow-in"></div>
+            <div id="calc-grow-out" class="mt-3"></div>
+        </div>
+        <div class="card" id="calc-goal">
+            <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-bullseye text-purple-600"></i> Ahorrar para algo</div><div class="card-sub">Cuánto poner al mes para llegar a tiempo, o cuándo llegas con lo que puedes.</div></div></div>
+            <div class="grid grid-cols-2 gap-3" id="calc-goal-in"></div>
+            <div id="calc-goal-out" class="mt-3"></div>
+        </div>
+        </div>
+    </div>
 </section>
 
 <!-- =========================================================== PATRIMONIO -->
@@ -1501,6 +1530,7 @@
 <script src="js/views/quick.js"></script>
 <script src="js/views/metas.js"></script>
 <script src="js/views/runway.js"></script>
+<script src="js/views/calculadoras.js"></script>
 <script src="js/views/ahorro.js"></script>
 <script src="js/views/hipoteca.js"></script>
 <script src="js/views/jubilacion.js"></script>

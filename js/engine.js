@@ -1039,6 +1039,43 @@
         return out;
     }
 
+    // ------------------------------------------------------------ calculators
+    // A fixed-payment loan (car, personal, mortgage): the monthly payment and what it costs.
+    function loanPayment(principal, ratePct, months) {
+        const P = num(principal), n = Math.max(1, Math.round(num(months))), r = num(ratePct) / 1200;
+        const pay = r > 0 ? P * r / (1 - Math.pow(1 + r, -n)) : P / n;
+        return { payment: cents(pay), total: cents(pay * n), interest: cents(pay * n - P), months: n };
+    }
+    // Paying a credit card: months and interest at a fixed payment, and at the card's minimum
+    // (a common formula: 1% of the balance plus that month's interest, at least $25).
+    function cardPayoff(balance, aprPct, payment, { minPct = 1, minFloor = 25, maxMonths = 600 } = {}) {
+        const run = (payFor) => {
+            let bal = num(balance), interest = 0, n = 0;
+            while (bal > 0.005 && n < maxMonths) {
+                const i = bal * num(aprPct) / 1200, p = payFor(bal, i);
+                if (p <= i + 0.005) return { never: true, months: null, interest: null };
+                interest += i; bal = bal + i - Math.min(p, bal + i); n++;
+            }
+            return { never: n >= maxMonths && bal > 0.005, months: n, interest: cents(interest) };
+        };
+        return { fixed: run(() => num(payment)), minimum: run((bal, i) => Math.max(minFloor, bal * minPct / 100 + i)) };
+    }
+    // Money growing with monthly deposits, compounded monthly; also in today's dollars.
+    function growthValue(initial, monthly, ratePct, years, inflationPct = 0) {
+        const n = Math.max(0, Math.round(num(years) * 12)), r = num(ratePct) / 1200;
+        const g = Math.pow(1 + r, n);
+        const fv = num(initial) * g + (r > 0 ? num(monthly) * (g - 1) / r : num(monthly) * n);
+        const contributed = num(initial) + num(monthly) * n;
+        return { value: cents(fv), contributed: cents(contributed), growth: cents(fv - contributed), today: cents(fv / Math.pow(1 + num(inflationPct) / 100, num(years))) };
+    }
+    // Saving for something: how much each month to get there in `months`.
+    function monthlyToReach(target, have, ratePct, months) {
+        const n = Math.max(1, Math.round(num(months))), r = num(ratePct) / 1200, g = Math.pow(1 + r, n);
+        const left = num(target) - num(have) * g;
+        if (left <= 0) return 0;
+        return cents(r > 0 ? left * r / (g - 1) : left / n);
+    }
+
     // ------------------------------------------------------------ job-loss runway
     // If the paycheck stopped today: the money you can reach, minus what you'd still have to pay
     // each month, plus what keeps coming in (other income, unemployment benefit for its months, a
@@ -1809,7 +1846,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

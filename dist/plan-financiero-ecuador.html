@@ -306,6 +306,7 @@ input[type="file"].hidden { display: none; }
 .txn-amt.tr { color: var(--muted); }
 .tag-chip { display: inline-block; margin: .1rem .25rem .1rem 0; padding: 0 .45rem; border-radius: 999px; font-size: var(--fs-2xs); font-weight: 700; color: var(--info, #2563eb); background: color-mix(in srgb, var(--info, #2563eb) 10%, transparent); line-height: 1.6; }
 .tag-chip:hover { background: color-mix(in srgb, var(--info, #2563eb) 18%, transparent); }
+.calc-result { display: grid; gap: .3rem; padding: .7rem .85rem; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line); font-size: var(--fs-xs); color: var(--ink); }
 .runway-lines { display: grid; gap: .25rem; max-height: 22rem; overflow-y: auto; padding-right: .25rem; }
 .runway-line { display: flex; align-items: center; gap: .5rem; font-size: var(--fs-xs); padding: .3rem .5rem; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
 .runway-line input { accent-color: var(--brand); }
@@ -1877,6 +1878,35 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 <p data-country="US"><strong>Seguro Social:</strong> promedio mensual de tus 35 mejores años (con el tope anual) → 90% de los primeros $1,286 + 32% hasta $7,749 + 15% del resto; menos si lo pides antes de los 67, 8% más por año hasta los 70.</p>
             </div>
         </details>
+    </div>
+
+    <div data-view="calculadoras" class="space-y-5 hidden">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs text-slate-600"><i class="fa-solid fa-flask"></i> Pruebas rápidas: no cambian tu plan. Empiezan con tus números cuando los hay.</p>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="calc.reset"><i class="fa-solid fa-rotate-left"></i> Volver a mis números</button>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="card" id="calc-loan">
+            <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-hand-holding-dollar text-blue-600"></i> Préstamo: ¿cuánto pagaría?</div><div class="card-sub">Carro, préstamo personal o vivienda: la cuota y lo que te cuesta de verdad.</div></div></div>
+            <div class="grid grid-cols-2 gap-3" id="calc-loan-in"></div>
+            <div id="calc-loan-out" class="mt-3"></div>
+        </div>
+        <div class="card" id="calc-card">
+            <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-credit-card text-red-500"></i> Tarjeta de crédito: ¿cuándo la termino?</div><div class="card-sub">Con un pago fijo frente a pagar solo el mínimo.</div></div></div>
+            <div class="grid grid-cols-2 gap-3" id="calc-card-in"></div>
+            <div id="calc-card-out" class="mt-3"></div>
+        </div>
+        <div class="card" id="calc-grow">
+            <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-seedling text-emerald-600"></i> ¿Cuánto crecerá mi dinero?</div><div class="card-sub">Interés compuesto con depósitos cada mes, también en dinero de hoy.</div></div></div>
+            <div class="grid grid-cols-2 gap-3" id="calc-grow-in"></div>
+            <div id="calc-grow-out" class="mt-3"></div>
+        </div>
+        <div class="card" id="calc-goal">
+            <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-bullseye text-purple-600"></i> Ahorrar para algo</div><div class="card-sub">Cuánto poner al mes para llegar a tiempo, o cuándo llegas con lo que puedes.</div></div></div>
+            <div class="grid grid-cols-2 gap-3" id="calc-goal-in"></div>
+            <div id="calc-goal-out" class="mt-3"></div>
+        </div>
+        </div>
     </div>
 </section>
 
@@ -4678,6 +4708,28 @@ I18n.add('en', {
     "Seguro IESS estimado: {0}.": "Estimated IESS insurance: {0}."
 });
 I18n.add('en', { "Si recortas a la mitad": "If you cut in half", "llegarías a": "you'd reach" });
+// Calculators
+I18n.add('en', {
+    "Calculadoras": "Calculators", "Volver a mis números": "Back to my numbers",
+    "Pruebas rápidas: no cambian tu plan. Empiezan con tus números cuando los hay.": "Quick tries: they don't change your plan. They start from your own numbers when there are some.",
+    "Préstamo: ¿cuánto pagaría?": "Loan: what would I pay?", "Carro, préstamo personal o vivienda: la cuota y lo que te cuesta de verdad.": "Car, personal loan or home: the payment and what it really costs.",
+    "Monto del préstamo ($)": "Loan amount ($)", "Tasa anual (%)": "Annual rate (%)", "Pagas en total": "Total you pay", "De eso, intereses": "Of that, interest",
+    "Los intereses son el {0}% de lo que pides. Un plazo más corto o una entrada más grande los bajan.": "Interest is {0}% of what you borrow. A shorter term or a bigger down payment lowers it.", "Sin intereses.": "No interest.",
+    "Tarjeta de crédito: ¿cuándo la termino?": "Credit card: when will it be paid off?", "Con un pago fijo frente a pagar solo el mínimo.": "With a fixed payment vs. paying only the minimum.",
+    "Saldo de la tarjeta ($)": "Card balance ($)", "Pagarías cada mes ($)": "You'd pay each month ($)",
+    "Con tu pago": "With your payment", "Nunca: no cubre los intereses": "Never: it doesn't cover the interest", "Intereses que pagarías": "Interest you'd pay",
+    "Solo el pago mínimo": "Minimum payment only", "{0} meses ({1})": "{0} months ({1})", "{0} meses · {1} de intereses": "{0} months · {1} interest",
+    "Pagando {0} en vez del mínimo te ahorras": "Paying {0} instead of the minimum saves you", "y {0} meses.": "and {0} months.",
+    "Mínimo típico: 1% del saldo + los intereses del mes (al menos $25).": "Typical minimum: 1% of the balance + the month's interest (at least $25).",
+    "¿Cuánto crecerá mi dinero?": "How much will my money grow?", "Interés compuesto con depósitos cada mes, también en dinero de hoy.": "Compound interest with monthly deposits, also in today's dollars.",
+    "Tienes hoy ($)": "You have today ($)", "Pones cada mes ($)": "You add each month ($)", "Rendimiento anual (%)": "Annual return (%)", "Inflación anual (%)": "Annual inflation (%)",
+    "En {0} años tendrías": "In {0} years you'd have", "En dinero de hoy": "In today's dollars", "Lo que pusiste": "What you put in", "Lo que creció": "What it grew",
+    "El interés compuesto ganó más que tus propios depósitos: por eso conviene empezar temprano.": "Compound interest earned more than your own deposits: that's why starting early pays.",
+    "Con más años, el crecimiento pesa cada vez más que lo que pones.": "With more years, growth matters more and more than what you put in.",
+    "Ahorrar para algo": "Saving for something", "Cuánto poner al mes para llegar a tiempo, o cuándo llegas con lo que puedes.": "How much to put in each month to get there on time, or when you'll get there with what you can.",
+    "Necesitas ($)": "You need ($)", "Ya tienes ($)": "You already have ($)", "Interés anual del ahorro (%)": "Annual interest on savings (%)", "Lo quieres en (meses)": "You want it in (months)", "O puedes poner al mes ($)": "Or you can put in per month ($)",
+    "Para tenerlo en {0} meses": "To have it in {0} months", "Con {0}/mes llegas en": "With {0}/mo you get there in", "Ya lo tienes": "You already have it"
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -7628,6 +7680,43 @@ I18n.country('US', {
         return out;
     }
 
+    // ------------------------------------------------------------ calculators
+    // A fixed-payment loan (car, personal, mortgage): the monthly payment and what it costs.
+    function loanPayment(principal, ratePct, months) {
+        const P = num(principal), n = Math.max(1, Math.round(num(months))), r = num(ratePct) / 1200;
+        const pay = r > 0 ? P * r / (1 - Math.pow(1 + r, -n)) : P / n;
+        return { payment: cents(pay), total: cents(pay * n), interest: cents(pay * n - P), months: n };
+    }
+    // Paying a credit card: months and interest at a fixed payment, and at the card's minimum
+    // (a common formula: 1% of the balance plus that month's interest, at least $25).
+    function cardPayoff(balance, aprPct, payment, { minPct = 1, minFloor = 25, maxMonths = 600 } = {}) {
+        const run = (payFor) => {
+            let bal = num(balance), interest = 0, n = 0;
+            while (bal > 0.005 && n < maxMonths) {
+                const i = bal * num(aprPct) / 1200, p = payFor(bal, i);
+                if (p <= i + 0.005) return { never: true, months: null, interest: null };
+                interest += i; bal = bal + i - Math.min(p, bal + i); n++;
+            }
+            return { never: n >= maxMonths && bal > 0.005, months: n, interest: cents(interest) };
+        };
+        return { fixed: run(() => num(payment)), minimum: run((bal, i) => Math.max(minFloor, bal * minPct / 100 + i)) };
+    }
+    // Money growing with monthly deposits, compounded monthly; also in today's dollars.
+    function growthValue(initial, monthly, ratePct, years, inflationPct = 0) {
+        const n = Math.max(0, Math.round(num(years) * 12)), r = num(ratePct) / 1200;
+        const g = Math.pow(1 + r, n);
+        const fv = num(initial) * g + (r > 0 ? num(monthly) * (g - 1) / r : num(monthly) * n);
+        const contributed = num(initial) + num(monthly) * n;
+        return { value: cents(fv), contributed: cents(contributed), growth: cents(fv - contributed), today: cents(fv / Math.pow(1 + num(inflationPct) / 100, num(years))) };
+    }
+    // Saving for something: how much each month to get there in `months`.
+    function monthlyToReach(target, have, ratePct, months) {
+        const n = Math.max(1, Math.round(num(months))), r = num(ratePct) / 1200, g = Math.pow(1 + r, n);
+        const left = num(target) - num(have) * g;
+        if (left <= 0) return 0;
+        return cents(r > 0 ? left * r / (g - 1) : left / n);
+    }
+
     // ------------------------------------------------------------ job-loss runway
     // If the paycheck stopped today: the money you can reach, minus what you'd still have to pay
     // each month, plus what keeps coming in (other income, unemployment benefit for its months, a
@@ -8398,7 +8487,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -9569,7 +9658,8 @@ I18n.country('US', {
             { id: 'proyeccion', label: 'Ahorro DPF', icon: 'fa-piggy-bank' },
             { id: 'polizas', label: 'Pólizas y Cooperativas', icon: 'fa-file-contract' },
             { id: 'hipoteca', label: 'Hipoteca', icon: 'fa-house-chimney' },
-            { id: 'jubilacion', label: 'Jubilación', icon: 'fa-person-cane' }
+            { id: 'jubilacion', label: 'Jubilación', icon: 'fa-person-cane' },
+            { id: 'calculadoras', label: 'Calculadoras', icon: 'fa-calculator' }
         ] },
         { id: 'patrimonio', label: 'Patrimonio', icon: 'fa-scale-balanced' },
         // Reached from the gear in the header, not from the tab bar.
@@ -9579,7 +9669,7 @@ I18n.country('US', {
     const ALIASES = {
         'presupuesto/transacciones': 'transacciones/lista', 'presupuesto/importar': 'transacciones/importar', 'presupuesto/reportes': 'transacciones/reportes',
         metas: 'futuro/metas', ahorro: 'futuro/proyeccion', 'ahorro/proyeccion': 'futuro/proyeccion', 'ahorro/polizas': 'futuro/polizas',
-        hipoteca: 'futuro/hipoteca', jubilacion: 'futuro/jubilacion'
+        hipoteca: 'futuro/hipoteca', jubilacion: 'futuro/jubilacion', calculadoras: 'futuro/calculadoras'
     };
     const views = {};
 
@@ -15217,6 +15307,78 @@ I18n.country('US', {
     });
 
     window.Runway = { render, update };
+})();
+</script>
+<script>/* js/views/calculadoras.js */
+/* Futuro → Calculadoras: quick what-ifs that don't touch the plan — a loan's payment, paying off
+ * a credit card (vs. only the minimum), how money grows, and how much to save for something.
+ * Inputs start from your own numbers where there are some, and live only on screen (Store.ui). */
+(function () {
+    'use strict';
+    const { money, money0, esc } = Fmt;
+
+    function defaults() {
+        const s = Store.state;
+        const card = (s.debts || []).find(d => d.kind === 'tarjeta' && Number(d.balance) > 0);
+        const goal = (s.goals || []).find(g => (Number(g.target) || 0) > (Number(g.current) || 0));
+        const r = s.retirement || {};
+        return {
+            loan: { amount: 20000, rate: 7, years: 5 },
+            card: { balance: card ? Number(card.balance) : 5000, rate: card ? Number(card.rate) : 24, payment: card ? Math.max(Number(card.monthly) || 0, 100) : 200 },
+            grow: { initial: 1000, monthly: 200, rate: Store.COUNTRY === 'US' ? 10 : 7, years: 20, inflation: Store.COUNTRY === 'US' ? 3 : 2.5 },
+            goal: { target: goal ? Number(goal.target) : 5000, have: goal ? Number(goal.current) || 0 : 0, rate: goal ? Number(goal.rate) || 0 : 4, months: 24, monthly: goal ? Number(goal.monthly) || 0 : 150 },
+            _age: r.edadActual
+        };
+    }
+    const st = () => Store.ui.calc || (Store.ui.calc = defaults());
+
+    const field = (calc, key, label, opts = {}) => `<label class="field"><span class="field-label">${label}</span>
+        <input type="number" class="input" inputmode="decimal" min="0" step="${opts.step || 'any'}" data-input="calc.set" data-calc="${calc}" data-key="${key}" value="${esc(String(st()[calc][key]))}"></label>`;
+    const result = (rows) => `<div class="calc-result">${rows.map(([k, v, strong]) => `<div class="flex justify-between gap-3"><span>${k}</span><span class="${strong ? 'font-black text-base' : 'font-bold'} whitespace-nowrap">${v}</span></div>`).join('')}</div>`;
+
+    function render() {
+        UI.html('calc-loan-in', field('loan', 'amount', 'Monto del préstamo ($)', { step: 100 }) + field('loan', 'rate', 'Tasa anual (%)', { step: 0.1 }) + field('loan', 'years', 'Plazo (años)', { step: 1 }));
+        UI.html('calc-card-in', field('card', 'balance', 'Saldo de la tarjeta ($)', { step: 50 }) + field('card', 'rate', 'Tasa anual (%)', { step: 0.1 }) + field('card', 'payment', 'Pagarías cada mes ($)', { step: 10 }));
+        UI.html('calc-grow-in', field('grow', 'initial', 'Tienes hoy ($)', { step: 100 }) + field('grow', 'monthly', 'Pones cada mes ($)', { step: 10 }) + field('grow', 'rate', 'Rendimiento anual (%)', { step: 0.1 }) + field('grow', 'years', 'Años', { step: 1 }) + field('grow', 'inflation', 'Inflación anual (%)', { step: 0.1 }));
+        UI.html('calc-goal-in', field('goal', 'target', 'Necesitas ($)', { step: 100 }) + field('goal', 'have', 'Ya tienes ($)', { step: 100 }) + field('goal', 'rate', 'Interés anual del ahorro (%)', { step: 0.1 }) + field('goal', 'months', 'Lo quieres en (meses)', { step: 1 }) + field('goal', 'monthly', 'O puedes poner al mes ($)', { step: 10 }));
+        update();
+    }
+
+    function update() {
+        const c = st(), today = new Date();
+        const L = Engine.loanPayment(c.loan.amount, c.loan.rate, (Number(c.loan.years) || 0) * 12);
+        UI.html('calc-loan-out', result([['Cuota mensual', money(L.payment), true], ['Pagas en total', money0(L.total)], ['De eso, intereses', money0(L.interest)]])
+            + `<p class="help mt-2">${L.interest > 0 ? `Los intereses son el ${Math.round(L.interest / Math.max(1, Number(c.loan.amount)) * 100)}% de lo que pides. Un plazo más corto o una entrada más grande los bajan.` : 'Sin intereses.'}</p>`);
+
+        const K = Engine.cardPayoff(c.card.balance, c.card.rate, c.card.payment);
+        const when = (n) => Fmt.monthYear(Engine.addMonths(today, n));
+        const fixed = K.fixed.never ? ['Con tu pago', 'Nunca: no cubre los intereses', true] : ['Con tu pago', `${K.fixed.months} meses (${when(K.fixed.months)})`, true];
+        const rows = [fixed];
+        if (!K.fixed.never) rows.push(['Intereses que pagarías', money0(K.fixed.interest)]);
+        rows.push(['Solo el pago mínimo', K.minimum.never ? 'Nunca' : `${K.minimum.months} meses · ${money0(K.minimum.interest)} de intereses`]);
+        const saved = !K.fixed.never && !K.minimum.never ? K.minimum.interest - K.fixed.interest : null;
+        UI.html('calc-card-out', result(rows) + `<p class="help mt-2">${saved && saved > 0 ? `<span>Pagando ${money0(c.card.payment)} en vez del mínimo te ahorras <strong>${money0(saved)}</strong> y ${Math.max(0, K.minimum.months - K.fixed.months)} meses.</span> ` : ''}<span>Mínimo típico: 1% del saldo + los intereses del mes (al menos $25).</span></p>`);
+
+        const G = Engine.growthValue(c.grow.initial, c.grow.monthly, c.grow.rate, c.grow.years, c.grow.inflation);
+        UI.html('calc-grow-out', result([[`En ${Number(c.grow.years) || 0} años tendrías`, money0(G.value), true], ['En dinero de hoy', money0(G.today)], ['Lo que pusiste', money0(G.contributed)], ['Lo que creció', money0(G.growth)]])
+            + `<p class="help mt-2">${G.contributed > 0 && G.growth > G.contributed ? 'El interés compuesto ganó más que tus propios depósitos: por eso conviene empezar temprano.' : 'Con más años, el crecimiento pesa cada vez más que lo que pones.'}</p>`);
+
+        const need = Engine.monthlyToReach(c.goal.target, c.goal.have, c.goal.rate, c.goal.months);
+        const n = Engine.goalMonths({ target: c.goal.target, current: c.goal.have, monthly: c.goal.monthly, rate: c.goal.rate });
+        const inMonths = n === 'never' || n === null || n === undefined ? 'Nunca' : n === 0 ? 'Ya lo tienes' : `${n} meses (${when(n)})`;
+        UI.html('calc-goal-out', result([[`Para tenerlo en ${Number(c.goal.months) || 0} meses`, need > 0 ? `${money(need)}/mes` : 'Ya lo tienes', true], [`Con ${money0(c.goal.monthly)}/mes llegas en`, inMonths]]));
+    }
+
+    UI.register({
+        'calc.set': (el) => {
+            const c = st();
+            c[el.dataset.calc][el.dataset.key] = Math.max(0, Fmt.parseNum(el.value, 0));
+            update();
+        },
+        'calc.reset': () => { Store.ui.calc = defaults(); render(); }
+    });
+
+    App.defineView('futuro/calculadoras', { render, update });
 })();
 </script>
 <script>/* js/views/ahorro.js */

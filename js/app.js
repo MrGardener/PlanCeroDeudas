@@ -30,7 +30,8 @@
             { id: 'proyeccion', label: 'Ahorro DPF', icon: 'fa-piggy-bank' },
             { id: 'polizas', label: 'Pólizas y Cooperativas', icon: 'fa-file-contract' },
             { id: 'hipoteca', label: 'Hipoteca', icon: 'fa-house-chimney' },
-            { id: 'jubilacion', label: 'Jubilación', icon: 'fa-person-cane' }
+            { id: 'jubilacion', label: 'Jubilación', icon: 'fa-person-cane' },
+            { id: 'calculadoras', label: 'Calculadoras', icon: 'fa-calculator' }
         ] },
         { id: 'patrimonio', label: 'Patrimonio', icon: 'fa-scale-balanced' },
         // Reached from the gear in the header, not from the tab bar.
@@ -40,7 +41,7 @@
     const ALIASES = {
         'presupuesto/transacciones': 'transacciones/lista', 'presupuesto/importar': 'transacciones/importar', 'presupuesto/reportes': 'transacciones/reportes',
         metas: 'futuro/metas', ahorro: 'futuro/proyeccion', 'ahorro/proyeccion': 'futuro/proyeccion', 'ahorro/polizas': 'futuro/polizas',
-        hipoteca: 'futuro/hipoteca', jubilacion: 'futuro/jubilacion'
+        hipoteca: 'futuro/hipoteca', jubilacion: 'futuro/jubilacion', calculadoras: 'futuro/calculadoras'
     };
     const views = {};
 

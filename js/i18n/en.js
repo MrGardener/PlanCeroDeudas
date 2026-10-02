@@ -2259,3 +2259,25 @@ I18n.add('en', {
     "Seguro IESS estimado: {0}.": "Estimated IESS insurance: {0}."
 });
 I18n.add('en', { "Si recortas a la mitad": "If you cut in half", "llegarías a": "you'd reach" });
+// Calculators
+I18n.add('en', {
+    "Calculadoras": "Calculators", "Volver a mis números": "Back to my numbers",
+    "Pruebas rápidas: no cambian tu plan. Empiezan con tus números cuando los hay.": "Quick tries: they don't change your plan. They start from your own numbers when there are some.",
+    "Préstamo: ¿cuánto pagaría?": "Loan: what would I pay?", "Carro, préstamo personal o vivienda: la cuota y lo que te cuesta de verdad.": "Car, personal loan or home: the payment and what it really costs.",
+    "Monto del préstamo ($)": "Loan amount ($)", "Tasa anual (%)": "Annual rate (%)", "Pagas en total": "Total you pay", "De eso, intereses": "Of that, interest",
+    "Los intereses son el {0}% de lo que pides. Un plazo más corto o una entrada más grande los bajan.": "Interest is {0}% of what you borrow. A shorter term or a bigger down payment lowers it.", "Sin intereses.": "No interest.",
+    "Tarjeta de crédito: ¿cuándo la termino?": "Credit card: when will it be paid off?", "Con un pago fijo frente a pagar solo el mínimo.": "With a fixed payment vs. paying only the minimum.",
+    "Saldo de la tarjeta ($)": "Card balance ($)", "Pagarías cada mes ($)": "You'd pay each month ($)",
+    "Con tu pago": "With your payment", "Nunca: no cubre los intereses": "Never: it doesn't cover the interest", "Intereses que pagarías": "Interest you'd pay",
+    "Solo el pago mínimo": "Minimum payment only", "{0} meses ({1})": "{0} months ({1})", "{0} meses · {1} de intereses": "{0} months · {1} interest",
+    "Pagando {0} en vez del mínimo te ahorras": "Paying {0} instead of the minimum saves you", "y {0} meses.": "and {0} months.",
+    "Mínimo típico: 1% del saldo + los intereses del mes (al menos $25).": "Typical minimum: 1% of the balance + the month's interest (at least $25).",
+    "¿Cuánto crecerá mi dinero?": "How much will my money grow?", "Interés compuesto con depósitos cada mes, también en dinero de hoy.": "Compound interest with monthly deposits, also in today's dollars.",
+    "Tienes hoy ($)": "You have today ($)", "Pones cada mes ($)": "You add each month ($)", "Rendimiento anual (%)": "Annual return (%)", "Inflación anual (%)": "Annual inflation (%)",
+    "En {0} años tendrías": "In {0} years you'd have", "En dinero de hoy": "In today's dollars", "Lo que pusiste": "What you put in", "Lo que creció": "What it grew",
+    "El interés compuesto ganó más que tus propios depósitos: por eso conviene empezar temprano.": "Compound interest earned more than your own deposits: that's why starting early pays.",
+    "Con más años, el crecimiento pesa cada vez más que lo que pones.": "With more years, growth matters more and more than what you put in.",
+    "Ahorrar para algo": "Saving for something", "Cuánto poner al mes para llegar a tiempo, o cuándo llegas con lo que puedes.": "How much to put in each month to get there on time, or when you'll get there with what you can.",
+    "Necesitas ($)": "You need ($)", "Ya tienes ($)": "You already have ($)", "Interés anual del ahorro (%)": "Annual interest on savings (%)", "Lo quieres en (meses)": "You want it in (months)", "O puedes poner al mes ($)": "Or you can put in per month ($)",
+    "Para tenerlo en {0} meses": "To have it in {0} months", "Con {0}/mes llegas en": "With {0}/mo you get there in", "Ya lo tienes": "You already have it"
+});
