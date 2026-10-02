@@ -304,6 +304,7 @@ input[type="file"].hidden { display: none; }
 .txn-date.pending { border-style: dashed; }
 .txn-date.tr { border-color: var(--faint); color: var(--muted); }
 .txn-amt.tr { color: var(--muted); }
+.found-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .45rem .6rem; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); }
 .annual-steps { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
 .annual-step { border: 1px solid var(--line); border-radius: var(--r-md); padding: .55rem .7rem; font-size: var(--fs-xs); background: var(--surface); }
 .annual-step.short { border-color: #fca5a5; background: #fef2f2; }
@@ -1295,6 +1296,7 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="rec-kpis"></div>
+            <div id="rec-found"></div>
             <div class="table-wrap"><table class="table"><thead><tr><th>Próxima fecha</th><th>Descripción</th><th>Frecuencia</th><th class="num">Monto</th><th class="num">Por mes</th><th class="text-center" title="Registrar automáticamente">Auto</th><th></th></tr></thead><tbody id="rec-body"></tbody></table></div>
         </div>
     </div>
@@ -4546,6 +4548,16 @@ I18n.add('en', {
 });
 I18n.add('en', { "Apartar": "Set aside" });
 I18n.add('en', { "Quedan {0} en el apartado": "{0} left in the fund" });
+// Subscription finder
+I18n.add('en', {
+    "Encontramos {0} cargo{1} que se repite{2} y no tienes programado{3}: juntos, {4} al año.": "We found {0} repeating charge{1|s} not scheduled yet: together, {4} a year.",
+    "¿Todavía los usas? Prográmalos para verlos venir (y que el pronóstico de caja los cuente), o cancela los que ya no necesitas.": "Still using them? Schedule them so you see them coming (and the cash forecast counts them), or cancel the ones you don't need.",
+    "{0} veces desde {1}": "{0} times since {1}", "Programar": "Schedule", "No es fijo": "Not recurring",
+    "Programarlo como movimiento que se repite": "Schedule it as a repeating transaction", "No volver a sugerirlo": "Don't suggest it again",
+    "«{0}» programado {1}. Lo verás en tu pronóstico de caja.": "«{0}» scheduled {1}. You'll see it in your cash forecast.",
+    "Listo: no lo volveremos a sugerir.": "Done: we won't suggest it again.",
+    "cada semana": "every week", "cada 2 semanas": "every 2 weeks", "cada mes": "every month", "cada 3 meses": "every 3 months", "cada 6 meses": "every 6 months", "cada año": "every year"
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -7268,6 +7280,60 @@ I18n.country('US', {
     const PER_MONTH = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, quarterly: 1 / 3, semiannual: 1 / 6, yearly: 1 / 12 };
     const monthlyCost = (rec) => num(rec.amount) * (PER_MONTH[rec.frequency] || 1);
 
+    // ------------------------------------------------------------ subscription finder
+    // Charges that keep coming back at a steady rhythm and (nearly) the same amount — Netflix, the
+    // gym, an app you forgot — and that aren't tracked as repeating yet. Groceries or gas repeat
+    // too, but their amounts vary, so they're left out. `dismissed` holds keys the user said no to.
+    const repeatKey = (t) => String(t.store || t.description || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
+    const RHYTHMS = [['weekly', 7, 2], ['biweekly', 14, 3], ['monthly', 30.4, 5], ['quarterly', 91, 10], ['semiannual', 182, 15], ['yearly', 365, 20]];
+    const median = (xs) => { const v = xs.slice().sort((a, b) => a - b); const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+    const NOT_SUBS = new Set(['Deudas', 'Ahorro e Inversión']);
+    const SUB_CATS = new Set(['Suscripciones y Entretenimiento Digital', 'Seguros y Protección', 'Negocio Propio / Freelance']);
+    const SERVICE = /netflix|spotify|disney|hbo|max\b|prime|youtube|icloud|apple\.com|apple (?:music|tv|one|arcade)|google (?:one|play|storage)|adobe|microsoft|office|dropbox|squarespace|wix|godaddy|patreon|audible|kindle|duolingo|gym|fitness|club|membership|membres|suscrip|subscription|costco|sam'?s|chewy|hulu|paramount|peacock|canva|chatgpt|openai/i;
+    function findRepeating(transactions, { recurring = [], dismissed = [], today = new Date(), billLines = [] } = {}) {
+        const bills = new Set((billLines || []).map(String));
+        const tracked = new Set((recurring || []).flatMap(r => [repeatKey({ store: r.store }), repeatKey({ description: r.description })]).filter(Boolean));
+        const skip = new Set(dismissed || []);
+        const groups = {};
+        (transactions || []).forEach(t => {
+            if (txnType(t) !== 'Gasto' || t.refund || t.fromGoal || t.recurringId || !t.date || NOT_SUBS.has(t.parentCategory)) return;
+            // Loan payments, savings goals and bills with a due day are already in the plan.
+            const line = String(t.budgetLine || '');
+            if (/^(debt|goal)-/.test(line) || bills.has(line)) return;
+            const k = repeatKey(t);
+            if (k.length < 3 || skip.has(k) || tracked.has(k) || tracked.has(repeatKey({ description: t.description }))) return;
+            (groups[k] = groups[k] || []).push(t);
+        });
+        const now = new Date(today).getTime();
+        const out = [];
+        Object.keys(groups).forEach(k => {
+            const list = groups[k].slice().sort((a, b) => a.date.localeCompare(b.date));
+            const days = list.map(t => parseISO(t.date).getTime() / 86400000);
+            const gaps = days.slice(1).map((d, i) => d - days[i]).filter(g => g > 0);
+            if (gaps.length < 2 && !(gaps.length === 1 && gaps[0] > 300)) return;
+            const g = median(gaps);
+            const rhythm = RHYTHMS.find(([, n, tol]) => Math.abs(g - n) <= tol);
+            if (!rhythm) return;
+            const [freq, n, tol] = rhythm;
+            if (gaps.filter(x => Math.abs(x - n) <= tol * 1.5).length < gaps.length * 0.75) return;
+            const amounts = list.map(t => num(t.amount));
+            const mid = median(amounts);
+            if (amounts.filter(a => Math.abs(a - mid) <= Math.max(2, mid * 0.1)).length < amounts.length * 0.8) return;
+            const last = list[list.length - 1];
+            // Every few months / once a year: only what looks like a membership or service.
+            if (n > 40 && !(SUB_CATS.has(last.parentCategory) || SERVICE.test(`${last.description} ${last.store}`))) return;
+            const lastDay = days[days.length - 1];
+            if (now / 86400000 - lastDay > n * 1.6 + 3) return;     // stopped: probably canceled
+            const amount = num(last.amount);
+            out.push({ key: k, name: last.description || last.store, store: last.store || '', amount, frequency: freq, count: list.length,
+                first: list[0].date, last: last.date, next: isoDate(new Date((lastDay + n) * 86400000 + 12 * 3600000)),
+                monthly: cents(amount * (PER_MONTH[freq] || 1)), yearly: cents(amount * (PER_MONTH[freq] || 1) * 12),
+                parentCategory: last.parentCategory, category: last.category, budgetLine: last.budgetLine, paymentType: last.paymentType, ids: list.map(t => t.id) });
+        });
+        return out.sort((a, b) => b.yearly - a.yearly);
+    }
+
     // ------------------------------------------------------------ investments
     // Market value of stock / ETF / fund holdings: shares × last known price.
     const holdingValue = (h) => Math.max(0, num(h.shares)) * Math.max(0, num(h.price));
@@ -8088,7 +8154,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -12252,6 +12318,7 @@ I18n.country('US', {
 
         renderBulk();
         renderRecurring(ctx);
+        renderFound(ctx);
         renderTrash(ctx);
     }
 
@@ -12324,6 +12391,27 @@ I18n.country('US', {
                 <td class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="rec.auto" data-id="${r.id}" ${r.auto === false ? '' : 'checked'} title="Registrar automáticamente"></td>
                 <td class="text-center"><button class="row-del" data-action="rec.delete" data-id="${r.id}" title="Dejar de repetir" aria-label="Dejar de repetir"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`).join('') : `<tr class="empty-row"><td colspan="7">${Views.emptyState('fa-repeat', 'Nada programado. Ejemplos: arriendo el 5 de cada mes, Netflix, tu sueldo quincenal.')}</td></tr>`);
+    }
+
+    // Charges in your history that repeat like a subscription but aren't scheduled yet.
+    const FREQ_SHORT = { weekly: 'cada semana', biweekly: 'cada 2 semanas', monthly: 'cada mes', quarterly: 'cada 3 meses', semiannual: 'cada 6 meses', yearly: 'cada año' };
+    function repeatingFound(ctx) {
+        const s = ctx.state;
+        const billLines = (Store.effective(ctx.today.getFullYear()).budgetBase || []).filter(i => Number(i.dueDay) >= 1).map(i => i.id);
+        return Engine.findRepeating(s.transactions, { recurring: s.recurring, dismissed: s.settings.dismissedRepeats || [], today: ctx.today, billLines });
+    }
+    function renderFound(ctx) {
+        const found = repeatingFound(ctx);
+        if (!found.length) { UI.html('rec-found', ''); return; }
+        const yearly = found.reduce((a, f) => a + f.yearly, 0);
+        UI.html('rec-found', `<div class="panel tone-purple mb-3">
+            <div class="text-xs font-bold text-slate-800 mb-2"><i class="fa-solid fa-magnifying-glass-dollar text-purple-600"></i> Encontramos ${found.length} cargo${found.length === 1 ? '' : 's'} que se repite${found.length === 1 ? '' : 'n'} y no tienes programado${found.length === 1 ? '' : 's'}: juntos, ${money0(yearly)} al año.</div>
+            <p class="help mb-2">¿Todavía los usas? Prográmalos para verlos venir (y que el pronóstico de caja los cuente), o cancela los que ya no necesitas.</p>
+            <div class="space-y-1.5">${found.map(f => `<div class="found-row">
+                <div class="min-w-0"><div class="font-semibold text-xs truncate" data-i18n-skip>${esc(f.name)}</div>
+                <div class="text-[11px] text-slate-500"><span>${money(f.amount)}</span> <span>${FREQ_SHORT[f.frequency]}</span> · <span>${money0(f.yearly)} al año</span> · <span>${f.count} veces desde ${esc(Fmt.monthYear(new Date(f.first + 'T00:00:00')))}</span></div></div>
+                <div class="flex gap-1.5 shrink-0"><button type="button" class="mini-btn" data-action="subs.track" data-key="${esc(f.key)}" title="Programarlo como movimiento que se repite">Programar</button><button type="button" class="mini-btn text-slate-500" data-action="subs.dismiss" data-key="${esc(f.key)}" title="No volver a sugerirlo">No es fijo</button></div>
+            </div>`).join('')}</div></div>`);
     }
 
     // Post every repeating movement that's due (only those set to automatic unless `ids` given).
@@ -12782,6 +12870,27 @@ I18n.country('US', {
             if (!list.length) return;
             const first = list[0];
             UI.run('rule.add', { contains: commonText(list), cat: (isIncome(first) ? 'I|' : 'G|') + first.parentCategory });
+        },
+        // Track a found subscription: it becomes a repeating movement (already posted up to its
+        // last charge) and its past charges are linked to it.
+        'subs.track': (el) => {
+            const f = repeatingFound(App.buildContext()).find(x => x.key === el.dataset.key);
+            if (!f) return;
+            App.undoable(`«${f.name}» programado ${FREQ_SHORT[f.frequency]}. Lo verás en tu pronóstico de caja.`, () => {
+                const s = Store.state, recs = s.recurring || (s.recurring = []);
+                const rec = { id: Store.nextId(recs), type: 'Gasto', description: f.name, store: f.store, parentCategory: f.parentCategory, category: f.category, amount: f.amount, paymentType: f.paymentType, frequency: f.frequency, startDate: f.first, lastPosted: f.last, auto: true };
+                if (f.budgetLine) rec.budgetLine = f.budgetLine;
+                recs.push(rec);
+                const ids = new Set(f.ids);
+                s.transactions.forEach(t => { if (ids.has(t.id)) t.recurringId = rec.id; });
+            });
+        },
+        'subs.dismiss': (el) => {
+            const key = el.dataset.key;
+            App.undoable('Listo: no lo volveremos a sugerir.', () => {
+                const st = Store.state.settings;
+                st.dismissedRepeats = (st.dismissedRepeats || []).concat([key]);
+            });
         },
         'txn.more': () => { Store.ui.txnLimit = (Store.ui.txnLimit || PAGE) + PAGE * 2; App.update(); },
         'txn.openForm': () => { const c = document.getElementById('txn-form-card'); c.open = true; c.scrollIntoView({ block: 'start', behavior: 'smooth' }); setTimeout(() => document.getElementById('txn-amount').focus(), 300); },

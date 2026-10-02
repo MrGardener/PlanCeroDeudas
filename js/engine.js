@@ -851,6 +851,60 @@
     const PER_MONTH = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, quarterly: 1 / 3, semiannual: 1 / 6, yearly: 1 / 12 };
     const monthlyCost = (rec) => num(rec.amount) * (PER_MONTH[rec.frequency] || 1);
 
+    // ------------------------------------------------------------ subscription finder
+    // Charges that keep coming back at a steady rhythm and (nearly) the same amount — Netflix, the
+    // gym, an app you forgot — and that aren't tracked as repeating yet. Groceries or gas repeat
+    // too, but their amounts vary, so they're left out. `dismissed` holds keys the user said no to.
+    const repeatKey = (t) => String(t.store || t.description || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
+    const RHYTHMS = [['weekly', 7, 2], ['biweekly', 14, 3], ['monthly', 30.4, 5], ['quarterly', 91, 10], ['semiannual', 182, 15], ['yearly', 365, 20]];
+    const median = (xs) => { const v = xs.slice().sort((a, b) => a - b); const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+    const NOT_SUBS = new Set(['Deudas', 'Ahorro e Inversión']);
+    const SUB_CATS = new Set(['Suscripciones y Entretenimiento Digital', 'Seguros y Protección', 'Negocio Propio / Freelance']);
+    const SERVICE = /netflix|spotify|disney|hbo|max\b|prime|youtube|icloud|apple\.com|apple (?:music|tv|one|arcade)|google (?:one|play|storage)|adobe|microsoft|office|dropbox|squarespace|wix|godaddy|patreon|audible|kindle|duolingo|gym|fitness|club|membership|membres|suscrip|subscription|costco|sam'?s|chewy|hulu|paramount|peacock|canva|chatgpt|openai/i;
+    function findRepeating(transactions, { recurring = [], dismissed = [], today = new Date(), billLines = [] } = {}) {
+        const bills = new Set((billLines || []).map(String));
+        const tracked = new Set((recurring || []).flatMap(r => [repeatKey({ store: r.store }), repeatKey({ description: r.description })]).filter(Boolean));
+        const skip = new Set(dismissed || []);
+        const groups = {};
+        (transactions || []).forEach(t => {
+            if (txnType(t) !== 'Gasto' || t.refund || t.fromGoal || t.recurringId || !t.date || NOT_SUBS.has(t.parentCategory)) return;
+            // Loan payments, savings goals and bills with a due day are already in the plan.
+            const line = String(t.budgetLine || '');
+            if (/^(debt|goal)-/.test(line) || bills.has(line)) return;
+            const k = repeatKey(t);
+            if (k.length < 3 || skip.has(k) || tracked.has(k) || tracked.has(repeatKey({ description: t.description }))) return;
+            (groups[k] = groups[k] || []).push(t);
+        });
+        const now = new Date(today).getTime();
+        const out = [];
+        Object.keys(groups).forEach(k => {
+            const list = groups[k].slice().sort((a, b) => a.date.localeCompare(b.date));
+            const days = list.map(t => parseISO(t.date).getTime() / 86400000);
+            const gaps = days.slice(1).map((d, i) => d - days[i]).filter(g => g > 0);
+            if (gaps.length < 2 && !(gaps.length === 1 && gaps[0] > 300)) return;
+            const g = median(gaps);
+            const rhythm = RHYTHMS.find(([, n, tol]) => Math.abs(g - n) <= tol);
+            if (!rhythm) return;
+            const [freq, n, tol] = rhythm;
+            if (gaps.filter(x => Math.abs(x - n) <= tol * 1.5).length < gaps.length * 0.75) return;
+            const amounts = list.map(t => num(t.amount));
+            const mid = median(amounts);
+            if (amounts.filter(a => Math.abs(a - mid) <= Math.max(2, mid * 0.1)).length < amounts.length * 0.8) return;
+            const last = list[list.length - 1];
+            // Every few months / once a year: only what looks like a membership or service.
+            if (n > 40 && !(SUB_CATS.has(last.parentCategory) || SERVICE.test(`${last.description} ${last.store}`))) return;
+            const lastDay = days[days.length - 1];
+            if (now / 86400000 - lastDay > n * 1.6 + 3) return;     // stopped: probably canceled
+            const amount = num(last.amount);
+            out.push({ key: k, name: last.description || last.store, store: last.store || '', amount, frequency: freq, count: list.length,
+                first: list[0].date, last: last.date, next: isoDate(new Date((lastDay + n) * 86400000 + 12 * 3600000)),
+                monthly: cents(amount * (PER_MONTH[freq] || 1)), yearly: cents(amount * (PER_MONTH[freq] || 1) * 12),
+                parentCategory: last.parentCategory, category: last.category, budgetLine: last.budgetLine, paymentType: last.paymentType, ids: list.map(t => t.id) });
+        });
+        return out.sort((a, b) => b.yearly - a.yearly);
+    }
+
     // ------------------------------------------------------------ investments
     // Market value of stock / ETF / fund holdings: shares × last known price.
     const holdingValue = (h) => Math.max(0, num(h.shares)) * Math.max(0, num(h.price));
@@ -1671,7 +1725,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

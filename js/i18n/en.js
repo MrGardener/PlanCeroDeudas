@@ -2181,3 +2181,13 @@ I18n.add('en', {
 });
 I18n.add('en', { "Apartar": "Set aside" });
 I18n.add('en', { "Quedan {0} en el apartado": "{0} left in the fund" });
+// Subscription finder
+I18n.add('en', {
+    "Encontramos {0} cargo{1} que se repite{2} y no tienes programado{3}: juntos, {4} al año.": "We found {0} repeating charge{1|s} not scheduled yet: together, {4} a year.",
+    "¿Todavía los usas? Prográmalos para verlos venir (y que el pronóstico de caja los cuente), o cancela los que ya no necesitas.": "Still using them? Schedule them so you see them coming (and the cash forecast counts them), or cancel the ones you don't need.",
+    "{0} veces desde {1}": "{0} times since {1}", "Programar": "Schedule", "No es fijo": "Not recurring",
+    "Programarlo como movimiento que se repite": "Schedule it as a repeating transaction", "No volver a sugerirlo": "Don't suggest it again",
+    "«{0}» programado {1}. Lo verás en tu pronóstico de caja.": "«{0}» scheduled {1}. You'll see it in your cash forecast.",
+    "Listo: no lo volveremos a sugerir.": "Done: we won't suggest it again.",
+    "cada semana": "every week", "cada 2 semanas": "every 2 weeks", "cada mes": "every month", "cada 3 meses": "every 3 months", "cada 6 meses": "every 6 months", "cada año": "every year"
+});

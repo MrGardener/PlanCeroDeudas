@@ -302,6 +302,7 @@
 
         renderBulk();
         renderRecurring(ctx);
+        renderFound(ctx);
         renderTrash(ctx);
     }
 
@@ -374,6 +375,27 @@
                 <td class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="rec.auto" data-id="${r.id}" ${r.auto === false ? '' : 'checked'} title="Registrar automáticamente"></td>
                 <td class="text-center"><button class="row-del" data-action="rec.delete" data-id="${r.id}" title="Dejar de repetir" aria-label="Dejar de repetir"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`).join('') : `<tr class="empty-row"><td colspan="7">${Views.emptyState('fa-repeat', 'Nada programado. Ejemplos: arriendo el 5 de cada mes, Netflix, tu sueldo quincenal.')}</td></tr>`);
+    }
+
+    // Charges in your history that repeat like a subscription but aren't scheduled yet.
+    const FREQ_SHORT = { weekly: 'cada semana', biweekly: 'cada 2 semanas', monthly: 'cada mes', quarterly: 'cada 3 meses', semiannual: 'cada 6 meses', yearly: 'cada año' };
+    function repeatingFound(ctx) {
+        const s = ctx.state;
+        const billLines = (Store.effective(ctx.today.getFullYear()).budgetBase || []).filter(i => Number(i.dueDay) >= 1).map(i => i.id);
+        return Engine.findRepeating(s.transactions, { recurring: s.recurring, dismissed: s.settings.dismissedRepeats || [], today: ctx.today, billLines });
+    }
+    function renderFound(ctx) {
+        const found = repeatingFound(ctx);
+        if (!found.length) { UI.html('rec-found', ''); return; }
+        const yearly = found.reduce((a, f) => a + f.yearly, 0);
+        UI.html('rec-found', `<div class="panel tone-purple mb-3">
+            <div class="text-xs font-bold text-slate-800 mb-2"><i class="fa-solid fa-magnifying-glass-dollar text-purple-600"></i> Encontramos ${found.length} cargo${found.length === 1 ? '' : 's'} que se repite${found.length === 1 ? '' : 'n'} y no tienes programado${found.length === 1 ? '' : 's'}: juntos, ${money0(yearly)} al año.</div>
+            <p class="help mb-2">¿Todavía los usas? Prográmalos para verlos venir (y que el pronóstico de caja los cuente), o cancela los que ya no necesitas.</p>
+            <div class="space-y-1.5">${found.map(f => `<div class="found-row">
+                <div class="min-w-0"><div class="font-semibold text-xs truncate" data-i18n-skip>${esc(f.name)}</div>
+                <div class="text-[11px] text-slate-500"><span>${money(f.amount)}</span> <span>${FREQ_SHORT[f.frequency]}</span> · <span>${money0(f.yearly)} al año</span> · <span>${f.count} veces desde ${esc(Fmt.monthYear(new Date(f.first + 'T00:00:00')))}</span></div></div>
+                <div class="flex gap-1.5 shrink-0"><button type="button" class="mini-btn" data-action="subs.track" data-key="${esc(f.key)}" title="Programarlo como movimiento que se repite">Programar</button><button type="button" class="mini-btn text-slate-500" data-action="subs.dismiss" data-key="${esc(f.key)}" title="No volver a sugerirlo">No es fijo</button></div>
+            </div>`).join('')}</div></div>`);
     }
 
     // Post every repeating movement that's due (only those set to automatic unless `ids` given).
@@ -832,6 +854,27 @@
             if (!list.length) return;
             const first = list[0];
             UI.run('rule.add', { contains: commonText(list), cat: (isIncome(first) ? 'I|' : 'G|') + first.parentCategory });
+        },
+        // Track a found subscription: it becomes a repeating movement (already posted up to its
+        // last charge) and its past charges are linked to it.
+        'subs.track': (el) => {
+            const f = repeatingFound(App.buildContext()).find(x => x.key === el.dataset.key);
+            if (!f) return;
+            App.undoable(`«${f.name}» programado ${FREQ_SHORT[f.frequency]}. Lo verás en tu pronóstico de caja.`, () => {
+                const s = Store.state, recs = s.recurring || (s.recurring = []);
+                const rec = { id: Store.nextId(recs), type: 'Gasto', description: f.name, store: f.store, parentCategory: f.parentCategory, category: f.category, amount: f.amount, paymentType: f.paymentType, frequency: f.frequency, startDate: f.first, lastPosted: f.last, auto: true };
+                if (f.budgetLine) rec.budgetLine = f.budgetLine;
+                recs.push(rec);
+                const ids = new Set(f.ids);
+                s.transactions.forEach(t => { if (ids.has(t.id)) t.recurringId = rec.id; });
+            });
+        },
+        'subs.dismiss': (el) => {
+            const key = el.dataset.key;
+            App.undoable('Listo: no lo volveremos a sugerir.', () => {
+                const st = Store.state.settings;
+                st.dismissedRepeats = (st.dismissedRepeats || []).concat([key]);
+            });
         },
         'txn.more': () => { Store.ui.txnLimit = (Store.ui.txnLimit || PAGE) + PAGE * 2; App.update(); },
         'txn.openForm': () => { const c = document.getElementById('txn-form-card'); c.open = true; c.scrollIntoView({ block: 'start', behavior: 'smooth' }); setTimeout(() => document.getElementById('txn-amount').focus(), 300); },

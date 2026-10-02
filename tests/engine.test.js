@@ -960,3 +960,24 @@ test('a purchase paid from a savings fund does not count in the month\'s budget 
     assert.equal(E.categorySpend(txns, 'Viajes', 2026, '9'), 40);
     assert.equal(E.categoryBreakdown(txns, { from: '2026-09-01', to: '2026-09-30' }).total, 940);   // reports still see it
 });
+
+test('subscription finder: steady rhythm and amount, not tracked, still active', () => {
+    const t = (id, date, amount, d = 'Planet Fitness', extra = {}) => Object.assign({ id, type: 'Gasto', description: d, store: d, amount, date, parentCategory: 'Salud' }, extra);
+    const txns = [
+        t(1, '2026-06-15', 24.99), t(2, '2026-07-15', 24.99), t(3, '2026-08-15', 24.99), t(4, '2026-09-15', 24.99),
+        // groceries every week but different amounts: not a subscription
+        t(10, '2026-09-01', 120, 'Meijer'), t(11, '2026-09-08', 64, 'Meijer'), t(12, '2026-09-15', 181, 'Meijer'), t(13, '2026-09-22', 92, 'Meijer'),
+        // already tracked as repeating
+        t(20, '2026-07-02', 15.49, 'Netflix'), t(21, '2026-08-02', 15.49, 'Netflix'), t(22, '2026-09-02', 15.49, 'Netflix'),
+        // stopped in March: canceled
+        t(30, '2026-01-10', 9.99, 'Old App'), t(31, '2026-02-10', 9.99, 'Old App'), t(32, '2026-03-10', 9.99, 'Old App'),
+        // yearly
+        t(40, '2025-07-20', 139, 'Amazon Prime'), t(41, '2026-07-21', 139, 'Amazon Prime')
+    ];
+    const found = E.findRepeating(txns, { recurring: [{ description: 'Netflix', store: 'Netflix' }], today: new Date(2026, 9, 2) });
+    assert.deepEqual(found.map(f => [f.name, f.frequency]), [['Planet Fitness', 'monthly'], ['Amazon Prime', 'yearly']]);
+    assert.equal(found[0].yearly, 299.88);
+    assert.equal(found[0].next, '2026-10-15');
+    assert.deepEqual(found[0].ids, [1, 2, 3, 4]);
+    assert.equal(E.findRepeating(txns, { dismissed: [E.repeatKey({ store: 'Planet Fitness' })], recurring: [{ description: 'Netflix' }], today: new Date(2026, 9, 2) }).length, 1);
+});
