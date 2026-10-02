@@ -981,3 +981,26 @@ test('subscription finder: steady rhythm and amount, not tracked, still active',
     assert.deepEqual(found[0].ids, [1, 2, 3, 4]);
     assert.equal(E.findRepeating(txns, { dismissed: [E.repeatKey({ store: 'Planet Fitness' })], recurring: [{ description: 'Netflix' }], today: new Date(2026, 9, 2) }).length, 1);
 });
+
+test('month review: over and under lines, unassigned expenses and the leftover', () => {
+    const items = [
+        { id: 1, name: 'Comida', linkedCategory: 'Alimentación', real: 400, type: 'Gasto Variable' },
+        { id: 2, name: 'Ropa', linkedCategory: 'Vestimenta', real: 100, type: 'Gasto Variable' },
+        { id: 3, name: 'Ahorro', linkedCategory: 'Ahorro e Inversión', real: 200, type: 'Ahorro' }
+    ];
+    const txns = [
+        { id: 1, type: 'Ingreso', parentCategory: 'Sueldo', amount: 1000, date: '2026-09-01' },
+        { id: 2, type: 'Gasto', parentCategory: 'Alimentación', amount: 450, date: '2026-09-05' },
+        { id: 3, type: 'Gasto', parentCategory: 'Vestimenta', amount: 30, date: '2026-09-09' },
+        { id: 4, type: 'Gasto', parentCategory: 'Mascotas', amount: 20, date: '2026-09-10' },
+        { id: 5, type: 'Gasto', parentCategory: 'Ahorro e Inversión', amount: 200, date: '2026-09-11' },
+        { id: 6, type: 'Gasto', parentCategory: 'Alimentación', amount: 99, date: '2026-10-01' }
+    ];
+    const r = E.monthReview({ items, transactions: txns, year: 2026, month: '9' });
+    assert.equal(r.key, '2026-09');
+    assert.deepEqual(r.over.map(l => [l.name, l.left]), [['Comida', -50]]);
+    assert.deepEqual(r.under.map(l => [l.name, l.left]), [['Ropa', 70]]);    // savings lines aren't "left over"
+    assert.deepEqual(r.unassigned, { count: 1, total: 20 });
+    assert.deepEqual([r.income, r.spent, r.leftover, r.planned], [1000, 700, 300, 700]);
+    assert.equal(r.count, 5);
+});

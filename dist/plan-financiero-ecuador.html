@@ -894,6 +894,7 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                         <span class="field-label"><span><i class="fa-solid fa-calendar-days text-emerald-600"></i> Mes</span></span>
                         <select id="budget-month" class="input" data-change="budget.setMonth"></select>
                     </label>
+                    <button type="button" class="btn btn-secondary" id="bud-close-btn" data-action="close.open" title="Revisa cómo te fue en el mes y decide qué hacer con lo que sobró"><i class="fa-solid fa-calendar-check"></i> Cerrar el mes</button>
                 </div>
             </div>
             <p id="bud-month-note" class="text-xs text-slate-600 mb-4"></p>
@@ -4558,6 +4559,26 @@ I18n.add('en', {
     "Listo: no lo volveremos a sugerir.": "Done: we won't suggest it again.",
     "cada semana": "every week", "cada 2 semanas": "every 2 weeks", "cada mes": "every month", "cada 3 meses": "every 3 months", "cada 6 meses": "every 6 months", "cada año": "every year"
 });
+// Month close
+I18n.add('en', {
+    "Cerrar el mes": "Close the month", "Cierre de {0}": "{0} review", "Meses cerrados:": "Closed months:",
+    "Revisa cómo te fue en el mes y decide qué hacer con lo que sobró": "See how the month went and decide what to do with what's left",
+    "Entró": "Came in", "Salió": "Went out", "Sobró": "Left over", "Faltó": "Short",
+    "ingresos registrados": "income logged", "lo que no se gastó": "what wasn't spent", "gastaste más de lo que entró": "you spent more than came in",
+    "No registraste movimientos este mes.": "You didn't log anything this month.",
+    "Te pasaste en": "You went over on", "Te sobró en": "Money left on", "¡En ningún rubro! 🎉": "No line at all! 🎉", "Gastaste todo lo planeado.": "You spent everything you planned.",
+    "{0} gasto{1} sin rubro ({2}).": "{0} expense{1|s} with no budget line ({2}).", "Asígnalos": "Assign them", "para que el mes cuadre.": "so the month adds up.",
+    "Si te pasas en el mismo rubro varios meses, súbelo en tu presupuesto y baja otro: un plan realista se cumple.": "If you go over on the same line several months in a row, raise it in your budget and lower another: a realistic plan is one you keep.",
+    "¿Qué hacemos con los {0} que sobraron?": "What should the {0} left over do?",
+    "Dale un trabajo a ese dinero antes de que se pierda en el mes siguiente.": "Give that money a job before it disappears into next month.",
+    "Abonar a «{0}»": "Pay toward «{0}»", "Depositar en «{0}»": "Deposit into «{0}»",
+    "Una nota para tu yo del futuro (opcional)": "A note for future you (optional)",
+    "Ej: Septiembre trae útiles escolares: subir ese rubro el próximo año.": "E.g. September brings school supplies: raise that line next year.",
+    "Cerrado el {0}": "Closed on {0}", "Reabrir": "Reopen", "Guardar nota": "Save note", "Mes reabierto": "Month reopened",
+    "{0} cerrado. ¡Un mes más con tu plan!": "{0} closed. One more month on your plan!",
+    "Cierra {0}:": "Close {0}:", "mira cómo te fue y decide qué hacer con lo que sobró.": "see how it went and decide what to do with what's left."
+});
+I18n.add('en', { "Cerrar {0}": "Close {0}", "planeaste {0}": "you planned {0}" });
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -5146,6 +5167,8 @@ I18n.country('US', {
             accounts: [],
             // Yearly / irregular bills to set money aside for: { id, name, amount, every, month, category, sub }.
             annualBills: [],
+            // Months reviewed with "Cerrar el mes": 'YYYY-MM' → { closedAt, income, spent, leftover, planned, note }.
+            monthCloses: {},
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -5158,7 +5181,7 @@ I18n.country('US', {
     // (taxonomies, cooperativas) because they are configuration, not personal data.
     function emptyState(today) {
         const s = newState(today);
-        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = []; s.annualBills = [];
+        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = []; s.annualBills = []; s.monthCloses = {};
         return s;
     }
 
@@ -7426,6 +7449,28 @@ I18n.country('US', {
     // rubros), plus the whole line of any debt already paid off, rolls to the debt the strategy
     // targets (snowball: smallest balance; avalanche: highest rate). No money is assumed that
     // the budget doesn't assign. A minimums-only run gives the time/interest the plan saves.
+    // ------------------------------------------------------------ month close
+    // How a month went, line by line: what you planned, what you spent, where you went over or
+    // had money left, the expenses that never got a line, and what was left of what came in.
+    function monthReview({ items = [], transactions = [], year, month }) {
+        const m = String(Number(month));
+        const spend = lineSpend(items, transactions, year, m);
+        const lines = items.filter(i => i.type !== 'Ingreso').map(i => {
+            const planned = num(i.real), spent = cents(spend.byLine[String(i.id)] ? spend.byLine[String(i.id)].spent : 0);
+            return { id: i.id, name: i.name, planned, spent, left: cents(planned - spent), savings: isSavingsItem(i) || /^(goal|debt)-/.test(String(i.id)) };
+        });
+        const cf = cashFlow(transactions, Number(year), Number(m));
+        return {
+            key: `${year}-${pad2(Number(m))}`,
+            planned: cents(sum(lines, l => l.planned)),
+            spent: cents(cf.expense), income: cents(cf.income), leftover: cents(cf.income - cf.expense),
+            over: lines.filter(l => l.left < -0.5).sort((a, b) => a.left - b.left),
+            under: lines.filter(l => !l.savings && l.left > 0.5 && l.planned > 0).sort((a, b) => b.left - a.left),
+            unassigned: { count: spend.unassigned.length, total: cents(spend.unassignedTotal) },
+            count: (transactions || []).filter(t => inMonth(t, Number(year), Number(m))).length
+        };
+    }
+
     // ------------------------------------------------- annual & irregular bills
     // A bill that comes once a year (or every 6 / 3 months): car registration, insurance,
     // property tax, school supplies… { name, amount, every: 12 | 6 | 3, month: 1–12 (a month it's due) }.
@@ -8154,7 +8199,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -10177,6 +10222,9 @@ I18n.country('US', {
             if (late.length) add('tone-red', 'fa-calendar-xmark text-red-600', `Pagos vencidos: ${late.map(b => `<strong>${esc(b.item.name)}</strong> (día ${b.day})`).join(', ')}.`, 'resumen', 'dash-bills-card');
             if (over.length) add('tone-red', 'fa-cart-shopping text-red-600', `Este mes te pasaste en: <strong>${over.map(i => esc(i.name)).join(', ')}</strong>.`, 'presupuesto/plan');
         }
+        // Last month ended: review it and give what was left a job.
+        const toClose = window.MonthClose && MonthClose.pending(ctx.today);
+        if (toClose) out.unshift(`<button type="button" class="alert-item w-full text-left tone-blue" data-action="close.open" data-y="${toClose.y}" data-m="${toClose.m}"><i class="fa-solid fa-calendar-check text-blue-600 mt-0.5"></i><span><strong>Cierra ${esc(toClose.label)}:</strong> mira cómo te fue y decide qué hacer con lo que sobró.</span></button>`);
         const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
         const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
         if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no tienes una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
@@ -11486,6 +11534,124 @@ I18n.country('US', {
     });
 
     window.AnnualBills = { render, update };
+})();
+</script>
+<script>/* js/views/cierre.js */
+/* Cierre del mes: once a month ends, a short review — what came in, what went out, the lines
+ * where you went over or had money left, the expenses that never got a line — and a decision
+ * about what was left over (the debt snowball or a goal). Closing saves the month's numbers and a
+ * note ({ closedAt, income, spent, leftover, note } in state.monthCloses['YYYY-MM']). */
+(function () {
+    'use strict';
+    const { money, money0, esc } = Fmt;
+    let sheet = null;
+
+    const closes = () => Store.state.monthCloses || (Store.state.monthCloses = {});
+    const keyOf = (y, m) => `${y}-${String(m).padStart(2, '0')}`;
+    const label = (y, m) => `${Fmt.MONTH_NAMES[m - 1]} ${y}`;
+
+    // Last month, when it had movements and isn't closed yet (for the Overview reminder).
+    function pending(today) {
+        const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const y = d.getFullYear(), m = d.getMonth() + 1;
+        if (closes()[keyOf(y, m)]) return null;
+        const has = (Store.state.transactions || []).some(t => String(t.date || '').startsWith(keyOf(y, m)));
+        return has ? { y, m, key: keyOf(y, m), label: label(y, m) } : null;
+    }
+
+    function review(y, m) {
+        const items = Engine.monthItems(Store.effective(y), String(m));
+        return Engine.monthReview({ items, transactions: Store.state.transactions, year: y, month: m });
+    }
+
+    function html(y, m) {
+        const r = review(y, m);
+        const done = closes()[r.key];
+        const s = Store.state;
+        const kpi = (tone, lbl, value, note) => `<div class="kpi ${tone}"><span class="kpi-label">${lbl}</span><span class="kpi-value">${value}</span><span class="kpi-note">${note}</span></div>`;
+        const lineList = (list, cls) => list.slice(0, 6).map(l => `<li class="flex justify-between gap-2"><span class="truncate" data-i18n-skip>${esc(l.name)}</span><span class="${cls} font-bold whitespace-nowrap">${money(Math.abs(l.left))}</span></li>`).join('');
+        const past = history().filter(h => h.key !== r.key).slice(0, 6);
+        const parts = [past.length ? `<div class="flex flex-wrap items-center gap-1.5 mb-3 text-xs"><span class="text-slate-500">Meses cerrados:</span>${past.map(h => { const [hy, hm] = h.key.split('-').map(Number); return `<button type="button" class="quick-chip" data-action="close.open" data-y="${hy}" data-m="${hm}"><i class="fa-solid fa-circle-check text-emerald-600"></i> ${esc(Fmt.MONTH_SHORT[hm - 1])} ${hy} · ${h.leftover >= 0 ? '+' : '−'}${money0(Math.abs(h.leftover))}</button>`; }).join('')}</div>` : ''];
+        parts.push(`<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            ${kpi('tone-emerald', 'Entró', money0(r.income), 'ingresos registrados')}
+            ${kpi('tone-slate', 'Salió', money0(r.spent), `planeaste ${money0(r.planned)}`)}
+            ${kpi(r.leftover >= 0 ? 'tone-blue' : 'tone-red', r.leftover >= 0 ? 'Sobró' : 'Faltó', money0(Math.abs(r.leftover)), r.leftover >= 0 ? 'lo que no se gastó' : 'gastaste más de lo que entró')}
+        </div>`);
+        if (!r.count) parts.push('<p class="help mt-3">No registraste movimientos este mes.</p>');
+        parts.push(`<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+            <div class="panel tone-red text-xs"><div class="font-bold mb-1.5"><i class="fa-solid fa-arrow-trend-up"></i> Te pasaste en</div>${r.over.length ? `<ul class="space-y-1">${lineList(r.over, 'text-red-700')}</ul>` : '<p>¡En ningún rubro! 🎉</p>'}</div>
+            <div class="panel tone-emerald text-xs"><div class="font-bold mb-1.5"><i class="fa-solid fa-piggy-bank"></i> Te sobró en</div>${r.under.length ? `<ul class="space-y-1">${lineList(r.under, 'text-emerald-700')}</ul>` : '<p>Gastaste todo lo planeado.</p>'}</div>
+        </div>`);
+        if (r.unassigned.count) parts.push(`<p class="text-xs mt-3"><i class="fa-solid fa-circle-exclamation text-amber-600"></i> ${r.unassigned.count} gasto${r.unassigned.count === 1 ? '' : 's'} sin rubro (${money(r.unassigned.total)}). <a href="#" class="link" data-action="close.unassigned" data-y="${y}" data-m="${m}">Asígnalos</a> para que el mes cuadre.</p>`);
+        if (r.over.length) parts.push('<p class="help mt-2">Si te pasas en el mismo rubro varios meses, súbelo en tu presupuesto y baja otro: un plan realista se cumple.</p>');
+
+        // What to do with what was left.
+        if (r.leftover > 0.5 && !done) {
+            const plan = Engine.debtPayoff(s.debts || [], (s.debtPlan || {}).strategy || 'snowball', 0);
+            const target = plan.items.find(i => i.balance > 0);
+            const debt = target && (s.debts || []).find(d => d.id === target.id);
+            const goals = (s.goals || []).filter(g => (Number(g.target) || 0) > (Number(g.current) || 0));
+            parts.push(`<div class="panel tone-blue text-xs mt-4 space-y-2"><div class="font-bold"><i class="fa-solid fa-hand-holding-dollar"></i> ¿Qué hacemos con los ${money(r.leftover)} que sobraron?</div>
+                <p>Dale un trabajo a ese dinero antes de que se pierda en el mes siguiente.</p>
+                <div class="flex flex-wrap gap-2">
+                    ${debt ? `<button type="button" class="btn btn-primary btn-sm" data-action="close.toDebt" data-id="${debt.id}" data-amount="${r.leftover}"><i class="fa-solid fa-snowflake"></i> Abonar a «${esc(debt.name)}»</button>` : ''}
+                    ${goals.slice(0, 3).map(g => `<button type="button" class="btn btn-secondary btn-sm" data-action="close.toGoal" data-id="${g.id}" data-amount="${r.leftover}"><i class="fa-solid fa-bullseye"></i> Depositar en «${esc(g.name)}»</button>`).join('')}
+                </div></div>`);
+        }
+        parts.push(`<label class="field mt-4"><span class="field-label">Una nota para tu yo del futuro (opcional)</span>
+            <input id="close-note" class="input" maxlength="500" placeholder="Ej: Septiembre trae útiles escolares: subir ese rubro el próximo año." value="${esc(done ? done.note || '' : '')}"></label>`);
+        parts.push(`<div class="flex flex-wrap items-center justify-end gap-2 mt-3">
+            ${done ? `<span class="text-xs text-emerald-700 font-bold mr-auto"><i class="fa-solid fa-circle-check"></i> Cerrado el ${esc(String(done.closedAt).slice(0, 10))}</span><button type="button" class="btn btn-secondary btn-sm" data-action="close.reopen" data-key="${r.key}">Reabrir</button>` : ''}
+            <button type="button" class="btn btn-primary" data-action="close.save" data-y="${y}" data-m="${m}"><i class="fa-solid fa-lock"></i> ${done ? 'Guardar nota' : `Cerrar ${esc(label(y, m))}`}</button>
+        </div>`);
+        return parts.join('');
+    }
+
+    function open(y, m) {
+        sheet = UI.sheet({ title: `Cierre de ${label(y, m)}`, icon: 'fa-calendar-check', wide: true, html: html(y, m), onClose: () => { sheet = null; } });
+        sheet.y = y; sheet.m = m;
+    }
+    const refresh = () => { if (sheet) sheet.body.innerHTML = html(sheet.y, sheet.m); };
+
+    // The months already closed, newest first (for the budget card).
+    const history = () => Object.keys(closes()).sort().reverse().map(k => Object.assign({ key: k }, closes()[k]));
+
+    UI.register({
+        'close.open': (el) => {
+            let y = Number(el.dataset.y), m = Number(el.dataset.m);
+            if (!y || !m) {
+                // From the budget: the month on screen, or last month when the whole year is shown.
+                const sel = Store.ui.month, t = new Date();
+                if (sel && sel !== 'base') { y = Store.state.activeYear; m = Number(sel); }
+                else { const d = new Date(t.getFullYear(), t.getMonth() - 1, 1); y = d.getFullYear(); m = d.getMonth() + 1; }
+            }
+            open(y, m);
+        },
+        'close.save': (el) => {
+            const y = Number(el.dataset.y), m = Number(el.dataset.m);
+            const r = review(y, m);
+            const note = (document.getElementById('close-note') || {}).value || '';
+            const was = closes()[r.key];
+            App.undoable(was ? 'Nota guardada' : `${label(y, m)} cerrado. ¡Un mes más con tu plan!`, () => {
+                closes()[r.key] = { closedAt: was ? was.closedAt : new Date().toISOString(), income: r.income, spent: r.spent, leftover: r.leftover, planned: r.planned, note: note.trim().slice(0, 500) };
+            });
+            if (sheet) sheet.close();
+        },
+        'close.reopen': (el) => {
+            const k = el.dataset.key;
+            App.undoable('Mes reabierto', () => { delete closes()[k]; });
+            refresh();
+        },
+        'close.unassigned': (el) => {
+            if (sheet) sheet.close();
+            Store.ui.txnFilters = { year: el.dataset.y, month: el.dataset.m, type: 'Gasto', category: 'all', member: 'all' };
+            App.go('transacciones/lista');
+        },
+        'close.toDebt': (el) => { UI.run('debt.pay', { id: el.dataset.id, amount: el.dataset.amount }); },
+        'close.toGoal': (el) => { UI.run('goal.deposit', { id: el.dataset.id, amount: el.dataset.amount }); }
+    });
+
+    window.MonthClose = { pending, open, review, history };
 })();
 </script>
 <script>/* js/views/ingresos.js */
@@ -14568,7 +14734,7 @@ I18n.country('US', {
                 title: `Pago a "${d.name}"`,
                 message: `Saldo: ${money(d.balance)}. Primero se paga el interés del mes y el resto baja el saldo.`,
                 fields: [
-                    { name: 'amount', label: 'Monto pagado', type: 'number', min: 0, step: '0.01', value: Number(d.monthly) || Number(d.minPayment) || '' },
+                    { name: 'amount', label: 'Monto pagado', type: 'number', min: 0, step: '0.01', value: Number(el.dataset.amount) || Number(d.monthly) || Number(d.minPayment) || '' },
                     { name: 'interest', label: 'De eso, interés', type: 'number', min: 0, step: '0.01', value: est, help: `Estimado: saldo × ${Number(d.rate) || 0}% ÷ 12. Si tu estado de cuenta dice otra cifra, escríbela.` },
                     { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) },
                     { name: 'log', label: '¿Registrarlo también como movimiento?', options: [{ value: 'yes', label: 'Sí, en Transacciones (cuenta en el rubro de esta deuda)' }, { value: 'no', label: 'No, solo bajar el saldo' }] }
@@ -14619,7 +14785,7 @@ I18n.country('US', {
             const r = await UI.form({
                 title: `Depositar en "${g.name}"`,
                 fields: [
-                    { name: 'amount', label: 'Monto', type: 'number', min: 0, step: '0.01', value: Number(g.monthly) || '' },
+                    { name: 'amount', label: 'Monto', type: 'number', min: 0, step: '0.01', value: Number(el.dataset.amount) || Number(g.monthly) || '' },
                     { name: 'log', label: '¿Registrarlo también como movimiento?', options: [{ value: 'yes', label: 'Sí, en Transacciones (cuenta en su línea del presupuesto)' }, { value: 'no', label: 'No, solo sumar a lo ahorrado' }] }
                 ],
                 confirmText: 'Depositar',

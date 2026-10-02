@@ -2191,3 +2191,23 @@ I18n.add('en', {
     "Listo: no lo volveremos a sugerir.": "Done: we won't suggest it again.",
     "cada semana": "every week", "cada 2 semanas": "every 2 weeks", "cada mes": "every month", "cada 3 meses": "every 3 months", "cada 6 meses": "every 6 months", "cada año": "every year"
 });
+// Month close
+I18n.add('en', {
+    "Cerrar el mes": "Close the month", "Cierre de {0}": "{0} review", "Meses cerrados:": "Closed months:",
+    "Revisa cómo te fue en el mes y decide qué hacer con lo que sobró": "See how the month went and decide what to do with what's left",
+    "Entró": "Came in", "Salió": "Went out", "Sobró": "Left over", "Faltó": "Short",
+    "ingresos registrados": "income logged", "lo que no se gastó": "what wasn't spent", "gastaste más de lo que entró": "you spent more than came in",
+    "No registraste movimientos este mes.": "You didn't log anything this month.",
+    "Te pasaste en": "You went over on", "Te sobró en": "Money left on", "¡En ningún rubro! 🎉": "No line at all! 🎉", "Gastaste todo lo planeado.": "You spent everything you planned.",
+    "{0} gasto{1} sin rubro ({2}).": "{0} expense{1|s} with no budget line ({2}).", "Asígnalos": "Assign them", "para que el mes cuadre.": "so the month adds up.",
+    "Si te pasas en el mismo rubro varios meses, súbelo en tu presupuesto y baja otro: un plan realista se cumple.": "If you go over on the same line several months in a row, raise it in your budget and lower another: a realistic plan is one you keep.",
+    "¿Qué hacemos con los {0} que sobraron?": "What should the {0} left over do?",
+    "Dale un trabajo a ese dinero antes de que se pierda en el mes siguiente.": "Give that money a job before it disappears into next month.",
+    "Abonar a «{0}»": "Pay toward «{0}»", "Depositar en «{0}»": "Deposit into «{0}»",
+    "Una nota para tu yo del futuro (opcional)": "A note for future you (optional)",
+    "Ej: Septiembre trae útiles escolares: subir ese rubro el próximo año.": "E.g. September brings school supplies: raise that line next year.",
+    "Cerrado el {0}": "Closed on {0}", "Reabrir": "Reopen", "Guardar nota": "Save note", "Mes reabierto": "Month reopened",
+    "{0} cerrado. ¡Un mes más con tu plan!": "{0} closed. One more month on your plan!",
+    "Cierra {0}:": "Close {0}:", "mira cómo te fue y decide qué hacer con lo que sobró.": "see how it went and decide what to do with what's left."
+});
+I18n.add('en', { "Cerrar {0}": "Close {0}", "planeaste {0}": "you planned {0}" });

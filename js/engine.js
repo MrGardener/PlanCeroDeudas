@@ -997,6 +997,28 @@
     // rubros), plus the whole line of any debt already paid off, rolls to the debt the strategy
     // targets (snowball: smallest balance; avalanche: highest rate). No money is assumed that
     // the budget doesn't assign. A minimums-only run gives the time/interest the plan saves.
+    // ------------------------------------------------------------ month close
+    // How a month went, line by line: what you planned, what you spent, where you went over or
+    // had money left, the expenses that never got a line, and what was left of what came in.
+    function monthReview({ items = [], transactions = [], year, month }) {
+        const m = String(Number(month));
+        const spend = lineSpend(items, transactions, year, m);
+        const lines = items.filter(i => i.type !== 'Ingreso').map(i => {
+            const planned = num(i.real), spent = cents(spend.byLine[String(i.id)] ? spend.byLine[String(i.id)].spent : 0);
+            return { id: i.id, name: i.name, planned, spent, left: cents(planned - spent), savings: isSavingsItem(i) || /^(goal|debt)-/.test(String(i.id)) };
+        });
+        const cf = cashFlow(transactions, Number(year), Number(m));
+        return {
+            key: `${year}-${pad2(Number(m))}`,
+            planned: cents(sum(lines, l => l.planned)),
+            spent: cents(cf.expense), income: cents(cf.income), leftover: cents(cf.income - cf.expense),
+            over: lines.filter(l => l.left < -0.5).sort((a, b) => a.left - b.left),
+            under: lines.filter(l => !l.savings && l.left > 0.5 && l.planned > 0).sort((a, b) => b.left - a.left),
+            unassigned: { count: spend.unassigned.length, total: cents(spend.unassignedTotal) },
+            count: (transactions || []).filter(t => inMonth(t, Number(year), Number(m))).length
+        };
+    }
+
     // ------------------------------------------------- annual & irregular bills
     // A bill that comes once a year (or every 6 / 3 months): car registration, insurance,
     // property tax, school supplies… { name, amount, every: 12 | 6 | 3, month: 1–12 (a month it's due) }.
@@ -1725,7 +1747,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

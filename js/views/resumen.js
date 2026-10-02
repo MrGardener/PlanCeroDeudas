@@ -237,6 +237,9 @@
             if (late.length) add('tone-red', 'fa-calendar-xmark text-red-600', `Pagos vencidos: ${late.map(b => `<strong>${esc(b.item.name)}</strong> (día ${b.day})`).join(', ')}.`, 'resumen', 'dash-bills-card');
             if (over.length) add('tone-red', 'fa-cart-shopping text-red-600', `Este mes te pasaste en: <strong>${over.map(i => esc(i.name)).join(', ')}</strong>.`, 'presupuesto/plan');
         }
+        // Last month ended: review it and give what was left a job.
+        const toClose = window.MonthClose && MonthClose.pending(ctx.today);
+        if (toClose) out.unshift(`<button type="button" class="alert-item w-full text-left tone-blue" data-action="close.open" data-y="${toClose.y}" data-m="${toClose.m}"><i class="fa-solid fa-calendar-check text-blue-600 mt-0.5"></i><span><strong>Cierra ${esc(toClose.label)}:</strong> mira cómo te fue y decide qué hacer con lo que sobró.</span></button>`);
         const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
         const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
         if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no tienes una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');

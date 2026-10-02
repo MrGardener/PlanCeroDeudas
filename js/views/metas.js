@@ -278,7 +278,7 @@
                 title: `Pago a "${d.name}"`,
                 message: `Saldo: ${money(d.balance)}. Primero se paga el interés del mes y el resto baja el saldo.`,
                 fields: [
-                    { name: 'amount', label: 'Monto pagado', type: 'number', min: 0, step: '0.01', value: Number(d.monthly) || Number(d.minPayment) || '' },
+                    { name: 'amount', label: 'Monto pagado', type: 'number', min: 0, step: '0.01', value: Number(el.dataset.amount) || Number(d.monthly) || Number(d.minPayment) || '' },
                     { name: 'interest', label: 'De eso, interés', type: 'number', min: 0, step: '0.01', value: est, help: `Estimado: saldo × ${Number(d.rate) || 0}% ÷ 12. Si tu estado de cuenta dice otra cifra, escríbela.` },
                     { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) },
                     { name: 'log', label: '¿Registrarlo también como movimiento?', options: [{ value: 'yes', label: 'Sí, en Transacciones (cuenta en el rubro de esta deuda)' }, { value: 'no', label: 'No, solo bajar el saldo' }] }
@@ -329,7 +329,7 @@
             const r = await UI.form({
                 title: `Depositar en "${g.name}"`,
                 fields: [
-                    { name: 'amount', label: 'Monto', type: 'number', min: 0, step: '0.01', value: Number(g.monthly) || '' },
+                    { name: 'amount', label: 'Monto', type: 'number', min: 0, step: '0.01', value: Number(el.dataset.amount) || Number(g.monthly) || '' },
                     { name: 'log', label: '¿Registrarlo también como movimiento?', options: [{ value: 'yes', label: 'Sí, en Transacciones (cuenta en su línea del presupuesto)' }, { value: 'no', label: 'No, solo sumar a lo ahorrado' }] }
                 ],
                 confirmText: 'Depositar',

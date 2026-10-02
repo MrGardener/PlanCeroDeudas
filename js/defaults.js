@@ -174,6 +174,8 @@
             accounts: [],
             // Yearly / irregular bills to set money aside for: { id, name, amount, every, month, category, sub }.
             annualBills: [],
+            // Months reviewed with "Cerrar el mes": 'YYYY-MM' → { closedAt, income, spent, leftover, planned, note }.
+            monthCloses: {},
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -186,7 +188,7 @@
     // (taxonomies, cooperativas) because they are configuration, not personal data.
     function emptyState(today) {
         const s = newState(today);
-        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = []; s.annualBills = [];
+        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = []; s.annualBills = []; s.monthCloses = {};
         return s;
     }
 
