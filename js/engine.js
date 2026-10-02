@@ -608,10 +608,12 @@
         (transactions || []).forEach(t => {
             const i = index.get(String(t.date || '').slice(0, 7));
             if (i === undefined) return;
-            const k = keyOf(t);
-            if (k === null || k === undefined) return;
-            const row = series[k] || (series[k] = new Array(count).fill(0));
-            row[i] += value ? value(t) : amt(t);
+            // A key per transaction, or several (a transaction with two tags counts in both).
+            [].concat(keyOf(t)).forEach(k => {
+                if (k === null || k === undefined) return;
+                const row = series[k] || (series[k] = new Array(count).fill(0));
+                row[i] += value ? value(t) : amt(t);
+            });
         });
         return { months, series };
     }
@@ -850,6 +852,17 @@
     // Cost per month of a repeating amount (weekly ≈ 52/12 per month).
     const PER_MONTH = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, quarterly: 1 / 3, semiannual: 1 / 6, yearly: 1 / 12 };
     const monthlyCost = (rec) => num(rec.amount) * (PER_MONTH[rec.frequency] || 1);
+
+    // ------------------------------------------------------------ tags
+    // Free labels on transactions ("vacaciones-2026", "boda", "reembolsable"): lowercase, no '#',
+    // spaces as dashes. "Playa, #Boda  Ana" → ['playa', 'boda-ana'].
+    const normTag = (s) => String(s || '').trim().replace(/^#+/, '').toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '').slice(0, 30);
+    const parseTags = (s) => [...new Set(String(s || '').split(/[,;]+/).map(normTag).filter(Boolean))].slice(0, 10);
+    const allTags = (transactions) => {
+        const n = {};
+        (transactions || []).forEach(t => (t.tags || []).forEach(g => { n[g] = (n[g] || 0) + 1; }));
+        return Object.keys(n).sort((a, b) => n[b] - n[a] || a.localeCompare(b));
+    };
 
     // ------------------------------------------------------------ subscription finder
     // Charges that keep coming back at a steady rhythm and (nearly) the same amount — Netflix, the
@@ -1776,7 +1789,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

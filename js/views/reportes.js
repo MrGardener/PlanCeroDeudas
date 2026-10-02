@@ -58,18 +58,18 @@
                 case 'week': return Engine.isoDate(Engine.periodStart(new Date(t.date + 'T00:00:00'), 'week'));
                 case 'store': return (t.store || t.description || '—').trim();
                 case 'payment': return t.paymentType || '—';
+                case 'tag': return (t.tags || []).length ? t.tags.map(g => '#' + g) : 'Sin etiqueta';
                 default: return t.parentCategory || 'Otros';
             }
         };
         // Transfers between your own accounts aren't income or spending: they stay out of reports.
         const list = ctx.state.transactions.filter(t => t.date >= from && t.date <= to && !Engine.isTransfer(t) && (o.type === 'both' || (t.type || 'Gasto') === o.type));
         const groups = {};
-        list.forEach(t => {
-            const k = keyOf(t);
+        list.forEach(t => [].concat(keyOf(t)).forEach(k => {
             const g = groups[k] || (groups[k] = { key: k, count: 0, income: 0, expense: 0 });
             g.count++;
             if ((t.type || 'Gasto') === 'Ingreso') g.income += Number(t.amount) || 0; else g.expense += Engine.spendAmount(t);
-        });
+        }));
         const signed = (g) => o.type === 'Ingreso' ? g.income : o.type === 'Gasto' ? g.expense : g.income - g.expense;
         const rows = Object.values(groups).map(g => Object.assign(g, { total: signed(g) }));
         const timeBased = o.by === 'month' || o.by === 'week';

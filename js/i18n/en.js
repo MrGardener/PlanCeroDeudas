@@ -2225,3 +2225,14 @@ I18n.add('en', {
     "«{0}» pagada": "«{0}» paid off", "Libre de deudas (menos la casa)": "Debt-free (except the house)",
     "Patrimonio neto en positivo": "Positive net worth", "Patrimonio neto de {0}": "Net worth of {0}"
 });
+// Tags
+I18n.add('en', {
+    "Etiqueta": "Tag", "Etiquetas (opcional)": "Tags (optional)", "Sin etiqueta": "No tag",
+    "Ej: vacaciones-2026, boda": "E.g. vacation-2026, wedding", "Ej: vacaciones-2026": "E.g. vacation-2026",
+    "Para seguir un viaje, un proyecto o lo que te deben reembolsar, aunque esté en varias categorías.": "To follow a trip, a project or what you're owed back, even across several categories.",
+    "Ver todo lo de esta etiqueta": "See everything with this tag",
+    "Etiqueta para {0} transacci{1}": "Tag for {0} transaction{1}", "Las que ya usas: {0}": "The ones you use: {0}",
+    "¿Qué hacemos?": "What should we do?", "Agregarla": "Add it", "Quitarla": "Remove it", "Aplicar": "Apply",
+    "Escribe una etiqueta.": "Type a tag.",
+    "#{0} en {1} transacci{2}": "#{0} on {1} transaction{2}", "#{0} quitada": "#{0} removed"
+});

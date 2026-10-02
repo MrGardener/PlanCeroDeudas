@@ -304,6 +304,8 @@ input[type="file"].hidden { display: none; }
 .txn-date.pending { border-style: dashed; }
 .txn-date.tr { border-color: var(--faint); color: var(--muted); }
 .txn-amt.tr { color: var(--muted); }
+.tag-chip { display: inline-block; margin: .1rem .25rem .1rem 0; padding: 0 .45rem; border-radius: 999px; font-size: var(--fs-2xs); font-weight: 700; color: var(--info, #2563eb); background: color-mix(in srgb, var(--info, #2563eb) 10%, transparent); line-height: 1.6; }
+.tag-chip:hover { background: color-mix(in srgb, var(--info, #2563eb) 18%, transparent); }
 .milestone { font-size: var(--fs-xs); color: var(--ink); }
 .milestone.done { display: flex; align-items: center; gap: .5rem; padding: .35rem .55rem; border-radius: var(--r-md); background: color-mix(in srgb, var(--pos) 9%, transparent); }
 .milestone.done i { color: var(--pos); }
@@ -1223,6 +1225,10 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                     </select></label>
                 <label class="field"><span class="field-label"><span>Monto (<span class="cur">$</span>)</span></span>
                     <input type="number" id="txn-amount" class="input" step="0.01" min="0" placeholder="Ej: 25.50"></label>
+                <label class="field"><span class="field-label">Etiquetas (opcional)</span>
+                    <input type="text" id="txn-tags" class="input" list="txn-tag-list" autocomplete="off" placeholder="Ej: vacaciones-2026, boda">
+                    <datalist id="txn-tag-list"></datalist>
+                    <span class="help">Para seguir un viaje, un proyecto o lo que te deben reembolsar, aunque esté en varias categorías.</span></label>
                 <label class="check-row self-end" id="txn-refund-field"><input type="checkbox" id="txn-refund"> <span>Es un <strong>reembolso o devolución</strong>: resta de lo gastado en su categoría</span></label>
                 <label class="field"><span class="field-label">Fecha</span>
                     <input type="date" id="txn-date" class="input" data-change="txn.dateChanged"></label>
@@ -1282,6 +1288,7 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkCategory"><i class="fa-solid fa-tag"></i> Categoría</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkLine"><i class="fa-solid fa-table-list"></i> Rubro</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkMember"><i class="fa-solid fa-user"></i> Persona</button>
+                    <button type="button" class="mini-btn" data-needs data-action="txn.bulkTag"><i class="fa-solid fa-hashtag"></i> Etiqueta</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkPayment"><i class="fa-solid fa-credit-card"></i> Forma de pago</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkTransfer"><i class="fa-solid fa-right-left"></i> Es transferencia</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkRule"><i class="fa-solid fa-wand-magic-sparkles"></i> Crear regla</button>
@@ -1477,7 +1484,7 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                     <select id="rep-type" class="input" data-change="rep.set" data-key="type"><option value="Gasto">Gastos</option><option value="Ingreso">Ingresos</option><option value="both">Ingresos y gastos</option></select></label>
                 <label class="field"><span class="field-label">Agrupar por</span>
                     <select id="rep-by" class="input" data-change="rep.set" data-key="by">
-                        <option value="category">Categoría</option><option value="sub">Subcategoría</option><option value="line">Rubro del presupuesto</option><option value="member">Persona</option><option value="month">Mes</option><option value="week">Semana</option><option value="store">Lugar / comercio</option><option value="payment">Forma de pago</option>
+                        <option value="category">Categoría</option><option value="sub">Subcategoría</option><option value="line">Rubro del presupuesto</option><option value="member">Persona</option><option value="month">Mes</option><option value="week">Semana</option><option value="store">Lugar / comercio</option><option value="payment">Forma de pago</option><option value="tag">Etiqueta</option>
                     </select></label>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4" id="rep-kpis"></div>
@@ -4612,6 +4619,17 @@ I18n.add('en', {
     "«{0}» pagada": "«{0}» paid off", "Libre de deudas (menos la casa)": "Debt-free (except the house)",
     "Patrimonio neto en positivo": "Positive net worth", "Patrimonio neto de {0}": "Net worth of {0}"
 });
+// Tags
+I18n.add('en', {
+    "Etiqueta": "Tag", "Etiquetas (opcional)": "Tags (optional)", "Sin etiqueta": "No tag",
+    "Ej: vacaciones-2026, boda": "E.g. vacation-2026, wedding", "Ej: vacaciones-2026": "E.g. vacation-2026",
+    "Para seguir un viaje, un proyecto o lo que te deben reembolsar, aunque esté en varias categorías.": "To follow a trip, a project or what you're owed back, even across several categories.",
+    "Ver todo lo de esta etiqueta": "See everything with this tag",
+    "Etiqueta para {0} transacci{1}": "Tag for {0} transaction{1}", "Las que ya usas: {0}": "The ones you use: {0}",
+    "¿Qué hacemos?": "What should we do?", "Agregarla": "Add it", "Quitarla": "Remove it", "Aplicar": "Apply",
+    "Escribe una etiqueta.": "Type a tag.",
+    "#{0} en {1} transacci{2}": "#{0} on {1} transaction{2}", "#{0} quitada": "#{0} removed"
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -6361,6 +6379,17 @@ I18n.country('US', {
             if (extra > 0 && date <= todayISO) txns.push({ type: 'Gasto', description: US ? `Extra payment – ${d.name}` : `Pago extra – ${d.name}`, store: d.lender, parentCategory: 'Deudas', category: d.sub, amount: extra, date, paymentType: XFER, budgetLine: String(EXTRA_ID), memberId: P.members[0].id, _debt: d.id });
         });
 
+        // ------------------------------------------------------------ tags
+        // The family tags their trips and Christmas, so each one can be totaled across categories.
+        const TRIP = /vacation|vacaci|playa|puerto l[oó]pez|ba[nñ]os|traverse|sleeping bear|kayak|moomers|mabel|carnaval|hoster[ií]a|hospedaje/i;
+        txns.forEach(t => {
+            // Savings for the trip aren't the trip itself.
+            if (t.type !== 'Gasto' || t.parentCategory === 'Ahorro e Inversión') return;
+            const y = t.date.slice(0, 4);
+            if (t.parentCategory === 'Viajes y Vacaciones' || TRIP.test(`${t.description} ${t.store}`)) t.tags = [(US ? 'vacation-' : 'vacaciones-') + y];
+            else if (t.date.slice(5, 7) === '12' && t.parentCategory === 'Regalos, Celebraciones y Donaciones') t.tags = [(US ? 'christmas-' : 'navidad-') + y];
+        });
+
         // ------------------------------------------------------------ transfers + refunds
         // Cash from the ATM twice a month (checking → wallet), and a few purchases returned:
         // neither changes what the family earned, and a refund lowers what they spent.
@@ -7118,10 +7147,12 @@ I18n.country('US', {
         (transactions || []).forEach(t => {
             const i = index.get(String(t.date || '').slice(0, 7));
             if (i === undefined) return;
-            const k = keyOf(t);
-            if (k === null || k === undefined) return;
-            const row = series[k] || (series[k] = new Array(count).fill(0));
-            row[i] += value ? value(t) : amt(t);
+            // A key per transaction, or several (a transaction with two tags counts in both).
+            [].concat(keyOf(t)).forEach(k => {
+                if (k === null || k === undefined) return;
+                const row = series[k] || (series[k] = new Array(count).fill(0));
+                row[i] += value ? value(t) : amt(t);
+            });
         });
         return { months, series };
     }
@@ -7360,6 +7391,17 @@ I18n.country('US', {
     // Cost per month of a repeating amount (weekly ≈ 52/12 per month).
     const PER_MONTH = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, quarterly: 1 / 3, semiannual: 1 / 6, yearly: 1 / 12 };
     const monthlyCost = (rec) => num(rec.amount) * (PER_MONTH[rec.frequency] || 1);
+
+    // ------------------------------------------------------------ tags
+    // Free labels on transactions ("vacaciones-2026", "boda", "reembolsable"): lowercase, no '#',
+    // spaces as dashes. "Playa, #Boda  Ana" → ['playa', 'boda-ana'].
+    const normTag = (s) => String(s || '').trim().replace(/^#+/, '').toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '').slice(0, 30);
+    const parseTags = (s) => [...new Set(String(s || '').split(/[,;]+/).map(normTag).filter(Boolean))].slice(0, 10);
+    const allTags = (transactions) => {
+        const n = {};
+        (transactions || []).forEach(t => (t.tags || []).forEach(g => { n[g] = (n[g] || 0) + 1; }));
+        return Object.keys(n).sort((a, b) => n[b] - n[a] || a.localeCompare(b));
+    };
 
     // ------------------------------------------------------------ subscription finder
     // Charges that keep coming back at a steady rhythm and (nearly) the same amount — Netflix, the
@@ -8286,7 +8328,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -12375,6 +12417,7 @@ I18n.country('US', {
         document.getElementById('txn-income').value = '';
         document.getElementById('txn-line').value = '';
         document.getElementById('txn-refund').checked = false;
+        document.getElementById('txn-tags').value = '';
     }
 
     // Income lines of the budget (active year) that a new income can be the receipt of.
@@ -12460,6 +12503,7 @@ I18n.country('US', {
         fillCategorySelects();
         renderCategories();
         fillFilters(ctx);
+        UI.html('txn-tag-list', Engine.allTags(ctx.state.transactions).slice(0, 50).map(g => `<option value="${esc(g)}"></option>`).join(''));
         update(ctx);
         // Still editing after switching tabs, or was the transaction removed (e.g. by undo)?
         const editing = ctx.state.transactions.find(t => t.id === Store.ui.txnEditing);
@@ -12494,7 +12538,7 @@ I18n.country('US', {
 
     function matchesSearch(t, q) {
         if (!q) return true;
-        const hay = [t.description, t.store, t.parentCategory, t.category, t.paymentType, String(t.amount), Number(t.amount).toFixed(2)].join(' ').toLowerCase();
+        const hay = [t.description, t.store, t.parentCategory, t.category, t.paymentType, String(t.amount), Number(t.amount).toFixed(2)].concat((t.tags || []).map(g => '#' + g)).join(' ').toLowerCase();
         return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
     }
 
@@ -12533,6 +12577,7 @@ I18n.country('US', {
         if (inc && t.incomeId) notes.push(incomeLabel(t));
         if (t.refund) notes.push('<span class="text-emerald-700"><i class="fa-solid fa-rotate-left"></i> Reembolso: resta de lo gastado</span>');
         if (tr) notes.push('<span class="text-slate-500">Transferencia: no es ingreso ni gasto</span>');
+        if ((t.tags || []).length) notes.push(t.tags.map(g => `<button type="button" class="tag-chip" data-action="txn.tagFilter" data-tag="${esc(g)}" title="Ver todo lo de esta etiqueta" data-i18n-skip>#${esc(g)}</button>`).join(''));
         const picking = !!Store.ui.txnSelecting;
         const on = picking && selected.has(t.id);
         return `<div class="txn-item ${Store.ui.txnEditing === t.id ? 'row-editing' : ''} ${on ? 'is-selected' : ''}" data-row="${t.id}" ${inc || tr || picking ? '' : `draggable="true" data-txn="${t.id}"`}>
@@ -13017,6 +13062,36 @@ I18n.country('US', {
             clearTimeout(searchTimer);
             searchTimer = setTimeout(() => App.update(), 220);
         },
+        // A tag in the list: show everything with it (it's a search, so other filters still apply).
+        'txn.tagFilter': (el) => {
+            Store.ui.txnSearch = '#' + el.dataset.tag;
+            Store.ui.txnLimit = PAGE;
+            App.update();
+            const s = document.getElementById('txn-search');
+            if (s) s.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        },
+        'txn.bulkTag': async () => {
+            const list = picked();
+            if (!list.length) return;
+            const known = Engine.allTags(Store.state.transactions);
+            const r = await UI.form({
+                title: `Etiqueta para ${list.length} transacci${ones(list.length)}`,
+                message: known.length ? `Las que ya usas: ${known.slice(0, 8).map(g => '#' + g).join(' ')}` : '',
+                fields: [
+                    { name: 'tag', label: 'Etiqueta', placeholder: 'Ej: vacaciones-2026' },
+                    { name: 'mode', label: '¿Qué hacemos?', options: [{ value: 'add', label: 'Agregarla' }, { value: 'remove', label: 'Quitarla' }] }
+                ],
+                confirmText: 'Aplicar',
+                validate: v => Engine.normTag(v.tag) ? null : 'Escribe una etiqueta.'
+            });
+            if (!r) return;
+            const tag = Engine.normTag(r.tag);
+            bulkApply(r.mode === 'add' ? `#${tag} en ${list.length} transacci${ones(list.length)}` : `#${tag} quitada`, t => {
+                const tags = new Set(t.tags || []);
+                if (r.mode === 'add') tags.add(tag); else tags.delete(tag);
+                if (tags.size) t.tags = [...tags]; else delete t.tags;
+            });
+        },
         'txn.selectMode': () => {
             Store.ui.txnSelecting = !Store.ui.txnSelecting;
             selected.clear();
@@ -13223,8 +13298,10 @@ I18n.country('US', {
                 memberId: get('txn-member').value ? Number(get('txn-member').value) : undefined,
                 from: tr ? get('txn-from').value : undefined,
                 to: tr ? get('txn-to').value : undefined,
-                refund: type === 'Gasto' && get('txn-refund').checked ? true : undefined
+                refund: type === 'Gasto' && get('txn-refund').checked ? true : undefined,
+                tags: Engine.parseTags(get('txn-tags').value)
             };
+            if (!values.tags.length) values.tags = undefined;
             Store.ui.lastMember = values.memberId || null;
             const editing = s.transactions.find(t => t.id === Store.ui.txnEditing);
             if (editing) {
@@ -13234,6 +13311,7 @@ I18n.country('US', {
                 if (!values.memberId) delete editing.memberId;
                 if (!tr) { delete editing.from; delete editing.to; }
                 if (!values.refund) delete editing.refund;
+                if (!values.tags) delete editing.tags;
                 if (tr || values.refund) delete editing.splits;
                 setEditing(null);
                 clearForm();
@@ -13290,6 +13368,7 @@ I18n.country('US', {
             if (t.paymentType && ![...pay.options].some(o => o.value === t.paymentType)) pay.add(new Option(t.paymentType, t.paymentType));
             pay.value = t.paymentType || pay.options[0].value;
             get('txn-refund').checked = !!t.refund;
+            get('txn-tags').value = (t.tags || []).join(', ');
             if (Engine.isTransfer(t)) fillTransferSelects(t.from || '', t.to || '');
             setEditing(t);
             document.getElementById('txn-form-card').scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -13931,18 +14010,18 @@ I18n.country('US', {
                 case 'week': return Engine.isoDate(Engine.periodStart(new Date(t.date + 'T00:00:00'), 'week'));
                 case 'store': return (t.store || t.description || '—').trim();
                 case 'payment': return t.paymentType || '—';
+                case 'tag': return (t.tags || []).length ? t.tags.map(g => '#' + g) : 'Sin etiqueta';
                 default: return t.parentCategory || 'Otros';
             }
         };
         // Transfers between your own accounts aren't income or spending: they stay out of reports.
         const list = ctx.state.transactions.filter(t => t.date >= from && t.date <= to && !Engine.isTransfer(t) && (o.type === 'both' || (t.type || 'Gasto') === o.type));
         const groups = {};
-        list.forEach(t => {
-            const k = keyOf(t);
+        list.forEach(t => [].concat(keyOf(t)).forEach(k => {
             const g = groups[k] || (groups[k] = { key: k, count: 0, income: 0, expense: 0 });
             g.count++;
             if ((t.type || 'Gasto') === 'Ingreso') g.income += Number(t.amount) || 0; else g.expense += Engine.spendAmount(t);
-        });
+        }));
         const signed = (g) => o.type === 'Ingreso' ? g.income : o.type === 'Gasto' ? g.expense : g.income - g.expense;
         const rows = Object.values(groups).map(g => Object.assign(g, { total: signed(g) }));
         const timeBased = o.by === 'month' || o.by === 'week';

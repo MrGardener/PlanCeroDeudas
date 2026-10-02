@@ -933,6 +933,17 @@
             if (extra > 0 && date <= todayISO) txns.push({ type: 'Gasto', description: US ? `Extra payment – ${d.name}` : `Pago extra – ${d.name}`, store: d.lender, parentCategory: 'Deudas', category: d.sub, amount: extra, date, paymentType: XFER, budgetLine: String(EXTRA_ID), memberId: P.members[0].id, _debt: d.id });
         });
 
+        // ------------------------------------------------------------ tags
+        // The family tags their trips and Christmas, so each one can be totaled across categories.
+        const TRIP = /vacation|vacaci|playa|puerto l[oó]pez|ba[nñ]os|traverse|sleeping bear|kayak|moomers|mabel|carnaval|hoster[ií]a|hospedaje/i;
+        txns.forEach(t => {
+            // Savings for the trip aren't the trip itself.
+            if (t.type !== 'Gasto' || t.parentCategory === 'Ahorro e Inversión') return;
+            const y = t.date.slice(0, 4);
+            if (t.parentCategory === 'Viajes y Vacaciones' || TRIP.test(`${t.description} ${t.store}`)) t.tags = [(US ? 'vacation-' : 'vacaciones-') + y];
+            else if (t.date.slice(5, 7) === '12' && t.parentCategory === 'Regalos, Celebraciones y Donaciones') t.tags = [(US ? 'christmas-' : 'navidad-') + y];
+        });
+
         // ------------------------------------------------------------ transfers + refunds
         // Cash from the ATM twice a month (checking → wallet), and a few purchases returned:
         // neither changes what the family earned, and a refund lowers what they spent.

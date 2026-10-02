@@ -82,6 +82,7 @@
         document.getElementById('txn-income').value = '';
         document.getElementById('txn-line').value = '';
         document.getElementById('txn-refund').checked = false;
+        document.getElementById('txn-tags').value = '';
     }
 
     // Income lines of the budget (active year) that a new income can be the receipt of.
@@ -167,6 +168,7 @@
         fillCategorySelects();
         renderCategories();
         fillFilters(ctx);
+        UI.html('txn-tag-list', Engine.allTags(ctx.state.transactions).slice(0, 50).map(g => `<option value="${esc(g)}"></option>`).join(''));
         update(ctx);
         // Still editing after switching tabs, or was the transaction removed (e.g. by undo)?
         const editing = ctx.state.transactions.find(t => t.id === Store.ui.txnEditing);
@@ -201,7 +203,7 @@
 
     function matchesSearch(t, q) {
         if (!q) return true;
-        const hay = [t.description, t.store, t.parentCategory, t.category, t.paymentType, String(t.amount), Number(t.amount).toFixed(2)].join(' ').toLowerCase();
+        const hay = [t.description, t.store, t.parentCategory, t.category, t.paymentType, String(t.amount), Number(t.amount).toFixed(2)].concat((t.tags || []).map(g => '#' + g)).join(' ').toLowerCase();
         return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
     }
 
@@ -240,6 +242,7 @@
         if (inc && t.incomeId) notes.push(incomeLabel(t));
         if (t.refund) notes.push('<span class="text-emerald-700"><i class="fa-solid fa-rotate-left"></i> Reembolso: resta de lo gastado</span>');
         if (tr) notes.push('<span class="text-slate-500">Transferencia: no es ingreso ni gasto</span>');
+        if ((t.tags || []).length) notes.push(t.tags.map(g => `<button type="button" class="tag-chip" data-action="txn.tagFilter" data-tag="${esc(g)}" title="Ver todo lo de esta etiqueta" data-i18n-skip>#${esc(g)}</button>`).join(''));
         const picking = !!Store.ui.txnSelecting;
         const on = picking && selected.has(t.id);
         return `<div class="txn-item ${Store.ui.txnEditing === t.id ? 'row-editing' : ''} ${on ? 'is-selected' : ''}" data-row="${t.id}" ${inc || tr || picking ? '' : `draggable="true" data-txn="${t.id}"`}>
@@ -724,6 +727,36 @@
             clearTimeout(searchTimer);
             searchTimer = setTimeout(() => App.update(), 220);
         },
+        // A tag in the list: show everything with it (it's a search, so other filters still apply).
+        'txn.tagFilter': (el) => {
+            Store.ui.txnSearch = '#' + el.dataset.tag;
+            Store.ui.txnLimit = PAGE;
+            App.update();
+            const s = document.getElementById('txn-search');
+            if (s) s.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        },
+        'txn.bulkTag': async () => {
+            const list = picked();
+            if (!list.length) return;
+            const known = Engine.allTags(Store.state.transactions);
+            const r = await UI.form({
+                title: `Etiqueta para ${list.length} transacci${ones(list.length)}`,
+                message: known.length ? `Las que ya usas: ${known.slice(0, 8).map(g => '#' + g).join(' ')}` : '',
+                fields: [
+                    { name: 'tag', label: 'Etiqueta', placeholder: 'Ej: vacaciones-2026' },
+                    { name: 'mode', label: '¿Qué hacemos?', options: [{ value: 'add', label: 'Agregarla' }, { value: 'remove', label: 'Quitarla' }] }
+                ],
+                confirmText: 'Aplicar',
+                validate: v => Engine.normTag(v.tag) ? null : 'Escribe una etiqueta.'
+            });
+            if (!r) return;
+            const tag = Engine.normTag(r.tag);
+            bulkApply(r.mode === 'add' ? `#${tag} en ${list.length} transacci${ones(list.length)}` : `#${tag} quitada`, t => {
+                const tags = new Set(t.tags || []);
+                if (r.mode === 'add') tags.add(tag); else tags.delete(tag);
+                if (tags.size) t.tags = [...tags]; else delete t.tags;
+            });
+        },
         'txn.selectMode': () => {
             Store.ui.txnSelecting = !Store.ui.txnSelecting;
             selected.clear();
@@ -930,8 +963,10 @@
                 memberId: get('txn-member').value ? Number(get('txn-member').value) : undefined,
                 from: tr ? get('txn-from').value : undefined,
                 to: tr ? get('txn-to').value : undefined,
-                refund: type === 'Gasto' && get('txn-refund').checked ? true : undefined
+                refund: type === 'Gasto' && get('txn-refund').checked ? true : undefined,
+                tags: Engine.parseTags(get('txn-tags').value)
             };
+            if (!values.tags.length) values.tags = undefined;
             Store.ui.lastMember = values.memberId || null;
             const editing = s.transactions.find(t => t.id === Store.ui.txnEditing);
             if (editing) {
@@ -941,6 +976,7 @@
                 if (!values.memberId) delete editing.memberId;
                 if (!tr) { delete editing.from; delete editing.to; }
                 if (!values.refund) delete editing.refund;
+                if (!values.tags) delete editing.tags;
                 if (tr || values.refund) delete editing.splits;
                 setEditing(null);
                 clearForm();
@@ -997,6 +1033,7 @@
             if (t.paymentType && ![...pay.options].some(o => o.value === t.paymentType)) pay.add(new Option(t.paymentType, t.paymentType));
             pay.value = t.paymentType || pay.options[0].value;
             get('txn-refund').checked = !!t.refund;
+            get('txn-tags').value = (t.tags || []).join(', ');
             if (Engine.isTransfer(t)) fillTransferSelects(t.from || '', t.to || '');
             setEditing(t);
             document.getElementById('txn-form-card').scrollIntoView({ block: 'start', behavior: 'smooth' });

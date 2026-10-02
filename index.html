@@ -506,6 +506,10 @@
                     </select></label>
                 <label class="field"><span class="field-label"><span>Monto (<span class="cur">$</span>)</span></span>
                     <input type="number" id="txn-amount" class="input" step="0.01" min="0" placeholder="Ej: 25.50"></label>
+                <label class="field"><span class="field-label">Etiquetas (opcional)</span>
+                    <input type="text" id="txn-tags" class="input" list="txn-tag-list" autocomplete="off" placeholder="Ej: vacaciones-2026, boda">
+                    <datalist id="txn-tag-list"></datalist>
+                    <span class="help">Para seguir un viaje, un proyecto o lo que te deben reembolsar, aunque esté en varias categorías.</span></label>
                 <label class="check-row self-end" id="txn-refund-field"><input type="checkbox" id="txn-refund"> <span>Es un <strong>reembolso o devolución</strong>: resta de lo gastado en su categoría</span></label>
                 <label class="field"><span class="field-label">Fecha</span>
                     <input type="date" id="txn-date" class="input" data-change="txn.dateChanged"></label>
@@ -565,6 +569,7 @@
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkCategory"><i class="fa-solid fa-tag"></i> Categoría</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkLine"><i class="fa-solid fa-table-list"></i> Rubro</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkMember"><i class="fa-solid fa-user"></i> Persona</button>
+                    <button type="button" class="mini-btn" data-needs data-action="txn.bulkTag"><i class="fa-solid fa-hashtag"></i> Etiqueta</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkPayment"><i class="fa-solid fa-credit-card"></i> Forma de pago</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkTransfer"><i class="fa-solid fa-right-left"></i> Es transferencia</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkRule"><i class="fa-solid fa-wand-magic-sparkles"></i> Crear regla</button>
@@ -760,7 +765,7 @@
                     <select id="rep-type" class="input" data-change="rep.set" data-key="type"><option value="Gasto">Gastos</option><option value="Ingreso">Ingresos</option><option value="both">Ingresos y gastos</option></select></label>
                 <label class="field"><span class="field-label">Agrupar por</span>
                     <select id="rep-by" class="input" data-change="rep.set" data-key="by">
-                        <option value="category">Categoría</option><option value="sub">Subcategoría</option><option value="line">Rubro del presupuesto</option><option value="member">Persona</option><option value="month">Mes</option><option value="week">Semana</option><option value="store">Lugar / comercio</option><option value="payment">Forma de pago</option>
+                        <option value="category">Categoría</option><option value="sub">Subcategoría</option><option value="line">Rubro del presupuesto</option><option value="member">Persona</option><option value="month">Mes</option><option value="week">Semana</option><option value="store">Lugar / comercio</option><option value="payment">Forma de pago</option><option value="tag">Etiqueta</option>
                     </select></label>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4" id="rep-kpis"></div>

@@ -1022,3 +1022,11 @@ test('milestones: emergency fund, each debt, debt-free and net worth steps', () 
     assert.equal(by.debtfree.done, false); assert.equal(by.debtfree.progress, 0.6);
     assert.equal(by.nw0.done, true); assert.equal(by.nw25000.done, true); assert.equal(by.nw50000.progress, 0.6);
 });
+
+test('tags: normalized, parsed from a comma list, ranked by use; reports can count one in several groups', () => {
+    assert.deepEqual(E.parseTags('Playa, #Boda  Ana; playa'), ['playa', 'boda-ana']);
+    assert.equal(E.normTag('  ##Viaje Galápagos!  '), 'viaje-galápagos');
+    assert.deepEqual(E.allTags([{ tags: ['a', 'b'] }, { tags: ['b'] }, {}]), ['b', 'a']);
+    const r = E.monthlyByKey([{ date: '2026-09-02', amount: 10, tags: ['x', 'y'] }], t => t.tags, { end: new Date(2026, 8, 30), count: 1 });
+    assert.deepEqual(r.series, { x: [10], y: [10] });
+});
