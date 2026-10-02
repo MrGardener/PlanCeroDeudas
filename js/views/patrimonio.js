@@ -98,6 +98,7 @@
     function update(ctx) {
         updateHoldings(ctx);
         progress(ctx);
+        if (window.Checklists) Checklists.render();
         const s = ctx.state, nw = ctx.netWorth, year = s.activeYear;
         UI.$$('[data-registry]').forEach(el => { el.textContent = money(nw.registry[el.dataset.registry] || 0); });
         // This year, figures the app already knows fill themselves (read-only here).

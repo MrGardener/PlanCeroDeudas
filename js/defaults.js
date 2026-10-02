@@ -186,6 +186,8 @@
             insurance: { answers: {}, life: 0, dependents: null },
             // College estimator: kids { id, name, age, type, years, cost (null = type default), saved, monthly, goalId }.
             college: { kids: [], costInflation: null, returnPct: null },
+            // Checklists: estate { key: 'YYYY-MM-DD' } and the yearly review { 'YYYY': { key: date } }.
+            checklists: { estate: {}, review: {} },
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -223,7 +225,30 @@
     ];
     const collegeDefaults = { costInflation: 3, returnPct: 7 };
 
-    const Defaults = { clone, annualIdeas, collegeTypes, collegeDefaults, BUDGET_TEMPLATE, BUDGET_TYPES, EXPENSE_TAXONOMY, INCOME_TAXONOMY, COOPERATIVAS, sriBrackets, newYear, newState, emptyState };
+    // Checklists: protecting the family if something happens, and the yearly money check-up.
+    const checklists = () => ({
+        estate: [
+            { key: 'will', label: 'Testamento ante notario', why: 'Decide tú quién hereda y evita años de trámites a tu familia.' },
+            { key: 'guardian', label: 'Tutor para tus hijos menores', why: 'Quién cuidaría de ellos si faltan los dos padres (va en el testamento).' },
+            { key: 'beneficiaries', label: 'Beneficiarios al día', why: 'Seguros de vida, cuentas, pólizas y el montepío del IESS.' },
+            { key: 'poa', label: 'Poder notarial', why: 'Alguien de confianza que pueda manejar tus cuentas si no puedes hacerlo.' },
+            { key: 'health', label: 'Tus decisiones médicas por escrito', why: 'Qué tratamientos quieres y quién decide por ti si no puedes.' },
+            { key: 'legacy', label: 'Carpeta para tu familia', why: 'Cuentas, pólizas, deudas, seguros y contraseñas en un solo lugar, y que sepan dónde está.' }
+        ],
+        review: [
+            { key: 'networth', label: 'Actualiza tu patrimonio neto', why: 'Saldos de cuentas, inversiones y deudas al día.' },
+            { key: 'insurance', label: 'Revisa tus seguros y compara precios', why: 'Coberturas suficientes y sin pagar de más.' },
+            { key: 'retire1', label: 'Sube 1% tu ahorro para la jubilación', why: 'Con cada aumento de sueldo, un poco más para tu yo del futuro.' },
+            { key: 'rebalance', label: 'Rebalancea tus inversiones', why: 'Vuelve a la mezcla que elegiste.' },
+            { key: 'credit', label: 'Revisa tu historial de crédito', why: 'En la Superintendencia de Bancos o un buró, gratis: que no haya deudas que no son tuyas.' },
+            { key: 'taxes', label: 'Impuestos del año', why: 'Proyección de gastos personales a tu empleador (enero) y declaración del impuesto a la renta (marzo).' },
+            { key: 'emergency', label: 'Ajusta tu fondo de emergencia', why: '3 a 6 meses de tus gastos de hoy, no los de hace un año.' },
+            { key: 'annual', label: 'Actualiza tus gastos anuales', why: 'Matrícula, seguros, útiles, Navidad: precios nuevos.' },
+            { key: 'backup', label: 'Guarda una copia de respaldo', why: 'Tu plan en un lugar seguro, fuera de este equipo.' }
+        ]
+    });
+
+    const Defaults = { clone, annualIdeas, collegeTypes, collegeDefaults, checklists, BUDGET_TEMPLATE, BUDGET_TYPES, EXPENSE_TAXONOMY, INCOME_TAXONOMY, COOPERATIVAS, sriBrackets, newYear, newState, emptyState };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = Defaults;
     else root.Defaults = Defaults;

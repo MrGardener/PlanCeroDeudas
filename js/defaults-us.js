@@ -186,7 +186,30 @@
     ];
     const collegeDefaults = { costInflation: 5, returnPct: 6 };
 
-    const DefaultsUS = { clone, annualIdeas, collegeTypes, collegeDefaults, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
+    // Checklists: protecting the family if something happens, and the yearly money check-up.
+    const checklists = () => ({
+        estate: [
+            { key: 'will', label: 'Testamento (will)', why: 'Decide tú quién hereda y quién se encarga; sin él, decide el estado.' },
+            { key: 'guardian', label: 'Tutor para tus hijos menores', why: 'Quién cuidaría de ellos si faltan los dos padres (se nombra en el testamento).' },
+            { key: 'beneficiaries', label: 'Beneficiarios al día', why: '401(k), IRA, seguros de vida y cuentas con "transfer on death": pasan directo, sin juicio sucesorio.' },
+            { key: 'poa', label: 'Poder notarial financiero (durable power of attorney)', why: 'Alguien de confianza que pueda manejar tus cuentas si no puedes hacerlo.' },
+            { key: 'health', label: 'Directiva médica y poder para salud', why: 'Qué tratamientos quieres (living will) y quién decide por ti (health care proxy).' },
+            { key: 'legacy', label: 'Carpeta para tu familia', why: 'Cuentas, pólizas, deudas, seguros y contraseñas en un solo lugar, y que sepan dónde está.' }
+        ],
+        review: [
+            { key: 'networth', label: 'Actualiza tu patrimonio neto', why: 'Saldos de cuentas, inversiones y deudas al día.' },
+            { key: 'insurance', label: 'Revisa tus seguros y compara precios', why: 'Coberturas suficientes y sin pagar de más.' },
+            { key: 'retire1', label: 'Sube 1% tu ahorro para la jubilación', why: 'Con cada aumento de sueldo, un poco más para tu yo del futuro.' },
+            { key: 'rebalance', label: 'Rebalancea tus inversiones', why: 'Vuelve a la mezcla que elegiste.' },
+            { key: 'credit', label: 'Revisa tu reporte de crédito', why: 'Gratis en annualcreditreport.com: que no haya cuentas que no son tuyas.' },
+            { key: 'taxes', label: 'Impuestos del año', why: 'Declara antes de abril y revisa tu W-4 para no deber ni regalarle un préstamo sin intereses al IRS.' },
+            { key: 'emergency', label: 'Ajusta tu fondo de emergencia', why: '3 a 6 meses de tus gastos de hoy, no los de hace un año.' },
+            { key: 'annual', label: 'Actualiza tus gastos anuales', why: 'Placas, seguros, útiles, regalos: precios nuevos.' },
+            { key: 'backup', label: 'Guarda una copia de respaldo', why: 'Tu plan en un lugar seguro, fuera de este equipo.' }
+        ]
+    });
+
+    const DefaultsUS = { clone, annualIdeas, collegeTypes, collegeDefaults, checklists, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = DefaultsUS;
     else root.DefaultsUS = DefaultsUS;

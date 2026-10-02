@@ -2384,3 +2384,37 @@ I18n.add('en', {
     "Costos de partida: promedios de College Board 2024–25 (matrícula, cuotas, vivienda y comida). Cámbialos por los de la universidad que tengan en mente.": "Starting costs: College Board 2024–25 averages (tuition, fees, room and board). Change them to the school you have in mind.",
     "Costos aproximados para empezar: cámbialos por los de la universidad que tengan en mente. En la universidad pública la matrícula es gratuita; quedan los gastos de vida.": "Approximate costs to start with: change them to the school you have in mind. Public university tuition is free; living costs remain."
 });
+// Estate and yearly review checklists
+I18n.add('en', {
+    "Tu familia protegida y tu revisión anual": "Your family protected and your yearly review",
+    "Lo que deja todo en orden si te pasa algo, y el chequeo de tus finanzas una vez al año. Cada paso guarda su fecha.": "What leaves everything in order if something happens to you, and your once-a-year money check-up. Each step keeps its date.",
+    "Si te pasa algo": "If something happens to you", "Revisión anual": "Yearly review",
+    "Guía general, no asesoría legal: para el testamento y los poderes, consulta con un abogado o notario.": "General guidance, not legal advice: for a will and powers of attorney, talk to a lawyer or notary.",
+    "Testamento ante notario": "Will (before a notary)", "Testamento (will)": "Will",
+    "Decide tú quién hereda y evita años de trámites a tu familia.": "You decide who inherits, and spare your family years of paperwork.",
+    "Decide tú quién hereda y quién se encarga; sin él, decide el estado.": "You decide who inherits and who's in charge; without one, the state decides.",
+    "Tutor para tus hijos menores": "Guardian for your minor children",
+    "Quién cuidaría de ellos si faltan los dos padres (va en el testamento).": "Who would raise them if both parents are gone (it goes in the will).",
+    "Quién cuidaría de ellos si faltan los dos padres (se nombra en el testamento).": "Who would raise them if both parents are gone (named in the will).",
+    "Beneficiarios al día": "Beneficiaries up to date", "Seguros de vida, cuentas, pólizas y el montepío del IESS.": "Life insurance, accounts, CDs and the IESS survivor pension.",
+    "401(k), IRA, seguros de vida y cuentas con \"transfer on death\": pasan directo, sin juicio sucesorio.": "401(k), IRA, life insurance and \"transfer on death\" accounts: they pass directly, without probate.",
+    "Poder notarial": "Power of attorney", "Poder notarial financiero (durable power of attorney)": "Durable financial power of attorney",
+    "Alguien de confianza que pueda manejar tus cuentas si no puedes hacerlo.": "Someone you trust who can handle your accounts if you can't.",
+    "Tus decisiones médicas por escrito": "Your medical wishes in writing", "Qué tratamientos quieres y quién decide por ti si no puedes.": "Which treatments you want and who decides for you if you can't.",
+    "Directiva médica y poder para salud": "Advance directive and health care proxy", "Qué tratamientos quieres (living will) y quién decide por ti (health care proxy).": "Which treatments you want (living will) and who decides for you (health care proxy).",
+    "Carpeta para tu familia": "A folder for your family", "Cuentas, pólizas, deudas, seguros y contraseñas en un solo lugar, y que sepan dónde está.": "Accounts, policies, debts, insurance and passwords in one place, and they know where it is.",
+    "Actualiza tu patrimonio neto": "Update your net worth", "Saldos de cuentas, inversiones y deudas al día.": "Account, investment and debt balances up to date.",
+    "Revisa tus seguros y compara precios": "Review your insurance and compare prices", "Coberturas suficientes y sin pagar de más.": "Enough coverage, without overpaying.",
+    "Sube 1% tu ahorro para la jubilación": "Raise your retirement saving by 1%", "Con cada aumento de sueldo, un poco más para tu yo del futuro.": "With every raise, a little more for future you.",
+    "Rebalancea tus inversiones": "Rebalance your investments", "Vuelve a la mezcla que elegiste.": "Get back to the mix you chose.",
+    "Revisa tu historial de crédito": "Check your credit history", "En la Superintendencia de Bancos o un buró, gratis: que no haya deudas que no son tuyas.": "At the Superintendencia de Bancos or a credit bureau, free: no debts that aren't yours.",
+    "Revisa tu reporte de crédito": "Check your credit report", "Gratis en annualcreditreport.com: que no haya cuentas que no son tuyas.": "Free at annualcreditreport.com: no accounts that aren't yours.",
+    "Impuestos del año": "This year's taxes",
+    "Proyección de gastos personales a tu empleador (enero) y declaración del impuesto a la renta (marzo).": "Personal-expenses projection to your employer (January) and the income tax return (March).",
+    "Declara antes de abril y revisa tu W-4 para no deber ni regalarle un préstamo sin intereses al IRS.": "File before April and check your W-4 so you neither owe nor give the IRS an interest-free loan.",
+    "Ajusta tu fondo de emergencia": "Resize your emergency fund", "3 a 6 meses de tus gastos de hoy, no los de hace un año.": "3 to 6 months of today's expenses, not last year's.",
+    "Actualiza tus gastos anuales": "Update your annual bills", "Matrícula, seguros, útiles, Navidad: precios nuevos.": "Registration, insurance, school supplies, Christmas: new prices.", "Placas, seguros, útiles, regalos: precios nuevos.": "Plates, insurance, school supplies, gifts: new prices.",
+    "Tu plan en un lugar seguro, fuera de este equipo.": "Your plan somewhere safe, off this device.",
+    "Haz tu testamento": "Make your will", "Tienes hijos que dependen de ti: nombra a su tutor y decide quién hereda. Es de lo más importante y de lo que más se posterga.": "You have children who depend on you: name their guardian and decide who inherits. It's among the most important things, and the most put off.",
+    "Haz tu revisión anual": "Do your yearly review", "Un año nuevo: seguros, jubilación, crédito, impuestos y tu fondo de emergencia, en una lista.": "A new year: insurance, retirement, credit, taxes and your emergency fund, in one list."
+});

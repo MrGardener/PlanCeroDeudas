@@ -309,6 +309,9 @@ input[type="file"].hidden { display: none; }
 .health-ring { width: 104px; height: 104px; }
 .health-track { fill: none; stroke: var(--surface-3); stroke-width: 8; }
 .health-num { font-size: 22px; font-weight: 900; fill: var(--ink); }
+.check-item { display: flex; align-items: flex-start; gap: .55rem; padding: .5rem .6rem; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); font-size: var(--fs-xs); cursor: pointer; }
+.check-item input { margin-top: .15rem; accent-color: var(--brand); }
+.check-item.done { background: color-mix(in srgb, var(--pos) 7%, var(--surface)); }
 .college-card { border: 1px solid var(--line); border-radius: var(--r-md); padding: .75rem .85rem; background: var(--surface); }
 .ins-row { display: flex; align-items: flex-start; gap: .6rem; padding: .55rem .65rem; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
 .ins-row.na { opacity: .7; }
@@ -2031,6 +2034,18 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
         <div class="chart-box" id="nw-month-box"><canvas id="nw-month-chart"></canvas></div>
         <div class="section-label mt-5"><i class="fa-solid fa-medal text-amber-500"></i> Logros</div>
         <div id="nw-milestones" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </div>
+
+    <div class="card" id="nw-checklists">
+        <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-clipboard-check text-emerald-600"></i> Tu familia protegida y tu revisión anual</div>
+            <div class="card-sub">Lo que deja todo en orden si te pasa algo, y el chequeo de tus finanzas una vez al año. Cada paso guarda su fecha.</div></div></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div><div class="flex justify-between items-center mb-2"><div class="section-label m-0"><i class="fa-solid fa-house-chimney-user text-emerald-600"></i> Si te pasa algo</div><span class="badge badge-muted" id="check-estate-pct"></span></div>
+                <div id="check-estate" class="space-y-1.5"></div></div>
+            <div><div class="flex justify-between items-center mb-2"><div class="section-label m-0"><i class="fa-solid fa-calendar-check text-blue-600"></i> Revisión anual <span id="check-review-year"></span></div><span class="badge badge-muted" id="check-review-pct"></span></div>
+                <div id="check-review" class="space-y-1.5"></div></div>
+        </div>
+        <p class="help mt-3">Guía general, no asesoría legal: para el testamento y los poderes, consulta con un abogado o notario.</p>
     </div>
 
     <div class="card" id="nw-accounts">
@@ -4908,6 +4923,40 @@ I18n.add('en', {
     "Costos de partida: promedios de College Board 2024–25 (matrícula, cuotas, vivienda y comida). Cámbialos por los de la universidad que tengan en mente.": "Starting costs: College Board 2024–25 averages (tuition, fees, room and board). Change them to the school you have in mind.",
     "Costos aproximados para empezar: cámbialos por los de la universidad que tengan en mente. En la universidad pública la matrícula es gratuita; quedan los gastos de vida.": "Approximate costs to start with: change them to the school you have in mind. Public university tuition is free; living costs remain."
 });
+// Estate and yearly review checklists
+I18n.add('en', {
+    "Tu familia protegida y tu revisión anual": "Your family protected and your yearly review",
+    "Lo que deja todo en orden si te pasa algo, y el chequeo de tus finanzas una vez al año. Cada paso guarda su fecha.": "What leaves everything in order if something happens to you, and your once-a-year money check-up. Each step keeps its date.",
+    "Si te pasa algo": "If something happens to you", "Revisión anual": "Yearly review",
+    "Guía general, no asesoría legal: para el testamento y los poderes, consulta con un abogado o notario.": "General guidance, not legal advice: for a will and powers of attorney, talk to a lawyer or notary.",
+    "Testamento ante notario": "Will (before a notary)", "Testamento (will)": "Will",
+    "Decide tú quién hereda y evita años de trámites a tu familia.": "You decide who inherits, and spare your family years of paperwork.",
+    "Decide tú quién hereda y quién se encarga; sin él, decide el estado.": "You decide who inherits and who's in charge; without one, the state decides.",
+    "Tutor para tus hijos menores": "Guardian for your minor children",
+    "Quién cuidaría de ellos si faltan los dos padres (va en el testamento).": "Who would raise them if both parents are gone (it goes in the will).",
+    "Quién cuidaría de ellos si faltan los dos padres (se nombra en el testamento).": "Who would raise them if both parents are gone (named in the will).",
+    "Beneficiarios al día": "Beneficiaries up to date", "Seguros de vida, cuentas, pólizas y el montepío del IESS.": "Life insurance, accounts, CDs and the IESS survivor pension.",
+    "401(k), IRA, seguros de vida y cuentas con \"transfer on death\": pasan directo, sin juicio sucesorio.": "401(k), IRA, life insurance and \"transfer on death\" accounts: they pass directly, without probate.",
+    "Poder notarial": "Power of attorney", "Poder notarial financiero (durable power of attorney)": "Durable financial power of attorney",
+    "Alguien de confianza que pueda manejar tus cuentas si no puedes hacerlo.": "Someone you trust who can handle your accounts if you can't.",
+    "Tus decisiones médicas por escrito": "Your medical wishes in writing", "Qué tratamientos quieres y quién decide por ti si no puedes.": "Which treatments you want and who decides for you if you can't.",
+    "Directiva médica y poder para salud": "Advance directive and health care proxy", "Qué tratamientos quieres (living will) y quién decide por ti (health care proxy).": "Which treatments you want (living will) and who decides for you (health care proxy).",
+    "Carpeta para tu familia": "A folder for your family", "Cuentas, pólizas, deudas, seguros y contraseñas en un solo lugar, y que sepan dónde está.": "Accounts, policies, debts, insurance and passwords in one place, and they know where it is.",
+    "Actualiza tu patrimonio neto": "Update your net worth", "Saldos de cuentas, inversiones y deudas al día.": "Account, investment and debt balances up to date.",
+    "Revisa tus seguros y compara precios": "Review your insurance and compare prices", "Coberturas suficientes y sin pagar de más.": "Enough coverage, without overpaying.",
+    "Sube 1% tu ahorro para la jubilación": "Raise your retirement saving by 1%", "Con cada aumento de sueldo, un poco más para tu yo del futuro.": "With every raise, a little more for future you.",
+    "Rebalancea tus inversiones": "Rebalance your investments", "Vuelve a la mezcla que elegiste.": "Get back to the mix you chose.",
+    "Revisa tu historial de crédito": "Check your credit history", "En la Superintendencia de Bancos o un buró, gratis: que no haya deudas que no son tuyas.": "At the Superintendencia de Bancos or a credit bureau, free: no debts that aren't yours.",
+    "Revisa tu reporte de crédito": "Check your credit report", "Gratis en annualcreditreport.com: que no haya cuentas que no son tuyas.": "Free at annualcreditreport.com: no accounts that aren't yours.",
+    "Impuestos del año": "This year's taxes",
+    "Proyección de gastos personales a tu empleador (enero) y declaración del impuesto a la renta (marzo).": "Personal-expenses projection to your employer (January) and the income tax return (March).",
+    "Declara antes de abril y revisa tu W-4 para no deber ni regalarle un préstamo sin intereses al IRS.": "File before April and check your W-4 so you neither owe nor give the IRS an interest-free loan.",
+    "Ajusta tu fondo de emergencia": "Resize your emergency fund", "3 a 6 meses de tus gastos de hoy, no los de hace un año.": "3 to 6 months of today's expenses, not last year's.",
+    "Actualiza tus gastos anuales": "Update your annual bills", "Matrícula, seguros, útiles, Navidad: precios nuevos.": "Registration, insurance, school supplies, Christmas: new prices.", "Placas, seguros, útiles, regalos: precios nuevos.": "Plates, insurance, school supplies, gifts: new prices.",
+    "Tu plan en un lugar seguro, fuera de este equipo.": "Your plan somewhere safe, off this device.",
+    "Haz tu testamento": "Make your will", "Tienes hijos que dependen de ti: nombra a su tutor y decide quién hereda. Es de lo más importante y de lo que más se posterga.": "You have children who depend on you: name their guardian and decide who inherits. It's among the most important things, and the most put off.",
+    "Haz tu revisión anual": "Do your yearly review", "Un año nuevo: seguros, jubilación, crédito, impuestos y tu fondo de emergencia, en una lista.": "A new year: insurance, retirement, credit, taxes and your emergency fund, in one list."
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -5508,6 +5557,8 @@ I18n.country('US', {
             insurance: { answers: {}, life: 0, dependents: null },
             // College estimator: kids { id, name, age, type, years, cost (null = type default), saved, monthly, goalId }.
             college: { kids: [], costInflation: null, returnPct: null },
+            // Checklists: estate { key: 'YYYY-MM-DD' } and the yearly review { 'YYYY': { key: date } }.
+            checklists: { estate: {}, review: {} },
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -5545,7 +5596,30 @@ I18n.country('US', {
     ];
     const collegeDefaults = { costInflation: 3, returnPct: 7 };
 
-    const Defaults = { clone, annualIdeas, collegeTypes, collegeDefaults, BUDGET_TEMPLATE, BUDGET_TYPES, EXPENSE_TAXONOMY, INCOME_TAXONOMY, COOPERATIVAS, sriBrackets, newYear, newState, emptyState };
+    // Checklists: protecting the family if something happens, and the yearly money check-up.
+    const checklists = () => ({
+        estate: [
+            { key: 'will', label: 'Testamento ante notario', why: 'Decide tú quién hereda y evita años de trámites a tu familia.' },
+            { key: 'guardian', label: 'Tutor para tus hijos menores', why: 'Quién cuidaría de ellos si faltan los dos padres (va en el testamento).' },
+            { key: 'beneficiaries', label: 'Beneficiarios al día', why: 'Seguros de vida, cuentas, pólizas y el montepío del IESS.' },
+            { key: 'poa', label: 'Poder notarial', why: 'Alguien de confianza que pueda manejar tus cuentas si no puedes hacerlo.' },
+            { key: 'health', label: 'Tus decisiones médicas por escrito', why: 'Qué tratamientos quieres y quién decide por ti si no puedes.' },
+            { key: 'legacy', label: 'Carpeta para tu familia', why: 'Cuentas, pólizas, deudas, seguros y contraseñas en un solo lugar, y que sepan dónde está.' }
+        ],
+        review: [
+            { key: 'networth', label: 'Actualiza tu patrimonio neto', why: 'Saldos de cuentas, inversiones y deudas al día.' },
+            { key: 'insurance', label: 'Revisa tus seguros y compara precios', why: 'Coberturas suficientes y sin pagar de más.' },
+            { key: 'retire1', label: 'Sube 1% tu ahorro para la jubilación', why: 'Con cada aumento de sueldo, un poco más para tu yo del futuro.' },
+            { key: 'rebalance', label: 'Rebalancea tus inversiones', why: 'Vuelve a la mezcla que elegiste.' },
+            { key: 'credit', label: 'Revisa tu historial de crédito', why: 'En la Superintendencia de Bancos o un buró, gratis: que no haya deudas que no son tuyas.' },
+            { key: 'taxes', label: 'Impuestos del año', why: 'Proyección de gastos personales a tu empleador (enero) y declaración del impuesto a la renta (marzo).' },
+            { key: 'emergency', label: 'Ajusta tu fondo de emergencia', why: '3 a 6 meses de tus gastos de hoy, no los de hace un año.' },
+            { key: 'annual', label: 'Actualiza tus gastos anuales', why: 'Matrícula, seguros, útiles, Navidad: precios nuevos.' },
+            { key: 'backup', label: 'Guarda una copia de respaldo', why: 'Tu plan en un lugar seguro, fuera de este equipo.' }
+        ]
+    });
+
+    const Defaults = { clone, annualIdeas, collegeTypes, collegeDefaults, checklists, BUDGET_TEMPLATE, BUDGET_TYPES, EXPENSE_TAXONOMY, INCOME_TAXONOMY, COOPERATIVAS, sriBrackets, newYear, newState, emptyState };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = Defaults;
     else root.Defaults = Defaults;
@@ -5740,7 +5814,30 @@ I18n.country('US', {
     ];
     const collegeDefaults = { costInflation: 5, returnPct: 6 };
 
-    const DefaultsUS = { clone, annualIdeas, collegeTypes, collegeDefaults, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
+    // Checklists: protecting the family if something happens, and the yearly money check-up.
+    const checklists = () => ({
+        estate: [
+            { key: 'will', label: 'Testamento (will)', why: 'Decide tú quién hereda y quién se encarga; sin él, decide el estado.' },
+            { key: 'guardian', label: 'Tutor para tus hijos menores', why: 'Quién cuidaría de ellos si faltan los dos padres (se nombra en el testamento).' },
+            { key: 'beneficiaries', label: 'Beneficiarios al día', why: '401(k), IRA, seguros de vida y cuentas con "transfer on death": pasan directo, sin juicio sucesorio.' },
+            { key: 'poa', label: 'Poder notarial financiero (durable power of attorney)', why: 'Alguien de confianza que pueda manejar tus cuentas si no puedes hacerlo.' },
+            { key: 'health', label: 'Directiva médica y poder para salud', why: 'Qué tratamientos quieres (living will) y quién decide por ti (health care proxy).' },
+            { key: 'legacy', label: 'Carpeta para tu familia', why: 'Cuentas, pólizas, deudas, seguros y contraseñas en un solo lugar, y que sepan dónde está.' }
+        ],
+        review: [
+            { key: 'networth', label: 'Actualiza tu patrimonio neto', why: 'Saldos de cuentas, inversiones y deudas al día.' },
+            { key: 'insurance', label: 'Revisa tus seguros y compara precios', why: 'Coberturas suficientes y sin pagar de más.' },
+            { key: 'retire1', label: 'Sube 1% tu ahorro para la jubilación', why: 'Con cada aumento de sueldo, un poco más para tu yo del futuro.' },
+            { key: 'rebalance', label: 'Rebalancea tus inversiones', why: 'Vuelve a la mezcla que elegiste.' },
+            { key: 'credit', label: 'Revisa tu reporte de crédito', why: 'Gratis en annualcreditreport.com: que no haya cuentas que no son tuyas.' },
+            { key: 'taxes', label: 'Impuestos del año', why: 'Declara antes de abril y revisa tu W-4 para no deber ni regalarle un préstamo sin intereses al IRS.' },
+            { key: 'emergency', label: 'Ajusta tu fondo de emergencia', why: '3 a 6 meses de tus gastos de hoy, no los de hace un año.' },
+            { key: 'annual', label: 'Actualiza tus gastos anuales', why: 'Placas, seguros, útiles, regalos: precios nuevos.' },
+            { key: 'backup', label: 'Guarda una copia de respaldo', why: 'Tu plan en un lugar seguro, fuera de este equipo.' }
+        ]
+    });
+
+    const DefaultsUS = { clone, annualIdeas, collegeTypes, collegeDefaults, checklists, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = DefaultsUS;
     else root.DefaultsUS = DefaultsUS;
@@ -8053,6 +8150,8 @@ I18n.country('US', {
         if ((f.maturing || []).length) add(58, 'maturing', 'fa-file-contract', 'Decide qué hacer con tu póliza', `${f.maturing.join(', ')} vence pronto: renuévala o muévela según tu paso actual.`, { goto: 'futuro/polizas' });
         if (f.step === 3) add(56, 'ef6', 'fa-shield-heart', 'Completa tu fondo de emergencia', `Llevas ${f.monthsCovered.toFixed(1)} meses; la meta son 3 a 6 (${money(f.essential * 3)}–${money(f.essential * 6)}).`, { goto: 'futuro/metas', focus: 'metas-ef' });
         if (f.step >= 4 && f.savingsRate < 0.15 && f.income > 0) add(52, 'retire15', 'fa-person-cane', 'Invierte el 15% para tu jubilación', `Hoy ahorras el ${Math.round(f.savingsRate * 100)}%. Llegar al 15% son ${money((0.15 - f.savingsRate) * f.income)} más al mes.`, { goto: 'futuro/jubilacion' });
+        if (f.needsWill) add(50, 'will', 'fa-file-signature', 'Haz tu testamento', 'Tienes hijos que dependen de ti: nombra a su tutor y decide quién hereda. Es de lo más importante y de lo que más se posterga.', { goto: 'patrimonio', focus: 'nw-checklists' });
+        if (f.reviewDue) add(44, 'review', 'fa-calendar-check', 'Haz tu revisión anual', 'Un año nuevo: seguros, jubilación, crédito, impuestos y tu fondo de emergencia, en una lista.', { goto: 'patrimonio', focus: 'nw-checklists' });
         if (f.subsYearly >= 100) add(46, 'subs', 'fa-magnifying-glass-dollar', 'Revisa tus suscripciones', `Encontramos cargos que se repiten por ${money(f.subsYearly)} al año. ¿Todavía los usas?`, { goto: 'transacciones/lista' });
         if (f.hasData && (f.backupDays === null || f.backupDays > 30)) add(40, 'backup', 'fa-download', 'Guarda una copia de respaldo', f.backupDays === null ? 'Nunca has guardado una. Si se borran los datos del navegador, pierdes tu plan.' : `La última fue hace ${f.backupDays} días.`, { goto: 'config', focus: 'cfg-data' });
         return out.filter(m => !(snoozed[m.key] && snoozed[m.key] > t)).sort((a, b) => b.score - a.score).slice(0, limit);
@@ -10758,7 +10857,9 @@ I18n.country('US', {
             subsYearly: subs.reduce((a, x) => a + x.yearly, 0),
             annualShort: annual && annual.firstShort ? { label: Fmt.monthYear(new Date(annual.firstShort.year, annual.firstShort.month - 1, 1)), needed: annual.needed, noFund: !fund, yearly: annual.yearly, monthly: Engine.annualSetAside(s.annualBills) } : null,
             maturing: (s.polizas || []).filter(p => { const st = Engine.maturityStatus(p.maturityDate, t); return st && st.kind === 'pronto'; }).map(p => p.number),
-            backupDays: last ? Math.floor((t - last) / 86400000) : null
+            backupDays: last ? Math.floor((t - last) / 86400000) : null,
+            needsWill: !!(window.Checklists && !Checklists.progress().will && ((s.college && s.college.kids.length) || (s.members || []).length > 2)),
+            reviewDue: !!(window.Checklists && t.getMonth() <= 1 && Checklists.progress().review < 0.5 && s.transactions.length > 0)
         };
     }
     // ---------------------------------------------------------------- health score
@@ -16559,6 +16660,7 @@ I18n.country('US', {
     function update(ctx) {
         updateHoldings(ctx);
         progress(ctx);
+        if (window.Checklists) Checklists.render();
         const s = ctx.state, nw = ctx.netWorth, year = s.activeYear;
         UI.$$('[data-registry]').forEach(el => { el.textContent = money(nw.registry[el.dataset.registry] || 0); });
         // This year, figures the app already knows fill themselves (read-only here).
@@ -16843,6 +16945,50 @@ I18n.country('US', {
     });
 
     App.defineView('patrimonio', { render, update });
+})();
+</script>
+<script>/* js/views/checklists.js */
+/* Patrimonio → Tu familia protegida y tu revisión anual: two checklists that keep the date each
+ * item was done. The yearly review starts over every year (state.checklists.review['YYYY']). */
+(function () {
+    'use strict';
+    const { esc } = Fmt;
+    const st = () => Store.state.checklists || (Store.state.checklists = { estate: {}, review: {} });
+    const lists = () => (Store.defaults.checklists ? Store.defaults.checklists() : { estate: [], review: [] });
+    const year = () => String(new Date().getFullYear());
+
+    // How far along each list is (also used by the Overview's next moves).
+    function progress() {
+        const s = st(), l = lists(), done = s.review[year()] || {};
+        return { estate: l.estate.filter(i => s.estate[i.key]).length / Math.max(1, l.estate.length), will: !!s.estate.will,
+            review: l.review.filter(i => done[i.key]).length / Math.max(1, l.review.length) };
+    }
+
+    function list(kind, items, done) {
+        return items.map(i => `<label class="check-item ${done[i.key] ? 'done' : ''}"><input type="checkbox" data-change="check.toggle" data-kind="${kind}" data-key="${i.key}" ${done[i.key] ? 'checked' : ''}>
+            <span class="min-w-0"><span class="block font-semibold">${esc(i.label)}</span><span class="block text-[11px] text-slate-500">${esc(i.why)}</span>${done[i.key] ? `<span class="block text-[11px] text-emerald-700"><i class="fa-solid fa-check"></i> <span>${esc(Fmt.monthYear(new Date(done[i.key] + 'T00:00:00')))}</span></span>` : ''}</span></label>`).join('');
+    }
+
+    function render() {
+        if (!document.getElementById('nw-checklists')) return;
+        const s = st(), l = lists(), p = progress();
+        UI.html('check-estate', list('estate', l.estate, s.estate));
+        UI.html('check-review', list('review', l.review, s.review[year()] || {}));
+        UI.text('check-estate-pct', `${Math.round(p.estate * 100)}%`);
+        UI.text('check-review-pct', `${Math.round(p.review * 100)}%`);
+        UI.text('check-review-year', year());
+    }
+
+    UI.register({
+        'check.toggle': (el) => {
+            const s = st(), today = Engine.isoDate(new Date());
+            const box = el.dataset.kind === 'estate' ? s.estate : (s.review[year()] || (s.review[year()] = {}));
+            if (el.checked) box[el.dataset.key] = today; else delete box[el.dataset.key];
+            App.changed({ structural: true, step: true });
+        }
+    });
+
+    window.Checklists = { render, progress };
 })();
 </script>
 <script>/* js/views/config.js */

@@ -1295,6 +1295,18 @@
         <div id="nw-milestones" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
     </div>
 
+    <div class="card" id="nw-checklists">
+        <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-clipboard-check text-emerald-600"></i> Tu familia protegida y tu revisión anual</div>
+            <div class="card-sub">Lo que deja todo en orden si te pasa algo, y el chequeo de tus finanzas una vez al año. Cada paso guarda su fecha.</div></div></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div><div class="flex justify-between items-center mb-2"><div class="section-label m-0"><i class="fa-solid fa-house-chimney-user text-emerald-600"></i> Si te pasa algo</div><span class="badge badge-muted" id="check-estate-pct"></span></div>
+                <div id="check-estate" class="space-y-1.5"></div></div>
+            <div><div class="flex justify-between items-center mb-2"><div class="section-label m-0"><i class="fa-solid fa-calendar-check text-blue-600"></i> Revisión anual <span id="check-review-year"></span></div><span class="badge badge-muted" id="check-review-pct"></span></div>
+                <div id="check-review" class="space-y-1.5"></div></div>
+        </div>
+        <p class="help mt-3">Guía general, no asesoría legal: para el testamento y los poderes, consulta con un abogado o notario.</p>
+    </div>
+
     <div class="card" id="nw-accounts">
         <div class="card-head">
             <div>
@@ -1598,6 +1610,7 @@
 <script src="js/views/hipoteca.js"></script>
 <script src="js/views/jubilacion.js"></script>
 <script src="js/views/patrimonio.js"></script>
+<script src="js/views/checklists.js"></script>
 <script src="js/views/config.js"></script>
 </body>
 </html>

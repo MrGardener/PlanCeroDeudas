@@ -64,7 +64,9 @@
             subsYearly: subs.reduce((a, x) => a + x.yearly, 0),
             annualShort: annual && annual.firstShort ? { label: Fmt.monthYear(new Date(annual.firstShort.year, annual.firstShort.month - 1, 1)), needed: annual.needed, noFund: !fund, yearly: annual.yearly, monthly: Engine.annualSetAside(s.annualBills) } : null,
             maturing: (s.polizas || []).filter(p => { const st = Engine.maturityStatus(p.maturityDate, t); return st && st.kind === 'pronto'; }).map(p => p.number),
-            backupDays: last ? Math.floor((t - last) / 86400000) : null
+            backupDays: last ? Math.floor((t - last) / 86400000) : null,
+            needsWill: !!(window.Checklists && !Checklists.progress().will && ((s.college && s.college.kids.length) || (s.members || []).length > 2)),
+            reviewDue: !!(window.Checklists && t.getMonth() <= 1 && Checklists.progress().review < 0.5 && s.transactions.length > 0)
         };
     }
     // ---------------------------------------------------------------- health score
