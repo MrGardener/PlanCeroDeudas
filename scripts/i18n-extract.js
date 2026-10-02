@@ -114,7 +114,8 @@ const files = [];
     fs.readdirSync(dir).forEach(f => {
         const p = path.join(dir, f);
         if (fs.statSync(p).isDirectory()) { if (!/i18n/.test(f)) walk(p); }
-        else if (/\.js$/.test(f)) files.push(p);
+        // js/sample.js is the example family's own data (their names, stores, notes), not app text.
+        else if (/\.js$/.test(f) && f !== 'sample.js') files.push(p);
     });
 })(path.join(ROOT, 'js'));
 files.forEach(scanJs);
