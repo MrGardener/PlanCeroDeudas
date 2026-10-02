@@ -260,6 +260,7 @@
             noteEl.textContent = `Tus rubros superan tu ingreso por ${money(-bal)}. ${yd.sweepSavings ? 'El barrido solo mueve dinero que sobra; no puede cubrir lo que falta. ' : ''}Recorta rubros o agrega otro ingreso.`;
         }
         UI.text('bud-balance', money(bal));
+        stickyBalance(bal);
 
         const sweepEl = document.getElementById('bud-sweep');
         const shortfall = yd.sweepSavings && bal < -0.005;
@@ -550,6 +551,25 @@
             App.undoable(`${Fmt.MONTH_NAMES[m - 1]} vuelve a usar el presupuesto base`, () => { delete Store.active().monthOverrides[m]; });
         }
     });
+
+    // While you scroll the budget, a slim bar keeps "Por asignar" in sight once the tile is gone.
+    let stickyObs = null;
+    function stickyBalance(bal) {
+        const bar = document.getElementById('bud-sticky'), box = document.getElementById('bud-balance-box');
+        if (!bar || !box) return;
+        bar.className = `bud-sticky ${Math.abs(bal) < 0.005 ? 'ok' : bal > 0 ? 'left' : 'over'}${bar.classList.contains('show') ? ' show' : ''}`;
+        bar.innerHTML = Math.abs(bal) < 0.005 ? '<i class="fa-solid fa-circle-check"></i> Cada dólar tiene un destino'
+            : `<span>${bal > 0 ? 'Por asignar' : 'Te falta'}</span> <strong>${Fmt.money(Math.abs(bal))}</strong>`;
+        if (!stickyObs && 'IntersectionObserver' in window) {
+            const header = document.querySelector('.app-header');
+            stickyObs = new IntersectionObserver(([e]) => {
+                const inPlan = !document.querySelector('[data-view="plan"]').classList.contains('hidden') && !document.querySelector('[data-tab="presupuesto"]').classList.contains('hidden');
+                bar.style.top = (header ? header.getBoundingClientRect().height : 0) + 'px';
+                bar.classList.toggle('show', inPlan && !e.isIntersecting && e.boundingClientRect.top < 0);
+            });
+            stickyObs.observe(box);
+        }
+    }
 
     App.defineView('presupuesto/plan', { render, update });
 })();

@@ -1941,3 +1941,46 @@ I18n.add('en', {
 "· en dólares de hoy": "· in today's dollars",
 });
 I18n.add('en', { "Futuro": "Future", "Historial": "History" });
+I18n.add('en', {
+"Patrimonio neto por año": "Net worth by year",
+"Tu plan a largo plazo": "Your long-term plan",
+"Tus pasos, deudas, fondo de emergencia, jubilación y patrimonio.": "Your steps, debts, emergency fund, retirement and net worth.",
+"Ver {0} más": "Show {0} more",
+"({0} restantes)": "({0} left)",
+"{0} ▲ {1} frente a {2}.": "{0} ▲ {1} vs. {2}.",
+"{0} ▼ {1} frente a {2}.": "{0} ▼ {1} vs. {2}.",
+"Registro rápido": "Quick entry",
+"Formulario completo": "Full form",
+"Importar estado de cuenta": "Import a bank statement",
+});
+// First run and the example family
+I18n.add('en', {
+"Cómo funciona la app y cómo cuidar tus datos": "How the app works and how to keep your data safe",
+"Empezar con mis datos": "Start with my own data",
+"Estás viendo una": "You're looking at an",
+"familia de ejemplo": "example family",
+". Nada de esto es tuyo.": ". None of this is yours.",
+"Estás viendo una familia de ejemplo. Cuando quieras, empieza con tus datos desde el aviso de arriba.": "You're looking at an example family. Whenever you're ready, start with your own data from the notice at the top.",
+"Explorar el ejemplo": "Explore the example",
+"Se borra la familia de ejemplo y empiezas con un plan vacío. Puedes volver a ver el ejemplo desde Configuración.": "The example family is removed and you start with an empty plan. You can see the example again from Settings.",
+"Tus datos se reemplazan por los del ejemplo. Descarga antes una copia de respaldo si quieres volver a ellos (también puedes deshacer).": "Your data is replaced by the example's. Download a backup first if you want to go back to it (you can also undo).",
+"Un plan vacío: tu sueldo primero, luego tu presupuesto, tus deudas y tus metas.": "An empty plan: your salary first, then your budget, your debts and your goals.",
+"Una familia de 4 con un año de transacciones, deudas, ahorros e inversiones, para ver todo lo que hace la app.": "A family of 4 with a year of transactions, debts, savings and investments, to see everything the app does.",
+"Ver el ejemplo": "See the example",
+"Ver la familia de ejemplo": "See the example family",
+"¿Cómo quieres empezar? Puedes cambiar de opinión cuando quieras.": "How do you want to start? You can change your mind anytime.",
+"Empezar": "Start",
+});
+I18n.add('en', {
+"Activos − Pasivos: el número más importante a seguir en el tiempo. Este año se llena solo con tus cuentas, pólizas, inversiones y deudas; lo demás se mantiene igual año a año hasta que lo edites.": "Assets − Liabilities: the most important number to track over time. This year fills itself from your accounts, CDs, investments and debts; the rest stays the same year to year until you edit it.",
+"Pólizas, acciones/ETF y cuentas de jubilación.": "CDs, stocks/ETFs and retirement accounts.",
+"tus pólizas, inversiones y cuentas de jubilación": "your CDs, investments and retirement accounts",
+"🔗 Automático: {0}.": "🔗 Automatic: {0}.",
+"🔗 Automático: tus": "🔗 Automatic: your",
+"El valor total entra solo a tu patrimonio de este año.": "The total goes into this year's net worth on its own.",
+});
+I18n.add('en', { "Cada dólar tiene un destino": "Every dollar has a job" });
+I18n.add('en', {
+"Escribe el símbolo (ticker, ej. VOO, AAPL) y cuántas unidades tienes. El valor total entra solo a tu patrimonio de este año.": "Type the symbol (ticker, e.g. VOO, AAPL) and how many shares you own. The total goes into this year's net worth on its own.",
+"cuentas": "accounts", "deudas": "debts",
+});

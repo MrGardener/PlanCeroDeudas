@@ -78,27 +78,6 @@
 
     // Does this year's net worth reflect the pólizas and debts registered elsewhere? Only
     // checked for the current calendar year — past years are history and may differ.
-    function netWorthSync(ctx) {
-        const s = ctx.state;
-        if (s.activeYear !== ctx.today.getFullYear()) return null;
-        const f = ctx.netWorth.fields;
-        const holdings = Engine.holdingsValue(s.holdings);
-        const accts = s.accounts || [];
-        const expected = { investments: ctx.polizasCapital + holdings + Engine.accountTotal(accts, 'retiro') };
-        if (accts.length) {
-            expected.checking = Engine.accountTotal(accts, 'cash');
-            expected.savings = Engine.accountTotal(accts, 'ahorros');
-        }
-        Engine.DEBT_KINDS.forEach(k => { expected[k.netWorthField] = 0; });
-        s.debts.forEach(d => {
-            const k = Engine.DEBT_KINDS.find(x => x.id === d.kind) || Engine.DEBT_KINDS[4];
-            expected[k.netWorthField] += Math.max(0, Number(d.balance) || 0);
-        });
-        const off = Object.keys(expected).filter(k => Math.abs((f[k] || 0) - expected[k]) > 1);
-        const debtTotal = s.debts.reduce((t, d) => t + Math.max(0, Number(d.balance) || 0), 0);
-        return off.length ? { polizas: ctx.polizasCapital, holdings, debts: debtTotal } : null;
-    }
-
     // The "how this works" guide: shown as a welcome on first use and kept in Configuración.
     function guideHTML() {
         const item = (icon, html) => `<li class="flex gap-2.5"><i class="fa-solid ${icon} text-emerald-600 mt-0.5 w-4 text-center"></i><span>${html}</span></li>`;
@@ -148,5 +127,5 @@
         </div>`;
     }
 
-    root.Views = { guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, selectOptions, monthOptions, netWorthSync };
+    root.Views = { guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, selectOptions, monthOptions };
 })(this);

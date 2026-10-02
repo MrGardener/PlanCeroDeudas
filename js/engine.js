@@ -1144,6 +1144,20 @@
         return out;
     }
 
+    // This year's net worth from what the app already knows, field by field — only fields with a
+    // source: investments (CDs/DPF, holdings, retirement accounts), checking and savings (when
+    // accounts are registered), and each consumer-debt kind (when debts are registered).
+    function netWorthFromSources({ polizas = [], holdings = [], accounts = [], debts = [] }) {
+        const out = {};
+        if (polizas.length || holdings.length || accounts.some(a => a.kind === 'retiro')) out.investments = polizasCapital(polizas) + holdingsValue(holdings) + accountTotal(accounts, 'retiro');
+        if (accounts.length) { out.checking = accountTotal(accounts, 'cash'); out.savings = accountTotal(accounts, 'ahorros'); }
+        if (debts.length) {
+            DEBT_KINDS.forEach(k => { out[k.netWorthField] = 0; });
+            debts.forEach(d => { const k = DEBT_KINDS.find(x => x.id === d.kind) || DEBT_KINDS[4]; out[k.netWorthField] += Math.max(0, num(d.balance)); });
+        }
+        return out;
+    }
+
     function netWorthField(years, year, field) {
         const src = netWorthSource(years, year, field);
         return src === null ? 0 : num(years[src].netWorth[field]);
@@ -1497,7 +1511,7 @@
         guessDebtKind, debtPayoff, addMonths, goalMonths,
         frenchPayment, amortization, yearMarks, chartAxis, sampleSchedule,
         futureValue, pension, iessPensionAge, retirement, DEFAULT_INFLATION, DEFAULT_RETURN,
-        netWorthSource, netWorthYears, netWorthField, netWorthSnapshot, assetValue, assetOwned, assetsByCategory, netWorth,
+        netWorthSource, netWorthYears, netWorthFromSources, netWorthField, netWorthSnapshot, assetValue, assetOwned, assetsByCategory, netWorth,
         emergencyFund, babySteps
     };
 

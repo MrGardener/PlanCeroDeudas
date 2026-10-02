@@ -53,6 +53,10 @@
 <main class="wrap flex-grow w-full py-6">
 <div id="offline-banner" class="panel tone-amber mb-5 text-xs text-amber-900 hidden"><i class="fa-solid fa-wifi"></i> <strong>Sin conexión a internet:</strong> los estilos y gráficos no se pudieron cargar. Tus datos están a salvo; conéctate y vuelve a abrir la app para verla completa.</div>
 
+<div id="sample-banner" class="wrap hidden">
+    <div class="sample-banner"><i class="fa-solid fa-people-roof"></i><span>Estás viendo una <strong>familia de ejemplo</strong>. Nada de esto es tuyo.</span><button type="button" class="btn btn-primary btn-sm" data-action="app.startOwn">Empezar con mis datos</button></div>
+</div>
+
 <!-- ============================================================ RESUMEN -->
 <section data-tab="resumen" class="space-y-5">
     <div id="dash-welcome" class="card hidden" style="border-color:#a7f3d0"></div>
@@ -177,6 +181,7 @@
                 </div>
             </div>
             <p id="bud-month-note" class="text-xs text-slate-600 mb-4"></p>
+            <div id="bud-sticky" class="bud-sticky" aria-live="polite"></div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
                 <div class="kpi tone-emerald">
@@ -496,16 +501,6 @@
             </details>
         </details>
 
-        <div class="card" id="rec-card">
-            <div class="card-head">
-                <div>
-                    <div class="card-title"><i class="fa-solid fa-repeat text-purple-600"></i> Programados y suscripciones</div>
-                    <div class="card-sub">Movimientos que se repiten. Se registran solos el día que tocan (al abrir la app). Crea uno con "Repetir" al registrar, o con <i class="fa-solid fa-repeat"></i> en una transacción del historial.</div>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="rec-kpis"></div>
-            <div class="table-wrap"><table class="table"><thead><tr><th>Próxima fecha</th><th>Descripción</th><th>Frecuencia</th><th class="num">Monto</th><th class="num">Por mes</th><th class="text-center" title="Registrar automáticamente">Auto</th><th></th></tr></thead><tbody id="rec-body"></tbody></table></div>
-        </div>
         <div class="card">
             <div class="card-head">
                 <div class="card-title"><i class="fa-solid fa-list text-blue-600"></i> Historial</div>
@@ -532,6 +527,16 @@
                 <p class="help mt-2">Se guardan 60 días por si te arrepientes.</p>
                 <div id="trash-body" class="mt-2"></div>
             </details>
+        </div>
+        <div class="card" id="rec-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-repeat text-purple-600"></i> Programados y suscripciones</div>
+                    <div class="card-sub">Movimientos que se repiten. Se registran solos el día que tocan (al abrir la app). Crea uno con "Repetir" al registrar, o con <i class="fa-solid fa-repeat"></i> en una transacción del historial.</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="rec-kpis"></div>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Próxima fecha</th><th>Descripción</th><th>Frecuencia</th><th class="num">Monto</th><th class="num">Por mes</th><th class="text-center" title="Registrar automáticamente">Auto</th><th></th></tr></thead><tbody id="rec-body"></tbody></table></div>
         </div>
     </div>
     <div data-view="importar" class="space-y-5 hidden">
@@ -800,7 +805,6 @@
         </div>
     </div>
 
-
     <div data-view="proyeccion" class="space-y-5 hidden">
         <div class="card">
             <div class="card-head">
@@ -1030,11 +1034,9 @@
         <div class="card-head">
             <div>
                 <div class="card-title"><i class="fa-solid fa-scale-balanced text-teal-600"></i> Patrimonio Neto · <span class="active-year"></span></div>
-                <div class="card-sub">Activos − Pasivos: el número más importante a seguir en el tiempo. Cada saldo se mantiene igual año a año hasta que lo edites para un año posterior.</div>
+                <div class="card-sub">Activos − Pasivos: el número más importante a seguir en el tiempo. Este año se llena solo con tus cuentas, pólizas, inversiones y deudas; lo demás se mantiene igual año a año hasta que lo edites.</div>
             </div>
-            <button class="btn btn-secondary" data-action="nw.prefill" title="Inversiones = pólizas + acciones/ETF; cada deuda en su tipo"><i class="fa-solid fa-arrows-rotate"></i> Traer pólizas, inversiones y deudas</button>
         </div>
-        <div id="nw-sync-hint" class="panel tone-blue mb-4 hidden flex flex-wrap items-center justify-between gap-2 text-xs text-blue-900"></div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div>
                 <div class="section-label text-emerald-800"><i class="fa-solid fa-arrow-up text-emerald-600"></i> Activos <span id="nw-assets" class="ml-auto text-sm text-emerald-800 normal-case">$0</span></div>
@@ -1068,7 +1070,7 @@
         <div class="card-head">
             <div>
                 <div class="card-title"><i class="fa-solid fa-chart-line text-indigo-600"></i> Inversiones: ETF, acciones y fondos</div>
-                <div class="card-sub">Escribe el símbolo (ticker, ej. VOO, AAPL) y cuántas unidades tienes. El valor total entra a tu patrimonio con "Traer pólizas, inversiones y deudas". <span id="hold-key-note"></span></div>
+                <div class="card-sub">Escribe el símbolo (ticker, ej. VOO, AAPL) y cuántas unidades tienes. El valor total entra solo a tu patrimonio de este año. <span id="hold-key-note"></span></div>
             </div>
             <div class="flex flex-wrap gap-2">
                 <button class="btn btn-secondary" data-action="hold.refresh"><i class="fa-solid fa-arrows-rotate"></i> Actualizar precios</button>
@@ -1113,56 +1115,6 @@
 
 <!-- ======================================================= CONFIGURACION -->
 <section data-tab="config" class="hidden space-y-4">
-    <details class="card group-card" id="cfg-guide">
-        <summary class="flex items-center justify-between gap-3">
-            <div><div class="card-title"><i class="fa-solid fa-circle-question text-emerald-600"></i> Cómo Usar la App</div><div class="card-sub">Dónde se guardan tus datos, cómo respaldarlos y por dónde empezar.</div></div>
-            <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
-        </summary>
-        <div class="mt-5" id="cfg-guide-body"></div>
-    </details>
-
-    <details class="card group-card" id="cfg-legal" open>
-        <summary class="flex items-center justify-between gap-3">
-            <div><div class="card-title"><i class="fa-solid fa-scale-balanced text-amber-600"></i> Parámetros Legales · <span class="active-year"></span></div><div class="card-sub">Tasas y topes oficiales que usa el cálculo de tu sueldo neto. Cambian por año; verifica los vigentes en las fuentes oficiales.</div></div>
-            <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
-        </summary>
-        <div class="mt-5 space-y-4" data-country="US" id="cfg-us-tax">
-            <p class="help">Cifras del año fiscal que eliges arriba (cargadas con las de 2026). Verifica cada año en irs.gov, ssa.gov y el Departamento del Tesoro de tu estado.</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <label class="field field-box"><span class="field-label"><span>Deducción estándar · soltero/a (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.single"></label>
-                <label class="field field-box"><span class="field-label"><span>Deducción estándar · casados (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.mfj"></label>
-                <label class="field field-box"><span class="field-label"><span>Deducción estándar · jefe/a de familia (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.hoh"></label>
-                <label class="field field-box"><span class="field-label"><span>Crédito por hijo (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.childCredit"></label>
-                <label class="field field-box"><span class="field-label"><span>Tope de salario del Seguro Social (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="100" data-bind="year.usTax.ssWageBase"></label>
-                <label class="field field-box"><span class="field-label">Seguro Social (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.ssRate"></label>
-                <label class="field field-box"><span class="field-label">Medicare (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.medicareRate"></label>
-                <label class="field field-box"><span class="field-label"><span>Cobertura FDIC / NCUA (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="1000" data-bind="year.cosede"></label>
-            </div>
-            <div>
-                <div class="section-label">Tabla del impuesto federal · <span class="active-year"></span> · <select class="cell-input text-xs" style="width:auto" id="cfg-us-status" data-change="us.bracketStatus"><option value="single">Soltero/a</option><option value="mfj">Casado/a, declaración conjunta</option><option value="hoh">Jefe/a de familia</option></select></div>
-                <div class="table-wrap"><table class="table"><thead><tr><th>Desde (<span class="cur">$</span>)</th><th>Tasa (%)</th></tr></thead><tbody id="cfg-us-brackets"></tbody></table></div>
-            </div>
-        </div>
-        <div class="mt-5 space-y-4" data-country="EC">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                <label class="field field-box"><span class="field-label">Aporte personal IESS (%)</span><input type="number" class="input" step="0.01" min="0" data-bind="year.iessRate"></label>
-                <label class="field field-box"><span class="field-label"><span>SBU (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.sbu"><span class="help">Base del Décimo Cuarto.</span></label>
-                <label class="field field-box"><span class="field-label"><span>Canasta básica (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.canasta"></label>
-                <label class="field field-box"><span class="field-label">Rebaja por gastos personales (%)</span><input type="number" class="input" step="1" min="0" max="100" data-bind="year.sriRebajaRate"><span class="help">18% desde 2023. El tope depende de tus cargas (Ingresos).</span></label>
-                <label class="field field-box"><span class="field-label"><span>Cobertura COSEDE (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1000" min="0" data-bind="year.cosede"><span class="help">Para cooperativas sin límite propio.</span></label>
-            </div>
-            <div>
-                <div class="section-label">Tabla del Impuesto a la Renta · <span class="active-year"></span></div>
-                <div class="table-wrap">
-                    <table class="table">
-                        <thead><tr><th>Fracción básica (<span class="cur">$</span>)</th><th>Exceso hasta (<span class="cur">$</span>)</th><th>Impuesto fracción básica (<span class="cur">$</span>)</th><th>% sobre excedente</th></tr></thead>
-                        <tbody id="cfg-brackets"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </details>
-
     <details class="card group-card" id="cfg-data" open>
         <summary class="flex items-center justify-between gap-3">
             <div><div class="card-title"><i class="fa-solid fa-database text-indigo-600"></i> Tus Datos</div><div class="card-sub"><span data-web-only>Todo se guarda automáticamente en este navegador. Descarga una copia para no perderla o moverla a otro equipo.</span><span data-app-only>Todo se guarda automáticamente en este teléfono. Guarda una copia para no perderla o moverla a otro equipo.</span></div></div>
@@ -1238,6 +1190,55 @@
             </div>
         </div>
     </details>
+    <details class="card group-card" id="cfg-guide">
+        <summary class="flex items-center justify-between gap-3">
+            <div><div class="card-title"><i class="fa-solid fa-circle-question text-emerald-600"></i> Cómo Usar la App</div><div class="card-sub">Dónde se guardan tus datos, cómo respaldarlos y por dónde empezar.</div></div>
+            <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+        </summary>
+        <div class="mt-5" id="cfg-guide-body"></div>
+    </details>
+
+    <details class="card group-card" id="cfg-legal">
+        <summary class="flex items-center justify-between gap-3">
+            <div><div class="card-title"><i class="fa-solid fa-scale-balanced text-amber-600"></i> Parámetros Legales · <span class="active-year"></span></div><div class="card-sub">Tasas y topes oficiales que usa el cálculo de tu sueldo neto. Cambian por año; verifica los vigentes en las fuentes oficiales.</div></div>
+            <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+        </summary>
+        <div class="mt-5 space-y-4" data-country="US" id="cfg-us-tax">
+            <p class="help">Cifras del año fiscal que eliges arriba (cargadas con las de 2026). Verifica cada año en irs.gov, ssa.gov y el Departamento del Tesoro de tu estado.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <label class="field field-box"><span class="field-label"><span>Deducción estándar · soltero/a (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.single"></label>
+                <label class="field field-box"><span class="field-label"><span>Deducción estándar · casados (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.mfj"></label>
+                <label class="field field-box"><span class="field-label"><span>Deducción estándar · jefe/a de familia (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.hoh"></label>
+                <label class="field field-box"><span class="field-label"><span>Crédito por hijo (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.childCredit"></label>
+                <label class="field field-box"><span class="field-label"><span>Tope de salario del Seguro Social (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="100" data-bind="year.usTax.ssWageBase"></label>
+                <label class="field field-box"><span class="field-label">Seguro Social (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.ssRate"></label>
+                <label class="field field-box"><span class="field-label">Medicare (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.medicareRate"></label>
+                <label class="field field-box"><span class="field-label"><span>Cobertura FDIC / NCUA (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="1000" data-bind="year.cosede"></label>
+            </div>
+            <div>
+                <div class="section-label">Tabla del impuesto federal · <span class="active-year"></span> · <select class="cell-input text-xs" style="width:auto" id="cfg-us-status" data-change="us.bracketStatus"><option value="single">Soltero/a</option><option value="mfj">Casado/a, declaración conjunta</option><option value="hoh">Jefe/a de familia</option></select></div>
+                <div class="table-wrap"><table class="table"><thead><tr><th>Desde (<span class="cur">$</span>)</th><th>Tasa (%)</th></tr></thead><tbody id="cfg-us-brackets"></tbody></table></div>
+            </div>
+        </div>
+        <div class="mt-5 space-y-4" data-country="EC">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <label class="field field-box"><span class="field-label">Aporte personal IESS (%)</span><input type="number" class="input" step="0.01" min="0" data-bind="year.iessRate"></label>
+                <label class="field field-box"><span class="field-label"><span>SBU (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.sbu"><span class="help">Base del Décimo Cuarto.</span></label>
+                <label class="field field-box"><span class="field-label"><span>Canasta básica (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.canasta"></label>
+                <label class="field field-box"><span class="field-label">Rebaja por gastos personales (%)</span><input type="number" class="input" step="1" min="0" max="100" data-bind="year.sriRebajaRate"><span class="help">18% desde 2023. El tope depende de tus cargas (Ingresos).</span></label>
+                <label class="field field-box"><span class="field-label"><span>Cobertura COSEDE (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1000" min="0" data-bind="year.cosede"><span class="help">Para cooperativas sin límite propio.</span></label>
+            </div>
+            <div>
+                <div class="section-label">Tabla del Impuesto a la Renta · <span class="active-year"></span></div>
+                <div class="table-wrap">
+                    <table class="table">
+                        <thead><tr><th>Fracción básica (<span class="cur">$</span>)</th><th>Exceso hasta (<span class="cur">$</span>)</th><th>Impuesto fracción básica (<span class="cur">$</span>)</th><th>% sobre excedente</th></tr></thead>
+                        <tbody id="cfg-brackets"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </details>
 
     <details class="card group-card" id="cfg-prefs">
         <summary class="flex items-center justify-between gap-3">
@@ -1305,7 +1306,10 @@
     <div class="card" style="border-color:#fecaca;background:#fef2f2">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div><div class="card-title text-red-900"><i class="fa-solid fa-triangle-exclamation text-red-600"></i> Zona de Peligro</div><div class="card-sub text-red-700">Borra todos tus datos (presupuestos, pólizas, deudas, metas, activos, transacciones y baselines) para empezar de cero o entregar la app a otra persona.</div></div>
-            <button class="btn btn-danger" data-action="cfg.purge"><i class="fa-solid fa-trash-can"></i> Borrar todos mis datos</button>
+            <div class="flex flex-wrap gap-2 justify-end">
+                <button class="btn btn-secondary" data-action="app.loadExample"><i class="fa-solid fa-people-roof"></i> Ver la familia de ejemplo</button>
+                <button class="btn btn-danger" data-action="cfg.purge"><i class="fa-solid fa-trash-can"></i> Borrar todos mis datos</button>
+            </div>
         </div>
     </div>
 </section>

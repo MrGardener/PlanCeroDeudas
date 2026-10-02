@@ -86,7 +86,7 @@
         }
         // Leading punctuation (": tu sueldo…", "· …") or a list joined with " · ": translate the pieces.
         if (hit === undefined) {
-            const m = key.match(/^([:·,;–—-]\s*)(.+)$/);
+            const m = key.match(/^([:·,;–—.-]\s*)(.+)$/);
             if (m) { const inner = t(m[2]); if (inner !== m[2]) hit = m[1] + inner; }
         }
         if (hit === undefined && key.includes(' · ')) {

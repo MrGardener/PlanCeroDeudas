@@ -595,10 +595,37 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
 /* Five tabs: on a phone the tab numbers and the year-picker icon go, so everything fits. */
 @media (max-width: 639px) {
     .nav-tab .nav-num { display: none; }
+    /* Five tabs share the width: icon above a short label. */
+    .main-nav { gap: 0; }
+    .nav-tab { flex: 1 1 0; min-width: 0; flex-direction: column; gap: .15rem; padding: .4rem .1rem; font-size: .64rem; border-radius: .5rem .5rem 0 0; }
+    .nav-tab i { font-size: .95rem; }
+    .nav-tab span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     .year-picker > i { display: none; }
     .year-picker { padding-left: .35rem; padding-right: .35rem; }
 }
 #cfg-gear.active { color: #34d399; }
+
+/* First visit: two ways to start. */
+.start-choice { display: grid; gap: .3rem; text-align: left; padding: 1rem; border: 1.5px solid var(--line); border-radius: .9rem; background: #fff; transition: border-color .15s, box-shadow .15s; }
+.start-choice:hover { border-color: #10b981; box-shadow: 0 4px 14px rgba(15, 23, 42, .08); }
+.start-choice i { font-size: 1.3rem; }
+.start-choice strong { font-size: .95rem; color: var(--ink); }
+.start-choice span { font-size: .78rem; color: var(--muted); }
+html[data-theme="dark"] .start-choice { background: var(--surface); }
+/* While the example family is loaded. */
+.sample-banner { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-top: 1rem; padding: .6rem .9rem; border-radius: .8rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: .82rem; }
+.sample-banner .btn { margin-left: auto; }
+html[data-theme="dark"] .sample-banner { background: rgba(59, 130, 246, .12); border-color: rgba(59, 130, 246, .35); color: #bfdbfe; }
+
+/* Budget: "Por asignar" stays in sight while scrolling the lines. */
+.bud-sticky { position: fixed; left: 50%; z-index: 35; transform: translate(-50%, -140%); opacity: 0; pointer-events: none; transition: transform .2s ease, opacity .2s ease; margin-top: .5rem; padding: .4rem .9rem; border-radius: 999px; font-size: .8rem; font-weight: 700; display: flex; gap: .4rem; align-items: center; box-shadow: 0 6px 18px rgba(15, 23, 42, .18); white-space: nowrap; }
+.bud-sticky.show { transform: translate(-50%, 0); opacity: 1; }
+.bud-sticky.ok { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+.bud-sticky.left { background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; }
+.bud-sticky.over { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+html[data-theme="dark"] .bud-sticky.ok { background: #062e22; color: #6ee7b7; border-color: #065f46; }
+html[data-theme="dark"] .bud-sticky.left { background: #2a1d05; color: #fcd34d; border-color: #78350f; }
+html[data-theme="dark"] .bud-sticky.over { background: #2a0d0d; color: #fca5a5; border-color: #7f1d1d; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -633,6 +660,10 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
 
 <main class="wrap flex-grow w-full py-6">
 <div id="offline-banner" class="panel tone-amber mb-5 text-xs text-amber-900 hidden"><i class="fa-solid fa-wifi"></i> <strong>Sin conexión a internet:</strong> los estilos y gráficos no se pudieron cargar. Tus datos están a salvo; conéctate y vuelve a abrir la app para verla completa.</div>
+
+<div id="sample-banner" class="wrap hidden">
+    <div class="sample-banner"><i class="fa-solid fa-people-roof"></i><span>Estás viendo una <strong>familia de ejemplo</strong>. Nada de esto es tuyo.</span><button type="button" class="btn btn-primary btn-sm" data-action="app.startOwn">Empezar con mis datos</button></div>
+</div>
 
 <!-- ============================================================ RESUMEN -->
 <section data-tab="resumen" class="space-y-5">
@@ -758,6 +789,7 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
                 </div>
             </div>
             <p id="bud-month-note" class="text-xs text-slate-600 mb-4"></p>
+            <div id="bud-sticky" class="bud-sticky" aria-live="polite"></div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
                 <div class="kpi tone-emerald">
@@ -1077,16 +1109,6 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
             </details>
         </details>
 
-        <div class="card" id="rec-card">
-            <div class="card-head">
-                <div>
-                    <div class="card-title"><i class="fa-solid fa-repeat text-purple-600"></i> Programados y suscripciones</div>
-                    <div class="card-sub">Movimientos que se repiten. Se registran solos el día que tocan (al abrir la app). Crea uno con "Repetir" al registrar, o con <i class="fa-solid fa-repeat"></i> en una transacción del historial.</div>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="rec-kpis"></div>
-            <div class="table-wrap"><table class="table"><thead><tr><th>Próxima fecha</th><th>Descripción</th><th>Frecuencia</th><th class="num">Monto</th><th class="num">Por mes</th><th class="text-center" title="Registrar automáticamente">Auto</th><th></th></tr></thead><tbody id="rec-body"></tbody></table></div>
-        </div>
         <div class="card">
             <div class="card-head">
                 <div class="card-title"><i class="fa-solid fa-list text-blue-600"></i> Historial</div>
@@ -1113,6 +1135,16 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
                 <p class="help mt-2">Se guardan 60 días por si te arrepientes.</p>
                 <div id="trash-body" class="mt-2"></div>
             </details>
+        </div>
+        <div class="card" id="rec-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-repeat text-purple-600"></i> Programados y suscripciones</div>
+                    <div class="card-sub">Movimientos que se repiten. Se registran solos el día que tocan (al abrir la app). Crea uno con "Repetir" al registrar, o con <i class="fa-solid fa-repeat"></i> en una transacción del historial.</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3" id="rec-kpis"></div>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Próxima fecha</th><th>Descripción</th><th>Frecuencia</th><th class="num">Monto</th><th class="num">Por mes</th><th class="text-center" title="Registrar automáticamente">Auto</th><th></th></tr></thead><tbody id="rec-body"></tbody></table></div>
         </div>
     </div>
     <div data-view="importar" class="space-y-5 hidden">
@@ -1381,7 +1413,6 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
         </div>
     </div>
 
-
     <div data-view="proyeccion" class="space-y-5 hidden">
         <div class="card">
             <div class="card-head">
@@ -1611,11 +1642,9 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
         <div class="card-head">
             <div>
                 <div class="card-title"><i class="fa-solid fa-scale-balanced text-teal-600"></i> Patrimonio Neto · <span class="active-year"></span></div>
-                <div class="card-sub">Activos − Pasivos: el número más importante a seguir en el tiempo. Cada saldo se mantiene igual año a año hasta que lo edites para un año posterior.</div>
+                <div class="card-sub">Activos − Pasivos: el número más importante a seguir en el tiempo. Este año se llena solo con tus cuentas, pólizas, inversiones y deudas; lo demás se mantiene igual año a año hasta que lo edites.</div>
             </div>
-            <button class="btn btn-secondary" data-action="nw.prefill" title="Inversiones = pólizas + acciones/ETF; cada deuda en su tipo"><i class="fa-solid fa-arrows-rotate"></i> Traer pólizas, inversiones y deudas</button>
         </div>
-        <div id="nw-sync-hint" class="panel tone-blue mb-4 hidden flex flex-wrap items-center justify-between gap-2 text-xs text-blue-900"></div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div>
                 <div class="section-label text-emerald-800"><i class="fa-solid fa-arrow-up text-emerald-600"></i> Activos <span id="nw-assets" class="ml-auto text-sm text-emerald-800 normal-case">$0</span></div>
@@ -1649,7 +1678,7 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
         <div class="card-head">
             <div>
                 <div class="card-title"><i class="fa-solid fa-chart-line text-indigo-600"></i> Inversiones: ETF, acciones y fondos</div>
-                <div class="card-sub">Escribe el símbolo (ticker, ej. VOO, AAPL) y cuántas unidades tienes. El valor total entra a tu patrimonio con "Traer pólizas, inversiones y deudas". <span id="hold-key-note"></span></div>
+                <div class="card-sub">Escribe el símbolo (ticker, ej. VOO, AAPL) y cuántas unidades tienes. El valor total entra solo a tu patrimonio de este año. <span id="hold-key-note"></span></div>
             </div>
             <div class="flex flex-wrap gap-2">
                 <button class="btn btn-secondary" data-action="hold.refresh"><i class="fa-solid fa-arrows-rotate"></i> Actualizar precios</button>
@@ -1694,56 +1723,6 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
 
 <!-- ======================================================= CONFIGURACION -->
 <section data-tab="config" class="hidden space-y-4">
-    <details class="card group-card" id="cfg-guide">
-        <summary class="flex items-center justify-between gap-3">
-            <div><div class="card-title"><i class="fa-solid fa-circle-question text-emerald-600"></i> Cómo Usar la App</div><div class="card-sub">Dónde se guardan tus datos, cómo respaldarlos y por dónde empezar.</div></div>
-            <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
-        </summary>
-        <div class="mt-5" id="cfg-guide-body"></div>
-    </details>
-
-    <details class="card group-card" id="cfg-legal" open>
-        <summary class="flex items-center justify-between gap-3">
-            <div><div class="card-title"><i class="fa-solid fa-scale-balanced text-amber-600"></i> Parámetros Legales · <span class="active-year"></span></div><div class="card-sub">Tasas y topes oficiales que usa el cálculo de tu sueldo neto. Cambian por año; verifica los vigentes en las fuentes oficiales.</div></div>
-            <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
-        </summary>
-        <div class="mt-5 space-y-4" data-country="US" id="cfg-us-tax">
-            <p class="help">Cifras del año fiscal que eliges arriba (cargadas con las de 2026). Verifica cada año en irs.gov, ssa.gov y el Departamento del Tesoro de tu estado.</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <label class="field field-box"><span class="field-label"><span>Deducción estándar · soltero/a (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.single"></label>
-                <label class="field field-box"><span class="field-label"><span>Deducción estándar · casados (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.mfj"></label>
-                <label class="field field-box"><span class="field-label"><span>Deducción estándar · jefe/a de familia (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.hoh"></label>
-                <label class="field field-box"><span class="field-label"><span>Crédito por hijo (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.childCredit"></label>
-                <label class="field field-box"><span class="field-label"><span>Tope de salario del Seguro Social (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="100" data-bind="year.usTax.ssWageBase"></label>
-                <label class="field field-box"><span class="field-label">Seguro Social (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.ssRate"></label>
-                <label class="field field-box"><span class="field-label">Medicare (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.medicareRate"></label>
-                <label class="field field-box"><span class="field-label"><span>Cobertura FDIC / NCUA (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="1000" data-bind="year.cosede"></label>
-            </div>
-            <div>
-                <div class="section-label">Tabla del impuesto federal · <span class="active-year"></span> · <select class="cell-input text-xs" style="width:auto" id="cfg-us-status" data-change="us.bracketStatus"><option value="single">Soltero/a</option><option value="mfj">Casado/a, declaración conjunta</option><option value="hoh">Jefe/a de familia</option></select></div>
-                <div class="table-wrap"><table class="table"><thead><tr><th>Desde (<span class="cur">$</span>)</th><th>Tasa (%)</th></tr></thead><tbody id="cfg-us-brackets"></tbody></table></div>
-            </div>
-        </div>
-        <div class="mt-5 space-y-4" data-country="EC">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                <label class="field field-box"><span class="field-label">Aporte personal IESS (%)</span><input type="number" class="input" step="0.01" min="0" data-bind="year.iessRate"></label>
-                <label class="field field-box"><span class="field-label"><span>SBU (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.sbu"><span class="help">Base del Décimo Cuarto.</span></label>
-                <label class="field field-box"><span class="field-label"><span>Canasta básica (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.canasta"></label>
-                <label class="field field-box"><span class="field-label">Rebaja por gastos personales (%)</span><input type="number" class="input" step="1" min="0" max="100" data-bind="year.sriRebajaRate"><span class="help">18% desde 2023. El tope depende de tus cargas (Ingresos).</span></label>
-                <label class="field field-box"><span class="field-label"><span>Cobertura COSEDE (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1000" min="0" data-bind="year.cosede"><span class="help">Para cooperativas sin límite propio.</span></label>
-            </div>
-            <div>
-                <div class="section-label">Tabla del Impuesto a la Renta · <span class="active-year"></span></div>
-                <div class="table-wrap">
-                    <table class="table">
-                        <thead><tr><th>Fracción básica (<span class="cur">$</span>)</th><th>Exceso hasta (<span class="cur">$</span>)</th><th>Impuesto fracción básica (<span class="cur">$</span>)</th><th>% sobre excedente</th></tr></thead>
-                        <tbody id="cfg-brackets"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </details>
-
     <details class="card group-card" id="cfg-data" open>
         <summary class="flex items-center justify-between gap-3">
             <div><div class="card-title"><i class="fa-solid fa-database text-indigo-600"></i> Tus Datos</div><div class="card-sub"><span data-web-only>Todo se guarda automáticamente en este navegador. Descarga una copia para no perderla o moverla a otro equipo.</span><span data-app-only>Todo se guarda automáticamente en este teléfono. Guarda una copia para no perderla o moverla a otro equipo.</span></div></div>
@@ -1819,6 +1798,55 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
             </div>
         </div>
     </details>
+    <details class="card group-card" id="cfg-guide">
+        <summary class="flex items-center justify-between gap-3">
+            <div><div class="card-title"><i class="fa-solid fa-circle-question text-emerald-600"></i> Cómo Usar la App</div><div class="card-sub">Dónde se guardan tus datos, cómo respaldarlos y por dónde empezar.</div></div>
+            <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+        </summary>
+        <div class="mt-5" id="cfg-guide-body"></div>
+    </details>
+
+    <details class="card group-card" id="cfg-legal">
+        <summary class="flex items-center justify-between gap-3">
+            <div><div class="card-title"><i class="fa-solid fa-scale-balanced text-amber-600"></i> Parámetros Legales · <span class="active-year"></span></div><div class="card-sub">Tasas y topes oficiales que usa el cálculo de tu sueldo neto. Cambian por año; verifica los vigentes en las fuentes oficiales.</div></div>
+            <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+        </summary>
+        <div class="mt-5 space-y-4" data-country="US" id="cfg-us-tax">
+            <p class="help">Cifras del año fiscal que eliges arriba (cargadas con las de 2026). Verifica cada año en irs.gov, ssa.gov y el Departamento del Tesoro de tu estado.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <label class="field field-box"><span class="field-label"><span>Deducción estándar · soltero/a (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.single"></label>
+                <label class="field field-box"><span class="field-label"><span>Deducción estándar · casados (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.mfj"></label>
+                <label class="field field-box"><span class="field-label"><span>Deducción estándar · jefe/a de familia (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.hoh"></label>
+                <label class="field field-box"><span class="field-label"><span>Crédito por hijo (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.childCredit"></label>
+                <label class="field field-box"><span class="field-label"><span>Tope de salario del Seguro Social (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="100" data-bind="year.usTax.ssWageBase"></label>
+                <label class="field field-box"><span class="field-label">Seguro Social (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.ssRate"></label>
+                <label class="field field-box"><span class="field-label">Medicare (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.medicareRate"></label>
+                <label class="field field-box"><span class="field-label"><span>Cobertura FDIC / NCUA (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="1000" data-bind="year.cosede"></label>
+            </div>
+            <div>
+                <div class="section-label">Tabla del impuesto federal · <span class="active-year"></span> · <select class="cell-input text-xs" style="width:auto" id="cfg-us-status" data-change="us.bracketStatus"><option value="single">Soltero/a</option><option value="mfj">Casado/a, declaración conjunta</option><option value="hoh">Jefe/a de familia</option></select></div>
+                <div class="table-wrap"><table class="table"><thead><tr><th>Desde (<span class="cur">$</span>)</th><th>Tasa (%)</th></tr></thead><tbody id="cfg-us-brackets"></tbody></table></div>
+            </div>
+        </div>
+        <div class="mt-5 space-y-4" data-country="EC">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <label class="field field-box"><span class="field-label">Aporte personal IESS (%)</span><input type="number" class="input" step="0.01" min="0" data-bind="year.iessRate"></label>
+                <label class="field field-box"><span class="field-label"><span>SBU (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.sbu"><span class="help">Base del Décimo Cuarto.</span></label>
+                <label class="field field-box"><span class="field-label"><span>Canasta básica (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.canasta"></label>
+                <label class="field field-box"><span class="field-label">Rebaja por gastos personales (%)</span><input type="number" class="input" step="1" min="0" max="100" data-bind="year.sriRebajaRate"><span class="help">18% desde 2023. El tope depende de tus cargas (Ingresos).</span></label>
+                <label class="field field-box"><span class="field-label"><span>Cobertura COSEDE (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1000" min="0" data-bind="year.cosede"><span class="help">Para cooperativas sin límite propio.</span></label>
+            </div>
+            <div>
+                <div class="section-label">Tabla del Impuesto a la Renta · <span class="active-year"></span></div>
+                <div class="table-wrap">
+                    <table class="table">
+                        <thead><tr><th>Fracción básica (<span class="cur">$</span>)</th><th>Exceso hasta (<span class="cur">$</span>)</th><th>Impuesto fracción básica (<span class="cur">$</span>)</th><th>% sobre excedente</th></tr></thead>
+                        <tbody id="cfg-brackets"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </details>
 
     <details class="card group-card" id="cfg-prefs">
         <summary class="flex items-center justify-between gap-3">
@@ -1886,7 +1914,10 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
     <div class="card" style="border-color:#fecaca;background:#fef2f2">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div><div class="card-title text-red-900"><i class="fa-solid fa-triangle-exclamation text-red-600"></i> Zona de Peligro</div><div class="card-sub text-red-700">Borra todos tus datos (presupuestos, pólizas, deudas, metas, activos, transacciones y baselines) para empezar de cero o entregar la app a otra persona.</div></div>
-            <button class="btn btn-danger" data-action="cfg.purge"><i class="fa-solid fa-trash-can"></i> Borrar todos mis datos</button>
+            <div class="flex flex-wrap gap-2 justify-end">
+                <button class="btn btn-secondary" data-action="app.loadExample"><i class="fa-solid fa-people-roof"></i> Ver la familia de ejemplo</button>
+                <button class="btn btn-danger" data-action="cfg.purge"><i class="fa-solid fa-trash-can"></i> Borrar todos mis datos</button>
+            </div>
         </div>
     </div>
 </section>
@@ -1986,7 +2017,7 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
         }
         // Leading punctuation (": tu sueldo…", "· …") or a list joined with " · ": translate the pieces.
         if (hit === undefined) {
-            const m = key.match(/^([:·,;–—-]\s*)(.+)$/);
+            const m = key.match(/^([:·,;–—.-]\s*)(.+)$/);
             if (m) { const inner = t(m[2]); if (inner !== m[2]) hit = m[1] + inner; }
         }
         if (hit === undefined && key.includes(' · ')) {
@@ -4061,6 +4092,49 @@ I18n.add('en', {
 "· en dólares de hoy": "· in today's dollars",
 });
 I18n.add('en', { "Futuro": "Future", "Historial": "History" });
+I18n.add('en', {
+"Patrimonio neto por año": "Net worth by year",
+"Tu plan a largo plazo": "Your long-term plan",
+"Tus pasos, deudas, fondo de emergencia, jubilación y patrimonio.": "Your steps, debts, emergency fund, retirement and net worth.",
+"Ver {0} más": "Show {0} more",
+"({0} restantes)": "({0} left)",
+"{0} ▲ {1} frente a {2}.": "{0} ▲ {1} vs. {2}.",
+"{0} ▼ {1} frente a {2}.": "{0} ▼ {1} vs. {2}.",
+"Registro rápido": "Quick entry",
+"Formulario completo": "Full form",
+"Importar estado de cuenta": "Import a bank statement",
+});
+// First run and the example family
+I18n.add('en', {
+"Cómo funciona la app y cómo cuidar tus datos": "How the app works and how to keep your data safe",
+"Empezar con mis datos": "Start with my own data",
+"Estás viendo una": "You're looking at an",
+"familia de ejemplo": "example family",
+". Nada de esto es tuyo.": ". None of this is yours.",
+"Estás viendo una familia de ejemplo. Cuando quieras, empieza con tus datos desde el aviso de arriba.": "You're looking at an example family. Whenever you're ready, start with your own data from the notice at the top.",
+"Explorar el ejemplo": "Explore the example",
+"Se borra la familia de ejemplo y empiezas con un plan vacío. Puedes volver a ver el ejemplo desde Configuración.": "The example family is removed and you start with an empty plan. You can see the example again from Settings.",
+"Tus datos se reemplazan por los del ejemplo. Descarga antes una copia de respaldo si quieres volver a ellos (también puedes deshacer).": "Your data is replaced by the example's. Download a backup first if you want to go back to it (you can also undo).",
+"Un plan vacío: tu sueldo primero, luego tu presupuesto, tus deudas y tus metas.": "An empty plan: your salary first, then your budget, your debts and your goals.",
+"Una familia de 4 con un año de transacciones, deudas, ahorros e inversiones, para ver todo lo que hace la app.": "A family of 4 with a year of transactions, debts, savings and investments, to see everything the app does.",
+"Ver el ejemplo": "See the example",
+"Ver la familia de ejemplo": "See the example family",
+"¿Cómo quieres empezar? Puedes cambiar de opinión cuando quieras.": "How do you want to start? You can change your mind anytime.",
+"Empezar": "Start",
+});
+I18n.add('en', {
+"Activos − Pasivos: el número más importante a seguir en el tiempo. Este año se llena solo con tus cuentas, pólizas, inversiones y deudas; lo demás se mantiene igual año a año hasta que lo edites.": "Assets − Liabilities: the most important number to track over time. This year fills itself from your accounts, CDs, investments and debts; the rest stays the same year to year until you edit it.",
+"Pólizas, acciones/ETF y cuentas de jubilación.": "CDs, stocks/ETFs and retirement accounts.",
+"tus pólizas, inversiones y cuentas de jubilación": "your CDs, investments and retirement accounts",
+"🔗 Automático: {0}.": "🔗 Automatic: {0}.",
+"🔗 Automático: tus": "🔗 Automatic: your",
+"El valor total entra solo a tu patrimonio de este año.": "The total goes into this year's net worth on its own.",
+});
+I18n.add('en', { "Cada dólar tiene un destino": "Every dollar has a job" });
+I18n.add('en', {
+"Escribe el símbolo (ticker, ej. VOO, AAPL) y cuántas unidades tienes. El valor total entra solo a tu patrimonio de este año.": "Type the symbol (ticker, e.g. VOO, AAPL) and how many shares you own. The total goes into this year's net worth on its own.",
+"cuentas": "accounts", "deudas": "debts",
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -6987,6 +7061,20 @@ I18n.country('US', {
         return out;
     }
 
+    // This year's net worth from what the app already knows, field by field — only fields with a
+    // source: investments (CDs/DPF, holdings, retirement accounts), checking and savings (when
+    // accounts are registered), and each consumer-debt kind (when debts are registered).
+    function netWorthFromSources({ polizas = [], holdings = [], accounts = [], debts = [] }) {
+        const out = {};
+        if (polizas.length || holdings.length || accounts.some(a => a.kind === 'retiro')) out.investments = polizasCapital(polizas) + holdingsValue(holdings) + accountTotal(accounts, 'retiro');
+        if (accounts.length) { out.checking = accountTotal(accounts, 'cash'); out.savings = accountTotal(accounts, 'ahorros'); }
+        if (debts.length) {
+            DEBT_KINDS.forEach(k => { out[k.netWorthField] = 0; });
+            debts.forEach(d => { const k = DEBT_KINDS.find(x => x.id === d.kind) || DEBT_KINDS[4]; out[k.netWorthField] += Math.max(0, num(d.balance)); });
+        }
+        return out;
+    }
+
     function netWorthField(years, year, field) {
         const src = netWorthSource(years, year, field);
         return src === null ? 0 : num(years[src].netWorth[field]);
@@ -7340,7 +7428,7 @@ I18n.country('US', {
         guessDebtKind, debtPayoff, addMonths, goalMonths,
         frenchPayment, amortization, yearMarks, chartAxis, sampleSchedule,
         futureValue, pension, iessPensionAge, retirement, DEFAULT_INFLATION, DEFAULT_RETURN,
-        netWorthSource, netWorthYears, netWorthField, netWorthSnapshot, assetValue, assetOwned, assetsByCategory, netWorth,
+        netWorthSource, netWorthYears, netWorthFromSources, netWorthField, netWorthSnapshot, assetValue, assetOwned, assetsByCategory, netWorth,
         emergencyFund, babySteps
     };
 
@@ -7954,7 +8042,8 @@ I18n.country('US', {
             this.storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
             let raw = null;
             try { raw = this.storage && JSON.parse(this.storage.getItem(KEY)); } catch (e) { raw = null; }
-            this.state = migrate(raw);
+            // A first visit starts with an empty plan (the welcome offers the example family).
+            this.state = migrate(raw || D.emptyState());
             this._lastSaved = raw ? JSON.stringify(this.state) : null;
             this.year(this.state.activeYear);
             return this.state;
@@ -8062,8 +8151,12 @@ I18n.country('US', {
             this.saveNow();
         },
 
+        // 'empty' (a clean plan), 'example' (the example family, js/sample.js) or the small
+        // starter data.
         reset(kind) {
-            this.state = kind === 'empty' ? D.emptyState() : D.newState();
+            const welcome = this.state && this.state.settings && this.state.settings.welcomeDismissed;
+            this.state = migrate(kind === 'empty' ? D.emptyState() : kind === 'example' && root.Sample ? root.Sample.build(COUNTRY, new Date()) : D.newState());
+            if (welcome) this.state.settings.welcomeDismissed = true;
             this.year(this.state.activeYear);
             if (this.storage) this.storage.removeItem(KEY);
             this._lastSaved = null;
@@ -8545,7 +8638,7 @@ I18n.country('US', {
         }
         render();
         if (opts.scroll !== false) window.scrollTo({ top: 0 });
-        if (opts.focus) { const el = document.getElementById(opts.focus); if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); } }
+        if (opts.focus) { const el = document.getElementById(opts.focus); if (el) { for (let d = el.tagName === 'DETAILS' ? el : el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true; el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); } }
     }
 
     function buildNav() {
@@ -8579,6 +8672,7 @@ I18n.country('US', {
 
     function render() {
         renderGlobals();
+        UI.show('sample-banner', !!Store.state.settings.sample);
         const key = currentKey();
         const section = document.querySelector(`[data-tab="${Store.ui.tab}"]`);
         fillBindings(section);
@@ -8667,8 +8761,21 @@ I18n.country('US', {
     // Called after every mutation. { step: true } makes this change its own undo step
     // (buttons like "Agregar"), instead of grouping it with changes that follow quickly.
     // Any new change also dismisses a pending "Deshacer" toast (the header button remains).
+    // This calendar year's net worth follows the accounts, CDs, investments and debts on its own
+    // (no "pull in" button to remember). Fields with no source keep what the person typed.
+    function syncNetWorth() {
+        const s = Store.state, y = new Date().getFullYear();
+        if (y < s.configStartYear || y > s.configEndYear) return;
+        const want = Engine.netWorthFromSources({ polizas: s.polizas, holdings: s.holdings, accounts: s.accounts, debts: s.debts });
+        const keys = Object.keys(want);
+        if (!keys.length) return;
+        const yd = Store.year(y), nw = yd.netWorth, touched = yd.netWorthTouched || (yd.netWorthTouched = {});
+        keys.forEach(k => { const v = Math.round(want[k] * 100) / 100; if (Math.abs((Number(nw[k]) || 0) - v) > 0.004 || !touched[k]) { nw[k] = v; touched[k] = true; } });
+    }
+
     function changed(opts = {}) {
         if (!opts.keepUndo) dismissUndo();
+        syncNetWorth();
         recordChange();
         if (opts.step) commitHistory();
         Store.scheduleSave();
@@ -8712,6 +8819,17 @@ I18n.country('US', {
         'app.print': () => window.print(),
         'app.undo': () => undo(),
         'app.redo': () => redo(),
+        // Leave the example family for an empty plan of your own (undoable).
+        'app.startOwn': async () => {
+            const ok = await UI.confirm({ title: 'Empezar con mis datos', message: 'Se borra la familia de ejemplo y empiezas con un plan vacío. Puedes volver a ver el ejemplo desde Configuración.', confirmText: 'Empezar' });
+            if (!ok) return;
+            commitHistory();
+            Store.reset('empty');
+            Store.state.settings.welcomeDismissed = true;
+            Store.ui.month = 'base';
+            changed({ structural: true, step: true });
+            go('presupuesto/ingresos');
+        },
         'app.help': () => {
             go('config', { focus: 'cfg-guide' });
             const g = document.getElementById('cfg-guide');
@@ -8723,6 +8841,7 @@ I18n.country('US', {
         const E = root.APP_EDITION || {};
         if (E.appName) { UI.text('brand-title', E.appName); UI.text('brand-sub', E.appSub || ''); }
         Store.init();
+        syncNetWorth();
         hist.committed = snapshot();
         UI.initEvents();
         // Ctrl+Z / Ctrl+Y (⌘ on Mac). Inside a text box the browser's own undo for that box wins.
@@ -8869,27 +8988,6 @@ I18n.country('US', {
 
     // Does this year's net worth reflect the pólizas and debts registered elsewhere? Only
     // checked for the current calendar year — past years are history and may differ.
-    function netWorthSync(ctx) {
-        const s = ctx.state;
-        if (s.activeYear !== ctx.today.getFullYear()) return null;
-        const f = ctx.netWorth.fields;
-        const holdings = Engine.holdingsValue(s.holdings);
-        const accts = s.accounts || [];
-        const expected = { investments: ctx.polizasCapital + holdings + Engine.accountTotal(accts, 'retiro') };
-        if (accts.length) {
-            expected.checking = Engine.accountTotal(accts, 'cash');
-            expected.savings = Engine.accountTotal(accts, 'ahorros');
-        }
-        Engine.DEBT_KINDS.forEach(k => { expected[k.netWorthField] = 0; });
-        s.debts.forEach(d => {
-            const k = Engine.DEBT_KINDS.find(x => x.id === d.kind) || Engine.DEBT_KINDS[4];
-            expected[k.netWorthField] += Math.max(0, Number(d.balance) || 0);
-        });
-        const off = Object.keys(expected).filter(k => Math.abs((f[k] || 0) - expected[k]) > 1);
-        const debtTotal = s.debts.reduce((t, d) => t + Math.max(0, Number(d.balance) || 0), 0);
-        return off.length ? { polizas: ctx.polizasCapital, holdings, debts: debtTotal } : null;
-    }
-
     // The "how this works" guide: shown as a welcome on first use and kept in Configuración.
     function guideHTML() {
         const item = (icon, html) => `<li class="flex gap-2.5"><i class="fa-solid ${icon} text-emerald-600 mt-0.5 w-4 text-center"></i><span>${html}</span></li>`;
@@ -8939,7 +9037,7 @@ I18n.country('US', {
         </div>`;
     }
 
-    root.Views = { guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, selectOptions, monthOptions, netWorthSync };
+    root.Views = { guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, selectOptions, monthOptions };
 })(this);
 </script>
 <script>/* js/views/resumen.js */
@@ -9170,8 +9268,6 @@ I18n.country('US', {
             if (late.length) add('tone-red', 'fa-calendar-xmark text-red-600', `Pagos vencidos: ${late.map(b => `<strong>${esc(b.item.name)}</strong> (día ${b.day})`).join(', ')}.`, 'resumen', 'dash-bills-card');
             if (over.length) add('tone-red', 'fa-cart-shopping text-red-600', `Este mes te pasaste en: <strong>${over.map(i => esc(i.name)).join(', ')}</strong>.`, 'presupuesto/plan');
         }
-        const sync = Views.netWorthSync(ctx);
-        if (sync) add('tone-blue', 'fa-scale-balanced text-teal-600', `Tu patrimonio ${s.activeYear} no refleja tus pólizas (${money0(sync.polizas)}) y deudas (${money0(sync.debts)}) registradas.`, 'patrimonio');
         const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
         const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
         if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no tienes una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
@@ -9194,14 +9290,19 @@ I18n.country('US', {
         const welcome = document.getElementById('dash-welcome');
         UI.show(welcome, !s.settings.welcomeDismissed);
         if (!s.settings.welcomeDismissed) {
+            // First visit: start your own plan, or look around a complete example household first.
             welcome.innerHTML = `<div class="card-head">
-                    <div><div class="card-title"><i class="fa-solid fa-hand text-emerald-600"></i> Bienvenido a tu Plan Financiero</div><div class="card-sub">Lee esto una vez: así funciona la app y así cuidas tus datos. Siempre puedes volver a verlo con el botón <i class="fa-solid fa-circle-question"></i> de arriba.</div></div>
+                    <div><div class="card-title"><i class="fa-solid fa-hand text-emerald-600"></i> Bienvenido a tu Plan Financiero</div><div class="card-sub">¿Cómo quieres empezar? Puedes cambiar de opinión cuando quieras.</div></div>
                 </div>
-                ${Views.guideHTML()}
-                <div class="flex flex-wrap justify-end gap-2 mt-5">
-                    <button class="btn btn-secondary" data-action="app.dismissWelcome">Entendido</button>
-                    <button class="btn btn-primary" data-action="app.dismissWelcome" data-then="presupuesto/ingresos">Empezar con mi sueldo <i class="fa-solid fa-arrow-right"></i></button>
-                </div>`;
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button type="button" class="start-choice" data-action="app.dismissWelcome" data-then="presupuesto/ingresos">
+                        <i class="fa-solid fa-pen-to-square text-emerald-600"></i><strong>Empezar con mis datos</strong>
+                        <span>Un plan vacío: tu sueldo primero, luego tu presupuesto, tus deudas y tus metas.</span></button>
+                    <button type="button" class="start-choice" data-action="app.loadExample">
+                        <i class="fa-solid fa-people-roof text-blue-600"></i><strong>Explorar el ejemplo</strong>
+                        <span>Una familia de 4 con un año de transacciones, deudas, ahorros e inversiones, para ver todo lo que hace la app.</span></button>
+                </div>
+                <details class="mt-4"><summary class="link text-xs">Cómo funciona la app y cómo cuidar tus datos</summary><div class="mt-3">${Views.guideHTML()}</div></details>`;
         }
         UI.html('dash-hero', hero(ctx));
         UI.html('dash-steps', Views.stepsHTML(ctx, { compact: true }));
@@ -9244,6 +9345,18 @@ I18n.country('US', {
             txns.push({ id: Store.nextId(txns), type: 'Gasto', description: item.name, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date: Engine.isoDate(today), paymentType: 'Transferencia', budgetLine: String(item.id) });
             App.changed({ structural: true, step: true });
             UI.toast(`Pago de "${item.name}" registrado (${Fmt.money(amount)}).`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        },
+        'app.loadExample': async () => {
+            const s = Store.state;
+            const hasData = !s.settings.sample && (s.transactions.length || s.debts.length || s.goals.length || s.polizas.length);
+            if (hasData && !(await UI.confirm({ title: 'Ver la familia de ejemplo', message: 'Tus datos se reemplazan por los del ejemplo. Descarga antes una copia de respaldo si quieres volver a ellos (también puedes deshacer).', confirmText: 'Ver el ejemplo', danger: true }))) return;
+            App.commitHistory();
+            Store.reset('example');
+            Store.state.settings.welcomeDismissed = true;
+            Store.ui.month = 'base';
+            App.changed({ structural: true, step: true });
+            App.go('resumen');
+            UI.toast('Estás viendo una familia de ejemplo. Cuando quieras, empieza con tus datos desde el aviso de arriba.');
         },
         'app.dismissWelcome': (el) => {
             Store.state.settings.welcomeDismissed = true;
@@ -10000,6 +10113,7 @@ I18n.country('US', {
             noteEl.textContent = `Tus rubros superan tu ingreso por ${money(-bal)}. ${yd.sweepSavings ? 'El barrido solo mueve dinero que sobra; no puede cubrir lo que falta. ' : ''}Recorta rubros o agrega otro ingreso.`;
         }
         UI.text('bud-balance', money(bal));
+        stickyBalance(bal);
 
         const sweepEl = document.getElementById('bud-sweep');
         const shortfall = yd.sweepSavings && bal < -0.005;
@@ -10290,6 +10404,25 @@ I18n.country('US', {
             App.undoable(`${Fmt.MONTH_NAMES[m - 1]} vuelve a usar el presupuesto base`, () => { delete Store.active().monthOverrides[m]; });
         }
     });
+
+    // While you scroll the budget, a slim bar keeps "Por asignar" in sight once the tile is gone.
+    let stickyObs = null;
+    function stickyBalance(bal) {
+        const bar = document.getElementById('bud-sticky'), box = document.getElementById('bud-balance-box');
+        if (!bar || !box) return;
+        bar.className = `bud-sticky ${Math.abs(bal) < 0.005 ? 'ok' : bal > 0 ? 'left' : 'over'}${bar.classList.contains('show') ? ' show' : ''}`;
+        bar.innerHTML = Math.abs(bal) < 0.005 ? '<i class="fa-solid fa-circle-check"></i> Cada dólar tiene un destino'
+            : `<span>${bal > 0 ? 'Por asignar' : 'Te falta'}</span> <strong>${Fmt.money(Math.abs(bal))}</strong>`;
+        if (!stickyObs && 'IntersectionObserver' in window) {
+            const header = document.querySelector('.app-header');
+            stickyObs = new IntersectionObserver(([e]) => {
+                const inPlan = !document.querySelector('[data-view="plan"]').classList.contains('hidden') && !document.querySelector('[data-tab="presupuesto"]').classList.contains('hidden');
+                bar.style.top = (header ? header.getBoundingClientRect().height : 0) + 'px';
+                bar.classList.toggle('show', inPlan && !e.isIntersecting && e.boundingClientRect.top < 0);
+            });
+            stickyObs.observe(box);
+        }
+    }
 
     App.defineView('presupuesto/plan', { render, update });
 })();
@@ -13295,7 +13428,7 @@ I18n.country('US', {
     const ASSET_FIELDS = [
         { field: 'checking', label: 'Cuentas corrientes', help: 'Saldo de hoy en tus cuentas corrientes.' },
         { field: 'savings', label: 'Cuentas de ahorro', help: 'También cuenta para tu fondo de emergencia.' },
-        { field: 'investments', label: 'Inversiones y pólizas DPF', help: 'Usa "Traer pólizas, inversiones y deudas" para llenarlo con tus pólizas y acciones/ETF.' },
+        { field: 'investments', label: 'Inversiones y pólizas DPF', help: 'Pólizas, acciones/ETF y cuentas de jubilación.' },
         { registry: 'Bienes Raíces', label: 'Bienes raíces' },
         { registry: 'Vehículo', label: 'Vehículos' },
         { registry: 'Otro', label: 'Otros bienes de valor' }
@@ -13365,15 +13498,18 @@ I18n.country('US', {
         updateHoldings(ctx);
         const s = ctx.state, nw = ctx.netWorth, year = s.activeYear;
         UI.$$('[data-registry]').forEach(el => { el.textContent = money(nw.registry[el.dataset.registry] || 0); });
+        // This year, figures the app already knows fill themselves (read-only here).
+        const auto = year === ctx.today.getFullYear() ? Engine.netWorthFromSources({ polizas: s.polizas, holdings: s.holdings, accounts: s.accounts, debts: s.debts }) : {};
         UI.$$('[data-src]').forEach(el => {
             const f = el.dataset.src;
             const src = Engine.netWorthSource(s.years, year, f);
             const def = ASSET_FIELDS.concat(LIABILITY_FIELDS).find(d => d.field === f);
-            el.innerHTML = src !== null && src < year ? `<span class="text-slate-500">↩ Heredado de ${src}. Edítalo si cambió.</span>` : esc(def.help || '');
+            const input = document.querySelector(`[data-input="nw.set"][data-field="${f}"]`);
+            if (input) { input.readOnly = f in auto; input.classList.toggle('input-readonly', f in auto); }
+            el.innerHTML = f in auto
+                ? `<span class="linked">🔗 Automático: ${f === 'investments' ? 'tus pólizas, inversiones y cuentas de jubilación' : f === 'checking' || f === 'savings' ? 'tus <a href="#" class="link" data-goto="patrimonio" data-focus="nw-accounts">cuentas</a>' : 'tus <a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts">deudas</a>'}.</span>`
+                : src !== null && src < year ? `<span class="text-slate-500">↩ Heredado de ${src}. Edítalo si cambió.</span>` : esc(def.help || '');
         });
-        const sync = Views.netWorthSync(ctx);
-        UI.show('nw-sync-hint', !!sync);
-        if (sync) UI.html('nw-sync-hint', `<span><i class="fa-solid fa-circle-info"></i> Tus <a href="#" class="link" data-goto="futuro/polizas">pólizas</a> suman <strong>${money0(sync.polizas)}</strong>${sync.holdings ? `, tus <a href="#" class="link" data-goto="patrimonio" data-focus="nw-holdings">inversiones</a> <strong>${money0(sync.holdings)}</strong>` : ''} y tus <a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts">deudas</a> <strong>${money0(sync.debts)}</strong>, pero tu patrimonio de ${year} no coincide.</span><button class="btn btn-blue btn-sm" data-action="nw.prefill">Actualizar ahora</button>`);
         UI.text('nw-assets', money0(nw.assets));
         UI.text('nw-liabilities', money0(nw.liabilities));
         UI.text('nw-value', money(nw.value));
@@ -13542,26 +13678,6 @@ I18n.country('US', {
         'nw.set': (el) => {
             touch(Store.active(), el.dataset.field, Math.max(0, parseNum(el.value, 0)));
             App.changed();
-        },
-        'nw.prefill': () => {
-            const s = Store.state, yd = Store.active();
-            const accts = s.accounts || [];
-            const capital = Engine.polizasCapital(s.polizas) + Engine.holdingsValue(s.holdings) + Engine.accountTotal(accts, 'retiro');
-            touch(yd, 'investments', capital);
-            // Accounts, when registered, fill checking (corriente + efectivo) and savings.
-            if (accts.length) {
-                touch(yd, 'checking', Engine.accountTotal(accts, 'cash'));
-                touch(yd, 'savings', Engine.accountTotal(accts, 'ahorros'));
-            }
-            const byKind = {};
-            Engine.DEBT_KINDS.forEach(k => { byKind[k.netWorthField] = 0; });
-            s.debts.forEach(d => {
-                const k = Engine.DEBT_KINDS.find(x => x.id === d.kind) || Engine.DEBT_KINDS[4];
-                byKind[k.netWorthField] += Math.max(0, Number(d.balance) || 0);
-            });
-            Object.keys(byKind).forEach(f => touch(yd, f, byKind[f]));
-            App.changed({ structural: true });
-            UI.toast(`Actualizado ${s.activeYear}: inversiones ${money0(capital)} y ${s.debts.length} deuda(s) por tipo.`);
         },
         'asset.set': (el) => {
             const a = find(el);

@@ -145,7 +145,8 @@
             this.storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
             let raw = null;
             try { raw = this.storage && JSON.parse(this.storage.getItem(KEY)); } catch (e) { raw = null; }
-            this.state = migrate(raw);
+            // A first visit starts with an empty plan (the welcome offers the example family).
+            this.state = migrate(raw || D.emptyState());
             this._lastSaved = raw ? JSON.stringify(this.state) : null;
             this.year(this.state.activeYear);
             return this.state;
@@ -253,8 +254,12 @@
             this.saveNow();
         },
 
+        // 'empty' (a clean plan), 'example' (the example family, js/sample.js) or the small
+        // starter data.
         reset(kind) {
-            this.state = kind === 'empty' ? D.emptyState() : D.newState();
+            const welcome = this.state && this.state.settings && this.state.settings.welcomeDismissed;
+            this.state = migrate(kind === 'empty' ? D.emptyState() : kind === 'example' && root.Sample ? root.Sample.build(COUNTRY, new Date()) : D.newState());
+            if (welcome) this.state.settings.welcomeDismissed = true;
             this.year(this.state.activeYear);
             if (this.storage) this.storage.removeItem(KEY);
             this._lastSaved = null;

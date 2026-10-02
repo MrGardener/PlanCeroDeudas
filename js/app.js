@@ -187,7 +187,7 @@
         }
         render();
         if (opts.scroll !== false) window.scrollTo({ top: 0 });
-        if (opts.focus) { const el = document.getElementById(opts.focus); if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); } }
+        if (opts.focus) { const el = document.getElementById(opts.focus); if (el) { for (let d = el.tagName === 'DETAILS' ? el : el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true; el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); } }
     }
 
     function buildNav() {
@@ -221,6 +221,7 @@
 
     function render() {
         renderGlobals();
+        UI.show('sample-banner', !!Store.state.settings.sample);
         const key = currentKey();
         const section = document.querySelector(`[data-tab="${Store.ui.tab}"]`);
         fillBindings(section);
@@ -309,8 +310,21 @@
     // Called after every mutation. { step: true } makes this change its own undo step
     // (buttons like "Agregar"), instead of grouping it with changes that follow quickly.
     // Any new change also dismisses a pending "Deshacer" toast (the header button remains).
+    // This calendar year's net worth follows the accounts, CDs, investments and debts on its own
+    // (no "pull in" button to remember). Fields with no source keep what the person typed.
+    function syncNetWorth() {
+        const s = Store.state, y = new Date().getFullYear();
+        if (y < s.configStartYear || y > s.configEndYear) return;
+        const want = Engine.netWorthFromSources({ polizas: s.polizas, holdings: s.holdings, accounts: s.accounts, debts: s.debts });
+        const keys = Object.keys(want);
+        if (!keys.length) return;
+        const yd = Store.year(y), nw = yd.netWorth, touched = yd.netWorthTouched || (yd.netWorthTouched = {});
+        keys.forEach(k => { const v = Math.round(want[k] * 100) / 100; if (Math.abs((Number(nw[k]) || 0) - v) > 0.004 || !touched[k]) { nw[k] = v; touched[k] = true; } });
+    }
+
     function changed(opts = {}) {
         if (!opts.keepUndo) dismissUndo();
+        syncNetWorth();
         recordChange();
         if (opts.step) commitHistory();
         Store.scheduleSave();
@@ -354,6 +368,17 @@
         'app.print': () => window.print(),
         'app.undo': () => undo(),
         'app.redo': () => redo(),
+        // Leave the example family for an empty plan of your own (undoable).
+        'app.startOwn': async () => {
+            const ok = await UI.confirm({ title: 'Empezar con mis datos', message: 'Se borra la familia de ejemplo y empiezas con un plan vacío. Puedes volver a ver el ejemplo desde Configuración.', confirmText: 'Empezar' });
+            if (!ok) return;
+            commitHistory();
+            Store.reset('empty');
+            Store.state.settings.welcomeDismissed = true;
+            Store.ui.month = 'base';
+            changed({ structural: true, step: true });
+            go('presupuesto/ingresos');
+        },
         'app.help': () => {
             go('config', { focus: 'cfg-guide' });
             const g = document.getElementById('cfg-guide');
@@ -365,6 +390,7 @@
         const E = root.APP_EDITION || {};
         if (E.appName) { UI.text('brand-title', E.appName); UI.text('brand-sub', E.appSub || ''); }
         Store.init();
+        syncNetWorth();
         hist.committed = snapshot();
         UI.initEvents();
         // Ctrl+Z / Ctrl+Y (⌘ on Mac). Inside a text box the browser's own undo for that box wins.

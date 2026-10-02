@@ -60,6 +60,7 @@ test('new baselines snapshot and restore the whole model', () => {
     const storage = memoryStorage();
     Store.init(storage);
     Store.state.transactions.push({ id: 99, type: 'Gasto', description: 'x', amount: 1, date: '2026-01-01', parentCategory: 'Otros' });
+    Store.state.goals.push({ id: 1, name: 'Viaje', target: 1000, current: 0, monthly: 50 });
     const b = Store.createBaseline('antes');
     Store.state.transactions = [];
     Store.state.goals = [];
@@ -146,8 +147,16 @@ test('older saves: debts budget their minimum, and the old "pago extra" moves in
     assert.equal(m.debtPlan.extraPayment, 0);
 });
 
-test('a new user starts with a balanced budget that funds the debt plan', () => {
+test('a new user starts with an empty plan', () => {
     Store.init(memoryStorage());
+    assert.equal(Store.state.transactions.length, 0);
+    assert.equal(Store.state.debts.length, 0);
+    assert.equal(Store.state.settings.welcomeDismissed, false);
+});
+
+test('the starter data has a balanced budget that funds the debt plan', () => {
+    Store.init(memoryStorage());
+    Store.reset('starter');
     const eff = Store.effective(Store.state.activeYear);
     const mb = Engine.monthBudget(eff, 'base');
     assert.ok(Math.abs(mb.balanceReal) < 0.005, `balance ${mb.balanceReal}`);

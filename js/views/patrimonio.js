@@ -6,7 +6,7 @@
     const ASSET_FIELDS = [
         { field: 'checking', label: 'Cuentas corrientes', help: 'Saldo de hoy en tus cuentas corrientes.' },
         { field: 'savings', label: 'Cuentas de ahorro', help: 'También cuenta para tu fondo de emergencia.' },
-        { field: 'investments', label: 'Inversiones y pólizas DPF', help: 'Usa "Traer pólizas, inversiones y deudas" para llenarlo con tus pólizas y acciones/ETF.' },
+        { field: 'investments', label: 'Inversiones y pólizas DPF', help: 'Pólizas, acciones/ETF y cuentas de jubilación.' },
         { registry: 'Bienes Raíces', label: 'Bienes raíces' },
         { registry: 'Vehículo', label: 'Vehículos' },
         { registry: 'Otro', label: 'Otros bienes de valor' }
@@ -76,15 +76,18 @@
         updateHoldings(ctx);
         const s = ctx.state, nw = ctx.netWorth, year = s.activeYear;
         UI.$$('[data-registry]').forEach(el => { el.textContent = money(nw.registry[el.dataset.registry] || 0); });
+        // This year, figures the app already knows fill themselves (read-only here).
+        const auto = year === ctx.today.getFullYear() ? Engine.netWorthFromSources({ polizas: s.polizas, holdings: s.holdings, accounts: s.accounts, debts: s.debts }) : {};
         UI.$$('[data-src]').forEach(el => {
             const f = el.dataset.src;
             const src = Engine.netWorthSource(s.years, year, f);
             const def = ASSET_FIELDS.concat(LIABILITY_FIELDS).find(d => d.field === f);
-            el.innerHTML = src !== null && src < year ? `<span class="text-slate-500">↩ Heredado de ${src}. Edítalo si cambió.</span>` : esc(def.help || '');
+            const input = document.querySelector(`[data-input="nw.set"][data-field="${f}"]`);
+            if (input) { input.readOnly = f in auto; input.classList.toggle('input-readonly', f in auto); }
+            el.innerHTML = f in auto
+                ? `<span class="linked">🔗 Automático: ${f === 'investments' ? 'tus pólizas, inversiones y cuentas de jubilación' : f === 'checking' || f === 'savings' ? 'tus <a href="#" class="link" data-goto="patrimonio" data-focus="nw-accounts">cuentas</a>' : 'tus <a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts">deudas</a>'}.</span>`
+                : src !== null && src < year ? `<span class="text-slate-500">↩ Heredado de ${src}. Edítalo si cambió.</span>` : esc(def.help || '');
         });
-        const sync = Views.netWorthSync(ctx);
-        UI.show('nw-sync-hint', !!sync);
-        if (sync) UI.html('nw-sync-hint', `<span><i class="fa-solid fa-circle-info"></i> Tus <a href="#" class="link" data-goto="futuro/polizas">pólizas</a> suman <strong>${money0(sync.polizas)}</strong>${sync.holdings ? `, tus <a href="#" class="link" data-goto="patrimonio" data-focus="nw-holdings">inversiones</a> <strong>${money0(sync.holdings)}</strong>` : ''} y tus <a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts">deudas</a> <strong>${money0(sync.debts)}</strong>, pero tu patrimonio de ${year} no coincide.</span><button class="btn btn-blue btn-sm" data-action="nw.prefill">Actualizar ahora</button>`);
         UI.text('nw-assets', money0(nw.assets));
         UI.text('nw-liabilities', money0(nw.liabilities));
         UI.text('nw-value', money(nw.value));
@@ -253,26 +256,6 @@
         'nw.set': (el) => {
             touch(Store.active(), el.dataset.field, Math.max(0, parseNum(el.value, 0)));
             App.changed();
-        },
-        'nw.prefill': () => {
-            const s = Store.state, yd = Store.active();
-            const accts = s.accounts || [];
-            const capital = Engine.polizasCapital(s.polizas) + Engine.holdingsValue(s.holdings) + Engine.accountTotal(accts, 'retiro');
-            touch(yd, 'investments', capital);
-            // Accounts, when registered, fill checking (corriente + efectivo) and savings.
-            if (accts.length) {
-                touch(yd, 'checking', Engine.accountTotal(accts, 'cash'));
-                touch(yd, 'savings', Engine.accountTotal(accts, 'ahorros'));
-            }
-            const byKind = {};
-            Engine.DEBT_KINDS.forEach(k => { byKind[k.netWorthField] = 0; });
-            s.debts.forEach(d => {
-                const k = Engine.DEBT_KINDS.find(x => x.id === d.kind) || Engine.DEBT_KINDS[4];
-                byKind[k.netWorthField] += Math.max(0, Number(d.balance) || 0);
-            });
-            Object.keys(byKind).forEach(f => touch(yd, f, byKind[f]));
-            App.changed({ structural: true });
-            UI.toast(`Actualizado ${s.activeYear}: inversiones ${money0(capital)} y ${s.debts.length} deuda(s) por tipo.`);
         },
         'asset.set': (el) => {
             const a = find(el);

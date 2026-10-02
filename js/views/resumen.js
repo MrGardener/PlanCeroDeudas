@@ -225,8 +225,6 @@
             if (late.length) add('tone-red', 'fa-calendar-xmark text-red-600', `Pagos vencidos: ${late.map(b => `<strong>${esc(b.item.name)}</strong> (día ${b.day})`).join(', ')}.`, 'resumen', 'dash-bills-card');
             if (over.length) add('tone-red', 'fa-cart-shopping text-red-600', `Este mes te pasaste en: <strong>${over.map(i => esc(i.name)).join(', ')}</strong>.`, 'presupuesto/plan');
         }
-        const sync = Views.netWorthSync(ctx);
-        if (sync) add('tone-blue', 'fa-scale-balanced text-teal-600', `Tu patrimonio ${s.activeYear} no refleja tus pólizas (${money0(sync.polizas)}) y deudas (${money0(sync.debts)}) registradas.`, 'patrimonio');
         const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
         const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
         if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no tienes una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
@@ -249,14 +247,19 @@
         const welcome = document.getElementById('dash-welcome');
         UI.show(welcome, !s.settings.welcomeDismissed);
         if (!s.settings.welcomeDismissed) {
+            // First visit: start your own plan, or look around a complete example household first.
             welcome.innerHTML = `<div class="card-head">
-                    <div><div class="card-title"><i class="fa-solid fa-hand text-emerald-600"></i> Bienvenido a tu Plan Financiero</div><div class="card-sub">Lee esto una vez: así funciona la app y así cuidas tus datos. Siempre puedes volver a verlo con el botón <i class="fa-solid fa-circle-question"></i> de arriba.</div></div>
+                    <div><div class="card-title"><i class="fa-solid fa-hand text-emerald-600"></i> Bienvenido a tu Plan Financiero</div><div class="card-sub">¿Cómo quieres empezar? Puedes cambiar de opinión cuando quieras.</div></div>
                 </div>
-                ${Views.guideHTML()}
-                <div class="flex flex-wrap justify-end gap-2 mt-5">
-                    <button class="btn btn-secondary" data-action="app.dismissWelcome">Entendido</button>
-                    <button class="btn btn-primary" data-action="app.dismissWelcome" data-then="presupuesto/ingresos">Empezar con mi sueldo <i class="fa-solid fa-arrow-right"></i></button>
-                </div>`;
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button type="button" class="start-choice" data-action="app.dismissWelcome" data-then="presupuesto/ingresos">
+                        <i class="fa-solid fa-pen-to-square text-emerald-600"></i><strong>Empezar con mis datos</strong>
+                        <span>Un plan vacío: tu sueldo primero, luego tu presupuesto, tus deudas y tus metas.</span></button>
+                    <button type="button" class="start-choice" data-action="app.loadExample">
+                        <i class="fa-solid fa-people-roof text-blue-600"></i><strong>Explorar el ejemplo</strong>
+                        <span>Una familia de 4 con un año de transacciones, deudas, ahorros e inversiones, para ver todo lo que hace la app.</span></button>
+                </div>
+                <details class="mt-4"><summary class="link text-xs">Cómo funciona la app y cómo cuidar tus datos</summary><div class="mt-3">${Views.guideHTML()}</div></details>`;
         }
         UI.html('dash-hero', hero(ctx));
         UI.html('dash-steps', Views.stepsHTML(ctx, { compact: true }));
@@ -299,6 +302,18 @@
             txns.push({ id: Store.nextId(txns), type: 'Gasto', description: item.name, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date: Engine.isoDate(today), paymentType: 'Transferencia', budgetLine: String(item.id) });
             App.changed({ structural: true, step: true });
             UI.toast(`Pago de "${item.name}" registrado (${Fmt.money(amount)}).`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        },
+        'app.loadExample': async () => {
+            const s = Store.state;
+            const hasData = !s.settings.sample && (s.transactions.length || s.debts.length || s.goals.length || s.polizas.length);
+            if (hasData && !(await UI.confirm({ title: 'Ver la familia de ejemplo', message: 'Tus datos se reemplazan por los del ejemplo. Descarga antes una copia de respaldo si quieres volver a ellos (también puedes deshacer).', confirmText: 'Ver el ejemplo', danger: true }))) return;
+            App.commitHistory();
+            Store.reset('example');
+            Store.state.settings.welcomeDismissed = true;
+            Store.ui.month = 'base';
+            App.changed({ structural: true, step: true });
+            App.go('resumen');
+            UI.toast('Estás viendo una familia de ejemplo. Cuando quieras, empieza con tus datos desde el aviso de arriba.');
         },
         'app.dismissWelcome': (el) => {
             Store.state.settings.welcomeDismissed = true;
