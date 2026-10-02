@@ -1016,6 +1016,21 @@
         s.holdings = P.holdings.map(h => Object.assign({}, h, { priceAt: new Date(T.getFullYear(), T.getMonth(), T.getDate(), 9, 30).toISOString(), priceSource: 'manual' }));
         s.polizas = P.polizas.map((p, i) => ({ id: i + 1, coopName: p.coopName, number: p.number, amount: p.amount, rate: p.rate, days: p.days, modality: p.modality, maturityDate: addDays(p.matureIn) }));
         s.assets = P.assets.map((a, i) => ({ id: i + 1, name: a.name, category: a.category, purchaseYear: a.purchaseYear, purchaseValue: a.purchaseValue, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: a.values }));
+        // Yearly bills for the annual planner (no fund yet: "Crear el apartado" is the next step).
+        s.annualBills = (US ? [
+            { name: 'Car registration (Odyssey + Civic)', amount: 238, every: 12, month: 3, category: 'Transporte', sub: 'Matriculación/Revisión Vehicular' },
+            { name: 'Amazon Prime', amount: 139, every: 12, month: 7, category: 'Suscripciones y Entretenimiento Digital' },
+            { name: 'Summer camp (Emma)', amount: 650, every: 12, month: 6, category: 'Familia e Hijos' },
+            { name: 'Back-to-school', amount: 380, every: 12, month: 8, category: 'Educación' },
+            { name: 'Holiday gifts', amount: 900, every: 12, month: 12, category: 'Regalos, Celebraciones y Donaciones' },
+            { name: 'Tax preparation', amount: 180, every: 12, month: 3, category: 'Financiero y Legal', sub: 'Preparación de Impuestos' }
+        ] : [
+            { name: 'Matrícula vehicular (Sportage)', amount: 185, every: 12, month: 4, category: 'Transporte', sub: 'Matriculación/Revisión Vehicular' },
+            { name: 'Impuesto predial', amount: 240, every: 12, month: 1, category: 'Vivienda' },
+            { name: 'Seguro del carro', amount: 690, every: 12, month: 6, category: 'Seguros y Protección' },
+            { name: 'Útiles y uniformes escolares', amount: 320, every: 12, month: 9, category: 'Educación' },
+            { name: 'Regalos de Navidad', amount: 450, every: 12, month: 12, category: 'Regalos, Celebraciones y Donaciones' }
+        ]).map((b, i) => Object.assign({ id: i + 1 }, b));
         s.mortgage = Object.assign(s.mortgage, P.mortgage);
         Object.assign(s.retirement, P.retirement, { tasaRetorno: null, inflacion: null, sueldoPromedio: null, whatIfExtra: 0 });
         s.debtPlan = { strategy: 'snowball', extraPayment: 0 };

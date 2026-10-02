@@ -164,7 +164,19 @@
         return s;
     }
 
-    const DefaultsUS = { clone, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
+    // Ideas for the annual bills planner: the yearly costs that catch US families off guard.
+    const annualIdeas = () => [
+        { name: 'Car registration', amount: 120, every: 12, month: 3, category: 'Transporte', sub: 'Matriculación/Revisión Vehicular' },
+        { name: 'Car insurance (6 months)', amount: 650, every: 6, month: 4, category: 'Transporte', sub: 'Seguro Vehicular' },
+        { name: 'Amazon Prime', amount: 139, every: 12, month: 7, category: 'Suscripciones y Entretenimiento Digital' },
+        { name: 'Holiday gifts', amount: 800, every: 12, month: 12, category: 'Regalos, Celebraciones y Donaciones' },
+        { name: 'Back-to-school', amount: 350, every: 12, month: 8, category: 'Educación' },
+        { name: 'Tax preparation', amount: 250, every: 12, month: 3, category: 'Financiero y Legal', sub: 'Preparación de Impuestos' },
+        { name: 'Summer camp', amount: 600, every: 12, month: 6, category: 'Familia e Hijos' },
+        { name: 'Life insurance (yearly)', amount: 420, every: 12, month: 1, category: 'Seguros y Protección' }
+    ];
+
+    const DefaultsUS = { clone, annualIdeas, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = DefaultsUS;
     else root.DefaultsUS = DefaultsUS;

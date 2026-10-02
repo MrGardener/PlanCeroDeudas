@@ -417,7 +417,7 @@
     function categorySpend(transactions, category, year, month) {
         if (!category || category === 'none') return null;
         return sum((transactions || []).filter(t => {
-            if (txnType(t) !== 'Gasto' || t.parentCategory !== category) return false;
+            if (txnType(t) !== 'Gasto' || t.fromGoal || t.parentCategory !== category) return false;
             const d = txnDate(t);
             if (d.getFullYear() !== year) return false;
             return month === 'base' || (d.getMonth() + 1) === Number(month);
@@ -458,7 +458,7 @@
         });
         const unassigned = [];
         (transactions || []).forEach(t => {
-            if (txnType(t) !== 'Gasto') return;
+            if (txnType(t) !== 'Gasto' || t.fromGoal) return;
             const d = txnDate(t);
             if (d.getFullYear() !== Number(year)) return;
             if (month !== 'base' && (d.getMonth() + 1) !== Number(month)) return;
@@ -487,7 +487,7 @@
     function budgetVsActualByMonth(yd, transactions, year) {
         return MONTHS.map(m => {
             const actual = sum((transactions || []).filter(t => {
-                if (txnType(t) !== 'Gasto') return false;
+                if (txnType(t) !== 'Gasto' || t.fromGoal) return false;
                 const d = txnDate(t);
                 return d.getFullYear() === Number(year) && (d.getMonth() + 1) === Number(m);
             }), amt);
@@ -943,6 +943,32 @@
     // rubros), plus the whole line of any debt already paid off, rolls to the debt the strategy
     // targets (snowball: smallest balance; avalanche: highest rate). No money is assumed that
     // the budget doesn't assign. A minimums-only run gives the time/interest the plan saves.
+    // ------------------------------------------------- annual & irregular bills
+    // A bill that comes once a year (or every 6 / 3 months): car registration, insurance,
+    // property tax, school supplies… { name, amount, every: 12 | 6 | 3, month: 1–12 (a month it's due) }.
+    const billEvery = (b) => [1, 2, 3, 4, 6, 12].includes(Number(b.every)) ? Number(b.every) : 12;
+    const billDueIn = (b, m) => { const e = billEvery(b); return ((m - num(b.month)) % e + e) % e === 0; };
+    // Set aside each month so the money is there when each bill comes: its yearly cost ÷ 12.
+    const annualSetAside = (bills) => cents(sum(bills || [], b => num(b.amount) / billEvery(b)));
+    // Month by month from this one: the set-aside comes in, then that month's bills go out.
+    // `needed` is what the fund is short at its lowest point (bills due before enough was saved).
+    function annualBillsPlan(bills, { start = 0, monthly = null, today = new Date(), months = 12 } = {}) {
+        const t = new Date(today);
+        const each = monthly === null ? annualSetAside(bills) : num(monthly);
+        let fund = num(start), low = fund;
+        const rows = [];
+        for (let i = 0; i < months; i++) {
+            const d = new Date(t.getFullYear(), t.getMonth() + i, 1);
+            const m = d.getMonth() + 1;
+            const due = (bills || []).filter(b => num(b.amount) > 0 && billDueIn(b, m));
+            const paid = sum(due, b => num(b.amount));
+            fund = cents(fund + each - paid);
+            low = Math.min(low, fund);
+            rows.push({ key: `${d.getFullYear()}-${pad2(m)}`, month: m, year: d.getFullYear(), bills: due, paid: cents(paid), fund, short: fund < -0.005 });
+        }
+        return { monthly: each, yearly: cents(sum(bills || [], b => num(b.amount) * 12 / billEvery(b))), rows, needed: cents(Math.max(0, -low)), firstShort: rows.find(r => r.short) || null };
+    }
+
     // A debt payment: this month's interest is paid first and the rest lowers the balance.
     // The interest is an estimate (balance × rate / 12) unless the statement says otherwise.
     const cents = (v) => Math.round(v * 100) / 100;
@@ -1471,7 +1497,9 @@
             // A transfer leaves your cash unless it came from savings, and arrives if it went
             // to a checking/cash account (paying a card or moving money to savings lowers it).
             if (isTransfer(x)) { adjust += num(x.amount) * ((isCash(x.to) ? 1 : 0) - (!x.from || isCash(x.from) ? 1 : 0)); return; }
-            if (x.paymentType === 'Tarjeta de Crédito') return;
+            // Card purchases leave the account when the card is paid; purchases paid from a
+            // savings fund (a goal) come out of savings.
+            if (x.paymentType === 'Tarjeta de Crédito' || x.fromGoal) return;
             adjust += txnType(x) === 'Ingreso' ? num(x.amount) : -amt(x);
         });
         return { base, adjust, total: base + adjust, asOf, accounts: cash.length };
@@ -1643,7 +1671,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

@@ -213,6 +213,9 @@
         let pending = false;
         if (tr) {
             chip = `<span class="chip-note"><i class="fa-solid fa-right-left"></i> ${esc(placeName(t.from))} → ${esc(placeName(t.to))}</span>`;
+        } else if (t.fromGoal) {
+            const g = (Store.state.goals || []).find(x => x.id === t.fromGoal);
+            chip = `<span class="chip-note" title="Ya lo fuiste apartando: no cuenta otra vez en el presupuesto del mes"><i class="fa-solid fa-piggy-bank"></i> Pagado con «${esc(g ? g.name : 'un ahorro')}»</span>`;
         } else if (inc) {
             const yd = Store.state.years[d.getFullYear()];
             const lines = (yd && yd.otherIncomes) || [];
@@ -294,7 +297,7 @@
         UI.text('txn-sum-inc', money(inc));
         UI.text('txn-sum-exp', money(exp));
         UI.text('txn-sum-net', money(inc - exp));
-        const pending = list.filter(t => (t.type || 'Gasto') === 'Gasto' && !assignOf(t).lineId).length;
+        const pending = list.filter(t => (t.type || 'Gasto') === 'Gasto' && !t.fromGoal && !assignOf(t).lineId).length;
         UI.html('txn-unassigned-note', pending ? `<i class="fa-solid fa-circle-exclamation text-amber-600"></i> ${pending} gasto${pending === 1 ? '' : 's'} sin rubro: elige su rubro en el botón punteado para que cuenten en tu presupuesto.` : '');
 
         renderBulk();

@@ -191,6 +191,7 @@
                 + byGroup[g].map(it => rowHTML(it, tax)).join('');
         }).join('');
         UI.html('bud-body', incomeRowsHTML(ctx) + (body || '<tr class="empty-row"><td colspan="9">No hay rubros. Agrega el primero.</td></tr>'));
+        if (window.AnnualBills) AnnualBills.render(ctx);
         update(ctx);
     }
 
@@ -198,6 +199,7 @@
         const yd = ctx.year;
         const m = month();
         const mb = ctx.monthBudget;
+        if (window.AnnualBills) AnnualBills.update(ctx);
         const today = ctx.today;
         const list = items(ctx);
 
@@ -227,7 +229,7 @@
         if (sm) {
             const monthItemsSm = Engine.monthItems(ctx.budgetYear, sm);
             const plannedSpend = monthItemsSm.filter(i => !Engine.isSavingsItem(i)).reduce((t, i) => t + (Number(i.real) || 0), 0);
-            const spentAll = ctx.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && Number(t.date.slice(0, 4)) === ctx.state.activeYear && String(Number(t.date.slice(5, 7))) === sm)
+            const spentAll = ctx.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && !t.fromGoal && Number(t.date.slice(0, 4)) === ctx.state.activeYear && String(Number(t.date.slice(5, 7))) === sm)
                 .reduce((t, x) => t + Engine.spendAmount(x), 0);
             const risk = Engine.overspendRisk({ planned: plannedSpend, spent: spentAll, year: ctx.state.activeYear, month: sm, today });
             const LBL = { none: ['Sin datos', 'tone-slate', 'Registra tus gastos para medirlo.'], low: ['Bajo', 'tone-emerald', 'Vas a buen ritmo.'], medium: ['Medio', 'tone-amber', 'Gastas un poco más rápido de lo planeado.'], high: ['Alto', 'tone-red', 'A este ritmo te pasarás del presupuesto.'] }[risk.level];

@@ -172,6 +172,8 @@
             // Money accounts: { id, name, kind: 'corriente'|'ahorros'|'efectivo', balance, updatedAt }.
             // Cards and loans are debts (Deudas y Metas), so they're never counted twice.
             accounts: [],
+            // Yearly / irregular bills to set money aside for: { id, name, amount, every, month, category, sub }.
+            annualBills: [],
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -184,11 +186,23 @@
     // (taxonomies, cooperativas) because they are configuration, not personal data.
     function emptyState(today) {
         const s = newState(today);
-        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = [];
+        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = []; s.annualBills = [];
         return s;
     }
 
-    const Defaults = { clone, BUDGET_TEMPLATE, BUDGET_TYPES, EXPENSE_TAXONOMY, INCOME_TAXONOMY, COOPERATIVAS, sriBrackets, newYear, newState, emptyState };
+    // Ideas for the annual bills planner: the yearly costs that catch Ecuadorian families off guard.
+    const annualIdeas = () => [
+        { name: 'Matrícula vehicular', amount: 180, every: 12, month: 4, category: 'Transporte', sub: 'Matriculación/Revisión Vehicular' },
+        { name: 'Seguro del carro', amount: 650, every: 12, month: 6, category: 'Seguros y Protección' },
+        { name: 'Impuesto predial', amount: 220, every: 12, month: 1, category: 'Vivienda' },
+        { name: 'Útiles y uniformes escolares', amount: 300, every: 12, month: 9, category: 'Educación' },
+        { name: 'Matrícula del colegio', amount: 250, every: 12, month: 8, category: 'Educación' },
+        { name: 'Regalos de Navidad', amount: 400, every: 12, month: 12, category: 'Regalos, Celebraciones y Donaciones' },
+        { name: 'Declaración del impuesto a la renta', amount: 60, every: 12, month: 3, category: 'Financiero y Legal' },
+        { name: 'Mantenimiento del carro', amount: 200, every: 6, month: 5, category: 'Transporte' }
+    ];
+
+    const Defaults = { clone, annualIdeas, BUDGET_TEMPLATE, BUDGET_TYPES, EXPENSE_TAXONOMY, INCOME_TAXONOMY, COOPERATIVAS, sriBrackets, newYear, newState, emptyState };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = Defaults;
     else root.Defaults = Defaults;

@@ -24,7 +24,7 @@
             ${cell('target', 100)}${cell('current', 100)}${cell('monthly', 10).replace('cell-input num', 'cell-input num money')}${cell('rate', 0.1)}
             <td><input type="month" class="cell-input" value="${esc(g.targetDate || '')}" data-change="goal.set" data-id="${g.id}" data-field="targetDate" aria-label="Fecha meta"></td>
             <td data-cell="time"></td>
-            <td class="text-center whitespace-nowrap"><button class="mini-btn" data-action="goal.deposit" data-id="${g.id}" title="Sumar un depósito a lo ahorrado">Depositar</button> <button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td class="text-center whitespace-nowrap"><button class="mini-btn" data-action="goal.deposit" data-id="${g.id}" title="Sumar un depósito a lo ahorrado">Depositar</button> ${Number(g.current) > 0 ? `<button class="mini-btn" data-action="goal.spend" data-id="${g.id}" title="Pagar una compra con este dinero ahorrado (no cuenta otra vez en el presupuesto del mes)">Usar</button> ` : ''}<button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 
@@ -346,6 +346,40 @@
             }
             App.changed({ structural: true, step: true });
             UI.toast(`${Fmt.money(amount)} depositados en "${g.name}". Llevas ${Fmt.money0(g.current)} de ${Fmt.money0(g.target)}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        },
+        // Spend what was saved for this: the purchase is logged in its own category (so reports
+        // show where the money went) but paid by the goal, so it doesn't count in this month's
+        // budget a second time. What the goal can't cover counts normally.
+        'goal.spend': async (el) => {
+            const g = find(Store.state.goals, el);
+            if (!g) return;
+            const pre = el.dataset || {};
+            const s = Store.state, tax = s.taxonomy.expense;
+            const cats = Object.keys(tax);
+            if (pre.cat && cats.includes(pre.cat)) cats.unshift(cats.splice(cats.indexOf(pre.cat), 1)[0]);
+            const r = await UI.form({
+                title: `Usar el dinero de "${g.name}"`,
+                message: `Tienes ${money(g.current)} ahorrados aquí. La compra queda en Transacciones, pero no cuenta otra vez en tu presupuesto del mes: ya la fuiste apartando.`,
+                fields: [
+                    { name: 'amount', label: 'Monto', type: 'number', min: 0, step: '0.01', value: pre.amount || '' },
+                    { name: 'desc', label: '¿Qué pagaste?', value: pre.desc || g.name },
+                    { name: 'cat', label: 'Categoría', options: cats },
+                    { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) }
+                ],
+                confirmText: 'Registrar',
+                validate: v => !(v.amount > 0) ? 'Escribe un monto mayor a 0.' : !v.desc.trim() ? 'Escribe qué pagaste.' : !v.date ? 'Elige una fecha.' : null
+            });
+            if (!r) return;
+            const amount = Math.round(r.amount * 100) / 100;
+            const covered = Math.min(amount, Math.max(0, Number(g.current) || 0));
+            const rest = Math.round((amount - covered) * 100) / 100;
+            const sub = pre.sub && (tax[r.cat] || []).includes(pre.sub) ? pre.sub : (tax[r.cat] || [])[0] || '';
+            App.undoable(rest > 0 ? `${money(covered)} pagados con «${g.name}»; los otros ${money(rest)} cuentan en tu presupuesto del mes.` : `${money(amount)} pagados con «${g.name}». Quedan ${money(Number(g.current) - covered)}.`, () => {
+                g.current = Math.round(((Number(g.current) || 0) - covered) * 100) / 100;
+                const base = { type: 'Gasto', description: r.desc.trim(), store: '', parentCategory: r.cat, category: sub, date: r.date, paymentType: 'Tarjeta de Débito', createdAt: new Date().toISOString() };
+                if (covered > 0) s.transactions.push(Object.assign({ id: Store.nextId(s.transactions), amount: covered, fromGoal: g.id }, base));
+                if (rest > 0) s.transactions.push(Object.assign({ id: Store.nextId(s.transactions), amount: rest }, base));
+            });
         },
         'goal.delete': (el) => {
             const g = find(Store.state.goals, el);

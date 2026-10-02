@@ -934,3 +934,29 @@ test('debt balance history comes from the logged payments', () => {
     assert.deepEqual(h.map(x => x.month), ['2026-07', '2026-08', '2026-09']);
     assert.deepEqual(h.map(x => x.total), [1500, 1400, 1300]);
 });
+
+test('annual bills: monthly set-aside and whether the fund covers each bill in time', () => {
+    const bills = [
+        { name: 'Car insurance', amount: 600, every: 6, month: 3 },     // Mar & Sep
+        { name: 'Registration', amount: 120, every: 12, month: 11 },
+        { name: 'Prime', amount: 139, every: 12, month: 1 }
+    ];
+    assert.equal(E.annualSetAside(bills), 100 + 10 + 11.58);
+    assert.ok(E.billDueIn(bills[0], 9) && E.billDueIn(bills[0], 3) && !E.billDueIn(bills[0], 6));
+    // From October with an empty fund: Nov registration fine, Jan Prime fine, March insurance short.
+    const p = E.annualBillsPlan(bills, { start: 0, today: new Date(2026, 9, 2) });
+    assert.equal(p.yearly, 1459);
+    assert.equal(p.rows[0].key, '2026-10');
+    assert.equal(p.rows[1].paid, 120);
+    assert.equal(p.firstShort.key, '2027-03');
+    // Starting with what's needed, it never runs short.
+    assert.equal(E.annualBillsPlan(bills, { start: p.needed, today: new Date(2026, 9, 2) }).firstShort, null);
+});
+
+test('a purchase paid from a savings fund does not count in the month\'s budget again', () => {
+    const items = [{ id: 1, name: 'Viajes', linkedCategory: 'Viajes', real: 50 }];
+    const txns = [{ id: 1, type: 'Gasto', parentCategory: 'Viajes', amount: 900, date: '2026-09-05', fromGoal: 3 }, { id: 2, type: 'Gasto', parentCategory: 'Viajes', amount: 40, date: '2026-09-06' }];
+    assert.equal(E.lineSpend(items, txns, 2026, '9').byLine['1'].spent, 40);
+    assert.equal(E.categorySpend(txns, 'Viajes', 2026, '9'), 40);
+    assert.equal(E.categoryBreakdown(txns, { from: '2026-09-01', to: '2026-09-30' }).total, 940);   // reports still see it
+});

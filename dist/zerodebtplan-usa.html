@@ -304,6 +304,13 @@ input[type="file"].hidden { display: none; }
 .txn-date.pending { border-style: dashed; }
 .txn-date.tr { border-color: var(--faint); color: var(--muted); }
 .txn-amt.tr { color: var(--muted); }
+.annual-steps { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+.annual-step { border: 1px solid var(--line); border-radius: var(--r-md); padding: .55rem .7rem; font-size: var(--fs-xs); background: var(--surface); }
+.annual-step.short { border-color: #fca5a5; background: #fef2f2; }
+html[data-theme="dark"] .annual-step.short { border-color: #7f1d1d; background: #2a0d0d; }
+.annual-when { font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-size: var(--fs-2xs); margin-bottom: .25rem; }
+.annual-what { display: grid; gap: .2rem; color: var(--ink); }
+.annual-after { margin-top: .3rem; font-size: var(--fs-2xs); font-weight: 700; }
 .check-row { display: flex; align-items: flex-start; gap: .4rem; padding-bottom: .55rem; font-size: var(--fs-xs); color: var(--ink-2); line-height: 1.35; cursor: pointer; }
 .check-row input { margin-top: .15rem; accent-color: var(--brand); }
 .txn-desc { font-size: .88rem; font-weight: 700; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -964,6 +971,26 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
             </div>
             </div>
         </div>
+
+        <details class="card group-card" id="bud-annual-card">
+            <summary class="flex items-center justify-between gap-3">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-calendar-days text-blue-600"></i> Gastos anuales e irregulares</div>
+                    <div class="card-sub">Matrícula del carro, seguros, impuestos, útiles, regalos de Navidad… Lo que pagas una o dos veces al año, convertido en un apartado mensual para que no te tome por sorpresa.</div>
+                </div>
+                <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+            </summary>
+            <div id="annual-summary" class="mb-4"></div>
+            <div class="table-wrap"><table class="table">
+                <thead><tr><th>Gasto</th><th class="num">Monto ($)</th><th>Cada</th><th>Mes en que toca</th><th>Categoría</th><th class="num">Apartar</th><th></th></tr></thead>
+                <tbody id="annual-body"></tbody>
+            </table></div>
+            <div class="flex flex-wrap items-center gap-2 mt-3">
+                <button type="button" class="btn btn-secondary btn-sm" data-action="annual.add"><i class="fa-solid fa-plus"></i> Agregar gasto anual</button>
+                <div id="annual-ideas" class="flex flex-wrap items-center gap-1.5"></div>
+            </div>
+            <div id="annual-timeline"></div>
+        </details>
 
         <div class="card" id="bud-trend-card">
             <div class="card-head">
@@ -4485,6 +4512,40 @@ I18n.add('en', {
     "🎉 ¡Pagaste \"{0}\" por completo!": "🎉 You paid off \"{0}\"!"
 });
 I18n.add('en', { "Lo que debes, últimos 6 meses: de {0} a {1}": "What you owe, last 6 months: from {0} to {1}" });
+// Annual bills planner and spending from a savings goal
+I18n.add('en', {
+    "Gastos anuales e irregulares": "Annual and irregular bills", "Gastos anuales": "Annual bills",
+    "Matrícula del carro, seguros, impuestos, útiles, regalos de Navidad… Lo que pagas una o dos veces al año, convertido en un apartado mensual para que no te tome por sorpresa.": "Car registration, insurance, taxes, school supplies, holiday gifts… What you pay once or twice a year, turned into a monthly set-aside so it never catches you off guard.",
+    "Cada": "Every", "Mes en que toca": "Month it's due", "Monto ($)": "Amount ($)",
+    "Agregar gasto anual": "Add annual bill", "Nuevo gasto anual": "New annual bill",
+    "Anota lo que pagas una o dos veces al año. Te decimos cuánto apartar cada mes para que nunca te tome por sorpresa.": "List what you pay once or twice a year. We'll tell you how much to set aside each month so it never catches you off guard.",
+    "Aparta cada mes": "Set aside each month", "{0} al año en {1} gasto{2}": "{0} a year across {1} bill{2|s}",
+    "Aún no apartas este dinero.": "You're not setting this money aside yet.",
+    "Crea una meta «Gastos anuales» de {0} al mes: aparece en tu presupuesto como cualquier rubro de ahorro, y cuando llegue cada gasto lo pagas desde ahí.": "Create an «Annual bills» goal of {0} a month: it shows in your budget like any savings line, and when each bill comes you pay it from there.",
+    "Crear el apartado en mi presupuesto": "Add the set-aside to my budget",
+    "Tu apartado «{0}» tiene": "Your «{0}» fund has", "y tu presupuesto le pone": "and your budget puts in",
+    "Es menos de lo que necesitas ({0}).": "That's less than you need ({0}).",
+    "En {0} te faltarían {1}.": "In {0} you'd be {1} short.",
+    "Deposita esa diferencia en el apartado ahora (o sube lo que apartas) para pagar a tiempo.": "Deposit that difference into the fund now (or set aside more) to pay on time.",
+    "Alcanza para pagar cada gasto a tiempo.": "There's enough to pay each bill on time.",
+    "Próximos 12 meses": "Next 12 months",
+    "\"{0}\" quitado de tus gastos anuales": "\"{0}\" removed from your annual bills",
+    "Apartado «{0}» creado: {1} al mes en tu presupuesto": "«{0}» fund created: {1} a month in your budget",
+    "Apartado ajustado a {0} al mes": "Set-aside adjusted to {0} a month",
+    "Usar el dinero de \"{0}\"": "Use the money in \"{0}\"",
+    "Tienes {0} ahorrados aquí. La compra queda en Transacciones, pero no cuenta otra vez en tu presupuesto del mes: ya la fuiste apartando.": "You have {0} saved here. The purchase goes into Transactions, but it doesn't count in this month's budget again: you already set it aside.",
+    "¿Qué pagaste?": "What did you pay for?", "Escribe qué pagaste.": "Type what you paid for.",
+    "Pagar una compra con este dinero ahorrado (no cuenta otra vez en el presupuesto del mes)": "Pay for a purchase with this saved money (it doesn't count in this month's budget again)",
+    "Pagado con «{0}»": "Paid from «{0}»", "un ahorro": "savings",
+    "Ya lo fuiste apartando: no cuenta otra vez en el presupuesto del mes": "Already set aside: it doesn't count in this month's budget again",
+    "{0} pagados con «{1}». Quedan {2}.": "{0} paid from «{1}». {2} left.",
+    "{0} pagados con «{1}»; los otros {2} cuentan en tu presupuesto del mes.": "{0} paid from «{1}»; the other {2} count in this month's budget.",
+    "Matrícula vehicular": "Vehicle registration", "Seguro del carro": "Car insurance", "Impuesto predial": "Property tax",
+    "Útiles y uniformes escolares": "School supplies and uniforms", "Matrícula del colegio": "School enrollment fee",
+    "Regalos de Navidad": "Christmas gifts", "Declaración del impuesto a la renta": "Income tax filing", "Mantenimiento del carro": "Car maintenance"
+});
+I18n.add('en', { "Apartar": "Set aside" });
+I18n.add('en', { "Quedan {0} en el apartado": "{0} left in the fund" });
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -5071,6 +5132,8 @@ I18n.country('US', {
             // Money accounts: { id, name, kind: 'corriente'|'ahorros'|'efectivo', balance, updatedAt }.
             // Cards and loans are debts (Deudas y Metas), so they're never counted twice.
             accounts: [],
+            // Yearly / irregular bills to set money aside for: { id, name, amount, every, month, category, sub }.
+            annualBills: [],
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -5083,11 +5146,23 @@ I18n.country('US', {
     // (taxonomies, cooperativas) because they are configuration, not personal data.
     function emptyState(today) {
         const s = newState(today);
-        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = [];
+        s.polizas = []; s.goals = []; s.debts = []; s.assets = []; s.transactions = []; s.holdings = []; s.recurring = []; s.trash = []; s.accounts = []; s.annualBills = [];
         return s;
     }
 
-    const Defaults = { clone, BUDGET_TEMPLATE, BUDGET_TYPES, EXPENSE_TAXONOMY, INCOME_TAXONOMY, COOPERATIVAS, sriBrackets, newYear, newState, emptyState };
+    // Ideas for the annual bills planner: the yearly costs that catch Ecuadorian families off guard.
+    const annualIdeas = () => [
+        { name: 'Matrícula vehicular', amount: 180, every: 12, month: 4, category: 'Transporte', sub: 'Matriculación/Revisión Vehicular' },
+        { name: 'Seguro del carro', amount: 650, every: 12, month: 6, category: 'Seguros y Protección' },
+        { name: 'Impuesto predial', amount: 220, every: 12, month: 1, category: 'Vivienda' },
+        { name: 'Útiles y uniformes escolares', amount: 300, every: 12, month: 9, category: 'Educación' },
+        { name: 'Matrícula del colegio', amount: 250, every: 12, month: 8, category: 'Educación' },
+        { name: 'Regalos de Navidad', amount: 400, every: 12, month: 12, category: 'Regalos, Celebraciones y Donaciones' },
+        { name: 'Declaración del impuesto a la renta', amount: 60, every: 12, month: 3, category: 'Financiero y Legal' },
+        { name: 'Mantenimiento del carro', amount: 200, every: 6, month: 5, category: 'Transporte' }
+    ];
+
+    const Defaults = { clone, annualIdeas, BUDGET_TEMPLATE, BUDGET_TYPES, EXPENSE_TAXONOMY, INCOME_TAXONOMY, COOPERATIVAS, sriBrackets, newYear, newState, emptyState };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = Defaults;
     else root.Defaults = Defaults;
@@ -5260,7 +5335,19 @@ I18n.country('US', {
         return s;
     }
 
-    const DefaultsUS = { clone, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
+    // Ideas for the annual bills planner: the yearly costs that catch US families off guard.
+    const annualIdeas = () => [
+        { name: 'Car registration', amount: 120, every: 12, month: 3, category: 'Transporte', sub: 'Matriculación/Revisión Vehicular' },
+        { name: 'Car insurance (6 months)', amount: 650, every: 6, month: 4, category: 'Transporte', sub: 'Seguro Vehicular' },
+        { name: 'Amazon Prime', amount: 139, every: 12, month: 7, category: 'Suscripciones y Entretenimiento Digital' },
+        { name: 'Holiday gifts', amount: 800, every: 12, month: 12, category: 'Regalos, Celebraciones y Donaciones' },
+        { name: 'Back-to-school', amount: 350, every: 12, month: 8, category: 'Educación' },
+        { name: 'Tax preparation', amount: 250, every: 12, month: 3, category: 'Financiero y Legal', sub: 'Preparación de Impuestos' },
+        { name: 'Summer camp', amount: 600, every: 12, month: 6, category: 'Familia e Hijos' },
+        { name: 'Life insurance (yearly)', amount: 420, every: 12, month: 1, category: 'Seguros y Protección' }
+    ];
+
+    const DefaultsUS = { clone, annualIdeas, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = DefaultsUS;
     else root.DefaultsUS = DefaultsUS;
@@ -6285,6 +6372,21 @@ I18n.country('US', {
         s.holdings = P.holdings.map(h => Object.assign({}, h, { priceAt: new Date(T.getFullYear(), T.getMonth(), T.getDate(), 9, 30).toISOString(), priceSource: 'manual' }));
         s.polizas = P.polizas.map((p, i) => ({ id: i + 1, coopName: p.coopName, number: p.number, amount: p.amount, rate: p.rate, days: p.days, modality: p.modality, maturityDate: addDays(p.matureIn) }));
         s.assets = P.assets.map((a, i) => ({ id: i + 1, name: a.name, category: a.category, purchaseYear: a.purchaseYear, purchaseValue: a.purchaseValue, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: a.values }));
+        // Yearly bills for the annual planner (no fund yet: "Crear el apartado" is the next step).
+        s.annualBills = (US ? [
+            { name: 'Car registration (Odyssey + Civic)', amount: 238, every: 12, month: 3, category: 'Transporte', sub: 'Matriculación/Revisión Vehicular' },
+            { name: 'Amazon Prime', amount: 139, every: 12, month: 7, category: 'Suscripciones y Entretenimiento Digital' },
+            { name: 'Summer camp (Emma)', amount: 650, every: 12, month: 6, category: 'Familia e Hijos' },
+            { name: 'Back-to-school', amount: 380, every: 12, month: 8, category: 'Educación' },
+            { name: 'Holiday gifts', amount: 900, every: 12, month: 12, category: 'Regalos, Celebraciones y Donaciones' },
+            { name: 'Tax preparation', amount: 180, every: 12, month: 3, category: 'Financiero y Legal', sub: 'Preparación de Impuestos' }
+        ] : [
+            { name: 'Matrícula vehicular (Sportage)', amount: 185, every: 12, month: 4, category: 'Transporte', sub: 'Matriculación/Revisión Vehicular' },
+            { name: 'Impuesto predial', amount: 240, every: 12, month: 1, category: 'Vivienda' },
+            { name: 'Seguro del carro', amount: 690, every: 12, month: 6, category: 'Seguros y Protección' },
+            { name: 'Útiles y uniformes escolares', amount: 320, every: 12, month: 9, category: 'Educación' },
+            { name: 'Regalos de Navidad', amount: 450, every: 12, month: 12, category: 'Regalos, Celebraciones y Donaciones' }
+        ]).map((b, i) => Object.assign({ id: i + 1 }, b));
         s.mortgage = Object.assign(s.mortgage, P.mortgage);
         Object.assign(s.retirement, P.retirement, { tasaRetorno: null, inflacion: null, sueldoPromedio: null, whatIfExtra: 0 });
         s.debtPlan = { strategy: 'snowball', extraPayment: 0 };
@@ -6732,7 +6834,7 @@ I18n.country('US', {
     function categorySpend(transactions, category, year, month) {
         if (!category || category === 'none') return null;
         return sum((transactions || []).filter(t => {
-            if (txnType(t) !== 'Gasto' || t.parentCategory !== category) return false;
+            if (txnType(t) !== 'Gasto' || t.fromGoal || t.parentCategory !== category) return false;
             const d = txnDate(t);
             if (d.getFullYear() !== year) return false;
             return month === 'base' || (d.getMonth() + 1) === Number(month);
@@ -6773,7 +6875,7 @@ I18n.country('US', {
         });
         const unassigned = [];
         (transactions || []).forEach(t => {
-            if (txnType(t) !== 'Gasto') return;
+            if (txnType(t) !== 'Gasto' || t.fromGoal) return;
             const d = txnDate(t);
             if (d.getFullYear() !== Number(year)) return;
             if (month !== 'base' && (d.getMonth() + 1) !== Number(month)) return;
@@ -6802,7 +6904,7 @@ I18n.country('US', {
     function budgetVsActualByMonth(yd, transactions, year) {
         return MONTHS.map(m => {
             const actual = sum((transactions || []).filter(t => {
-                if (txnType(t) !== 'Gasto') return false;
+                if (txnType(t) !== 'Gasto' || t.fromGoal) return false;
                 const d = txnDate(t);
                 return d.getFullYear() === Number(year) && (d.getMonth() + 1) === Number(m);
             }), amt);
@@ -7258,6 +7360,32 @@ I18n.country('US', {
     // rubros), plus the whole line of any debt already paid off, rolls to the debt the strategy
     // targets (snowball: smallest balance; avalanche: highest rate). No money is assumed that
     // the budget doesn't assign. A minimums-only run gives the time/interest the plan saves.
+    // ------------------------------------------------- annual & irregular bills
+    // A bill that comes once a year (or every 6 / 3 months): car registration, insurance,
+    // property tax, school supplies… { name, amount, every: 12 | 6 | 3, month: 1–12 (a month it's due) }.
+    const billEvery = (b) => [1, 2, 3, 4, 6, 12].includes(Number(b.every)) ? Number(b.every) : 12;
+    const billDueIn = (b, m) => { const e = billEvery(b); return ((m - num(b.month)) % e + e) % e === 0; };
+    // Set aside each month so the money is there when each bill comes: its yearly cost ÷ 12.
+    const annualSetAside = (bills) => cents(sum(bills || [], b => num(b.amount) / billEvery(b)));
+    // Month by month from this one: the set-aside comes in, then that month's bills go out.
+    // `needed` is what the fund is short at its lowest point (bills due before enough was saved).
+    function annualBillsPlan(bills, { start = 0, monthly = null, today = new Date(), months = 12 } = {}) {
+        const t = new Date(today);
+        const each = monthly === null ? annualSetAside(bills) : num(monthly);
+        let fund = num(start), low = fund;
+        const rows = [];
+        for (let i = 0; i < months; i++) {
+            const d = new Date(t.getFullYear(), t.getMonth() + i, 1);
+            const m = d.getMonth() + 1;
+            const due = (bills || []).filter(b => num(b.amount) > 0 && billDueIn(b, m));
+            const paid = sum(due, b => num(b.amount));
+            fund = cents(fund + each - paid);
+            low = Math.min(low, fund);
+            rows.push({ key: `${d.getFullYear()}-${pad2(m)}`, month: m, year: d.getFullYear(), bills: due, paid: cents(paid), fund, short: fund < -0.005 });
+        }
+        return { monthly: each, yearly: cents(sum(bills || [], b => num(b.amount) * 12 / billEvery(b))), rows, needed: cents(Math.max(0, -low)), firstShort: rows.find(r => r.short) || null };
+    }
+
     // A debt payment: this month's interest is paid first and the rest lowers the balance.
     // The interest is an estimate (balance × rate / 12) unless the statement says otherwise.
     const cents = (v) => Math.round(v * 100) / 100;
@@ -7786,7 +7914,9 @@ I18n.country('US', {
             // A transfer leaves your cash unless it came from savings, and arrives if it went
             // to a checking/cash account (paying a card or moving money to savings lowers it).
             if (isTransfer(x)) { adjust += num(x.amount) * ((isCash(x.to) ? 1 : 0) - (!x.from || isCash(x.from) ? 1 : 0)); return; }
-            if (x.paymentType === 'Tarjeta de Crédito') return;
+            // Card purchases leave the account when the card is paid; purchases paid from a
+            // savings fund (a goal) come out of savings.
+            if (x.paymentType === 'Tarjeta de Crédito' || x.fromGoal) return;
             adjust += txnType(x) === 'Ingreso' ? num(x.amount) : -amt(x);
         });
         return { base, adjust, total: base + adjust, asOf, accounts: cash.length };
@@ -7958,7 +8088,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -10771,6 +10901,7 @@ I18n.country('US', {
                 + byGroup[g].map(it => rowHTML(it, tax)).join('');
         }).join('');
         UI.html('bud-body', incomeRowsHTML(ctx) + (body || '<tr class="empty-row"><td colspan="9">No hay rubros. Agrega el primero.</td></tr>'));
+        if (window.AnnualBills) AnnualBills.render(ctx);
         update(ctx);
     }
 
@@ -10778,6 +10909,7 @@ I18n.country('US', {
         const yd = ctx.year;
         const m = month();
         const mb = ctx.monthBudget;
+        if (window.AnnualBills) AnnualBills.update(ctx);
         const today = ctx.today;
         const list = items(ctx);
 
@@ -10807,7 +10939,7 @@ I18n.country('US', {
         if (sm) {
             const monthItemsSm = Engine.monthItems(ctx.budgetYear, sm);
             const plannedSpend = monthItemsSm.filter(i => !Engine.isSavingsItem(i)).reduce((t, i) => t + (Number(i.real) || 0), 0);
-            const spentAll = ctx.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && Number(t.date.slice(0, 4)) === ctx.state.activeYear && String(Number(t.date.slice(5, 7))) === sm)
+            const spentAll = ctx.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && !t.fromGoal && Number(t.date.slice(0, 4)) === ctx.state.activeYear && String(Number(t.date.slice(5, 7))) === sm)
                 .reduce((t, x) => t + Engine.spendAmount(x), 0);
             const risk = Engine.overspendRisk({ planned: plannedSpend, spent: spentAll, year: ctx.state.activeYear, month: sm, today });
             const LBL = { none: ['Sin datos', 'tone-slate', 'Registra tus gastos para medirlo.'], low: ['Bajo', 'tone-emerald', 'Vas a buen ritmo.'], medium: ['Medio', 'tone-amber', 'Gastas un poco más rápido de lo planeado.'], high: ['Alto', 'tone-red', 'A este ritmo te pasarás del presupuesto.'] }[risk.level];
@@ -11155,6 +11287,139 @@ I18n.country('US', {
     }
 
     App.defineView('presupuesto/plan', { render, update });
+})();
+</script>
+<script>/* js/views/anuales.js */
+/* Presupuesto → Gastos anuales: yearly and irregular bills (registration, insurance, property tax,
+ * school supplies, holiday gifts…) turned into one monthly set-aside, so they never arrive as a
+ * surprise. The money is kept in a savings goal ("Gastos anuales") that the budget pays into each
+ * month; when a bill comes, it's paid from that goal and doesn't count in that month's budget. */
+(function () {
+    'use strict';
+    const { money, money0, esc } = Fmt;
+
+    const bills = () => Store.state.annualBills || (Store.state.annualBills = []);
+    const fund = () => (Store.state.goals || []).find(g => g.annualFund);
+    const ideas = () => (Store.defaults.annualIdeas ? Store.defaults.annualIdeas() : []);
+    const tr = (s) => (window.I18n ? I18n.t(s) : s);
+    const EVERY = [{ value: 12, label: 'Cada año' }, { value: 6, label: 'Cada 6 meses' }, { value: 3, label: 'Cada 3 meses' }];
+    const monthLabel = (y, m) => `${Fmt.MONTH_SHORT[m - 1]} ${y}`;
+
+    function rowHTML(b, cats) {
+        const opts = cats.includes(b.category) ? cats : cats.concat([b.category]);
+        return `<tr data-row="${b.id}">
+            <td><input class="cell-input" value="${esc(b.name)}" data-change="annual.set" data-id="${b.id}" data-field="name" aria-label="Gasto"></td>
+            <td><input type="number" class="cell-input num" min="0" step="10" value="${Number(b.amount) || 0}" data-input="annual.set" data-id="${b.id}" data-field="amount" aria-label="Monto"></td>
+            <td><select class="cell-input" data-change="annual.set" data-id="${b.id}" data-field="every" aria-label="Cada cuánto">${Views.selectOptions(EVERY, Number(b.every) || 12)}</select></td>
+            <td><select class="cell-input" data-change="annual.set" data-id="${b.id}" data-field="month" aria-label="Mes en que toca">${Views.selectOptions(Fmt.MONTH_NAMES.map((n, i) => ({ value: i + 1, label: n })), Number(b.month) || 1)}</select></td>
+            <td><select class="cell-input" data-change="annual.set" data-id="${b.id}" data-field="category" aria-label="Categoría">${Views.selectOptions(opts.filter(Boolean), b.category)}</select></td>
+            <td class="num text-slate-500 whitespace-nowrap" data-cell="monthly"></td>
+            <td class="text-center"><button class="row-del" data-action="annual.delete" data-id="${b.id}" title="Quitar" aria-label="Quitar"><i class="fa-solid fa-trash-can"></i></button></td>
+        </tr>`;
+    }
+
+    function render(ctx) {
+        const card = document.getElementById('bud-annual-card');
+        if (!card) return;
+        const list = bills();
+        const cats = Object.keys(ctx.state.taxonomy.expense);
+        UI.html('annual-body', list.length ? list.map(b => rowHTML(b, cats)).join('')
+            : `<tr class="empty-row"><td colspan="7">${Views.emptyState('fa-calendar-days', 'Anota lo que pagas una o dos veces al año. Te decimos cuánto apartar cada mes para que nunca te tome por sorpresa.')}</td></tr>`);
+        const have = new Set(list.map(b => b.name.toLowerCase()));
+        const left = ideas().map((x, i) => ({ x, i })).filter(({ x }) => !have.has(x.name.toLowerCase()));
+        UI.html('annual-ideas', left.length ? `<span class="text-xs text-slate-500 mr-1">Ideas:</span>${left.map(({ x, i }) => `<button type="button" class="quick-chip" data-action="annual.idea" data-i="${i}" title="${esc(money0(x.amount))} · ${esc(EVERY.find(e => e.value === x.every).label)}"><i class="fa-solid fa-plus"></i> ${esc(x.name)}</button>`).join('')}` : '');
+        update(ctx);
+    }
+
+    function update(ctx) {
+        if (!document.getElementById('bud-annual-card')) return;
+        const list = bills();
+        const g = fund();
+        list.forEach(b => {
+            const cell = document.querySelector(`#annual-body tr[data-row="${b.id}"] [data-cell="monthly"]`);
+            if (cell) cell.textContent = `${money((Number(b.amount) || 0) / (Number(b.every) || 12))}/mes`;
+        });
+        if (!list.length) { UI.html('annual-summary', ''); UI.html('annual-timeline', ''); return; }
+        const need = Engine.annualSetAside(list);
+        const plan = Engine.annualBillsPlan(list, { start: g ? Number(g.current) || 0 : 0, monthly: g ? Number(g.monthly) || 0 : need, today: ctx.today });
+        const head = `<div class="kpi tone-emerald"><span class="kpi-label">Aparta cada mes</span><span class="kpi-value">${money(need)}</span><span class="kpi-note">${money0(plan.yearly)} al año en ${list.length} gasto${list.length === 1 ? '' : 's'}</span></div>`;
+        let fundHTML;
+        if (!g) {
+            fundHTML = `<div class="panel tone-amber text-xs space-y-2"><p><strong>Aún no apartas este dinero.</strong> Crea una meta «Gastos anuales» de ${money(need)} al mes: aparece en tu presupuesto como cualquier rubro de ahorro, y cuando llegue cada gasto lo pagas desde ahí.</p>
+                <button type="button" class="btn btn-primary btn-sm" data-action="annual.fund"><i class="fa-solid fa-piggy-bank"></i> Crear el apartado en mi presupuesto</button></div>`;
+        } else {
+            const low = (Number(g.monthly) || 0) + 0.005 < need;
+            const msgs = [`Tu apartado «${esc(g.name)}» tiene <strong>${money(g.current)}</strong> y tu presupuesto le pone <strong>${money(g.monthly)}</strong> al mes.`];
+            if (low) msgs.push(`Es menos de lo que necesitas (${money(need)}). <button type="button" class="link" data-action="annual.fund">Ajustar a ${money(need)}</button>`);
+            if (plan.firstShort) msgs.push(`<span class="text-red-700 font-semibold">En ${monthLabel(plan.firstShort.year, plan.firstShort.month)} te faltarían ${money(plan.needed)}.</span> Deposita esa diferencia en el apartado ahora (o sube lo que apartas) para pagar a tiempo.`);
+            else msgs.push('<span class="text-emerald-700 font-semibold"><i class="fa-solid fa-circle-check"></i> Alcanza para pagar cada gasto a tiempo.</span>');
+            fundHTML = `<div class="panel ${plan.firstShort || low ? 'tone-amber' : 'tone-emerald'} text-xs space-y-1.5">${msgs.map(m => `<p>${m}</p>`).join('')}</div>`;
+        }
+        UI.html('annual-summary', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">${head}<div class="sm:col-span-2">${fundHTML}</div></div>`);
+
+        // The next 12 months that have bills: what's due, and what's left in the fund after.
+        const t = ctx.today;
+        const thisKey = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`;
+        const rows = plan.rows.filter(r => r.bills.length);
+        UI.html('annual-timeline', rows.length ? `<div class="section-label mt-4"><i class="fa-solid fa-calendar-days text-blue-600"></i> Próximos 12 meses</div>
+            <div class="annual-steps">${rows.map(r => `<div class="annual-step ${r.short ? 'short' : ''}">
+                <div class="annual-when">${esc(monthLabel(r.year, r.month))}</div>
+                <div class="annual-what">${r.bills.map(b => `<div class="flex items-center justify-between gap-2"><span class="truncate" data-i18n-skip>${esc(b.name)}</span><span class="flex items-center gap-2 shrink-0"><strong>${money0(b.amount)}</strong>${g && r.key === thisKey ? `<button type="button" class="mini-btn" data-action="annual.pay" data-id="${b.id}">Pagar</button>` : ''}</span></div>`).join('')}</div>
+                <div class="annual-after ${r.short ? 'text-red-700' : 'text-slate-500'}">${r.short ? '<i class="fa-solid fa-triangle-exclamation"></i> ' : ''}<span>Quedan ${money0(r.fund)} en el apartado</span></div>
+            </div>`).join('')}</div>` : '');
+    }
+
+    UI.register({
+        'annual.set': (el) => {
+            const b = bills().find(x => x.id === Number(el.dataset.id));
+            if (!b) return;
+            const f = el.dataset.field;
+            b[f] = f === 'name' || f === 'category' ? el.value : Math.max(0, Fmt.parseNum(el.value, 0));
+            App.changed({ step: true });
+        },
+        'annual.add': () => {
+            const list = bills();
+            const id = Store.nextId(list);
+            list.push({ id, name: tr('Nuevo gasto anual'), amount: 0, every: 12, month: new Date().getMonth() + 2 > 12 ? 1 : new Date().getMonth() + 2, category: 'Otros' });
+            App.changed({ structural: true, step: true });
+            const input = document.querySelector(`#annual-body tr[data-row="${id}"] input`);
+            if (input) { input.focus(); input.select(); }
+        },
+        'annual.idea': (el) => {
+            const x = ideas()[Number(el.dataset.i)];
+            if (!x) return;
+            const list = bills();
+            const tax = Store.state.taxonomy.expense;
+            list.push(Object.assign({ id: Store.nextId(list) }, x, { category: tax[x.category] ? x.category : 'Otros' }));
+            App.changed({ structural: true, step: true });
+        },
+        'annual.delete': (el) => {
+            const id = Number(el.dataset.id);
+            const b = bills().find(x => x.id === id);
+            App.undoable(`"${b ? b.name : ''}" quitado de tus gastos anuales`, () => { Store.state.annualBills = bills().filter(x => x.id !== id); });
+        },
+        // Create the savings goal that holds the money, or bring its monthly amount up to what's needed.
+        'annual.fund': () => {
+            const list = bills();
+            const need = Engine.annualSetAside(list);
+            const plan = Engine.annualBillsPlan(list, { today: new Date() });
+            let g = fund();
+            const created = !g;
+            App.undoable(created ? `Apartado «${tr('Gastos anuales')}» creado: ${money(need)} al mes en tu presupuesto` : `Apartado ajustado a ${money(need)} al mes`, () => {
+                const goals = Store.state.goals;
+                if (!g) { g = { id: Store.nextId(goals), name: tr('Gastos anuales'), target: plan.yearly, current: 0, monthly: need, rate: 0, createdYear: new Date().getFullYear(), annualFund: true }; goals.push(g); }
+                else { g.monthly = need; g.target = Math.max(Number(g.target) || 0, plan.yearly); }
+            });
+        },
+        'annual.pay': (el) => {
+            const b = bills().find(x => x.id === Number(el.dataset.id));
+            const g = fund();
+            if (!b || !g) return;
+            UI.run('goal.spend', { id: String(g.id), amount: String(b.amount), desc: b.name, cat: b.category, sub: b.sub || '' });
+        }
+    });
+
+    window.AnnualBills = { render, update };
 })();
 </script>
 <script>/* js/views/ingresos.js */
@@ -11898,6 +12163,9 @@ I18n.country('US', {
         let pending = false;
         if (tr) {
             chip = `<span class="chip-note"><i class="fa-solid fa-right-left"></i> ${esc(placeName(t.from))} → ${esc(placeName(t.to))}</span>`;
+        } else if (t.fromGoal) {
+            const g = (Store.state.goals || []).find(x => x.id === t.fromGoal);
+            chip = `<span class="chip-note" title="Ya lo fuiste apartando: no cuenta otra vez en el presupuesto del mes"><i class="fa-solid fa-piggy-bank"></i> Pagado con «${esc(g ? g.name : 'un ahorro')}»</span>`;
         } else if (inc) {
             const yd = Store.state.years[d.getFullYear()];
             const lines = (yd && yd.otherIncomes) || [];
@@ -11979,7 +12247,7 @@ I18n.country('US', {
         UI.text('txn-sum-inc', money(inc));
         UI.text('txn-sum-exp', money(exp));
         UI.text('txn-sum-net', money(inc - exp));
-        const pending = list.filter(t => (t.type || 'Gasto') === 'Gasto' && !assignOf(t).lineId).length;
+        const pending = list.filter(t => (t.type || 'Gasto') === 'Gasto' && !t.fromGoal && !assignOf(t).lineId).length;
         UI.html('txn-unassigned-note', pending ? `<i class="fa-solid fa-circle-exclamation text-amber-600"></i> ${pending} gasto${pending === 1 ? '' : 's'} sin rubro: elige su rubro en el botón punteado para que cuenten en tu presupuesto.` : '');
 
         renderBulk();
@@ -13937,7 +14205,7 @@ I18n.country('US', {
             ${cell('target', 100)}${cell('current', 100)}${cell('monthly', 10).replace('cell-input num', 'cell-input num money')}${cell('rate', 0.1)}
             <td><input type="month" class="cell-input" value="${esc(g.targetDate || '')}" data-change="goal.set" data-id="${g.id}" data-field="targetDate" aria-label="Fecha meta"></td>
             <td data-cell="time"></td>
-            <td class="text-center whitespace-nowrap"><button class="mini-btn" data-action="goal.deposit" data-id="${g.id}" title="Sumar un depósito a lo ahorrado">Depositar</button> <button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td class="text-center whitespace-nowrap"><button class="mini-btn" data-action="goal.deposit" data-id="${g.id}" title="Sumar un depósito a lo ahorrado">Depositar</button> ${Number(g.current) > 0 ? `<button class="mini-btn" data-action="goal.spend" data-id="${g.id}" title="Pagar una compra con este dinero ahorrado (no cuenta otra vez en el presupuesto del mes)">Usar</button> ` : ''}<button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 
@@ -14259,6 +14527,40 @@ I18n.country('US', {
             }
             App.changed({ structural: true, step: true });
             UI.toast(`${Fmt.money(amount)} depositados en "${g.name}". Llevas ${Fmt.money0(g.current)} de ${Fmt.money0(g.target)}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        },
+        // Spend what was saved for this: the purchase is logged in its own category (so reports
+        // show where the money went) but paid by the goal, so it doesn't count in this month's
+        // budget a second time. What the goal can't cover counts normally.
+        'goal.spend': async (el) => {
+            const g = find(Store.state.goals, el);
+            if (!g) return;
+            const pre = el.dataset || {};
+            const s = Store.state, tax = s.taxonomy.expense;
+            const cats = Object.keys(tax);
+            if (pre.cat && cats.includes(pre.cat)) cats.unshift(cats.splice(cats.indexOf(pre.cat), 1)[0]);
+            const r = await UI.form({
+                title: `Usar el dinero de "${g.name}"`,
+                message: `Tienes ${money(g.current)} ahorrados aquí. La compra queda en Transacciones, pero no cuenta otra vez en tu presupuesto del mes: ya la fuiste apartando.`,
+                fields: [
+                    { name: 'amount', label: 'Monto', type: 'number', min: 0, step: '0.01', value: pre.amount || '' },
+                    { name: 'desc', label: '¿Qué pagaste?', value: pre.desc || g.name },
+                    { name: 'cat', label: 'Categoría', options: cats },
+                    { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) }
+                ],
+                confirmText: 'Registrar',
+                validate: v => !(v.amount > 0) ? 'Escribe un monto mayor a 0.' : !v.desc.trim() ? 'Escribe qué pagaste.' : !v.date ? 'Elige una fecha.' : null
+            });
+            if (!r) return;
+            const amount = Math.round(r.amount * 100) / 100;
+            const covered = Math.min(amount, Math.max(0, Number(g.current) || 0));
+            const rest = Math.round((amount - covered) * 100) / 100;
+            const sub = pre.sub && (tax[r.cat] || []).includes(pre.sub) ? pre.sub : (tax[r.cat] || [])[0] || '';
+            App.undoable(rest > 0 ? `${money(covered)} pagados con «${g.name}»; los otros ${money(rest)} cuentan en tu presupuesto del mes.` : `${money(amount)} pagados con «${g.name}». Quedan ${money(Number(g.current) - covered)}.`, () => {
+                g.current = Math.round(((Number(g.current) || 0) - covered) * 100) / 100;
+                const base = { type: 'Gasto', description: r.desc.trim(), store: '', parentCategory: r.cat, category: sub, date: r.date, paymentType: 'Tarjeta de Débito', createdAt: new Date().toISOString() };
+                if (covered > 0) s.transactions.push(Object.assign({ id: Store.nextId(s.transactions), amount: covered, fromGoal: g.id }, base));
+                if (rest > 0) s.transactions.push(Object.assign({ id: Store.nextId(s.transactions), amount: rest }, base));
+            });
         },
         'goal.delete': (el) => {
             const g = find(Store.state.goals, el);

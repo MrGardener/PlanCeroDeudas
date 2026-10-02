@@ -261,6 +261,26 @@
             </div>
         </div>
 
+        <details class="card group-card" id="bud-annual-card">
+            <summary class="flex items-center justify-between gap-3">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-calendar-days text-blue-600"></i> Gastos anuales e irregulares</div>
+                    <div class="card-sub">Matrícula del carro, seguros, impuestos, útiles, regalos de Navidad… Lo que pagas una o dos veces al año, convertido en un apartado mensual para que no te tome por sorpresa.</div>
+                </div>
+                <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+            </summary>
+            <div id="annual-summary" class="mb-4"></div>
+            <div class="table-wrap"><table class="table">
+                <thead><tr><th>Gasto</th><th class="num">Monto ($)</th><th>Cada</th><th>Mes en que toca</th><th>Categoría</th><th class="num">Apartar</th><th></th></tr></thead>
+                <tbody id="annual-body"></tbody>
+            </table></div>
+            <div class="flex flex-wrap items-center gap-2 mt-3">
+                <button type="button" class="btn btn-secondary btn-sm" data-action="annual.add"><i class="fa-solid fa-plus"></i> Agregar gasto anual</button>
+                <div id="annual-ideas" class="flex flex-wrap items-center gap-1.5"></div>
+            </div>
+            <div id="annual-timeline"></div>
+        </details>
+
         <div class="card" id="bud-trend-card">
             <div class="card-head">
                 <div>
@@ -1427,6 +1447,7 @@
 <script src="js/views/resumen.js"></script>
 <script src="js/views/presupuesto-simple.js"></script>
 <script src="js/views/presupuesto.js"></script>
+<script src="js/views/anuales.js"></script>
 <script src="js/views/ingresos.js"></script>
 <script src="js/views/payscan.js"></script>
 <script src="js/views/transacciones.js"></script>

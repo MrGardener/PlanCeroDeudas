@@ -2147,3 +2147,37 @@ I18n.add('en', {
     "🎉 ¡Pagaste \"{0}\" por completo!": "🎉 You paid off \"{0}\"!"
 });
 I18n.add('en', { "Lo que debes, últimos 6 meses: de {0} a {1}": "What you owe, last 6 months: from {0} to {1}" });
+// Annual bills planner and spending from a savings goal
+I18n.add('en', {
+    "Gastos anuales e irregulares": "Annual and irregular bills", "Gastos anuales": "Annual bills",
+    "Matrícula del carro, seguros, impuestos, útiles, regalos de Navidad… Lo que pagas una o dos veces al año, convertido en un apartado mensual para que no te tome por sorpresa.": "Car registration, insurance, taxes, school supplies, holiday gifts… What you pay once or twice a year, turned into a monthly set-aside so it never catches you off guard.",
+    "Cada": "Every", "Mes en que toca": "Month it's due", "Monto ($)": "Amount ($)",
+    "Agregar gasto anual": "Add annual bill", "Nuevo gasto anual": "New annual bill",
+    "Anota lo que pagas una o dos veces al año. Te decimos cuánto apartar cada mes para que nunca te tome por sorpresa.": "List what you pay once or twice a year. We'll tell you how much to set aside each month so it never catches you off guard.",
+    "Aparta cada mes": "Set aside each month", "{0} al año en {1} gasto{2}": "{0} a year across {1} bill{2|s}",
+    "Aún no apartas este dinero.": "You're not setting this money aside yet.",
+    "Crea una meta «Gastos anuales» de {0} al mes: aparece en tu presupuesto como cualquier rubro de ahorro, y cuando llegue cada gasto lo pagas desde ahí.": "Create an «Annual bills» goal of {0} a month: it shows in your budget like any savings line, and when each bill comes you pay it from there.",
+    "Crear el apartado en mi presupuesto": "Add the set-aside to my budget",
+    "Tu apartado «{0}» tiene": "Your «{0}» fund has", "y tu presupuesto le pone": "and your budget puts in",
+    "Es menos de lo que necesitas ({0}).": "That's less than you need ({0}).",
+    "En {0} te faltarían {1}.": "In {0} you'd be {1} short.",
+    "Deposita esa diferencia en el apartado ahora (o sube lo que apartas) para pagar a tiempo.": "Deposit that difference into the fund now (or set aside more) to pay on time.",
+    "Alcanza para pagar cada gasto a tiempo.": "There's enough to pay each bill on time.",
+    "Próximos 12 meses": "Next 12 months",
+    "\"{0}\" quitado de tus gastos anuales": "\"{0}\" removed from your annual bills",
+    "Apartado «{0}» creado: {1} al mes en tu presupuesto": "«{0}» fund created: {1} a month in your budget",
+    "Apartado ajustado a {0} al mes": "Set-aside adjusted to {0} a month",
+    "Usar el dinero de \"{0}\"": "Use the money in \"{0}\"",
+    "Tienes {0} ahorrados aquí. La compra queda en Transacciones, pero no cuenta otra vez en tu presupuesto del mes: ya la fuiste apartando.": "You have {0} saved here. The purchase goes into Transactions, but it doesn't count in this month's budget again: you already set it aside.",
+    "¿Qué pagaste?": "What did you pay for?", "Escribe qué pagaste.": "Type what you paid for.",
+    "Pagar una compra con este dinero ahorrado (no cuenta otra vez en el presupuesto del mes)": "Pay for a purchase with this saved money (it doesn't count in this month's budget again)",
+    "Pagado con «{0}»": "Paid from «{0}»", "un ahorro": "savings",
+    "Ya lo fuiste apartando: no cuenta otra vez en el presupuesto del mes": "Already set aside: it doesn't count in this month's budget again",
+    "{0} pagados con «{1}». Quedan {2}.": "{0} paid from «{1}». {2} left.",
+    "{0} pagados con «{1}»; los otros {2} cuentan en tu presupuesto del mes.": "{0} paid from «{1}»; the other {2} count in this month's budget.",
+    "Matrícula vehicular": "Vehicle registration", "Seguro del carro": "Car insurance", "Impuesto predial": "Property tax",
+    "Útiles y uniformes escolares": "School supplies and uniforms", "Matrícula del colegio": "School enrollment fee",
+    "Regalos de Navidad": "Christmas gifts", "Declaración del impuesto a la renta": "Income tax filing", "Mantenimiento del carro": "Car maintenance"
+});
+I18n.add('en', { "Apartar": "Set aside" });
+I18n.add('en', { "Quedan {0} en el apartado": "{0} left in the fund" });

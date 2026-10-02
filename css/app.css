@@ -283,6 +283,13 @@ input[type="file"].hidden { display: none; }
 .txn-date.pending { border-style: dashed; }
 .txn-date.tr { border-color: var(--faint); color: var(--muted); }
 .txn-amt.tr { color: var(--muted); }
+.annual-steps { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+.annual-step { border: 1px solid var(--line); border-radius: var(--r-md); padding: .55rem .7rem; font-size: var(--fs-xs); background: var(--surface); }
+.annual-step.short { border-color: #fca5a5; background: #fef2f2; }
+html[data-theme="dark"] .annual-step.short { border-color: #7f1d1d; background: #2a0d0d; }
+.annual-when { font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-size: var(--fs-2xs); margin-bottom: .25rem; }
+.annual-what { display: grid; gap: .2rem; color: var(--ink); }
+.annual-after { margin-top: .3rem; font-size: var(--fs-2xs); font-weight: 700; }
 .check-row { display: flex; align-items: flex-start; gap: .4rem; padding-bottom: .55rem; font-size: var(--fs-xs); color: var(--ink-2); line-height: 1.35; cursor: pointer; }
 .check-row input { margin-top: .15rem; accent-color: var(--brand); }
 .txn-desc { font-size: .88rem; font-weight: 700; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
