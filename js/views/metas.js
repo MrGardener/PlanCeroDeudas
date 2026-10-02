@@ -13,7 +13,7 @@
             <td><input type="number" class="cell-input num money" min="0" step="10" value="${Number(d.monthly) || 0}" data-input="debt.set" data-id="${d.id}" data-field="monthly" aria-label="Monto en tu presupuesto" title="Lo que tu presupuesto le paga cada mes"></td>
             <td class="text-center" data-cell="order"></td>
             <td class="text-center whitespace-nowrap font-bold text-slate-700" data-cell="payoff"></td>
-            <td class="text-center"><button class="row-del" data-action="debt.delete" data-id="${d.id}" title="Eliminar deuda"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td class="text-center whitespace-nowrap">${Number(d.balance) > 0 ? `<button class="mini-btn" data-action="debt.pay" data-id="${d.id}" title="Registrar un pago: baja el saldo y queda en Transacciones">Pagar</button> ` : ''}<button class="row-del" data-action="debt.delete" data-id="${d.id}" title="Eliminar deuda"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 
@@ -267,6 +267,40 @@
             UI.toast('Deuda agregada a tu presupuesto con su pago mínimo ($50). Ajusta los montos.');
             const input = document.querySelector(`#debt-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
+        },
+        // A payment: the interest goes first, the rest lowers the balance. It's logged in
+        // Transactions on the debt's budget line, and kept in the debt's history.
+        'debt.pay': async (el) => {
+            const d = find(Store.state.debts, el);
+            if (!d) return;
+            const est = Engine.debtMonthlyInterest(d);
+            const r = await UI.form({
+                title: `Pago a "${d.name}"`,
+                message: `Saldo: ${money(d.balance)}. Primero se paga el interés del mes y el resto baja el saldo.`,
+                fields: [
+                    { name: 'amount', label: 'Monto pagado', type: 'number', min: 0, step: '0.01', value: Number(d.monthly) || Number(d.minPayment) || '' },
+                    { name: 'interest', label: 'De eso, interés', type: 'number', min: 0, step: '0.01', value: est, help: `Estimado: saldo × ${Number(d.rate) || 0}% ÷ 12. Si tu estado de cuenta dice otra cifra, escríbela.` },
+                    { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) },
+                    { name: 'log', label: '¿Registrarlo también como movimiento?', options: [{ value: 'yes', label: 'Sí, en Transacciones (cuenta en el rubro de esta deuda)' }, { value: 'no', label: 'No, solo bajar el saldo' }] }
+                ],
+                confirmText: 'Registrar pago',
+                validate: v => !(v.amount > 0) ? 'Escribe un monto mayor a 0.' : v.interest < 0 ? 'El interés no puede ser negativo.' : !v.date ? 'Elige una fecha.' : null
+            });
+            if (!r) return;
+            const amount = Math.round(r.amount * 100) / 100;
+            const p = Engine.applyDebtPayment(d.balance, amount, r.interest || 0);
+            App.undoable(p.balance <= 0 ? `🎉 ¡Pagaste "${d.name}" por completo!` : `Pago registrado: ${money(p.principal)} al saldo y ${money(p.interest)} de interés. Te quedan ${money(p.balance)}.`, () => {
+                d.balance = p.balance;
+                d.payments = (d.payments || []).concat([{ date: r.date, amount, interest: p.interest, principal: p.principal, balance: p.balance }]).slice(-120);
+                if (r.log === 'yes') {
+                    const s = Store.state, tax = s.taxonomy.expense;
+                    const cat = tax.Deudas ? 'Deudas' : 'Otros';
+                    const kind = Engine.DEBT_KINDS.find(k => k.id === d.kind);
+                    const sub = (tax[cat] || []).includes(kind && kind.label) ? kind.label : (tax[cat] || [])[0] || '';
+                    s.transactions.push({ id: Store.nextId(s.transactions), type: 'Gasto', description: `Pago: ${d.name}`, store: d.lender || '', parentCategory: cat, category: sub, amount, date: r.date, paymentType: 'Transferencia', budgetLine: 'debt-' + d.id, debtId: d.id, createdAt: new Date().toISOString() });
+                }
+            });
+            if (p.overpaid > 0) UI.toast(`Pagaste ${money(p.overpaid)} más que el saldo: revisa si quedó saldo a tu favor.`, 'warn');
         },
         'debt.delete': (el) => {
             const d = find(Store.state.debts, el);

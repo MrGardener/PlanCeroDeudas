@@ -834,7 +834,7 @@
                     const t = { type, description: o.desc, store: o.store || '', parentCategory: o.parent, category: o.sub, amount: round2(o.amount), date, paymentType: typeof o.pay === 'function' ? o.pay() : (o.pay || DEBIT) };
                     if (type === 'Gasto') {
                         let line = null;
-                        if (o.key && o.key.startsWith('debt:')) { const d = debtByKey[o.key.slice(5)]; t.budgetLine = 'debt-' + d.id; t.parentCategory = t.parentCategory || 'Deudas'; }
+                        if (o.key && o.key.startsWith('debt:')) { const d = debtByKey[o.key.slice(5)]; t.budgetLine = 'debt-' + d.id; t._debt = d.id; t.parentCategory = t.parentCategory || 'Deudas'; }
                         else if (o.key && o.key.startsWith('goal:')) { const g = goalByKey[o.key.slice(5)]; t.budgetLine = 'goal-' + g.id; t.parentCategory = t.parentCategory || 'Ahorro e Inversión'; }
                         else if (o.key) {
                             line = lineOf(y, o.key);
@@ -930,7 +930,7 @@
             const d = debtByKey[P.snowballTarget(y, m)];
             const day = Math.min(daysIn(y, m), Math.max(P.extraDay, ((routed[`${y}-${m}`] || {})._last || 0) + 1));
             const date = iso(y, m, day);
-            if (extra > 0 && date <= todayISO) txns.push({ type: 'Gasto', description: US ? `Extra payment – ${d.name}` : `Pago extra – ${d.name}`, store: d.lender, parentCategory: 'Deudas', category: d.sub, amount: extra, date, paymentType: XFER, budgetLine: String(EXTRA_ID), memberId: P.members[0].id });
+            if (extra > 0 && date <= todayISO) txns.push({ type: 'Gasto', description: US ? `Extra payment – ${d.name}` : `Pago extra – ${d.name}`, store: d.lender, parentCategory: 'Deudas', category: d.sub, amount: extra, date, paymentType: XFER, budgetLine: String(EXTRA_ID), memberId: P.members[0].id, _debt: d.id });
         });
 
         // ------------------------------------------------------------ transfers + refunds
@@ -970,9 +970,30 @@
         s.transactions = txns.map(t => {
             const out = Object.assign({ id: t._id }, t);
             if (t._refundOf) out.refundOf = t._refundOf._id;
-            delete out._rec; delete out._route; delete out._refundOf; delete out._id;
+            delete out._rec; delete out._route; delete out._refundOf; delete out._id; delete out._debt;
             if (!out.memberId) delete out.memberId;
             return out;
+        });
+
+        // Each debt's payment history (what "Pagar" keeps), walked back from today's balance:
+        // before a payment the balance was (after + paid) / (1 + monthly rate).
+        s.debts.forEach(d => {
+            const r = (Number(d.rate) || 0) / 1200;
+            let bal = d.balance;
+            const list = txns.filter(t => t._debt === d.id).sort((a, b) => b.date.localeCompare(a.date));
+            // Interest is charged once a month: on the month's first payment.
+            const pays = list.map((t, i) => {
+                const firstOfMonth = !list[i + 1] || list[i + 1].date.slice(0, 7) !== t.date.slice(0, 7);
+                const before = round2(firstOfMonth ? (bal + t.amount) / (1 + r) : bal + t.amount);
+                const interest = firstOfMonth ? round2(before * r) : 0, row = { date: t.date, amount: t.amount, interest, principal: round2(t.amount - interest), balance: round2(bal) };
+                bal = before;
+                return row;
+            });
+            // Keep the recent stretch that stays within what was originally borrowed.
+            const cap = Math.max(Number(d.originalBalance) || 0, d.balance);
+            const keep = [];
+            for (const p of pays) { if (p.balance + p.principal > cap + 0.01) break; keep.push(p); }
+            if (keep.length) d.payments = keep.reverse().slice(-120);
         });
 
         s.rules = P.rules.map((r, i) => {

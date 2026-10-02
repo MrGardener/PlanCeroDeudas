@@ -943,6 +943,28 @@
     // rubros), plus the whole line of any debt already paid off, rolls to the debt the strategy
     // targets (snowball: smallest balance; avalanche: highest rate). No money is assumed that
     // the budget doesn't assign. A minimums-only run gives the time/interest the plan saves.
+    // A debt payment: this month's interest is paid first and the rest lowers the balance.
+    // The interest is an estimate (balance × rate / 12) unless the statement says otherwise.
+    const cents = (v) => Math.round(v * 100) / 100;
+    const debtMonthlyInterest = (d) => cents(Math.max(0, num(d.balance)) * Math.max(0, num(d.rate)) / 1200);
+    // What you owed at the end of each of the last `count` months (today for this month), from the
+    // payments logged with "Pagar": today's balance plus what those later payments took off.
+    function debtBalanceHistory(debts, today, count = 6) {
+        const t = new Date(today);
+        const out = [];
+        for (let i = count - 1; i >= 0; i--) {
+            const cut = i === 0 ? isoDate(t) : isoDate(new Date(t.getFullYear(), t.getMonth() - i + 1, 0));
+            out.push({ month: cut.slice(0, 7), total: cents(sum(debts || [], d => Math.max(0, num(d.balance)) + sum((d.payments || []).filter(p => p.date > cut), p => num(p.principal)))) });
+        }
+        return out;
+    }
+    function applyDebtPayment(balance, amount, interest) {
+        const bal = Math.max(0, num(balance));
+        const toInterest = Math.min(Math.max(0, num(amount)), Math.max(0, num(interest)));
+        const principal = Math.min(bal, Math.max(0, num(amount) - toInterest));
+        return { interest: cents(toInterest), principal: cents(principal), balance: cents(bal - principal), overpaid: cents(Math.max(0, num(amount) - toInterest - bal)) };
+    }
+
     function debtPayoff(debts, strategy, extraPool) {
         const MAX = 600;
         const line = (d) => Math.max(0, num(d.monthly === undefined || d.monthly === null ? d.minPayment : d.monthly));
@@ -1621,7 +1643,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

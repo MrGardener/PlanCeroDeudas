@@ -915,3 +915,22 @@ test('transfers are neither income nor spending; refunds lower spending', () => 
     ];
     assert.equal(E.cashNow(accounts, moves, new Date(2026, 8, 15)).adjust, -300 + 100 - 250 + 0 + 25);
 });
+
+test('a debt payment pays the month\'s interest first, then lowers the balance', () => {
+    assert.equal(E.debtMonthlyInterest({ balance: 4795.62, rate: 23.9 }), 95.51);
+    assert.deepEqual(E.applyDebtPayment(4795.62, 300, 95.51), { interest: 95.51, principal: 204.49, balance: 4591.13, overpaid: 0 });
+    // Paying it off: never below zero, and anything extra is reported.
+    assert.deepEqual(E.applyDebtPayment(150, 200, 3), { interest: 3, principal: 150, balance: 0, overpaid: 47 });
+    // A payment smaller than the interest only covers interest.
+    assert.deepEqual(E.applyDebtPayment(1000, 10, 20), { interest: 10, principal: 0, balance: 1000, overpaid: 0 });
+});
+
+test('debt balance history comes from the logged payments', () => {
+    const debts = [
+        { balance: 800, payments: [{ date: '2026-08-10', principal: 100 }, { date: '2026-09-10', principal: 100 }] },
+        { balance: 500 }
+    ];
+    const h = E.debtBalanceHistory(debts, new Date(2026, 8, 20), 3);
+    assert.deepEqual(h.map(x => x.month), ['2026-07', '2026-08', '2026-09']);
+    assert.deepEqual(h.map(x => x.total), [1500, 1400, 1300]);
+});

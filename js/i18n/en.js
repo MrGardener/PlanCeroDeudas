@@ -2131,3 +2131,19 @@ I18n.add('en', {
     "Dejan de contar como ingreso o gasto (por ejemplo, el pago de la tarjeta o lo que pasas a tus ahorros). Puedes elegir las cuentas editando cada una.": "They stop counting as income or spending (for example, your card payment or what you move to savings). You can pick the accounts by editing each one.",
     "{0} transferencia{1}: ya no cuentan como ingreso o gasto": "{0} transfer{1|s}: no longer counted as income or spending"
 });
+// Debt payments
+I18n.add('en', {
+    "Pagar": "Pay", "Registrar pago": "Log payment", "Monto pagado": "Amount paid", "De eso, interés": "Of that, interest",
+    "El interés no puede ser negativo.": "Interest can't be negative.",
+    "Estimado: saldo × {0}% ÷ 12. Si tu estado de cuenta dice otra cifra, escríbela.": "Estimate: balance × {0}% ÷ 12. If your statement shows a different figure, type it.",
+    "No, solo bajar el saldo": "No, just lower the balance",
+    "Sí, en Transacciones (cuenta en el rubro de esta deuda)": "Yes, in Transactions (counts in this debt's budget line)",
+    "Pagaste {0} más que el saldo: revisa si quedó saldo a tu favor.": "You paid {0} more than the balance: check whether you have a credit.",
+    "Pago a \"{0}\"": "Payment to \"{0}\"",
+    "Pago registrado: {0} al saldo y {1} de interés. Te quedan {2}.": "Payment logged: {0} to the balance and {1} interest. {2} left.",
+    "Pago: {0}": "Payment: {0}",
+    "Registrar un pago: baja el saldo y queda en Transacciones": "Log a payment: lowers the balance and is saved in Transactions",
+    "Saldo: {0}. Primero se paga el interés del mes y el resto baja el saldo.": "Balance: {0}. The month's interest is paid first and the rest lowers the balance.",
+    "🎉 ¡Pagaste \"{0}\" por completo!": "🎉 You paid off \"{0}\"!"
+});
+I18n.add('en', { "Lo que debes, últimos 6 meses: de {0} a {1}": "What you owe, last 6 months: from {0} to {1}" });

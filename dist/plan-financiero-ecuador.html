@@ -4469,6 +4469,22 @@ I18n.add('en', {
     "Dejan de contar como ingreso o gasto (por ejemplo, el pago de la tarjeta o lo que pasas a tus ahorros). Puedes elegir las cuentas editando cada una.": "They stop counting as income or spending (for example, your card payment or what you move to savings). You can pick the accounts by editing each one.",
     "{0} transferencia{1}: ya no cuentan como ingreso o gasto": "{0} transfer{1|s}: no longer counted as income or spending"
 });
+// Debt payments
+I18n.add('en', {
+    "Pagar": "Pay", "Registrar pago": "Log payment", "Monto pagado": "Amount paid", "De eso, interés": "Of that, interest",
+    "El interés no puede ser negativo.": "Interest can't be negative.",
+    "Estimado: saldo × {0}% ÷ 12. Si tu estado de cuenta dice otra cifra, escríbela.": "Estimate: balance × {0}% ÷ 12. If your statement shows a different figure, type it.",
+    "No, solo bajar el saldo": "No, just lower the balance",
+    "Sí, en Transacciones (cuenta en el rubro de esta deuda)": "Yes, in Transactions (counts in this debt's budget line)",
+    "Pagaste {0} más que el saldo: revisa si quedó saldo a tu favor.": "You paid {0} more than the balance: check whether you have a credit.",
+    "Pago a \"{0}\"": "Payment to \"{0}\"",
+    "Pago registrado: {0} al saldo y {1} de interés. Te quedan {2}.": "Payment logged: {0} to the balance and {1} interest. {2} left.",
+    "Pago: {0}": "Payment: {0}",
+    "Registrar un pago: baja el saldo y queda en Transacciones": "Log a payment: lowers the balance and is saved in Transactions",
+    "Saldo: {0}. Primero se paga el interés del mes y el resto baja el saldo.": "Balance: {0}. The month's interest is paid first and the rest lowers the balance.",
+    "🎉 ¡Pagaste \"{0}\" por completo!": "🎉 You paid off \"{0}\"!"
+});
+I18n.add('en', { "Lo que debes, últimos 6 meses: de {0} a {1}": "What you owe, last 6 months: from {0} to {1}" });
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -6087,7 +6103,7 @@ I18n.country('US', {
                     const t = { type, description: o.desc, store: o.store || '', parentCategory: o.parent, category: o.sub, amount: round2(o.amount), date, paymentType: typeof o.pay === 'function' ? o.pay() : (o.pay || DEBIT) };
                     if (type === 'Gasto') {
                         let line = null;
-                        if (o.key && o.key.startsWith('debt:')) { const d = debtByKey[o.key.slice(5)]; t.budgetLine = 'debt-' + d.id; t.parentCategory = t.parentCategory || 'Deudas'; }
+                        if (o.key && o.key.startsWith('debt:')) { const d = debtByKey[o.key.slice(5)]; t.budgetLine = 'debt-' + d.id; t._debt = d.id; t.parentCategory = t.parentCategory || 'Deudas'; }
                         else if (o.key && o.key.startsWith('goal:')) { const g = goalByKey[o.key.slice(5)]; t.budgetLine = 'goal-' + g.id; t.parentCategory = t.parentCategory || 'Ahorro e Inversión'; }
                         else if (o.key) {
                             line = lineOf(y, o.key);
@@ -6183,7 +6199,7 @@ I18n.country('US', {
             const d = debtByKey[P.snowballTarget(y, m)];
             const day = Math.min(daysIn(y, m), Math.max(P.extraDay, ((routed[`${y}-${m}`] || {})._last || 0) + 1));
             const date = iso(y, m, day);
-            if (extra > 0 && date <= todayISO) txns.push({ type: 'Gasto', description: US ? `Extra payment – ${d.name}` : `Pago extra – ${d.name}`, store: d.lender, parentCategory: 'Deudas', category: d.sub, amount: extra, date, paymentType: XFER, budgetLine: String(EXTRA_ID), memberId: P.members[0].id });
+            if (extra > 0 && date <= todayISO) txns.push({ type: 'Gasto', description: US ? `Extra payment – ${d.name}` : `Pago extra – ${d.name}`, store: d.lender, parentCategory: 'Deudas', category: d.sub, amount: extra, date, paymentType: XFER, budgetLine: String(EXTRA_ID), memberId: P.members[0].id, _debt: d.id });
         });
 
         // ------------------------------------------------------------ transfers + refunds
@@ -6223,9 +6239,30 @@ I18n.country('US', {
         s.transactions = txns.map(t => {
             const out = Object.assign({ id: t._id }, t);
             if (t._refundOf) out.refundOf = t._refundOf._id;
-            delete out._rec; delete out._route; delete out._refundOf; delete out._id;
+            delete out._rec; delete out._route; delete out._refundOf; delete out._id; delete out._debt;
             if (!out.memberId) delete out.memberId;
             return out;
+        });
+
+        // Each debt's payment history (what "Pagar" keeps), walked back from today's balance:
+        // before a payment the balance was (after + paid) / (1 + monthly rate).
+        s.debts.forEach(d => {
+            const r = (Number(d.rate) || 0) / 1200;
+            let bal = d.balance;
+            const list = txns.filter(t => t._debt === d.id).sort((a, b) => b.date.localeCompare(a.date));
+            // Interest is charged once a month: on the month's first payment.
+            const pays = list.map((t, i) => {
+                const firstOfMonth = !list[i + 1] || list[i + 1].date.slice(0, 7) !== t.date.slice(0, 7);
+                const before = round2(firstOfMonth ? (bal + t.amount) / (1 + r) : bal + t.amount);
+                const interest = firstOfMonth ? round2(before * r) : 0, row = { date: t.date, amount: t.amount, interest, principal: round2(t.amount - interest), balance: round2(bal) };
+                bal = before;
+                return row;
+            });
+            // Keep the recent stretch that stays within what was originally borrowed.
+            const cap = Math.max(Number(d.originalBalance) || 0, d.balance);
+            const keep = [];
+            for (const p of pays) { if (p.balance + p.principal > cap + 0.01) break; keep.push(p); }
+            if (keep.length) d.payments = keep.reverse().slice(-120);
         });
 
         s.rules = P.rules.map((r, i) => {
@@ -7221,6 +7258,28 @@ I18n.country('US', {
     // rubros), plus the whole line of any debt already paid off, rolls to the debt the strategy
     // targets (snowball: smallest balance; avalanche: highest rate). No money is assumed that
     // the budget doesn't assign. A minimums-only run gives the time/interest the plan saves.
+    // A debt payment: this month's interest is paid first and the rest lowers the balance.
+    // The interest is an estimate (balance × rate / 12) unless the statement says otherwise.
+    const cents = (v) => Math.round(v * 100) / 100;
+    const debtMonthlyInterest = (d) => cents(Math.max(0, num(d.balance)) * Math.max(0, num(d.rate)) / 1200);
+    // What you owed at the end of each of the last `count` months (today for this month), from the
+    // payments logged with "Pagar": today's balance plus what those later payments took off.
+    function debtBalanceHistory(debts, today, count = 6) {
+        const t = new Date(today);
+        const out = [];
+        for (let i = count - 1; i >= 0; i--) {
+            const cut = i === 0 ? isoDate(t) : isoDate(new Date(t.getFullYear(), t.getMonth() - i + 1, 0));
+            out.push({ month: cut.slice(0, 7), total: cents(sum(debts || [], d => Math.max(0, num(d.balance)) + sum((d.payments || []).filter(p => p.date > cut), p => num(p.principal)))) });
+        }
+        return out;
+    }
+    function applyDebtPayment(balance, amount, interest) {
+        const bal = Math.max(0, num(balance));
+        const toInterest = Math.min(Math.max(0, num(amount)), Math.max(0, num(interest)));
+        const principal = Math.min(bal, Math.max(0, num(amount) - toInterest));
+        return { interest: cents(toInterest), principal: cents(principal), balance: cents(bal - principal), overpaid: cents(Math.max(0, num(amount) - toInterest - bal)) };
+    }
+
     function debtPayoff(debts, strategy, extraPool) {
         const MAX = 600;
         const line = (d) => Math.max(0, num(d.monthly === undefined || d.monthly === null ? d.minPayment : d.monthly));
@@ -7899,7 +7958,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -9965,7 +10024,12 @@ I18n.country('US', {
         // Sparklines where there's a trend: the debt plan ahead (dashed: a projection, from
         // Engine.debtPayoff history) and net worth by year (Engine.netWorthYears, real years only).
         const pal = UI.palette();
-        const debtSpark = debts.totalBalance > 0 && !debts.never && debts.history.length
+        // With payments logged ("Pagar"), the real last 6 months instead.
+        const paid = (s.debts || []).some(d => (d.payments || []).length);
+        const past = paid ? Engine.debtBalanceHistory(s.debts, ctx.today, 6) : null;
+        const debtSpark = past
+            ? UI.sparkline(past.map(p => p.total), { width: 84, height: 26, zero: false, color: pal.orange, label: `Lo que debes, últimos 6 meses: de ${money0(past[0].total)} a ${money0(past[past.length - 1].total)}` })
+            : debts.totalBalance > 0 && !debts.never && debts.history.length
             ? UI.sparkline([debts.totalBalance].concat(debts.history), { width: 84, height: 26, dashed: true, color: pal.orange, label: `Tu plan: de ${money0(debts.totalBalance)} a $0 en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}` }) : '';
         const nwYears = Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear());
         const nwSpark = nwYears.length >= 2
@@ -13862,7 +13926,7 @@ I18n.country('US', {
             <td><input type="number" class="cell-input num money" min="0" step="10" value="${Number(d.monthly) || 0}" data-input="debt.set" data-id="${d.id}" data-field="monthly" aria-label="Monto en tu presupuesto" title="Lo que tu presupuesto le paga cada mes"></td>
             <td class="text-center" data-cell="order"></td>
             <td class="text-center whitespace-nowrap font-bold text-slate-700" data-cell="payoff"></td>
-            <td class="text-center"><button class="row-del" data-action="debt.delete" data-id="${d.id}" title="Eliminar deuda"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td class="text-center whitespace-nowrap">${Number(d.balance) > 0 ? `<button class="mini-btn" data-action="debt.pay" data-id="${d.id}" title="Registrar un pago: baja el saldo y queda en Transacciones">Pagar</button> ` : ''}<button class="row-del" data-action="debt.delete" data-id="${d.id}" title="Eliminar deuda"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 
@@ -14116,6 +14180,40 @@ I18n.country('US', {
             UI.toast('Deuda agregada a tu presupuesto con su pago mínimo ($50). Ajusta los montos.');
             const input = document.querySelector(`#debt-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
+        },
+        // A payment: the interest goes first, the rest lowers the balance. It's logged in
+        // Transactions on the debt's budget line, and kept in the debt's history.
+        'debt.pay': async (el) => {
+            const d = find(Store.state.debts, el);
+            if (!d) return;
+            const est = Engine.debtMonthlyInterest(d);
+            const r = await UI.form({
+                title: `Pago a "${d.name}"`,
+                message: `Saldo: ${money(d.balance)}. Primero se paga el interés del mes y el resto baja el saldo.`,
+                fields: [
+                    { name: 'amount', label: 'Monto pagado', type: 'number', min: 0, step: '0.01', value: Number(d.monthly) || Number(d.minPayment) || '' },
+                    { name: 'interest', label: 'De eso, interés', type: 'number', min: 0, step: '0.01', value: est, help: `Estimado: saldo × ${Number(d.rate) || 0}% ÷ 12. Si tu estado de cuenta dice otra cifra, escríbela.` },
+                    { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) },
+                    { name: 'log', label: '¿Registrarlo también como movimiento?', options: [{ value: 'yes', label: 'Sí, en Transacciones (cuenta en el rubro de esta deuda)' }, { value: 'no', label: 'No, solo bajar el saldo' }] }
+                ],
+                confirmText: 'Registrar pago',
+                validate: v => !(v.amount > 0) ? 'Escribe un monto mayor a 0.' : v.interest < 0 ? 'El interés no puede ser negativo.' : !v.date ? 'Elige una fecha.' : null
+            });
+            if (!r) return;
+            const amount = Math.round(r.amount * 100) / 100;
+            const p = Engine.applyDebtPayment(d.balance, amount, r.interest || 0);
+            App.undoable(p.balance <= 0 ? `🎉 ¡Pagaste "${d.name}" por completo!` : `Pago registrado: ${money(p.principal)} al saldo y ${money(p.interest)} de interés. Te quedan ${money(p.balance)}.`, () => {
+                d.balance = p.balance;
+                d.payments = (d.payments || []).concat([{ date: r.date, amount, interest: p.interest, principal: p.principal, balance: p.balance }]).slice(-120);
+                if (r.log === 'yes') {
+                    const s = Store.state, tax = s.taxonomy.expense;
+                    const cat = tax.Deudas ? 'Deudas' : 'Otros';
+                    const kind = Engine.DEBT_KINDS.find(k => k.id === d.kind);
+                    const sub = (tax[cat] || []).includes(kind && kind.label) ? kind.label : (tax[cat] || [])[0] || '';
+                    s.transactions.push({ id: Store.nextId(s.transactions), type: 'Gasto', description: `Pago: ${d.name}`, store: d.lender || '', parentCategory: cat, category: sub, amount, date: r.date, paymentType: 'Transferencia', budgetLine: 'debt-' + d.id, debtId: d.id, createdAt: new Date().toISOString() });
+                }
+            });
+            if (p.overpaid > 0) UI.toast(`Pagaste ${money(p.overpaid)} más que el saldo: revisa si quedó saldo a tu favor.`, 'warn');
         },
         'debt.delete': (el) => {
             const d = find(Store.state.debts, el);

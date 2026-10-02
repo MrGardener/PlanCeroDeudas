@@ -280,7 +280,12 @@
         // Sparklines where there's a trend: the debt plan ahead (dashed: a projection, from
         // Engine.debtPayoff history) and net worth by year (Engine.netWorthYears, real years only).
         const pal = UI.palette();
-        const debtSpark = debts.totalBalance > 0 && !debts.never && debts.history.length
+        // With payments logged ("Pagar"), the real last 6 months instead.
+        const paid = (s.debts || []).some(d => (d.payments || []).length);
+        const past = paid ? Engine.debtBalanceHistory(s.debts, ctx.today, 6) : null;
+        const debtSpark = past
+            ? UI.sparkline(past.map(p => p.total), { width: 84, height: 26, zero: false, color: pal.orange, label: `Lo que debes, últimos 6 meses: de ${money0(past[0].total)} a ${money0(past[past.length - 1].total)}` })
+            : debts.totalBalance > 0 && !debts.never && debts.history.length
             ? UI.sparkline([debts.totalBalance].concat(debts.history), { width: 84, height: 26, dashed: true, color: pal.orange, label: `Tu plan: de ${money0(debts.totalBalance)} a $0 en ${Fmt.monthYear(Engine.addMonths(ctx.today, debts.months))}` }) : '';
         const nwYears = Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear());
         const nwSpark = nwYears.length >= 2
