@@ -26,8 +26,9 @@
         tiles.push(['tone-red', 'Interés total', money0(base.totalInterest)], ['tone-slate', 'Total pagado', money0(base.totalPaid)]);
         // US: what you really pay each month (PITI).
         if (ctx.budgetYear.country === 'US') {
-            const p = Engine.pitiMonthly(Object.assign({ payment: base.firstPayment }, m));
-            tiles.unshift(['tone-amber', 'Pago mensual total (PITI)', `${money(p.total)}<span class="kpi-note block">Capital e interés ${money(p.pi)} · impuesto ${money(p.tax)} · seguro ${money(p.ins)}${p.pmi ? ` · PMI ${money(p.pmi)}` : ''}${p.hoa ? ` · HOA ${money(p.hoa)}` : ''}</span>`]);
+            const p = Engine.pitiMonthly(Object.assign({ payment: base.firstPayment, schedule: (extra || base).schedule }, m));
+            const pmiEnd = p.pmi && p.pmiMonths !== null ? ` (por ${Fmt.monthsAsYears(p.pmiMonths)}, ${money0(p.pmiTotal)} en total)` : '';
+            tiles.unshift(['tone-amber', 'Pago mensual total (PITI)', `${money(p.total)}<span class="kpi-note block">Capital e interés ${money(p.pi)} · impuesto ${money(p.tax)} · seguro ${money(p.ins)}${p.pmi ? ` · PMI ${money(p.pmi)}${pmiEnd}` : ''}${p.hoa ? ` · HOA ${money(p.hoa)}` : ''}</span>`]);
         }
         let html = tiles.map(([tone, label, value]) => `<div class="kpi ${tone}"><span class="kpi-label">${label}</span><span class="kpi-value">${value}</span></div>`).join('');
         if (extra) {
@@ -41,7 +42,7 @@
         const opts = { scales: { x: { title: { display: true, text: axis.title, font: { size: 10 } } } } };
         const dataset = (label, schedule, field, cumulative, dashed) => ({
             label, data: Engine.sampleSchedule(schedule, axis, field, cumulative),
-            borderColor: dashed ? '#0f172a' : color, borderDash: dashed ? [6, 4] : [], backgroundColor: dashed ? 'transparent' : 'rgba(59,130,246,.08)',
+            borderColor: dashed ? '#eb6834' : color, borderDash: dashed ? [6, 4] : [], backgroundColor: dashed ? 'transparent' : 'rgba(59,130,246,.08)',
             fill: !dashed, tension: .2, pointRadius: 0, spanGaps: false
         });
         UI.chart('mort-balance-chart', { type: 'line', options: opts, data: { labels: axis.labels, datasets: [dataset('Saldo pendiente', base.schedule, 'balance', false, false)].concat(extra ? [dataset('Saldo con pago extra', extra.schedule, 'balance', false, true)] : []) } });

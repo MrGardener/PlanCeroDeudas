@@ -52,7 +52,9 @@
         Cash.renderCalendar(t);
         const txns = s.transactions;
         const items = Engine.monthItems(Store.effective(y), m);
-        const plannedSpend = items.filter(i => !Engine.isSavingsItem(i)).reduce((a, i) => a + (Number(i.real) || 0), 0);
+        // Everything the plan sends out this month (spending, savings, debt payments) — the same
+        // "Planeado" the budget shows, and what the curve adds up (every logged outflow).
+        const plannedSpend = items.filter(i => i.type !== 'Ingreso').reduce((a, i) => a + (Number(i.real) || 0), 0);
 
         // Spending so far vs. last month, day by day.
         const curve = Engine.monthSpendCurve(txns, t);
@@ -86,11 +88,18 @@
         const pay = Engine.nextPayday(Cash.paySchedule(), t);
         const streak = Engine.loggingStreak(txns, t);
         const DOW = Fmt.DOW_SHORT;
+        // One "spend today" number: the budget's flexible money per day, or — when your cash
+        // until payday allows less — what the cash allows (the same figure as "Seguro para gastar").
+        const safe = Cash.safeContext(t).res;
+        const cashPerDay = safe ? Math.max(0, safe.perDay) : null;
+        const today = cashPerDay !== null ? Math.min(allow.perDay, cashPerDay) : allow.perDay;
+        const byCash = cashPerDay !== null && cashPerDay < allow.perDay;
         UI.html('dash-today', `
-            <div class="kpi ${allow.perDay > 0 ? (spentToday > allow.perDay ? 'tone-amber' : 'tone-emerald') : 'tone-red'}">
+            <div class="kpi ${today > 0 ? (spentToday > today ? 'tone-amber' : 'tone-emerald') : 'tone-red'}">
                 <span class="kpi-label">Puedes gastar hoy</span>
-                <span class="kpi-value">${money0(allow.perDay)}</span>
-                <span class="kpi-note">${allow.perDay > 0 ? `Te quedan ${money0(allow.remaining)} de gastos variables para ${allow.daysLeft} día${allow.daysLeft === 1 ? '' : 's'}. Hoy llevas ${money0(spentToday)}.` : `Ya usaste tus gastos variables del mes (${money0(flexSpent)} de ${money0(flexPlanned)}).`}</span>
+                <span class="kpi-value">${money0(today)}</span>
+                <span class="kpi-note">${byCash ? `Lo que permite tu efectivo hasta el cobro (tu presupuesto variable daría ${money0(allow.perDay)}). Hoy llevas ${money0(spentToday)}.`
+                    : allow.perDay > 0 ? `Te quedan ${money0(allow.remaining)} de gastos variables para ${allow.daysLeft} día${allow.daysLeft === 1 ? '' : 's'}. Hoy llevas ${money0(spentToday)}.` : `Ya usaste tus gastos variables del mes (${money0(flexSpent)} de ${money0(flexPlanned)}).`}</span>
             </div>
             <div class="kpi tone-slate">
                 <span class="kpi-label">Próximo día de pago</span>
@@ -220,7 +229,7 @@
         if (sync) add('tone-blue', 'fa-scale-balanced text-teal-600', `Tu patrimonio ${s.activeYear} no refleja tus pólizas (${money0(sync.polizas)}) y deudas (${money0(sync.debts)}) registradas.`, 'patrimonio');
         const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
         const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
-        if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no descargas una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
+        if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no tienes una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
         if (ctx.debts.totalBalance > 0 && ctx.debts.shortfall > 0) add('tone-red', 'fa-snowplow text-red-600', `Tu presupuesto no cubre los pagos mínimos de tus deudas: faltan <strong>${money0(ctx.debts.shortfall)}</strong> al mes.`, 'metas');
         else if (ctx.debts.never && ctx.debts.totalBalance > 0) add('tone-red', 'fa-snowplow text-red-600', 'Con lo que tu presupuesto asigna, una deuda nunca termina de pagarse.', 'metas');
         if (ctx.steps.current >= 3) {
@@ -228,7 +237,7 @@
             if (unfunded.length) add('tone-amber', 'fa-bullseye text-purple-600', `${unfunded.map(g => `<strong>${esc(g.name)}</strong>`).join(', ')} sin dinero asignado en tu presupuesto.`, 'metas');
         }
         const p = ctx.pay;
-        if (p.sriCap > 0 && p.deductibles.real < p.sriCap * 0.8) add('tone-blue', 'fa-file-invoice-dollar text-blue-600', `Podrías deducir <strong>${money0(p.sriCap - p.deductibles.real)}</strong> más en gastos personales y pagar menos impuesto.`, 'presupuesto/ingresos');
+        if (p.sriCap > 0 && p.deductibles.real < p.sriCap * 0.8 && p.rebajaRoom >= 1) add('tone-blue', 'fa-file-invoice-dollar text-blue-600', `Con <strong>${money0(p.sriCap - p.deductibles.real)}</strong> más en gastos personales, tu impuesto bajaría hasta <strong>${money0(p.rebajaRoom)}</strong>.`, 'presupuesto/ingresos');
 
         return out.length ? out.join('') : '<div class="alert-item tone-emerald"><i class="fa-solid fa-circle-check text-emerald-600 mt-0.5"></i><span>Todo en orden. ¡Buen trabajo!</span></div>';
     }
@@ -265,12 +274,11 @@
 
         UI.html('dash-alerts', alerts(ctx));
 
-        const years = [];
-        for (let y = s.configStartYear; y <= s.configEndYear; y++) years.push(y);
+        const years = Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear());
         UI.chart('dash-nw-chart', {
             type: 'line',
-            data: { labels: years, datasets: [{ label: 'Patrimonio neto', data: years.map(y => Engine.netWorth(s.years, s.assets, y).value), borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,.1)', fill: true, tension: .25, pointRadius: years.map(y => y === s.activeYear ? 5 : 0) }] },
-            options: { scales: { y: { beginAtZero: false } } }
+            data: { labels: years, datasets: [{ label: 'Patrimonio neto', data: years.map(y => Engine.netWorth(s.years, s.assets, y).value), borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,.1)', fill: true, cubicInterpolationMode: 'monotone', pointRadius: years.map(y => y === s.activeYear ? 5 : 3) }] },
+            options: { scales: { y: { beginAtZero: false } }, plugins: { legend: { display: false } } }
         });
     }
 

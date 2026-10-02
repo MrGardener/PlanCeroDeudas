@@ -314,6 +314,7 @@
                         <label><span class="help block" id="inc-state-rate-label">Impuesto estatal (%)</span><input type="number" class="input" min="0" step="0.01" id="inc-state-rate" data-change="us.stateRate" placeholder="Automático"></label>
                         <label><span class="help block">Impuesto de tu ciudad (%)</span><select class="input" id="inc-city" data-change="us.city"></select></label>
                     </div>
+                    <label class="check mt-1" id="inc-city-resident"><input type="checkbox" data-bind="year.localResident" data-structural="true"><span>Vivo en esta ciudad <span class="block text-[11px] font-normal text-slate-500">Si solo trabajas ahí, pagas la tasa de no residente (la mitad).</span></span></label>
                     <span class="help" id="inc-state-note"></span>
                 </div>
                 <label class="field field-box tone-slate" data-country="EC">
@@ -351,6 +352,7 @@
                     <span class="badge badge-info">Ley laboral Ecuador</span>
                 </div>
                 <dl class="text-xs divide-y divide-slate-100" id="inc-payroll"></dl>
+                <p class="help mt-2" id="inc-tax-year"></p>
                 <div class="kpi tone-emerald mt-4 flex justify-between items-center">
                     <div><span class="kpi-label">Sueldo neto mensual</span><span class="kpi-note">Sin décimos. Con décimos en su mes: ver Presupuesto del Mes.</span></div>
                     <span class="kpi-value text-2xl" id="inc-neto">$0.00</span>
@@ -372,11 +374,15 @@
             <div class="card" data-country="EC">
                 <div class="card-head">
                     <div>
-                        <div class="card-title"><i class="fa-solid fa-file-invoice-dollar text-blue-600"></i> Deducción de Gastos Personales</div>
-                        <div class="card-sub">Calculada con los rubros marcados como deducibles en tu presupuesto real.</div>
+                        <div class="card-title"><i class="fa-solid fa-file-invoice-dollar text-blue-600"></i> Rebaja por Gastos Personales</div>
+                        <div class="card-sub">Tus gastos de vivienda, salud, educación, alimentación, vestimenta y turismo bajan tu impuesto en un 18%, hasta un tope que depende de tus cargas familiares. Se calcula con los rubros marcados como deducibles en tu presupuesto real.</div>
                     </div>
                     <span class="badge badge-info">Tope: <span id="inc-cap">$0</span></span>
                 </div>
+                <label class="field max-w-xs mb-3"><span class="field-label">Cargas familiares</span>
+                    <select class="input" data-bind="year.cargas" data-structural="true">
+                        <option value="0">Ninguna (tope: 7 canastas)</option><option value="1">1 (9 canastas)</option><option value="2">2 (11 canastas)</option><option value="3">3 (14 canastas)</option><option value="4">4 (17 canastas)</option><option value="5">5 o más (20 canastas)</option><option value="cat">Enfermedad catastrófica (20 canastas)</option>
+                    </select><span class="help">Hijos menores de edad o con discapacidad, cónyuge o padres que dependen de ti.</span></label>
                 <div class="grid grid-cols-2 gap-3 mb-3">
                     <div class="kpi tone-slate"><span class="kpi-label">Deducibles presupuestados</span><span class="kpi-value" id="inc-ded-prep">$0.00</span></div>
                     <div class="kpi tone-blue"><span class="kpi-label">Deducibles reales</span><span class="kpi-value" id="inc-ded-real">$0.00</span></div>
@@ -399,8 +405,8 @@
             <summary>¿Cómo se calcula tu sueldo neto?</summary>
             <div>
                 <p><strong>1. Aporte IESS:</strong> Sueldo bruto × tasa de aporte personal (9.45% por defecto).</p>
-                <p><strong>2. Base imponible:</strong> (Sueldo anual − IESS anual) − mín(gastos deducibles reales, canasta básica × multiplicador). Más gastos deducibles reales (vivienda, educación, salud, alimentación, vestimenta, turismo) = menor base imponible.</p>
-                <p><strong>3. Impuesto a la renta:</strong> la base imponible se evalúa en la tabla progresiva del SRI; el impuesto anual se retiene en 12 cuotas.</p>
+                <p><strong>2. Base imponible:</strong> sueldo anual − IESS anual, evaluada en la tabla progresiva del SRI.</p>
+                <p><strong>3. Rebaja por gastos personales:</strong> al impuesto de la tabla se le resta el 18% de tus gastos personales reales (vivienda, salud, educación, alimentación, vestimenta, turismo), hasta un tope de 7 canastas básicas sin cargas familiares y hasta 20 con cinco o más. El impuesto que queda se retiene en 12 cuotas.</p>
                 <p><strong>4. Neto:</strong> Sueldo − IESS − retención mensual. En diciembre y en el mes de tu región se suman el Décimo Tercero y el Décimo Cuarto (no pagan IESS).</p>
             </div>
         </details>
@@ -546,7 +552,7 @@
                     <select id="txn-f-member" class="cell-input hidden" style="width:auto" data-change="txn.filter" aria-label="Persona"></select>
                 </div>
             </div>
-            <div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                 <div class="kpi tone-emerald"><span class="kpi-label">Ingresos</span><span class="kpi-value" id="txn-sum-inc">$0.00</span></div>
                 <div class="kpi tone-red"><span class="kpi-label">Gastos</span><span class="kpi-value" id="txn-sum-exp">$0.00</span></div>
                 <div class="kpi tone-slate"><span class="kpi-label">Neto</span><span class="kpi-value" id="txn-sum-net">$0.00</span></div>
@@ -881,10 +887,11 @@
                 <a href="#" class="mini-btn" data-goto="config" data-focus="cfg-prefs">Cambiar en Configuración →</a>
             </div>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5" data-country="US">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-5" data-country="US">
             <label class="field field-box"><span class="field-label"><span>Impuesto a la propiedad al año (<span class="cur">$</span>)</span></span><input type="number" class="input" step="100" min="0" data-bind="mortgage.propertyTax"></label>
             <label class="field field-box"><span class="field-label"><span>Seguro de vivienda al año (<span class="cur">$</span>)</span></span><input type="number" class="input" step="100" min="0" data-bind="mortgage.homeInsurance"></label>
-            <label class="field field-box"><span class="field-label">PMI (% del préstamo al año)</span><input type="number" class="input" step="0.05" min="0" data-bind="mortgage.pmiRate"><span class="help">Si das menos del 20% de entrada. Se quita al llegar a 80% del valor.</span></label>
+            <label class="field field-box"><span class="field-label"><span>Valor de la casa al comprarla (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1000" min="0" data-bind="mortgage.homeValue"><span class="help">Para saber cuándo se quita el PMI.</span></label>
+            <label class="field field-box"><span class="field-label">PMI (% del préstamo al año)</span><input type="number" class="input" step="0.05" min="0" data-bind="mortgage.pmiRate"><span class="help">Si das menos del 20% de entrada. Se quita cuando debes el 78% del valor de la casa.</span></label>
             <label class="field field-box"><span class="field-label"><span>HOA al mes (<span class="cur">$</span>)</span></span><input type="number" class="input" step="10" min="0" data-bind="mortgage.hoa"></label>
         </div>
         <div id="mort-summary" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5"></div>
@@ -932,9 +939,9 @@
             <label class="field field-box"><span class="field-label">Edad actual</span><input type="number" class="input" min="18" max="80" data-bind="retirement.edadActual"></label>
             <label class="field field-box"><span class="field-label">Edad de jubilación deseada</span><input type="number" class="input" min="40" max="85" data-bind="retirement.edadJubilacion"></label>
             <div class="field-box tone-emerald">
-                <span class="field-label"><span>Ahorro DPF actual (<span class="cur">$</span>)</span></span>
+                <span class="field-label"><span>Ya ahorrado para la jubilación (<span class="cur">$</span>)</span></span>
                 <div class="input input-readonly" id="ret-ahorro"></div>
-                <span class="linked">🔗 Automático: el capital de tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas registradas</a>.</span>
+                <span class="linked">🔗 Automático: lo que ya tienes ahorrado e invertido más allá de tu fondo de emergencia (<a href="#" class="link" data-goto="ahorro/polizas">pólizas</a>, cuentas e inversiones).</span>
             </div>
             <div class="field-box tone-emerald">
                 <span class="field-label"><span>Aporte mensual para el retiro (<span class="cur">$</span>)</span></span>
@@ -945,6 +952,11 @@
                 <span class="field-label"><span>Retorno anual esperado (%)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="tasaRetorno" title="Volver a enlazar con la Tasa DPF">↻ enlazar</button></span>
                 <input type="number" class="input" step="0.1" min="0" id="ret-tasa" data-input="ret.override" data-field="tasaRetorno">
                 <span class="linked" id="ret-tasa-note"></span>
+            </div>
+            <div class="field-box tone-emerald">
+                <span class="field-label"><span>Inflación anual esperada (%)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="inflacion" title="Volver al promedio histórico">↻ enlazar</button></span>
+                <input type="number" class="input" step="0.1" min="0" id="ret-infl" data-input="ret.override" data-field="inflacion">
+                <span class="linked" id="ret-infl-note"></span>
             </div>
             <label class="field field-box tone-emerald"><span class="field-label">Tasa de retiro segura anual (%)</span><input type="number" class="input" step="0.5" min="0" max="20" data-bind="retirement.tasaRetiroSegura"><span class="help">% de tu ahorro que retiras cada año sin agotarlo (regla del 4%).</span></label>
         </div>
@@ -960,7 +972,7 @@
             <label class="field field-box tone-indigo" data-country="EC"><span class="field-label">Tasa de reemplazo (%)</span><input type="number" class="input" min="0" max="100" data-bind="retirement.tasaReemplazo"><span class="help">% del sueldo que recibirías de pensión (típico IESS: 40–75%).</span></label>
         </div>
 
-        <div class="panel tone-slate mb-5"><div class="section-label"><i class="fa-solid fa-chart-line text-emerald-600"></i> Crecimiento de tu ahorro hasta la jubilación</div><div class="chart-box"><canvas id="ret-chart"></canvas></div></div>
+        <div class="panel tone-slate mb-5"><div class="section-label"><i class="fa-solid fa-chart-line text-emerald-600"></i> Crecimiento de tu ahorro hasta la jubilación (dólares de hoy)</div><div class="chart-box"><canvas id="ret-chart"></canvas></div></div>
 
         <div class="panel tone-purple mb-5">
             <div class="flex flex-wrap justify-between items-center gap-2 mb-1">
@@ -974,12 +986,13 @@
 
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <div class="kpi tone-slate"><span class="kpi-label">Años hasta jubilarte</span><span class="kpi-value" id="ret-years">0</span></div>
-            <div class="kpi tone-emerald"><span class="kpi-label">Valor futuro del ahorro</span><span class="kpi-value" id="ret-fv">$0</span></div>
+            <div class="kpi tone-emerald"><span class="kpi-label">Valor futuro del ahorro</span><span class="kpi-value" id="ret-fv">$0</span><span class="kpi-note" id="ret-fv-note"></span></div>
             <div class="kpi tone-emerald"><span class="kpi-label">Ingreso mensual del ahorro</span><span class="kpi-value" id="ret-income-savings">$0</span></div>
-            <div class="kpi tone-indigo"><span class="kpi-label">Pensión IESS mensual</span><span class="kpi-value" id="ret-pension">$0</span></div>
+            <div class="kpi tone-indigo"><span class="kpi-label">Pensión IESS mensual</span><span class="kpi-value" id="ret-pension">$0</span><span class="kpi-note" id="ret-pension-note"></span></div>
         </div>
+        <div class="panel tone-amber text-xs text-amber-900 mb-4 hidden" id="ret-bridge"></div>
         <div class="panel tone-slate flex flex-wrap justify-between items-center gap-3 mb-4" style="background:linear-gradient(90deg,#ecfdf5,#eef2ff)">
-            <div><span class="text-xs font-extrabold text-slate-700 uppercase block">Ingreso mensual total en la jubilación</span><span class="text-[11px] text-slate-500"><span class="text-emerald-700 font-bold">Ahorro DPF</span> + <span class="text-indigo-700 font-bold">Pensión IESS</span></span></div>
+            <div><span class="text-xs font-extrabold text-slate-700 uppercase block">Ingreso mensual total en la jubilación</span><span class="text-[11px] text-slate-500"><span class="text-emerald-700 font-bold">Ahorro DPF</span> + <span class="text-indigo-700 font-bold">Pensión IESS</span> · en dólares de hoy</span></div>
             <div class="text-right"><span class="text-2xl font-black text-slate-900 block" id="ret-total">$0</span><span class="text-xs font-bold text-purple-700 hidden" id="ret-total-delta"></span></div>
         </div>
         <p class="panel tone-amber text-[11px] text-amber-900 leading-relaxed" data-country="US"><i class="fa-solid fa-triangle-exclamation text-amber-600"></i> <strong>Estimación del Seguro Social</strong>: usa tu sueldo actual como promedio de 35 años (con el tope anual), la fórmula de beneficio (90% / 32% / 15%) y tu edad de retiro (menos antes de los 67, más hasta los 70). Tu estimado real está en <a href="https://www.ssa.gov/myaccount/" target="_blank" rel="noopener" class="link">ssa.gov/myaccount</a>.</p>
@@ -1120,7 +1133,7 @@
                 <label class="field field-box"><span class="field-label">Aporte personal IESS (%)</span><input type="number" class="input" step="0.01" min="0" data-bind="year.iessRate"></label>
                 <label class="field field-box"><span class="field-label"><span>SBU (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.sbu"><span class="help">Base del Décimo Cuarto.</span></label>
                 <label class="field field-box"><span class="field-label"><span>Canasta básica (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.canasta"></label>
-                <label class="field field-box"><span class="field-label">Tope deducible (× canasta)</span><input type="number" class="input" step="0.1" min="0" data-bind="year.sriCapMultiplier"><span class="help">Ajusta si tu caso (cargas, año fiscal) cambia el tope.</span></label>
+                <label class="field field-box"><span class="field-label">Rebaja por gastos personales (%)</span><input type="number" class="input" step="1" min="0" max="100" data-bind="year.sriRebajaRate"><span class="help">18% desde 2023. El tope depende de tus cargas (Ingresos).</span></label>
                 <label class="field field-box"><span class="field-label"><span>Cobertura COSEDE (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1000" min="0" data-bind="year.cosede"><span class="help">Para cooperativas sin límite propio.</span></label>
             </div>
             <div>
@@ -1192,7 +1205,7 @@
                 <div class="flex flex-wrap items-end gap-3">
                     <label class="field"><span class="field-label">Desde el año</span><select id="cfg-copy-from" class="input" style="width:7rem"></select></label>
                     <button class="btn btn-blue" data-action="cfg.copyYear"><i class="fa-solid fa-arrow-right-to-bracket"></i> Copiar a <span class="active-year"></span></button>
-                    <button class="btn btn-secondary" data-action="cfg.propagate"><i class="fa-solid fa-forward"></i> Propagar <span class="active-year"></span> a los años siguientes</button>
+                    <button class="btn btn-secondary" data-action="cfg.propagate"><i class="fa-solid fa-forward"></i> <span>Propagar <span class="active-year"></span> a los años siguientes</span></button>
                 </div>
             </div>
             <div class="panel tone-emerald">

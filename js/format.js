@@ -32,7 +32,8 @@
         const d = Math.min(decimals, cur.decimals);
         const num = Math.abs(v).toLocaleString(cur.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
         const s = cur.after ? `${num} ${cur.symbol}` : `${cur.symbol}${cur.symbol.length > 1 && !cur.symbol.endsWith('$') ? ' ' : ''}${num}`;
-        return v < 0 && Math.abs(v) >= 0.5 * Math.pow(10, -d) ? '-' + s : s;
+        // A true minus sign (U+2212), the same one the views put before amounts.
+        return v < 0 && Math.abs(v) >= 0.5 * Math.pow(10, -d) ? '\u2212' + s : s;
     }
     const money = (n) => fmt(n, 2);
     const money0 = (n) => fmt(n, 0);

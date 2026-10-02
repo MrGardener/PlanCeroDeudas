@@ -22,7 +22,22 @@
     let frozenDefaultYear = null;
 
     // Bring one year's data up to the current shape (older saves predate some fields).
+    // Ecuador figures that were the app's own defaults before 2026: replaced by the current ones
+    // (values the person typed are kept).
+    const OLD_EC = { sbu: 470, canasta: 764.70 };
+    const preReformTable = (b) => Array.isArray(b) && b.length && b.length <= 7 && Math.max(...b.map(x => Number(x.rate) || 0)) <= 0.25;
     function normalizeYear(yd) {
+        if (yd.country !== 'US' && COUNTRY !== 'US') {
+            // Pre-2023 SRI table (top rate 25%): the law has had 9 brackets up to 37% since 2023.
+            if (preReformTable(yd.sriBrackets)) { yd.sriBrackets = D.newYear().sriBrackets; yd.taxTableYear = D.newYear().taxTableYear; }
+            Object.keys(OLD_EC).forEach(k => { if (Number(yd[k]) === OLD_EC[k]) yd[k] = D.newYear()[k]; });
+            // Saved before "cargas": the old cap multiplier maps to its number of dependents.
+            if (yd.cargas === undefined) {
+                const m = Number(yd.sriCapMultiplier);
+                const i = Engine.CARGAS_CANASTAS.indexOf(Number.isFinite(m) && yd.sriCapMultiplier !== null && yd.sriCapMultiplier !== '' ? m : 7);
+                yd.cargas = i >= 0 ? i : null;
+            }
+        }
         const fresh = D.newYear();
         Object.keys(fresh).forEach(k => { if (yd[k] === undefined) yd[k] = fresh[k]; });
         const nw = yd.netWorth || (yd.netWorth = {});

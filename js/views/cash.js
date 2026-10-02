@@ -39,12 +39,16 @@
     // How the salary arrives (Ingresos → ¿Cómo te pagan?); older data only had days of the month.
     const paySchedule = () => Engine.normalizeSchedule(Store.state.settings.paySchedule || Store.state.settings.paydays);
 
-    function events(fromISO, toISO) {
+    // For forecasts, a salary with no pay rhythm set is assumed to arrive on the last day of each
+    // month (instead of never) — the views say so and invite to set the real one.
+    const ASSUMED_SCHEDULE = { freq: 'monthly', days: [31] };
+    function events(fromISO, toISO, opts = {}) {
         const s = Store.state;
         const months = monthsBetween(fromISO, toISO);
         const pay = {}, base = {};
         months.forEach(d => { const k = `${d.year}-${String(d.month).padStart(2, '0')}`; pay[k] = d.pay; base[k] = d.payBase; });
-        return { months, list: Engine.cashEvents({ from: fromISO, to: toISO, months, recurring: s.recurring, schedule: paySchedule(), payPerMonth: pay, payBase: base }) };
+        const schedule = paySchedule() || (opts.assume ? Engine.normalizeSchedule(ASSUMED_SCHEDULE) : null);
+        return { months, assumed: !paySchedule() && !!opts.assume, list: Engine.cashEvents({ from: fromISO, to: toISO, months, recurring: s.recurring, schedule, payPerMonth: pay, payBase: base }) };
     }
 
     // Savings and goal lines of this month: what they still need.
@@ -207,7 +211,7 @@
     // What the plan says will come in and go out between two dates: dated paydays and repeating
     // income, plus each month's budget (other incomes, spending, savings, debt payments).
     function forecastInputs(fromISO, toISO) {
-        const ev = events(fromISO, toISO);
+        const ev = events(fromISO, toISO, { assume: true });
         const monthly = {};
         ev.months.forEach(d => {
             const k = `${d.year}-${String(d.month).padStart(2, '0')}`;
@@ -220,7 +224,7 @@
                 expense: lines.filter(i => !Engine.isSavingsItem(i) && i.type !== 'Deuda').reduce((a, i) => a + real(i), 0)
             };
         });
-        return { monthly, events: ev.list.filter(e => e.amount > 0 && (e.kind === 'payday' || e.kind === 'income')), months: ev.months };
+        return { monthly, assumed: ev.assumed, events: ev.list.filter(e => e.amount > 0 && (e.kind === 'payday' || e.kind === 'income')), months: ev.months };
     }
 
     window.Cash = { forecastInputs, paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar };

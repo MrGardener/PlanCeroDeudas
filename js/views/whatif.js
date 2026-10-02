@@ -46,7 +46,7 @@
     function fromSavings(amount, ctx) {
         const liquid = ctx.ef.liquid;
         const ef2 = Engine.emergencyFund({ liquid: Math.max(0, liquid - amount), budgetBase: ctx.year.budgetBase });
-        const steps2 = Engine.babySteps({ liquid: ef2.liquid, consumerDebt: ctx.debts.totalBalance, monthsCovered: ef2.monthsCovered, savingsRate: ctx.savingsRate, mortgageBalance: ctx.netWorth.fields.mortgage });
+        const steps2 = Engine.babySteps({ liquid: ef2.liquid, consumerDebt: ctx.debts.totalBalance, monthsCovered: ef2.monthsCovered, savingsRate: ctx.savingsRate, mortgageBalance: ctx.netWorth.fields.mortgage, ownsHome: ctx.ownsHome, money: Fmt.money0 });
         const kind = amount > liquid || ef2.liquid < 1000 ? 'bad' : ef2.monthsCovered < 3 || steps2.current < ctx.steps.current ? 'warn' : 'ok';
         return `<div class="wi-col" id="wi-savings">
             <div class="wi-head"><i class="fa-solid fa-piggy-bank text-emerald-600"></i> De tus ahorros</div>

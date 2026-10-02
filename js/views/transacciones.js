@@ -433,7 +433,7 @@
         const end = pts[pts.length - 1];
         const net0 = start.cash + start.savings - start.debts;
         UI.html('bal-forecast-kpis', `
-            <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.cash.color}"></i>Efectivo en ${labels[labels.length - 1]}</span><span class="kpi-value">${money(end.cash)}</span><span class="kpi-note">Hoy ${money(start.cash)}${cash ? '' : ' (agrega tus saldos en Patrimonio → Cuentas)'}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.cash.color}"></i>Efectivo en ${labels[labels.length - 1]}</span><span class="kpi-value">${money(end.cash)}</span><span class="kpi-note">Hoy ${money(start.cash)}${cash ? '' : ' (agrega tus saldos en Patrimonio → Cuentas)'}${inp.assumed ? ' · Supusimos que cobras el último día de cada mes: <a href="#" class="link" data-action="pay.edit">dinos cómo te pagan</a>' : ''}</span></div>
             <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.savings.color}"></i>Ahorros e inversiones</span><span class="kpi-value">${money(end.savings)}</span><span class="kpi-note">Hoy ${money(start.savings)}</span></div>
             <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.debts.color}"></i>Deudas</span><span class="kpi-value">${money(end.debts)}</span><span class="kpi-note">Hoy ${money(start.debts)}</span></div>
             <div class="kpi ${end.net >= net0 ? 'tone-emerald' : 'tone-red'}"><span class="kpi-label">Lo que tendrías (neto)</span><span class="kpi-value">${money(end.net)}</span><span class="kpi-note">${end.net >= net0 ? '+' : '−'}${money(Math.abs(end.net - net0))} vs. hoy</span></div>`);
@@ -451,6 +451,7 @@
         if (v.description !== undefined) get('txn-description').value = v.description;
         if (v.store !== undefined) get('txn-store').value = v.store;
         if (v.amount !== undefined) get('txn-amount').value = v.amount;
+        if (v.paymentType) get('txn-payment').value = v.paymentType;
         if (v.date) { get('txn-date').value = v.date; fillLineSelect(); }
         if (v.budgetLine) fillLineSelect(v.budgetLine);
         get('txn-form-card').scrollIntoView({ block: 'start' });

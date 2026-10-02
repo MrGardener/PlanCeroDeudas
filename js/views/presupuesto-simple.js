@@ -108,6 +108,15 @@
         if (ctx.year.sweepSavings) (byGroup.Ahorro = byGroup.Ahorro || []).push({ id: 'sweep', sweep: true, type: 'Ahorro' });
         // Custom groups: the year's list (keeps empty ones) plus any group a line mentions.
         const custom = (ctx.year.groups || []).map(g => g.name);
+        // Savings lines say what they're for (emergency money doesn't count toward Step 4).
+        const PURPOSE_LABEL = { emergencia: 'fondo de emergencia', jubilacion: 'jubilación', general: 'ahorro general' };
+        const purposeField = (it, lineId) => {
+            if (!Engine.isSavingsItem(it)) return '';
+            const auto = PURPOSE_LABEL[Engine.savingsPurpose(Object.assign({}, it, { purpose: '' }))];
+            const opts = [{ value: '', label: `Automático (${auto})` }, { value: 'emergencia', label: 'Fondo de emergencia' }, { value: 'jubilacion', label: 'Jubilación' }, { value: 'general', label: 'Ahorro general' }];
+            return `<label class="field mt-3 max-w-sm"><span class="field-label">¿Para qué es este ahorro?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
+                <span class="help">El fondo de emergencia no cuenta como ahorro para la jubilación (Paso 4).</span></label>`;
+        };
         m.plannedItems.forEach(it => { if (it.group && !it.link && !custom.includes(it.group)) custom.push(it.group); });
         const order = GROUPS.map(g => g.type).concat(custom.map(n => 'g:' + n), Object.keys(byGroup).filter(k => !GROUPS.some(g => g.type === k) && !k.startsWith('g:')));
         const cards = order.map(g => {
@@ -198,7 +207,7 @@
         const banner = document.getElementById('bs-banner');
         banner.className = `bs-banner ${Math.abs(bal) < 0.005 ? 'ok' : bal > 0 ? 'warn' : 'bad'}`;
         banner.innerHTML = Math.abs(bal) < 0.005 ? '<i class="fa-regular fa-circle-check"></i> ¡Es un presupuesto base cero! Cada dólar tiene un trabajo.'
-            : bal > 0 ? `<i class="fa-solid fa-circle-info"></i> Te quedan <strong>${money(bal)}</strong> por asignar.`
+            : bal > 0 ? `<i class="fa-solid fa-circle-info"></i> Aún falta asignar <strong>${money(bal)}</strong>.`
             : `<i class="fa-solid fa-triangle-exclamation"></i> Planeaste <strong>${money(-bal)}</strong> más de lo que ganas.`;
 
         // Income
@@ -351,14 +360,23 @@
         const avg = withData.length ? withData.reduce((a, h) => a + h.spent, 0) / withData.length : 0;
         const over = hist.filter(h => h.planned > 0 && h.spent > h.planned + 0.005).length;
         const custom = (ctx.year.groups || []).map(g => g.name);
+        // Savings lines say what they're for (emergency money doesn't count toward Step 4).
+        const PURPOSE_LABEL = { emergencia: 'fondo de emergencia', jubilacion: 'jubilación', general: 'ahorro general' };
+        const purposeField = (it, lineId) => {
+            if (!Engine.isSavingsItem(it)) return '';
+            const auto = PURPOSE_LABEL[Engine.savingsPurpose(Object.assign({}, it, { purpose: '' }))];
+            const opts = [{ value: '', label: `Automático (${auto})` }, { value: 'emergencia', label: 'Fondo de emergencia' }, { value: 'jubilacion', label: 'Jubilación' }, { value: 'general', label: 'Ahorro general' }];
+            return `<label class="field mt-3 max-w-sm"><span class="field-label">¿Para qué es este ahorro?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
+                <span class="help">El fondo de emergencia no cuenta como ahorro para la jubilación (Paso 4).</span></label>`;
+        };
         const settings = item.link ? `<p class="help">Es la línea de ${item.link === 'debt' ? 'una deuda' : 'una meta'}: se edita en <a href="#" class="link" data-goto="metas">Deudas y Metas</a>.</p>` : `
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <label class="field"><span class="field-label">Grupo</span><select class="input" data-change="line.setGroup" data-id="${esc(String(id))}"><option value="">Según su tipo</option>${custom.map(n => `<option ${n === item.group ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
                 <label class="field"><span class="field-label">Tipo</span><select class="input" data-change="line.setType" data-id="${esc(String(id))}">${Views.selectOptions(Defaults.BUDGET_TYPES, item.type)}</select></label>
                 <label class="field"><span class="field-label">Categoría vinculada</span><select class="input" data-change="line.setCategory" data-id="${esc(String(id))}">${Views.selectOptions([{ value: 'none', label: 'Sin vincular' }].concat(Object.keys(s.taxonomy.expense).map(c => ({ value: c, label: c }))), item.linkedCategory || 'none')}</select></label>
-            </div>`;
+            </div>${purposeField(item, id)}`;
         const sheet = UI.sheet({ title: item.name, icon: 'fa-chart-simple', wide: true, html: `
-            <div class="grid grid-cols-3 gap-3 mb-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                 <div class="kpi tone-slate"><span class="kpi-label">Planeado · ${Fmt.MONTH_NAMES[sm - 1]}</span><span class="kpi-value">${money(cur.planned)}</span></div>
                 <div class="kpi tone-slate"><span class="kpi-label">Gastado</span><span class="kpi-value">${money(cur.spent)}</span></div>
                 <div class="kpi ${cur.planned - cur.spent < -0.005 ? 'tone-red' : 'tone-emerald'}"><span class="kpi-label">Restante</span><span class="kpi-value">${money(cur.planned - cur.spent)}</span></div>
@@ -420,6 +438,11 @@
         'line.setCategory': (el) => {
             lineCopies(Store.active(), el.dataset.id).forEach(i => { i.linkedCategory = el.value; });
             App.changed({ structural: true, step: true });
+            openDetail(el.dataset.id);
+        },
+        'line.setPurpose': (el) => {
+            lineCopies(Store.active(), el.dataset.id).forEach(i => { if (el.value) i.purpose = el.value; else delete i.purpose; });
+            App.changed({ step: true });
             openDetail(el.dataset.id);
         },
         'group.add': async () => {

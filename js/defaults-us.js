@@ -26,8 +26,10 @@
         stdDeduction: { single: 16100, mfj: 32200, hoh: 24150 },
         childCredit: 2200,          // per qualifying child under 17
         otherDependentCredit: 500,
+        // Both credits drop $50 per $1,000 of income above these amounts (IRC §24(b)).
+        ctcPhaseoutStart: { single: 200000, mfj: 400000, hoh: 200000 }, ctcPhaseoutStep: 50,
         ssRate: 6.2, ssWageBase: 184500,
-        medicareRate: 1.45, addlMedicareRate: 0.9, addlMedicareThreshold: { single: 200000, mfj: 250000, hoh: 200000 },
+        medicareRate: 1.45, addlMedicareRate: 0.9, addlMedicareThreshold: { single: 200000, mfj: 250000, hoh: 200000 }, addlMedicareWithholding: 200000,
         // Contribution limits (for warnings)
         limit401k: 24500, catchUp401k: 8000, limitIRA: 7500, limitHSA: { self: 4400, family: 8750 },
         // Social Security benefit formula (PIA bend points, full retirement age 67)
@@ -41,20 +43,22 @@
         ['AL', 'Alabama'], ['AK', 'Alaska', 'none'], ['AZ', 'Arizona'], ['AR', 'Arkansas'], ['CA', 'California'], ['CO', 'Colorado'], ['CT', 'Connecticut'],
         ['DE', 'Delaware'], ['DC', 'District of Columbia'], ['FL', 'Florida', 'none'], ['GA', 'Georgia'], ['HI', 'Hawaii'], ['ID', 'Idaho'],
         ['IL', 'Illinois', 'flat', 4.95, 2850], ['IN', 'Indiana'], ['IA', 'Iowa'], ['KS', 'Kansas'], ['KY', 'Kentucky'], ['LA', 'Louisiana'], ['ME', 'Maine'],
-        ['MD', 'Maryland'], ['MA', 'Massachusetts'], ['MI', 'Michigan', 'flat', 4.25, 5800], ['MN', 'Minnesota'], ['MS', 'Mississippi'], ['MO', 'Missouri'],
+        ['MD', 'Maryland'], ['MA', 'Massachusetts'], ['MI', 'Michigan', 'flat', 4.25, 5900], ['MN', 'Minnesota'], ['MS', 'Mississippi'], ['MO', 'Missouri'],
         ['MT', 'Montana'], ['NE', 'Nebraska'], ['NV', 'Nevada', 'none'], ['NH', 'New Hampshire', 'none'], ['NJ', 'New Jersey'], ['NM', 'New Mexico'],
         ['NY', 'New York'], ['NC', 'North Carolina'], ['ND', 'North Dakota'], ['OH', 'Ohio'], ['OK', 'Oklahoma'], ['OR', 'Oregon'],
-        ['PA', 'Pennsylvania', 'flat', 3.07, 0], ['RI', 'Rhode Island'], ['SC', 'South Carolina'], ['SD', 'South Dakota', 'none'], ['TN', 'Tennessee', 'none'],
+        ['PA', 'Pennsylvania', 'flat', 3.07, 0, true], ['RI', 'Rhode Island'], ['SC', 'South Carolina'], ['SD', 'South Dakota', 'none'], ['TN', 'Tennessee', 'none'],
         ['TX', 'Texas', 'none'], ['UT', 'Utah'], ['VT', 'Vermont'], ['VA', 'Virginia'], ['WA', 'Washington', 'none'], ['WV', 'West Virginia'],
         ['WI', 'Wisconsin'], ['WY', 'Wyoming', 'none']
-    ].map(([code, name, type = 'custom', rate = null, exemption = 0]) => ({ code, name, type, rate, exemption }));
+    ].map(([code, name, type = 'custom', rate = null, exemption = 0, taxes401k = false]) => ({ code, name, type, rate, exemption, taxes401k }));
 
-    // Michigan cities with an income tax (resident rates, %). Verify with your city.
+    // Michigan cities with an income tax (Uniform City Income Tax Ordinance): resident rate, the
+    // non-resident rate (half) for people who only work there, and the exemption per person
+    // ($600 in most cities). Verify each year with your city.
     const MI_CITIES = [
-        ['Detroit', 2.4], ['Grand Rapids', 1.5], ['Highland Park', 2.0], ['Saginaw', 1.5], ['Albion', 1.0], ['Battle Creek', 1.0], ['Big Rapids', 1.0],
+        ['Detroit', 2.4], ['Grand Rapids', 1.5], ['Highland Park', 2.0], ['Saginaw', 1.5], ['Albion', 1.0], ['Battle Creek', 1.0], ['Benton Harbor', 1.0], ['Big Rapids', 1.0],
         ['East Lansing', 1.0], ['Flint', 1.0], ['Grayling', 1.0], ['Hamtramck', 1.0], ['Hudson', 1.0], ['Ionia', 1.0], ['Jackson', 1.0], ['Lansing', 1.0],
         ['Lapeer', 1.0], ['Muskegon', 1.0], ['Muskegon Heights', 1.0], ['Pontiac', 1.0], ['Port Huron', 1.0], ['Portland', 1.0], ['Springfield', 1.0], ['Walker', 1.0]
-    ].map(([name, rate]) => ({ name, rate }));
+    ].map(([name, rate]) => ({ name, rate, nonresident: rate / 2, exemption: 600 }));
 
     // ------------------------------------------------------------------ budget
     const BUDGET_TEMPLATE = [
@@ -114,6 +118,7 @@
             state: 'MI',
             stateRate: null,            // % override (or the rate for a 'custom' state)
             localName: '',              // city with income tax
+            localResident: true,        // false = works in the city, lives elsewhere (non-resident rate)
             localRate: 0,               // %
             itemized: 0,                // itemized deductions (used only if above the standard deduction)
             usTax: usTax2026(),
@@ -140,7 +145,7 @@
                 { id: 2, name: 'Car Loan', kind: 'vehicular', balance: 14000, rate: 7.5, minPayment: 350, monthly: 350, createdYear: thisYear }
             ],
             assets: [
-                { id: 1, name: 'Car', category: 'Vehículos', purchaseYear: thisYear - 2, purchaseValue: 22000, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} }
+                { id: 1, name: 'Car', category: 'Vehículo', purchaseYear: thisYear - 2, purchaseValue: 22000, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} }
             ],
             transactions: [
                 { id: 1, type: 'Gasto', description: 'Weekly groceries', store: 'Meijer', parentCategory: 'Alimentación', category: 'Mercado/Supermercado', amount: 85.40, date: iso, paymentType: 'Tarjeta de Débito' },
@@ -148,7 +153,7 @@
                 { id: 3, type: 'Ingreso', description: 'Side gig', store: 'Upwork', parentCategory: 'Ingresos Independientes', category: 'Freelance/Consultoría', amount: 300, date: iso, paymentType: 'Transferencia' }
             ],
             taxonomy: taxonomy(),
-            mortgage: { amount: 250000, rate: 6.5, years: 30, extraPayment: 0, propertyTax: 4000, homeInsurance: 1500, pmiRate: 0, hoa: 0 },
+            mortgage: { amount: 250000, rate: 6.5, years: 30, extraPayment: 0, propertyTax: 4000, homeInsurance: 1500, pmiRate: 0, hoa: 0, homeValue: 0 },
             retirement: Object.assign(s.retirement, { edadJubilacion: 67, aniosAportados: 8, tasaReemplazo: 40 })
         });
     }

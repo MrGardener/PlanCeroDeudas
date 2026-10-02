@@ -180,7 +180,7 @@
                 datasets: { bar: { maxBarThickness: 44 } },
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { labels: { font: { family: 'Inter', size: 11 }, boxWidth: 12 } },
+                    legend: { labels: { font: { family: "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", size: 11 }, boxWidth: 12 } },
                     tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${Fmt.money(c.parsed.y)}` } }
                 },
                 scales: {

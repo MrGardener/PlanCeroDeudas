@@ -42,8 +42,12 @@
         const ageNow = Math.max(0, Number(r.edadActual) || 0), ageEnd = Math.max(ageNow + 1, Number(r.edadJubilacion) || 65);
         const months = Math.min(600, (ageEnd - ageNow) * 12);
         const debtMonths = plan.totalBalance > 0 && !plan.never ? plan.months : 0;
-        const invested = ctx.polizasCapital + Engine.holdingsValue(s.holdings);
-        const path = Engine.netWorthPath({ start: ctx.netWorth.value, invested, monthlySavings: ctx.retirementMonthly, rate: ctx.year.tasa, debtBalance: plan.totalBalance, debtMonths, debtPayment: plan.pool, months });
+        // Same money and assumptions as Jubilación: what's invested beyond the emergency fund grows
+        // at the long-run return (the emergency fund itself is kept, not grown); today's dollars.
+        const ri = ctx.retirementInputs;
+        const invested = ctx.pools.invested;
+        const efMonthly = ctx.year.budgetBase.filter(i => Engine.isSavingsItem(i) && Engine.savingsPurpose(i) === 'emergencia').reduce((t, i) => t + (Number(i.real) || 0), 0);
+        const path = Engine.netWorthPath({ start: ctx.netWorth.value, invested, monthlySavings: ctx.retirementMonthly + efMonthly, rate: ri.tasaRetorno, inflation: ri.inflacion, debtBalance: plan.totalBalance, debtMonths, debtPayment: plan.pool, months });
         const years = Math.ceil(months / 12);
         const labels = Array.from({ length: years + 1 }, (_, i) => `${ageNow + i} años`);
         const yearly = labels.map((_, i) => path[Math.min(i * 12, path.length - 1)]);
@@ -63,7 +67,7 @@
             <div class="kpi tone-slate"><span class="kpi-label">Patrimonio hoy</span><span class="kpi-value">${money0(ctx.netWorth.value)}</span><span class="kpi-note"><a href="#" class="link" data-goto="patrimonio">Ver detalle</a></span></div>
             <div class="kpi ${plan.totalBalance <= 0 ? 'tone-emerald' : plan.never ? 'tone-red' : 'tone-blue'}"><span class="kpi-label">🎯 Libre de deudas</span><span class="kpi-value">${freeDate}</span><span class="kpi-note">${plan.totalBalance > 0 ? `Quedan ${money0(plan.totalBalance)}` : 'Sin deudas de consumo'}</span></div>
             <div class="kpi tone-emerald"><span class="kpi-label">🏖️ Proyectado a los ${ageEnd}</span><span class="kpi-value">${money0(yearly[years])}</span><span class="kpi-note">Estimación</span></div>`);
-        UI.text('road-note', `Estimación: tu patrimonio de hoy; tus pólizas e inversiones (${money0(invested)}) y lo que ahorras al mes según tu presupuesto (${money0(ctx.retirementMonthly)}) crecen al ${ctx.year.tasa}% anual (tu casa y otros bienes se mantienen); lo que pagas a tus deudas baja lo que debes, y al terminar de pagarlas ese dinero (${money0(plan.pool)}/mes) pasa a ahorro. Cambia tu edad en Jubilación.`);
+        UI.text('road-note', `Estimación en dólares de hoy (inflación ${ri.inflacion}% anual): tu patrimonio de hoy; tus inversiones (${money0(invested)}) y lo que ahorras al mes según tu presupuesto (${money0(ctx.retirementMonthly + efMonthly)}) crecen al ${ri.tasaRetorno}% anual (tu casa y otros bienes se mantienen); lo que pagas a tus deudas baja lo que debes, y al terminar de pagarlas ese dinero (${money0(plan.pool)}/mes) pasa a ahorro. Cambia tu edad, el retorno y la inflación en Jubilación.`);
         // The next concrete action, by step.
         const st = ctx.steps.current, ef = ctx.ef;
         const paidAll = s.debts.reduce((t, d) => t + Math.max(0, Math.max(Number(d.originalBalance) || 0, Number(d.balance) || 0) - (Number(d.balance) || 0)), 0);

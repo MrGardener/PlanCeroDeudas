@@ -149,7 +149,8 @@
         if (city) {
             const cities = yd.state === 'MI' ? US().MI_CITIES : [];
             const known = cities.find(c => c.name === yd.localName);
-            city.innerHTML = `<option value="">Ninguno (0%)</option>` + cities.map(c => `<option value="${esc(c.name)}">${esc(c.name)} (${c.rate}%)</option>`).join('') + `<option value="__custom">Otra tasa…</option>`;
+            city.innerHTML = `<option value="">Ninguno (0%)</option>` + cities.map(c => `<option value="${esc(c.name)}">${esc(c.name)} (${c.rate}% · ${c.nonresident}%)</option>`).join('') + `<option value="__custom">Otra tasa…</option>`;
+            UI.show('inc-city-resident', !!known);
             city.value = known ? known.name : (Number(yd.localRate) > 0 ? '__custom' : '');
             if (!known && Number(yd.localRate) > 0) city.options[city.options.length - 1].textContent = `Otra: ${yd.localRate}%`;
         }
@@ -161,10 +162,10 @@
             ['Seguro Social', '−' + money(p.ssM), 'text-red-600'],
             ['Medicare', '−' + money(p.medM), 'text-red-600'],
             [`Impuesto estatal (${esc(st.name)}${p.stateRate ? ` ${p.stateRate}%` : ''})`, '−' + money(p.stateM), 'text-red-600'],
-            p.localM > 0 ? [`Impuesto de la ciudad${yd.localName ? ` (${esc(yd.localName)})` : ''}`, '−' + money(p.localM), 'text-red-600'] : null,
+            p.localM > 0 ? [`Impuesto de la ciudad${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'residente' : 'no residente'} ${p.localRate}%)` : ''}`, '−' + money(p.localM), 'text-red-600'] : null,
             p.otrosDescuentosM - p.pretaxM > 0.004 ? ['Otros descuentos del talón (después de impuestos)', '−' + money(p.otrosDescuentosM - p.pretaxM), 'text-red-600'] : null
         ].filter(Boolean);
-        UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold ${c}">${v}</dd></div>`).join(''));
+        UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join(''));
         UI.text('inc-neto', money(p.netoM));
         UI.html('inc-us-ded-kpis', `
             <div class="kpi tone-slate"><span class="kpi-label">Deducción aplicada</span><span class="kpi-value">${money(p.dedApplied)}</span><span class="kpi-note">${Number(yd.itemized) > p.stdDeduction ? 'Detallada' : `Estándar (${money(p.stdDeduction)})`}</span></div>
@@ -174,20 +175,33 @@
         if (window.PayScan) PayScan.render(ctx);
     }
 
+    // Tax tables are for one year: say which, and warn when the year being edited is later.
+    function taxYearNote(ctx) {
+        const yd = ctx.year, ty = Number(yd.taxTableYear || (yd.usTax && yd.usTax.year)) || null, y = ctx.state.activeYear;
+        const el = document.getElementById('inc-tax-year');
+        if (!el) return;
+        el.className = ty && y > ty ? 'panel tone-amber text-[11px] mt-2' : 'help mt-2';
+        el.innerHTML = !ty ? '' : y > ty
+            ? `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> Se usan las tablas de impuestos de ${ty}. Las de ${y} aún no están en la app: verifícalas y cámbialas en <a href="#" class="link" data-goto="config" data-focus="cfg-legal">Configuración → Parámetros legales</a>.`
+            : `Tablas de impuestos de ${ty}. Verifícalas cada año en Configuración → Parámetros legales.`;
+    }
+
     function update(ctx) {
         const yd = ctx.year, p = ctx.pay;
         renderSummary();
+        taxYearNote(ctx);
         if (p.country === 'US') { renderUS(ctx); return; }
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
             ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],
             [`Aporte personal IESS (${pct(yd.iessRate, 2)})`, '−' + money(p.iessM), 'text-red-600'],
-            ['Deducción de gastos personales (anual, aplicada)', money(p.dedApplied), 'text-blue-700'],
-            ['Base imponible anual', money(p.baseImponible), 'text-slate-900'],
+            ['Base imponible anual (sueldo − IESS)', money(p.baseImponible), 'text-slate-900'],
+            ['Impuesto según la tabla del SRI', money(p.isrBruto), 'text-slate-900'],
+            [`Rebaja por gastos personales (${pct(p.rebajaRate * 100, 0)} de ${money(p.dedApplied)})`, (p.rebaja >= 0.005 ? '−' : '') + money(p.rebaja), 'text-blue-700'],
             ['Impuesto a la renta anual', money(p.isrAnual), 'text-amber-700'],
-            ['Retención mensual en el rol', '−' + money(p.isrM), 'text-red-600']
+            ['Retención mensual en el rol', (p.isrM >= 0.005 ? '−' : '') + money(p.isrM), 'text-red-600']
         ].concat(p.otrosDescuentosM > 0 ? [['Otros descuentos del rol (seguros, préstamos…)', '−' + money(p.otrosDescuentosM), 'text-red-600']] : []);
-        UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold ${c}">${v}</dd></div>`).join(''));
+        UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join(''));
         UI.text('inc-neto', money(p.netoM));
         if (window.PayScan) PayScan.render(ctx);
 
@@ -200,12 +214,16 @@
         if (p.deductibles.real >= p.sriCap) {
             tone = 'tone-emerald'; icon = 'fa-circle-check text-emerald-600'; title = 'Deducción optimizada';
             text = `Tus gastos deducibles alcanzan el tope legal de ${money(p.sriCap)}.`;
+        } else if (p.rebajaRoom < 0.01) {
+            // No tax left to lower: more receipts wouldn't change anything.
+            tone = 'tone-emerald'; icon = 'fa-circle-check text-emerald-600'; title = 'Sin impuesto que rebajar';
+            text = `Con tu sueldo, la rebaja ya cubre todo el impuesto (o no pagas impuesto a la renta).`;
         } else if (ratio >= 0.8) {
             tone = 'tone-amber'; icon = 'fa-triangle-exclamation text-amber-600'; title = 'Cerca del tope';
-            text = `Te faltan ${money(p.sriCap - p.deductibles.real)} en gastos deducibles reales para llegar al tope.`;
+            text = `Te faltan ${money(p.sriCap - p.deductibles.real)} en gastos deducibles reales para llegar al tope: tu impuesto bajaría hasta ${money(p.rebajaRoom)} más.`;
         } else {
             tone = 'tone-red'; icon = 'fa-circle-info text-red-600'; title = 'Muy por debajo del tope';
-            text = `Usas el ${Math.round(ratio * 100)}% del tope. Podrías declarar ${money(p.sriCap - p.deductibles.real)} más en gastos deducibles y pagar menos impuesto. Marca los rubros deducibles en el Presupuesto del Mes.`;
+            text = `Usas el ${Math.round(ratio * 100)}% del tope. Con ${money(p.sriCap - p.deductibles.real)} más en gastos deducibles, tu impuesto bajaría hasta ${money(p.rebajaRoom)}. Marca los rubros deducibles en el Presupuesto del Mes.`;
         }
         box.className = `panel ${tone}`;
         box.innerHTML = `<div class="text-xs font-bold text-slate-900"><i class="fa-solid ${icon}"></i> ${title}</div><p class="text-[11px] text-slate-700 mt-1">${text}</p>`;

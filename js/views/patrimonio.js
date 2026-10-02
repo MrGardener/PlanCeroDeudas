@@ -64,10 +64,11 @@
         update(ctx);
     }
 
+    // About the level only; whether it grows is said only when there's a previous year to compare.
     function verdict(v) {
         if (v < 0) return ['text-red-700', 'Patrimonio negativo: debes más de lo que tienes. Eliminar deudas (Paso 2) es tu prioridad.'];
         if (v < 5000) return ['text-slate-700', 'Vas por buen camino. Sigue avanzando paso a paso.'];
-        if (v < 50000) return ['text-emerald-700', 'Buen progreso: tu patrimonio crece de forma sólida.'];
+        if (v < 50000) return ['text-emerald-700', 'Buen progreso: lo que tienes supera lo que debes.'];
         return ['text-emerald-800', 'Excelente: estás construyendo riqueza real.'];
     }
 
@@ -87,19 +88,22 @@
         UI.text('nw-assets', money0(nw.assets));
         UI.text('nw-liabilities', money0(nw.liabilities));
         UI.text('nw-value', money(nw.value));
-        const [cls, text] = verdict(nw.value);
+        let [cls, text] = verdict(nw.value);
+        if (Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear()).includes(year - 1)) {
+            const d = nw.value - Engine.netWorth(s.years, s.assets, year - 1).value;
+            if (Math.abs(d) >= 1) text += ` ${d > 0 ? '▲' : '▼'} ${money0(Math.abs(d))} frente a ${year - 1}.`;
+        }
         document.getElementById('nw-value').className = `text-4xl font-black block my-1 ${nw.value >= 0 ? 'text-emerald-700' : 'text-red-600'}`;
         const v = document.getElementById('nw-verdict');
         v.className = `text-sm font-bold ${cls}`;
         v.textContent = text;
         document.getElementById('nw-result').className = `mt-5 rounded-xl p-5 text-center border-t-4 bg-slate-50 ${nw.value >= 0 ? 'border-emerald-500' : 'border-red-500'}`;
 
-        const years = [];
-        for (let y = s.configStartYear; y <= s.configEndYear; y++) years.push(y);
+        const years = Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear());
         UI.chart('nw-chart', {
             type: 'line',
-            data: { labels: years, datasets: [{ label: 'Patrimonio neto', data: years.map(y => Engine.netWorth(s.years, s.assets, y).value), borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,.1)', fill: true, tension: .25, pointRadius: years.map(y => y === year ? 5 : 0) }] },
-            options: { scales: { y: { beginAtZero: false } } }
+            data: { labels: years, datasets: [{ label: 'Patrimonio neto', data: years.map(y => Engine.netWorth(s.years, s.assets, y).value), borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,.1)', fill: true, cubicInterpolationMode: 'monotone', pointRadius: years.map(y => y === year ? 5 : 3) }] },
+            options: { scales: { y: { beginAtZero: false } }, plugins: { legend: { display: false } } }
         });
     }
 

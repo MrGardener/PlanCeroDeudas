@@ -7,26 +7,49 @@ const D = require('../js/defaults.js');
 const close = (a, b, eps = 0.01) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const year = (overrides = {}) => Object.assign(D.newYear(), overrides);
 
-test('income tax follows the progressive SRI brackets', () => {
+test('income tax follows the 2026 SRI table (9 brackets up to 37%)', () => {
     const b = D.sriBrackets();
-    assert.equal(E.incomeTax(10000, b), 0);
-    close(E.incomeTax(15159, b), (15159 - 11902) * 0.05);
-    close(E.incomeTax(20000, b), 615 + (20000 - 19682) * 0.12);
-    close(E.incomeTax(60000, b), 5538 + (60000 - 49207) * 0.25);
+    assert.equal(b.length, 10);
+    assert.equal(E.incomeTax(12000, b), 0);
+    close(E.incomeTax(15549, b), (15549 - 12208) * 0.05);
+    close(E.incomeTax(32598, b), 1412 + (32598 - 26700) * 0.15);
+    close(E.incomeTax(120000, b), 24572 + (120000 - 109956) * 0.37);
+    // Each bracket's base tax is the tax at its start.
+    for (let i = 1; i < b.length; i++) close(b[i].baseTax, b[i - 1].baseTax + (b[i].min - b[i - 1].min) * b[i - 1].rate, 1);
 });
 
-test('payroll: IESS, deductions capped at canasta × multiplier, net salary', () => {
-    const yd = year({ sueldo: 2500 });
+test('payroll (Ecuador, since 2023): personal expenses give an 18% rebate, capped by cargas', () => {
+    // $3,000/month, all deductible expenses well above the cap, no dependents.
+    const yd = year({ sueldo: 3000 });
+    yd.budgetBase = [{ id: 1, name: 'Vivienda', type: 'Gasto Fijo', isDeductible: true, prep: 900, real: 900 }];
     const p = E.payroll(yd);
-    close(p.iessM, 2500 * 0.0945);
-    close(p.sriCap, 764.70 * 7);
-    assert.ok(p.dedApplied <= p.sriCap);
-    close(p.baseImponible, 2500 * 12 - p.iessAnual - p.dedApplied);
-    close(p.netoM, 2500 - p.iessM - p.isrAnual / 12);
+    close(p.iessM, 283.5);
+    close(p.baseImponible, (3000 - 283.5) * 12);           // expenses no longer lower the base
+    close(p.isrBruto, 1412 + (32598 - 26700) * 0.15);       // 2,296.70
+    close(p.sriCap, 821.80 * 7);                            // 5,752.60
+    close(p.rebaja, 821.80 * 7 * 0.18);                     // 1,035.47
+    close(p.isrAnual, 2296.70 - 1035.468);
+    close(p.netoM, 3000 - 283.5 - p.isrAnual / 12);
+    // More dependents raise the cap: 3 cargas = 14 canastas.
+    close(E.payroll(Object.assign({}, yd, { cargas: 3 })).sriCap, 821.80 * 14);
+    close(E.payroll(Object.assign({}, yd, { cargas: 'cat' })).sriCap, 821.80 * 20);
 });
 
-test('a zero SRI multiplier means no deduction (not silently 7)', () => {
-    const p = E.payroll(year({ sueldo: 3000, sriCapMultiplier: 0 }));
+test('the rebate never makes the tax negative, and says how much room is left', () => {
+    const low = year({ sueldo: 1500 });
+    low.budgetBase = [{ id: 1, name: 'Salud', type: 'Gasto Fijo', isDeductible: true, prep: 600, real: 600 }];
+    const p = E.payroll(low);
+    assert.equal(p.isrAnual, 0);
+    assert.equal(p.rebajaRoom, 0);
+    const hi = year({ sueldo: 10000 });
+    hi.budgetBase = [{ id: 1, name: 'Salud', type: 'Gasto Fijo', isDeductible: true, prep: 100, real: 100 }];
+    const q = E.payroll(hi);
+    close(q.rebaja, 1200 * 0.18);
+    close(q.rebajaRoom, 821.80 * 7 * 0.18 - 1200 * 0.18);
+});
+
+test('saved years before "cargas" keep their old cap multiplier', () => {
+    const p = E.payroll(year({ sueldo: 3000, cargas: null, sriCapMultiplier: 0 }));
     assert.equal(p.sriCap, 0);
     assert.equal(p.dedApplied, 0);
 });
@@ -160,6 +183,7 @@ test('goal NPER handles reached goals, 0% rate and impossible goals', () => {
     assert.equal(E.goalMonths({ target: 1000, current: 1500, monthly: 50, rate: 8 }).status, 'reached');
     assert.deepEqual(E.goalMonths({ target: 1000, current: 0, monthly: 100, rate: 0 }), { status: 'ok', months: 10 });
     assert.equal(E.goalMonths({ target: 1000, current: 0, monthly: 0, rate: 8 }).status, 'never');
+    assert.equal(E.goalMonths({ target: 20000, current: 2000, monthly: 0, rate: 8.5 }).status, 'never');   // interest alone isn't a plan
     const g = E.goalMonths({ target: 5000, current: 1000, monthly: 300, rate: 8.5 });
     assert.equal(g.status, 'ok');
     assert.ok(g.months > 0 && g.months < (4000 / 300) + 1);
@@ -349,7 +373,7 @@ test('overspending risk compares spending pace with the month elapsed', () => {
 test('currency is display-only and formats per currency', () => {
     const F = require('../js/format.js');
     assert.equal(F.money(1433.25), '$1,433.25');
-    assert.equal(F.money(-5), '-$5.00');
+    assert.equal(F.money(-5), '\u2212$5.00');
     assert.equal(F.money(-0.001), '$0.00');
     F.setCurrency('EUR');
     assert.ok(F.money(1234.5).includes('€'));
@@ -628,8 +652,9 @@ test('projected balances: debts follow the plan, then their payments roll into s
     const b = E.projectBalances({ start: { cash: 500, savings: 1000, debts: 700 }, months, rate: 12, debtHistory: [350, 0] });
     assert.deepEqual(b.map(x => Math.round(x.debts)), [350, 0, 0]);
     assert.deepEqual(b.map(x => Math.round(x.cash)), [500, 500, 500]);
-    assert.equal(Math.round(b[1].savings), Math.round((1000 * 1.01 + 100) * 1.01 + 100));
-    assert.equal(Math.round(b[2].savings), Math.round(((1000 * 1.01 + 100) * 1.01 + 100) * 1.01 + 100 + 400));
+    // Month 2 pays off the last $350: the other $50 of that month's $400 goes to savings.
+    assert.equal(Math.round(b[1].savings), Math.round((1000 * 1.01 + 100) * 1.01 + 100 + 50));
+    assert.equal(Math.round(b[2].savings), Math.round(((1000 * 1.01 + 100) * 1.01 + 100 + 50) * 1.01 + 100 + 400));
     const plan = E.debtPayoff([{ id: 1, balance: 700, rate: 0, minPayment: 100, monthly: 400 }], 'snowball', 0);
     assert.deepEqual(plan.history, [300, 0]);
 });
@@ -653,8 +678,8 @@ test('US paycheck: single in Michigan, $5,000 a month', () => {
     near(p.fedM * 12, 5020, 'federal');                       // (60,000 − 16,100) through the 2026 brackets
     near(p.ssM * 12, 3720, 'social security');
     near(p.medM * 12, 870, 'medicare');
-    near(p.stateM * 12, 2303.5, 'Michigan 4.25% after the $5,800 exemption');
-    near(p.netoM, 4007.21, 'net per month');
+    near(p.stateM * 12, 2299.25, 'Michigan 4.25% after the 2026 $5,900 exemption');
+    near(p.netoM, 4007.56, 'net per month');
 });
 
 test('US paycheck: pre-tax 401(k) lowers income tax only; health lowers FICA too; city tax', () => {
@@ -665,8 +690,8 @@ test('US paycheck: pre-tax 401(k) lowers income tax only; health lowers FICA too
     ] }));
     near(p.fedM * 12, 4372, 'federal on 54,600');
     near((p.ssM + p.medM) * 12, 4452.3, 'FICA on 58,200');
-    near(p.stateM * 12, 2074, 'Michigan');
-    near(p.localM * 12, 1310.4, 'Detroit 2.4%');
+    near(p.stateM * 12, 2069.75, 'Michigan');
+    near(p.localM * 12, 1396.8, 'a typed 2.4% city rate on Medicare wages (401(k) included)');
     near(p.otrosDescuentosM, 450, 'only the 401(k) and medical come off as deductions');
 });
 
@@ -679,6 +704,27 @@ test('US paycheck: married with two kids; Social Security stops at the wage base
     near(E.payroll(usYear({ state: 'CA', stateRate: 5 })).stateM * 12, 3000, 'a state you enter a rate for');
 });
 
+test('US: child credits phase out above $400k (MFJ) / $200k', () => {
+    near(E.payroll(usYear({ sueldo: 37500, filingStatus: 'mfj', dependents: 2 })).credits, 1900, '$450k MFJ: 4,400 − 50 × 50');
+    near(E.payroll(usYear({ sueldo: 30000, filingStatus: 'mfj', dependents: 2 })).credits, 4400, '$360k MFJ: full credit');
+    near(E.payroll(usYear({ sueldo: 25000, dependents: 1 })).credits, 0, '$300k single: 2,200 − 100 × 50 → 0');
+});
+
+test('US: Michigan city tax — resident vs non-resident rate and the $600 exemption', () => {
+    const live = E.payroll(usYear({ localName: 'Detroit' }));
+    near(live.localM * 12, (60000 - 600) * 0.024, 'Detroit resident 2.4%');
+    const work = E.payroll(usYear({ localName: 'Detroit', localResident: false }));
+    near(work.localM * 12, (60000 - 600) * 0.012, 'works in Detroit, lives elsewhere: 1.2%');
+    near(E.payroll(usYear({ localName: 'Grand Rapids', localResident: false })).localM * 12, (60000 - 600) * 0.0075, 'Grand Rapids non-resident 0.75%');
+});
+
+test('US: Pennsylvania taxes 401(k) deferrals; extra Medicare is withheld from $200k for everyone', () => {
+    const k = [{ id: 1, name: '401(k)', group: 'retirement', kind: 'retirement', pretax: true, monthly: 500 }];
+    near(E.payroll(usYear({ state: 'PA', payDeductions: k })).stateM * 12, 60000 * 0.0307, 'PA on full wages');
+    const mfj = E.payroll(usYear({ sueldo: 20000, filingStatus: 'mfj' }));
+    near(mfj.medM * 12, 240000 * 0.0145 + 40000 * 0.009, 'withholding starts at $200k even for MFJ');
+});
+
 test('Social Security estimate: PIA formula and claiming age', () => {
     const t = US.usTax2026();
     const at = (age) => E.socialSecurity({ sueldoPromedio: 5000, aniosAportados: 10, aniosRestantes: 25, edadJubilacion: age, usTax: t });
@@ -686,4 +732,58 @@ test('Social Security estimate: PIA formula and claiming age', () => {
     near(at(62), 2345.88 * 0.7, 'at 62: 30% less');
     near(at(70), 2345.88 * 1.24, 'at 70: 24% more');
     near(E.socialSecurity({ sueldoPromedio: 5000, aniosAportados: 5, aniosRestantes: 12.5, edadJubilacion: 67, usTax: t }), 0.9 * 1286 + 0.32 * (2500 - 1286), 'half a career');
+});
+
+test('projected balances: the month a debt is paid off, the leftover payment is not lost', () => {
+    const rows = E.projectBalances({ start: { cash: 600, savings: 0, debts: 450 }, months: [{ key: 'm1', income: 0, expense: 0, savings: 0, debt: 600 }], debtHistory: [0] });
+    near(rows[0].net, 150, 'net worth keeps the $150 not needed');
+    near(rows[0].savings, 150, 'it rolls into savings');
+});
+
+test('US CDs: APY on a 365-day year; Ecuador DPF: nominal rate on 360 days', () => {
+    near(E.polizaInterest({ amount: 5000, rate: 4, days: 365, modality: 'Al Vencimiento (Simple)' }, 'US'), 200, '4% APY for a year');
+    near(E.polizaInterest({ amount: 10000, rate: 4, days: 365, modality: 'Mensual (Compuesto)' }, 'US'), 400, 'APY already includes compounding');
+    near(E.polizaInterest({ amount: 5000, rate: 9, days: 360, modality: 'Al Vencimiento (Simple)' }), 450, 'DPF simple, 360 days');
+});
+
+test('retirement in today\'s dollars, pension only once eligible', () => {
+    const r = E.retirement({ edadActual: 30, edadJubilacion: 65, ahorroActual: 10000, aporteMensual: 500, tasaRetorno: 7, inflacion: 3, tasaRetiroSegura: 4, sueldoPromedio: 1000, tasaReemplazo: 60, aniosAportados: 5 });
+    const nominal = E.futureValue(10000, 500, 7, 420);
+    near(r.valorFuturo, nominal, 'nominal future value');
+    near(r.valorFuturoHoy, nominal / Math.pow(1.03, 35), 'deflated 35 years at 3%');
+    near(r.ingresoAhorro, r.valorFuturoHoy * 0.04 / 12, '4% rule on today\'s dollars');
+    assert.equal(r.pensionDesde, 65);                       // 40 years paid in
+    const early = E.retirement({ edadActual: 40, edadJubilacion: 55, ahorroActual: 0, aporteMensual: 0, tasaRetorno: 5, inflacion: 2.5, tasaRetiroSegura: 4, sueldoPromedio: 1000, tasaReemplazo: 60, aniosAportados: 10 });
+    assert.equal(early.pensionDesde, 65);                  // 25 years: waits until 65
+    assert.equal(early.aniosPuente, 10);
+    assert.equal(E.retirement({ edadActual: 50, edadJubilacion: 55, ahorroActual: 0, aporteMensual: 0, tasaRetorno: 5, inflacion: 2.5, tasaRetiroSegura: 4, sueldoPromedio: 1000, tasaReemplazo: 60, aniosAportados: 2 }).pension, 0);
+    const us = E.retirement({ country: 'US', usTax: US.usTax2026(), edadActual: 40, edadJubilacion: 55, ahorroActual: 0, aporteMensual: 0, tasaRetorno: 10, inflacion: 3, tasaRetiroSegura: 4, sueldoPromedio: 5000, aniosAportados: 15 });
+    assert.equal(us.pensionDesde, 62);                     // Social Security can't start before 62
+});
+
+test('savings pools: each dollar counted once — emergency fund first, the rest invested', () => {
+    const p = E.savingsPools({ polizas: [{ amount: 8000, coopName: 'JEP' }, { amount: 3000, name: 'Jubilación', purpose: 'jubilacion' }], savingsBalance: 2000, goals: [{ name: 'Emergency Fund', current: 1000 }], retirementAccounts: 5000, holdings: 1000, monthlyEssential: 1000 });
+    near(p.emergency, 6000, 'six months of essentials (goal 1,000 + 5,000 from the pool)');
+    near(p.invested, (10000 - 5000) + 3000 + 5000 + 1000, 'the excess + retirement CDs + 401(k) + holdings');
+    assert.equal(E.savingsPurpose({ name: 'Emergency Fund' }), 'emergencia');
+    assert.equal(E.savingsPurpose({ name: '401(k)' }), 'jubilacion');
+    assert.equal(E.savingsPurpose({ name: 'Ahorro', purpose: 'jubilacion' }), 'jubilacion');
+});
+
+test('Baby Steps: later steps wait; renters are not "done" with the mortgage', () => {
+    const st = E.babySteps({ liquid: 8000, consumerDebt: 7500, monthsCovered: 4, savingsRate: 0.2, mortgageBalance: 0 });
+    assert.equal(st.current, 2);
+    assert.equal(st.steps[2].state, 'pending');            // not "done" while debt is open
+    assert.match(st.steps[1].detail, /7,500/);              // thousands separator
+    const renter = E.babySteps({ liquid: 20000, consumerDebt: 0, monthsCovered: 6, savingsRate: 0.15, mortgageBalance: 0, ownsHome: false });
+    assert.notEqual(renter.steps[5].state, 'done');
+});
+
+test('PMI: none at 80% loan-to-value; otherwise until the balance reaches 78% of the value', () => {
+    const sch = E.amortization('frances', 285000, 6.5, 360, 0).schedule;
+    const p = E.pitiMonthly({ payment: 1801, amount: 285000, pmiRate: 0.5, homeValue: 300000, schedule: sch });
+    near(p.pmi, 285000 * 0.005 / 12, 'monthly PMI');
+    const i = sch.findIndex(r => r.balance <= 234000);
+    assert.equal(p.pmiMonths, i + 1);
+    assert.equal(E.pitiMonthly({ payment: 1500, amount: 240000, pmiRate: 0.5, homeValue: 300000, schedule: sch }).pmi, 0);
 });

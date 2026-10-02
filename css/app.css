@@ -551,3 +551,22 @@ html.is-native [data-web-only], html:not(.is-native) [data-app-only] { display: 
     html.is-native #toast-host { bottom: calc(9.25rem + env(safe-area-inset-bottom, 0px)); }
 }
 html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
+
+/* ------------------------------------------------------------------ fixes (review, Phase 0) */
+/* KPI tiles never overflow their box on a phone: the value shrinks a little and may wrap. */
+.kpi { min-width: 0; }
+.kpi-value { font-variant-numeric: tabular-nums; }
+@media (max-width: 479px) { .kpi-value { font-size: clamp(.95rem, 4.4vw, 1.2rem); } }
+/* A tile outside a tone wrapper takes the page ink (readable in dark mode too). */
+.kpi-value { color: var(--tone, var(--ink)); }
+/* Dark mode: today's streak dot, the calendar legend swatches, the current Baby Step. */
+html[data-theme="dark"] .streak-week span.on { background: #f59e0b; color: #1c1206; }
+html[data-theme="dark"] .cal-sw.in { background: rgba(16, 185, 129, .2); }
+html[data-theme="dark"] .cal-sw.out { background: #22314d; }
+html[data-theme="dark"] .cal-sw.paid { background: var(--surface); border-color: var(--line); }
+html[data-theme="dark"] .cal-sw.low { background: rgba(245, 158, 11, .10); border-color: rgba(245, 158, 11, .45); }
+html[data-theme="dark"] .cal-sw.short { background: rgba(239, 68, 68, .12); border-color: rgba(239, 68, 68, .45); }
+html[data-theme="dark"] .step.current .step-num { background: #3b82f6; color: #fff; }
+html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .25); }
+/* An empty-state line inside the bills grid spans the whole row. */
+.bills-list > p { grid-column: 1 / -1; }

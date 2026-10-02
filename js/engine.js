@@ -47,11 +47,21 @@
         return Math.max(0, tax);
     }
 
-    function sriCap(yd) {
-        const mult = Number.isFinite(Number(yd.sriCapMultiplier)) && yd.sriCapMultiplier !== '' && yd.sriCapMultiplier !== null
+    // Since 2023 (Ley de Fortalecimiento de la Economía Familiar) personal expenses don't lower the
+    // taxable base: they give a tax rebate (rebaja) of 18% of the smaller of the expenses and a cap
+    // in canastas familiares básicas that grows with the family dependents (cargas): 7 with none,
+    // then 9 / 11 / 14 / 17 / 20 with 1 / 2 / 3 / 4 / 5 or more (20 also for a catastrophic illness).
+    const CARGAS_CANASTAS = [7, 9, 11, 14, 17, 20];
+    function sriCapMultiplier(yd) {
+        if (yd.cargas !== undefined && yd.cargas !== null && yd.cargas !== '') {
+            const c = yd.cargas === 'cat' ? 5 : Math.min(5, Math.max(0, Math.floor(num(yd.cargas))));
+            return CARGAS_CANASTAS[c];
+        }
+        // Years saved before the cargas field: the multiplier the person had (7 by default).
+        return Number.isFinite(Number(yd.sriCapMultiplier)) && yd.sriCapMultiplier !== '' && yd.sriCapMultiplier !== null
             ? Math.max(0, Number(yd.sriCapMultiplier)) : 7;
-        return num(yd.canasta) * mult;
     }
+    function sriCap(yd) { return num(yd.canasta) * sriCapMultiplier(yd); }
 
     // Monthly payroll for a year: IESS personal contribution, SRI income tax withheld and
     // the resulting net salary (without décimos — those depend on the month, see below).
@@ -99,17 +109,29 @@
         const std = num((t.stdDeduction || {})[status]);
         const dedApplied = Math.max(std, num(yd.itemized));
         const taxable = Math.max(0, incomeWages - dedApplied);
-        const credits = num(yd.dependents) * num(t.childCredit) + num(yd.otherDependents) * num(t.otherDependentCredit);
+        // Child / other-dependent credits phase out: $50 less per $1,000 (or part) of income above
+        // $200,000 ($400,000 married filing jointly) — IRC §24(b).
+        const baseCredits = num(yd.dependents) * num(t.childCredit) + num(yd.otherDependents) * num(t.otherDependentCredit);
+        const phaseStart = num((t.ctcPhaseoutStart || { single: 200000, mfj: 400000, hoh: 200000 })[status]);
+        const credits = Math.max(0, baseCredits - Math.ceil(Math.max(0, incomeWages - phaseStart) / 1000) * (num(t.ctcPhaseoutStep) || 50));
         const fedAnnual = Math.max(0, bracketTax(taxable, (t.brackets || {})[status]) - credits);
         // FICA
         const ssAnnual = Math.min(ficaWages, num(t.ssWageBase) || Infinity) * num(t.ssRate) / 100;
-        const medAnnual = ficaWages * num(t.medicareRate) / 100 + Math.max(0, ficaWages - num((t.addlMedicareThreshold || {})[status])) * num(t.addlMedicareRate) / 100;
+        // Employers withhold the extra 0.9% Medicare on wages above $200,000 whatever the filing
+        // status (the yearly liability threshold differs; it's settled on the tax return).
+        const medAnnual = ficaWages * num(t.medicareRate) / 100 + Math.max(0, ficaWages - (num(t.addlMedicareWithholding) || 200000)) * num(t.addlMedicareRate) / 100;
         // State (flat or a rate you enter) and city
         const st = Object.assign({}, US_STATE_DEFAULT, (states || []).find(x => x.code === yd.state) || {});
         const people = 1 + (status === 'mfj' ? 1 : 0) + num(yd.dependents) + num(yd.otherDependents);
         const stateRate = yd.stateRate !== null && yd.stateRate !== undefined && yd.stateRate !== '' ? num(yd.stateRate) : (st.type === 'none' ? 0 : num(st.rate));
-        const stateAnnual = st.type === 'none' && (yd.stateRate === null || yd.stateRate === undefined || yd.stateRate === '') ? 0 : Math.max(0, incomeWages - num(st.exemption) * people) * stateRate / 100;
-        const localAnnual = incomeWages * num(yd.localRate) / 100;
+        // Some states (Pennsylvania) tax 401(k) deferrals.
+        const stateWages = st.taxes401k ? incomeWages + pretaxRetire : incomeWages;
+        const stateAnnual = st.type === 'none' && (yd.stateRate === null || yd.stateRate === undefined || yd.stateRate === '') ? 0 : Math.max(0, stateWages - num(st.exemption) * people) * stateRate / 100;
+        // City tax (Michigan's Uniform City Income Tax): on Medicare wages (401(k) deferrals
+        // included, section-125 benefits not), after the city's exemption per person; people who
+        // only work in the city pay the non-resident rate (half).
+        const local = localTax(yd, people);
+        const localAnnual = Math.max(0, ficaWages - local.exemption * people) * local.rate / 100;
         const incomeTaxAnnual = fedAnnual + stateAnnual + localAnnual;
         const ficaM = (ssAnnual + medAnnual) / 12;
         const netoAntesM = Math.max(0, sueldo - ficaM - incomeTaxAnnual / 12);
@@ -117,12 +139,22 @@
         return {
             country: 'US', sueldo, sueldoAnual: gross, status,
             iessM: ficaM, iessAnual: ssAnnual + medAnnual, ssM: ssAnnual / 12, medM: medAnnual / 12,
-            fedM: fedAnnual / 12, stateM: stateAnnual / 12, localM: localAnnual / 12, stateRate, stateType: st.type,
+            fedM: fedAnnual / 12, stateM: stateAnnual / 12, localM: localAnnual / 12, localRate: local.rate, localResident: local.resident, stateRate, stateType: st.type,
             pretaxM: (pretaxRetire + pretax125) / 12, stdDeduction: std, credits,
             sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied, baseImponible: taxable,
             isrAnual: incomeTaxAnnual, isrM: incomeTaxAnnual / 12,
             netoAntesM, otrosDescuentosM: otros, netoM: Math.max(0, netoAntesM - otros)
         };
+    }
+
+    // The city tax rate that applies: a listed city's resident or non-resident rate and its
+    // exemption, or the rate the person typed for any other city.
+    function localTax(yd, people) {
+        const resident = yd.localResident !== false;
+        const cities = (root.DefaultsUS && root.DefaultsUS.MI_CITIES) || (typeof require !== 'undefined' ? require('./defaults-us.js').MI_CITIES : []);
+        const c = yd.state === 'MI' && yd.localName ? cities.find(x => x.name === yd.localName) : null;
+        if (c) return { rate: resident ? c.rate : c.nonresident, exemption: num(c.exemption), resident, listed: true };
+        return { rate: num(yd.localRate), exemption: num(yd.localExemption), resident, listed: false };
     }
 
     // Social Security retirement benefit (estimate): average monthly earnings over a 35-year
@@ -150,22 +182,33 @@
         const cap = sriCap(yd);
         const deductibles = annualDeductibles(yd);
         const dedApplied = Math.min(deductibles.real, cap);
-        const baseImponible = Math.max(0, sueldo * 12 - iessM * 12 - dedApplied);
-        const isrAnual = incomeTax(baseImponible, yd.sriBrackets);
+        const baseImponible = Math.max(0, sueldo * 12 - iessM * 12);
+        const isrBruto = incomeTax(baseImponible, yd.sriBrackets);
+        const rebajaRate = (yd.sriRebajaRate === undefined || yd.sriRebajaRate === null || yd.sriRebajaRate === '' ? 18 : num(yd.sriRebajaRate)) / 100;
+        // The rebate can bring the tax to zero, never below.
+        const rebaja = Math.min(isrBruto, dedApplied * rebajaRate);
+        const isrAnual = isrBruto - rebaja;
+        const otros = payDeductionsSummary(yd).taken;
         return {
             sueldo,
             sueldoAnual: sueldo * 12,
             iessM,
             iessAnual: iessM * 12,
             sriCap: cap,
+            sriCapCanastas: sriCapMultiplier(yd),
             deductibles,
             dedApplied,
             baseImponible,
+            isrBruto,
+            rebaja,
+            rebajaRate,
+            // What the rebate could still grow by with more personal expenses (up to the cap).
+            rebajaRoom: Math.max(0, Math.min(isrBruto, cap * rebajaRate) - rebaja),
             isrAnual,
             isrM: isrAnual / 12,
             netoAntesM: Math.max(0, sueldo - iessM - isrAnual / 12),
-            otrosDescuentosM: payDeductionsSummary(yd).taken,
-            netoM: Math.max(0, sueldo - iessM - isrAnual / 12 - payDeductionsSummary(yd).taken)
+            otrosDescuentosM: otros,
+            netoM: Math.max(0, sueldo - iessM - isrAnual / 12 - otros)
         };
     }
 
@@ -270,9 +313,13 @@
 
     const MODALITIES = ['Al Vencimiento (Simple)', 'Mensual (Compuesto)', 'Trimestral (Compuesto)', 'Semestral (Compuesto)', 'Anual (Compuesto)'];
 
-    function polizaInterest(p) {
+    // Interest a certificate earns over its term. Ecuador (DPF): the rate is nominal annual on a
+    // 360-day year, simple or compounded by the modality. US (CD): banks quote APY, which already
+    // includes compounding, on a 365-day year.
+    function polizaInterest(p, country) {
         const amount = num(p.amount);
         const rate = num(p.rate) / 100;
+        if (country === 'US') return amount * (Math.pow(1 + rate, (num(p.days) || 365) / 365) - 1);
         const years = (num(p.days) || 360) / 360;
         const mod = p.modality || MODALITIES[0];
         if (mod.includes('Simple') || mod.includes('Vencimiento')) return amount * rate * years;
@@ -320,7 +367,10 @@
             const yd = getYear(y);
             const contribution = annualBudget(yd).savingsReal;
             const rate = num(yd.tasa) / 100;
-            const interest = balance * rate + contribution * rate * 0.5;
+            // The first year, the certificates you have earn their own rates; renewals and new
+            // savings earn the year's rate.
+            const own = y === startYear && opening > 0 ? sum(polizas || [], p => num(p.amount) * (num(p.rate) > 0 ? num(p.rate) / 100 : rate)) : null;
+            const interest = (own !== null ? own : balance * rate) + contribution * rate * 0.5;
             balance += contribution + interest;
             totalContrib += contribution;
             totalInterest += interest;
@@ -889,6 +939,8 @@
     function goalMonths(goal) {
         const target = num(goal.target), current = num(goal.current), monthly = num(goal.monthly);
         if (current >= target) return { status: 'reached', months: 0 };
+        // With nothing going in each month, interest alone isn't a plan (it would say "2077").
+        if (monthly <= 0) return { status: 'never', months: null };
         const r = num(goal.rate) / 1200;
         if (r === 0) {
             return monthly > 0 ? { status: 'ok', months: Math.ceil((target - current) / monthly) } : { status: 'never', months: null };
@@ -994,35 +1046,68 @@
         return num(sueldoPromedio) * Math.min(100, Math.max(0, num(tasaReemplazo))) / 100 * factor;
     }
 
+    // IESS old-age pension: the first age, from the retirement age on, at which the years paid in
+    // qualify — 40 years at any age, or 60 with 30, 65 with 15, 70 with 10. null = never.
+    function iessPensionAge(retireAge, years) {
+        const y = num(years);
+        if (y >= 40) return retireAge;
+        for (const [age, need] of [[60, 30], [65, 15], [70, 10]]) if (y >= need) return Math.max(retireAge, age);
+        return null;
+    }
+
+    // Long-run defaults (historical averages; the person can change them in Jubilación):
+    // US CPI inflation ~3% a year since 1926 and US stocks ~10% a year (nominal); Ecuador's
+    // inflation since dollarization ~2.5%.
+    const DEFAULT_INFLATION = { US: 3, EC: 2.5 };
+    const DEFAULT_RETURN = { US: 10 };
+
+    // Retirement in TODAY's dollars: savings grow at the (nominal) return and are brought back to
+    // today's money with inflation, so they add up with Social Security / the IESS pension, which
+    // are estimated in today's money. A pension only counts from the age you can collect it.
     function retirement(inp) {
         const edadActual = Math.max(0, Math.round(num(inp.edadActual)));
         const edadJubilacion = Math.max(edadActual, Math.round(num(inp.edadJubilacion)) || 65);
         const anios = edadJubilacion - edadActual;
         const months = anios * 12;
         const rate = Math.max(0, num(inp.tasaRetorno));
-        const schedule = (monthly) => {
+        const infl = Math.max(0, num(inp.inflacion)) / 100;
+        const deflate = (value, m) => value / Math.pow(1 + infl, m / 12);
+        const schedule = (monthly, real) => {
             const out = [];
-            for (let m = 0; m <= months; m += 12) out.push(futureValue(inp.ahorroActual, monthly, rate, m));
+            for (let m = 0; m <= months; m += 12) { const v = futureValue(inp.ahorroActual, monthly, rate, m); out.push(real ? deflate(v, m) : v); }
             return out;
         };
         const aporte = Math.max(0, num(inp.aporteMensual));
         const extra = Math.max(0, num(inp.whatIfExtra));
         const withdraw = Math.max(0, num(inp.tasaRetiroSegura)) / 100;
-        const pensionM = inp.country === 'US' ? socialSecurity({ ...inp, aniosRestantes: anios }) : pension({ ...inp, aniosRestantes: anios });
+        let pensionM, pensionDesde;
+        if (inp.country === 'US') {
+            // Social Security can't start before 62; claiming later raises it (up to 70).
+            pensionDesde = Math.min(70, Math.max(62, edadJubilacion));
+            pensionM = socialSecurity({ ...inp, aniosRestantes: anios, edadJubilacion: pensionDesde });
+        } else {
+            pensionDesde = iessPensionAge(edadJubilacion, num(inp.aniosAportados) + anios);
+            pensionM = pensionDesde === null ? 0 : pension({ ...inp, aniosRestantes: anios });
+        }
 
-        const base = schedule(aporte);
-        const valorFuturo = base[base.length - 1];
-        const ingresoAhorro = valorFuturo * withdraw / 12;
+        const base = schedule(aporte, true);
+        const valorFuturoHoy = base[base.length - 1];
+        const valorFuturo = futureValue(inp.ahorroActual, aporte, rate, months);
+        // The 4% rule: a first-year withdrawal that then rises with inflation — in today's money.
+        const ingresoAhorro = valorFuturoHoy * withdraw / 12;
         const result = {
-            edadActual, edadJubilacion, aniosRestantes: anios,
-            valorFuturo, ingresoAhorro, pension: pensionM, ingresoTotal: ingresoAhorro + pensionM,
+            edadActual, edadJubilacion, aniosRestantes: anios, inflacion: infl * 100, tasaRetorno: rate,
+            valorFuturo, valorFuturoHoy, ingresoAhorro, pension: pensionM, pensionDesde,
+            // Years between retiring and the first pension check, lived on savings alone.
+            aniosPuente: pensionDesde === null ? 0 : Math.max(0, pensionDesde - edadJubilacion),
+            ingresoTotal: ingresoAhorro + pensionM,
             schedule: base, whatIf: null
         };
         if (extra > 0) {
-            const alt = schedule(aporte + extra);
+            const alt = schedule(aporte + extra, true);
             const altFinal = alt[alt.length - 1];
             const altIngreso = altFinal * withdraw / 12 + pensionM;
-            result.whatIf = { extra, schedule: alt, valorFuturo: altFinal, gain: altFinal - valorFuturo, ingresoTotal: altIngreso, deltaIngreso: altIngreso - result.ingresoTotal };
+            result.whatIf = { extra, schedule: alt, valorFuturo: altFinal, gain: altFinal - valorFuturoHoy, ingresoTotal: altIngreso, deltaIngreso: altIngreso - result.ingresoTotal };
         }
         return result;
     }
@@ -1044,6 +1129,19 @@
             if (y <= year && yd && yd.netWorth && yd.netWorthTouched && yd.netWorthTouched[field] && (best === null || y > best)) best = y;
         });
         return best;
+    }
+
+    // Years worth plotting in a net-worth history: from the first year with any figure (a typed
+    // balance or an asset owned) up to the latest year that has passed or is running — never
+    // years before the data started, nor future years that would only repeat the last value.
+    function netWorthYears(years, assets, upTo) {
+        const typed = Object.keys(years || {}).map(Number).filter(y => years[y] && years[y].netWorthTouched && Object.keys(years[y].netWorthTouched).some(f => years[y].netWorthTouched[f]));
+        const bought = (assets || []).map(a => num(a.purchaseYear)).filter(y => y > 0);
+        const first = Math.min(...typed, ...bought);
+        if (!Number.isFinite(first) || first > upTo) return [upTo];
+        const out = [];
+        for (let y = first; y <= upTo; y++) out.push(y);
+        return out;
     }
 
     function netWorthField(years, year, field) {
@@ -1087,6 +1185,32 @@
 
     // ---------------------------------------------------- emergency fund & steps
 
+    // What a pot of savings is for: 'emergencia', 'jubilacion' or 'general'. The person can set
+    // it; otherwise the name says it (an "Emergency Fund" line, a "401(k)", "Fondo de Reserva"…).
+    const SAVINGS_PURPOSES = ['emergencia', 'jubilacion', 'general'];
+    function savingsPurpose(x) {
+        if (x && SAVINGS_PURPOSES.includes(x.purpose)) return x.purpose;
+        const n = String((x && (x.name || x.coopName)) || '').toLowerCase();
+        if (/emergenc|reserva|imprevist|colch[oó]n|rainy/.test(n)) return 'emergencia';
+        if (/401|403\(?b|457|\bira\b|roth|jubil|retir|pensi[oó]n|voluntari/.test(n)) return 'jubilacion';
+        return 'general';
+    }
+
+    // Each dollar of savings counts once. Emergency money first: savings accounts, CDs/DPF (not
+    // the ones set aside for retirement) and emergency goals, up to 6 months of essential
+    // expenses. What's beyond that, plus retirement accounts, CDs and investments, is what grows
+    // for retirement.
+    function savingsPools({ polizas = [], savingsBalance = 0, goals = [], retirementAccounts = 0, holdings = 0, monthlyEssential = 0 }) {
+        const poolPolizas = sum(polizas.filter(p => savingsPurpose(p) !== 'jubilacion'), p => num(p.amount));
+        const retirePolizas = sum(polizas.filter(p => savingsPurpose(p) === 'jubilacion'), p => num(p.amount));
+        const emergencyGoals = sum(goals.filter(g => savingsPurpose(g) === 'emergencia'), g => num(g.current));
+        const pool = poolPolizas + Math.max(0, num(savingsBalance));
+        const target = Math.max(0, num(monthlyEssential)) * 6;
+        const emergency = emergencyGoals + Math.min(pool, Math.max(0, target - emergencyGoals));
+        const excess = pool - (emergency - emergencyGoals);
+        return { emergency, invested: excess + retirePolizas + num(retirementAccounts) + num(holdings), excess, target };
+    }
+
     function emergencyFund({ liquid, budgetBase }) {
         const monthlyEssential = sum((budgetBase || []).filter(isEssentialItem), i => num(i.real));
         const monthsCovered = monthlyEssential > 0 ? liquid / monthlyEssential : 0;
@@ -1121,8 +1245,10 @@
     // rest of net worth (house, car, cash) is held flat. While debts are being paid, each
     // month's payment raises net worth by what goes to principal; once debt-free, that money
     // is saved and invested too.
-    function netWorthPath({ start, invested = 0, monthlySavings, rate, debtBalance = 0, debtMonths = 0, debtPayment = 0, months }) {
+    // Net worth month by month, in today's dollars when an inflation rate is given.
+    function netWorthPath({ start, invested = 0, monthlySavings, rate, debtBalance = 0, debtMonths = 0, debtPayment = 0, months, inflation = 0 }) {
         const r = num(rate) / 1200;
+        const real = (v, m) => v / Math.pow(1 + Math.max(0, num(inflation)) / 100, m / 12);
         const flat = num(start) - Math.max(0, num(invested));
         let pot = Math.max(0, num(invested));
         let paid = 0;
@@ -1131,29 +1257,33 @@
         for (let m = 1; m <= months; m++) {
             pot += pot * r + num(monthlySavings) + (m > debtMonths ? num(debtPayment) : 0);
             if (m <= debtMonths) paid += principalPerMonth;
-            out.push(Math.round(flat + pot + paid));
+            out.push(Math.round(real(flat + pot + paid, m)));
         }
         return out;
     }
 
-    function babySteps({ liquid, consumerDebt, monthsCovered, savingsRate, mortgageBalance }) {
+    function babySteps({ liquid, consumerDebt, monthsCovered, savingsRate, mortgageBalance, ownsHome = mortgageBalance > 0.01, money = (v) => '$' + Math.round(v).toLocaleString('en-US') }) {
         const steps = [
-            { n: 1, title: 'Fondo de Emergencia Inicial', done: liquid >= 1000, detail: `${Math.min(100, liquid / 10).toFixed(0)}% de $1,000` },
-            { n: 2, title: 'Pagar Deudas de Consumo', done: consumerDebt <= 0.01, detail: consumerDebt > 0.01 ? `Quedan $${consumerDebt.toFixed(0)}` : 'Sin deudas' },
+            { n: 1, title: 'Fondo de Emergencia Inicial', done: liquid >= 1000, detail: `${Math.min(100, liquid / 10).toFixed(0)}% de ${money(1000)}` },
+            { n: 2, title: 'Pagar Deudas de Consumo', done: consumerDebt <= 0.01, detail: consumerDebt > 0.01 ? `Quedan ${money(consumerDebt)}` : 'Sin deudas' },
             { n: 3, title: 'Fondo de Emergencia Pleno', done: monthsCovered >= 3, detail: `${monthsCovered.toFixed(1)} de 3-6 meses` },
             { n: 4, title: 'Invertir 15% para el Retiro', done: savingsRate >= 0.15, detail: `Ahorras ${(savingsRate * 100).toFixed(0)}% de tu sueldo` },
             { n: 5, title: 'Educación de los Hijos', done: null, detail: 'Opcional — usa una Meta de ahorro' },
-            { n: 6, title: 'Pagar la Hipoteca', done: mortgageBalance <= 0.01, detail: mortgageBalance > 0.01 ? `Saldo $${mortgageBalance.toFixed(0)}` : 'Sin hipoteca' },
+            // A renter hasn't "paid off the home": the step is about saving for one (or not wanting one).
+            { n: 6, title: 'Pagar la Hipoteca', done: ownsHome ? mortgageBalance <= 0.01 : null, detail: mortgageBalance > 0.01 ? `Saldo ${money(mortgageBalance)}` : (ownsHome ? 'Casa pagada' : 'Sin casa propia — ahorra la entrada con una Meta') },
             { n: 7, title: 'Construir Riqueza y Dar', done: null, detail: 'Libertad financiera' }
         ];
         let current;
         if (!steps[0].done) current = 1;
         else if (!steps[1].done) current = 2;
         else if (!steps[2].done) current = 3;
-        else if (!steps[3].done || !steps[5].done) current = 4;
+        else if (!steps[3].done || steps[5].done === false) current = 4;
         else current = 7;
         steps.forEach(s => {
-            s.state = s.done === true ? 'done' : (s.n === current || (current === 4 && s.n >= 4 && s.n <= 6) ? 'current' : 'pending');
+            // Steps are done in order: while one is current, the later ones wait (an emergency
+            // fund isn't "full" while consumer debt is open — that money goes to the snowball).
+            const reached = s.n < current || (current === 4 && s.n <= 6) || current === 7;
+            s.state = s.done === true && reached ? 'done' : (s.n === current || (current === 4 && s.n >= 4 && s.n <= 6) ? 'current' : 'pending');
         });
         return { steps, current };
     }
@@ -1163,9 +1293,19 @@
     // logged after the balance date. Credit-card purchases don't leave the account until the
     // card is paid, so they're not subtracted.
     // US mortgage: principal & interest + property tax + home insurance + PMI + HOA, per month.
-    function pitiMonthly({ payment, amount, propertyTax = 0, homeInsurance = 0, pmiRate = 0, hoa = 0 }) {
-        const parts = { pi: num(payment), tax: num(propertyTax) / 12, ins: num(homeInsurance) / 12, pmi: num(amount) * num(pmiRate) / 1200, hoa: num(hoa) };
-        return Object.assign(parts, { total: parts.pi + parts.tax + parts.ins + parts.pmi + parts.hoa });
+    // PMI is charged only while you owe more than 80% of the home's value, and the lender must drop
+    // it when the balance reaches 78% of the original value (Homeowners Protection Act). With the
+    // home value: PMI is 0 from the start at ≤ 80%, and pmiMonths says how long it lasts.
+    function pitiMonthly({ payment, amount, propertyTax = 0, homeInsurance = 0, pmiRate = 0, hoa = 0, homeValue = 0, schedule = null }) {
+        const value = num(homeValue);
+        const needsPmi = num(pmiRate) > 0 && !(value > 0 && num(amount) <= value * 0.8);
+        const parts = { pi: num(payment), tax: num(propertyTax) / 12, ins: num(homeInsurance) / 12, pmi: needsPmi ? num(amount) * num(pmiRate) / 1200 : 0, hoa: num(hoa) };
+        let pmiMonths = null;
+        if (needsPmi && value > 0 && schedule) {
+            const i = schedule.findIndex(r => r.balance <= value * 0.78);
+            pmiMonths = i < 0 ? schedule.length : i + 1;
+        }
+        return Object.assign(parts, { total: parts.pi + parts.tax + parts.ins + parts.pmi + parts.hoa, pmiMonths, pmiTotal: pmiMonths !== null ? pmiMonths * (needsPmi ? num(amount) * num(pmiRate) / 1200 : 0) : null });
     }
 
     // Account kinds: cash you can spend (checking, cash), savings, retirement (401(k)/IRA).
@@ -1334,7 +1474,10 @@
         return months.map((m, i) => {
             const nextDebt = debtHistory.length ? (i < debtHistory.length ? debtHistory[i] : 0) : debts;
             const free = debts <= 0.01;
-            savings = savings * (1 + r) + num(m.savings) + (free ? num(m.debt) : 0);
+            // The month a debt is paid off, only what was owed goes to it; the rest of that
+            // month's debt money rolls into savings (as it does every month after).
+            const paid = free ? 0 : (nextDebt <= 0.01 ? Math.min(num(m.debt), debts) : num(m.debt));
+            savings = savings * (1 + r) + num(m.savings) + (num(m.debt) - paid);
             cash += num(m.income) - num(m.expense) - num(m.savings) - num(m.debt);
             debts = Math.max(0, nextDebt);
             return { key: m.key, cash, savings, debts, net: cash + savings - debts };
@@ -1345,16 +1488,16 @@
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
         occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear, nominalPaymentsPerYear,
-        pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
+        savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
         frenchPayment, amortization, yearMarks, chartAxis, sampleSchedule,
-        futureValue, pension, retirement,
-        netWorthSource, netWorthField, netWorthSnapshot, assetValue, assetOwned, assetsByCategory, netWorth,
+        futureValue, pension, iessPensionAge, retirement, DEFAULT_INFLATION, DEFAULT_RETURN,
+        netWorthSource, netWorthYears, netWorthField, netWorthSnapshot, assetValue, assetOwned, assetsByCategory, netWorth,
         emergencyFund, babySteps
     };
 

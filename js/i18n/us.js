@@ -56,5 +56,8 @@ I18n.country('US', {
     'Saldo actual (pólizas)': 'Saldo actual (CDs)',
     'Agrega tus cuentas (Pichincha ahorros, Produbanco corriente, efectivo…) para ver tu dinero disponible de un vistazo.': 'Agrega tus cuentas (corriente, ahorros, efectivo, 401(k)…) para ver tu dinero de un vistazo.',
     'Solo cambia cómo se muestran los montos (símbolo y separadores). No convierte valores: escribe tus montos en la moneda que elijas. Los cálculos de IESS, SRI y COSEDE son de Ecuador y están en dólares.': 'Solo cambia cómo se muestran los montos (símbolo y separadores). No convierte valores: los cálculos de impuestos son de EE.UU. y están en dólares.',
-    'Dólar estadounidense (USD) — Ecuador': 'Dólar estadounidense (USD)'
+    'Dólar estadounidense (USD) — Ecuador': 'Dólar estadounidense (USD)',
+    // Baby Steps text that names Ecuador's institutions.
+    '3–6 meses de gastos esenciales para desempleo o imprevistos que el IESS no cubre.': '3–6 meses de gastos esenciales para desempleo o imprevistos que tu seguro no cubre.',
+    'Abonos extraordinarios a tu préstamo BIESS o bancario.': 'Abonos extraordinarios a tu hipoteca para pagarla antes.',
 });

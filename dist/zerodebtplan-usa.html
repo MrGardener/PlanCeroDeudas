@@ -572,6 +572,25 @@ html.is-native [data-web-only], html:not(.is-native) [data-app-only] { display: 
     html.is-native #toast-host { bottom: calc(9.25rem + env(safe-area-inset-bottom, 0px)); }
 }
 html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
+
+/* ------------------------------------------------------------------ fixes (review, Phase 0) */
+/* KPI tiles never overflow their box on a phone: the value shrinks a little and may wrap. */
+.kpi { min-width: 0; }
+.kpi-value { font-variant-numeric: tabular-nums; }
+@media (max-width: 479px) { .kpi-value { font-size: clamp(.95rem, 4.4vw, 1.2rem); } }
+/* A tile outside a tone wrapper takes the page ink (readable in dark mode too). */
+.kpi-value { color: var(--tone, var(--ink)); }
+/* Dark mode: today's streak dot, the calendar legend swatches, the current Baby Step. */
+html[data-theme="dark"] .streak-week span.on { background: #f59e0b; color: #1c1206; }
+html[data-theme="dark"] .cal-sw.in { background: rgba(16, 185, 129, .2); }
+html[data-theme="dark"] .cal-sw.out { background: #22314d; }
+html[data-theme="dark"] .cal-sw.paid { background: var(--surface); border-color: var(--line); }
+html[data-theme="dark"] .cal-sw.low { background: rgba(245, 158, 11, .10); border-color: rgba(245, 158, 11, .45); }
+html[data-theme="dark"] .cal-sw.short { background: rgba(239, 68, 68, .12); border-color: rgba(239, 68, 68, .45); }
+html[data-theme="dark"] .step.current .step-num { background: #3b82f6; color: #fff; }
+html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .25); }
+/* An empty-state line inside the bills grid spans the whole row. */
+.bills-list > p { grid-column: 1 / -1; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -868,6 +887,7 @@ html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
                         <label><span class="help block" id="inc-state-rate-label">Impuesto estatal (%)</span><input type="number" class="input" min="0" step="0.01" id="inc-state-rate" data-change="us.stateRate" placeholder="Automático"></label>
                         <label><span class="help block">Impuesto de tu ciudad (%)</span><select class="input" id="inc-city" data-change="us.city"></select></label>
                     </div>
+                    <label class="check mt-1" id="inc-city-resident"><input type="checkbox" data-bind="year.localResident" data-structural="true"><span>Vivo en esta ciudad <span class="block text-[11px] font-normal text-slate-500">Si solo trabajas ahí, pagas la tasa de no residente (la mitad).</span></span></label>
                     <span class="help" id="inc-state-note"></span>
                 </div>
                 <label class="field field-box tone-slate" data-country="EC">
@@ -905,6 +925,7 @@ html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
                     <span class="badge badge-info">Ley laboral Ecuador</span>
                 </div>
                 <dl class="text-xs divide-y divide-slate-100" id="inc-payroll"></dl>
+                <p class="help mt-2" id="inc-tax-year"></p>
                 <div class="kpi tone-emerald mt-4 flex justify-between items-center">
                     <div><span class="kpi-label">Sueldo neto mensual</span><span class="kpi-note">Sin décimos. Con décimos en su mes: ver Presupuesto del Mes.</span></div>
                     <span class="kpi-value text-2xl" id="inc-neto">$0.00</span>
@@ -926,11 +947,15 @@ html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
             <div class="card" data-country="EC">
                 <div class="card-head">
                     <div>
-                        <div class="card-title"><i class="fa-solid fa-file-invoice-dollar text-blue-600"></i> Deducción de Gastos Personales</div>
-                        <div class="card-sub">Calculada con los rubros marcados como deducibles en tu presupuesto real.</div>
+                        <div class="card-title"><i class="fa-solid fa-file-invoice-dollar text-blue-600"></i> Rebaja por Gastos Personales</div>
+                        <div class="card-sub">Tus gastos de vivienda, salud, educación, alimentación, vestimenta y turismo bajan tu impuesto en un 18%, hasta un tope que depende de tus cargas familiares. Se calcula con los rubros marcados como deducibles en tu presupuesto real.</div>
                     </div>
                     <span class="badge badge-info">Tope: <span id="inc-cap">$0</span></span>
                 </div>
+                <label class="field max-w-xs mb-3"><span class="field-label">Cargas familiares</span>
+                    <select class="input" data-bind="year.cargas" data-structural="true">
+                        <option value="0">Ninguna (tope: 7 canastas)</option><option value="1">1 (9 canastas)</option><option value="2">2 (11 canastas)</option><option value="3">3 (14 canastas)</option><option value="4">4 (17 canastas)</option><option value="5">5 o más (20 canastas)</option><option value="cat">Enfermedad catastrófica (20 canastas)</option>
+                    </select><span class="help">Hijos menores de edad o con discapacidad, cónyuge o padres que dependen de ti.</span></label>
                 <div class="grid grid-cols-2 gap-3 mb-3">
                     <div class="kpi tone-slate"><span class="kpi-label">Deducibles presupuestados</span><span class="kpi-value" id="inc-ded-prep">$0.00</span></div>
                     <div class="kpi tone-blue"><span class="kpi-label">Deducibles reales</span><span class="kpi-value" id="inc-ded-real">$0.00</span></div>
@@ -953,8 +978,8 @@ html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
             <summary>¿Cómo se calcula tu sueldo neto?</summary>
             <div>
                 <p><strong>1. Aporte IESS:</strong> Sueldo bruto × tasa de aporte personal (9.45% por defecto).</p>
-                <p><strong>2. Base imponible:</strong> (Sueldo anual − IESS anual) − mín(gastos deducibles reales, canasta básica × multiplicador). Más gastos deducibles reales (vivienda, educación, salud, alimentación, vestimenta, turismo) = menor base imponible.</p>
-                <p><strong>3. Impuesto a la renta:</strong> la base imponible se evalúa en la tabla progresiva del SRI; el impuesto anual se retiene en 12 cuotas.</p>
+                <p><strong>2. Base imponible:</strong> sueldo anual − IESS anual, evaluada en la tabla progresiva del SRI.</p>
+                <p><strong>3. Rebaja por gastos personales:</strong> al impuesto de la tabla se le resta el 18% de tus gastos personales reales (vivienda, salud, educación, alimentación, vestimenta, turismo), hasta un tope de 7 canastas básicas sin cargas familiares y hasta 20 con cinco o más. El impuesto que queda se retiene en 12 cuotas.</p>
                 <p><strong>4. Neto:</strong> Sueldo − IESS − retención mensual. En diciembre y en el mes de tu región se suman el Décimo Tercero y el Décimo Cuarto (no pagan IESS).</p>
             </div>
         </details>
@@ -1100,7 +1125,7 @@ html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
                     <select id="txn-f-member" class="cell-input hidden" style="width:auto" data-change="txn.filter" aria-label="Persona"></select>
                 </div>
             </div>
-            <div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                 <div class="kpi tone-emerald"><span class="kpi-label">Ingresos</span><span class="kpi-value" id="txn-sum-inc">$0.00</span></div>
                 <div class="kpi tone-red"><span class="kpi-label">Gastos</span><span class="kpi-value" id="txn-sum-exp">$0.00</span></div>
                 <div class="kpi tone-slate"><span class="kpi-label">Neto</span><span class="kpi-value" id="txn-sum-net">$0.00</span></div>
@@ -1435,10 +1460,11 @@ html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
                 <a href="#" class="mini-btn" data-goto="config" data-focus="cfg-prefs">Cambiar en Configuración →</a>
             </div>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5" data-country="US">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-5" data-country="US">
             <label class="field field-box"><span class="field-label"><span>Impuesto a la propiedad al año (<span class="cur">$</span>)</span></span><input type="number" class="input" step="100" min="0" data-bind="mortgage.propertyTax"></label>
             <label class="field field-box"><span class="field-label"><span>Seguro de vivienda al año (<span class="cur">$</span>)</span></span><input type="number" class="input" step="100" min="0" data-bind="mortgage.homeInsurance"></label>
-            <label class="field field-box"><span class="field-label">PMI (% del préstamo al año)</span><input type="number" class="input" step="0.05" min="0" data-bind="mortgage.pmiRate"><span class="help">Si das menos del 20% de entrada. Se quita al llegar a 80% del valor.</span></label>
+            <label class="field field-box"><span class="field-label"><span>Valor de la casa al comprarla (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1000" min="0" data-bind="mortgage.homeValue"><span class="help">Para saber cuándo se quita el PMI.</span></label>
+            <label class="field field-box"><span class="field-label">PMI (% del préstamo al año)</span><input type="number" class="input" step="0.05" min="0" data-bind="mortgage.pmiRate"><span class="help">Si das menos del 20% de entrada. Se quita cuando debes el 78% del valor de la casa.</span></label>
             <label class="field field-box"><span class="field-label"><span>HOA al mes (<span class="cur">$</span>)</span></span><input type="number" class="input" step="10" min="0" data-bind="mortgage.hoa"></label>
         </div>
         <div id="mort-summary" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5"></div>
@@ -1486,9 +1512,9 @@ html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
             <label class="field field-box"><span class="field-label">Edad actual</span><input type="number" class="input" min="18" max="80" data-bind="retirement.edadActual"></label>
             <label class="field field-box"><span class="field-label">Edad de jubilación deseada</span><input type="number" class="input" min="40" max="85" data-bind="retirement.edadJubilacion"></label>
             <div class="field-box tone-emerald">
-                <span class="field-label"><span>Ahorro DPF actual (<span class="cur">$</span>)</span></span>
+                <span class="field-label"><span>Ya ahorrado para la jubilación (<span class="cur">$</span>)</span></span>
                 <div class="input input-readonly" id="ret-ahorro"></div>
-                <span class="linked">🔗 Automático: el capital de tus <a href="#" class="link" data-goto="ahorro/polizas">pólizas registradas</a>.</span>
+                <span class="linked">🔗 Automático: lo que ya tienes ahorrado e invertido más allá de tu fondo de emergencia (<a href="#" class="link" data-goto="ahorro/polizas">pólizas</a>, cuentas e inversiones).</span>
             </div>
             <div class="field-box tone-emerald">
                 <span class="field-label"><span>Aporte mensual para el retiro (<span class="cur">$</span>)</span></span>
@@ -1499,6 +1525,11 @@ html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
                 <span class="field-label"><span>Retorno anual esperado (%)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="tasaRetorno" title="Volver a enlazar con la Tasa DPF">↻ enlazar</button></span>
                 <input type="number" class="input" step="0.1" min="0" id="ret-tasa" data-input="ret.override" data-field="tasaRetorno">
                 <span class="linked" id="ret-tasa-note"></span>
+            </div>
+            <div class="field-box tone-emerald">
+                <span class="field-label"><span>Inflación anual esperada (%)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="inflacion" title="Volver al promedio histórico">↻ enlazar</button></span>
+                <input type="number" class="input" step="0.1" min="0" id="ret-infl" data-input="ret.override" data-field="inflacion">
+                <span class="linked" id="ret-infl-note"></span>
             </div>
             <label class="field field-box tone-emerald"><span class="field-label">Tasa de retiro segura anual (%)</span><input type="number" class="input" step="0.5" min="0" max="20" data-bind="retirement.tasaRetiroSegura"><span class="help">% de tu ahorro que retiras cada año sin agotarlo (regla del 4%).</span></label>
         </div>
@@ -1514,7 +1545,7 @@ html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
             <label class="field field-box tone-indigo" data-country="EC"><span class="field-label">Tasa de reemplazo (%)</span><input type="number" class="input" min="0" max="100" data-bind="retirement.tasaReemplazo"><span class="help">% del sueldo que recibirías de pensión (típico IESS: 40–75%).</span></label>
         </div>
 
-        <div class="panel tone-slate mb-5"><div class="section-label"><i class="fa-solid fa-chart-line text-emerald-600"></i> Crecimiento de tu ahorro hasta la jubilación</div><div class="chart-box"><canvas id="ret-chart"></canvas></div></div>
+        <div class="panel tone-slate mb-5"><div class="section-label"><i class="fa-solid fa-chart-line text-emerald-600"></i> Crecimiento de tu ahorro hasta la jubilación (dólares de hoy)</div><div class="chart-box"><canvas id="ret-chart"></canvas></div></div>
 
         <div class="panel tone-purple mb-5">
             <div class="flex flex-wrap justify-between items-center gap-2 mb-1">
@@ -1528,12 +1559,13 @@ html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
 
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <div class="kpi tone-slate"><span class="kpi-label">Años hasta jubilarte</span><span class="kpi-value" id="ret-years">0</span></div>
-            <div class="kpi tone-emerald"><span class="kpi-label">Valor futuro del ahorro</span><span class="kpi-value" id="ret-fv">$0</span></div>
+            <div class="kpi tone-emerald"><span class="kpi-label">Valor futuro del ahorro</span><span class="kpi-value" id="ret-fv">$0</span><span class="kpi-note" id="ret-fv-note"></span></div>
             <div class="kpi tone-emerald"><span class="kpi-label">Ingreso mensual del ahorro</span><span class="kpi-value" id="ret-income-savings">$0</span></div>
-            <div class="kpi tone-indigo"><span class="kpi-label">Pensión IESS mensual</span><span class="kpi-value" id="ret-pension">$0</span></div>
+            <div class="kpi tone-indigo"><span class="kpi-label">Pensión IESS mensual</span><span class="kpi-value" id="ret-pension">$0</span><span class="kpi-note" id="ret-pension-note"></span></div>
         </div>
+        <div class="panel tone-amber text-xs text-amber-900 mb-4 hidden" id="ret-bridge"></div>
         <div class="panel tone-slate flex flex-wrap justify-between items-center gap-3 mb-4" style="background:linear-gradient(90deg,#ecfdf5,#eef2ff)">
-            <div><span class="text-xs font-extrabold text-slate-700 uppercase block">Ingreso mensual total en la jubilación</span><span class="text-[11px] text-slate-500"><span class="text-emerald-700 font-bold">Ahorro DPF</span> + <span class="text-indigo-700 font-bold">Pensión IESS</span></span></div>
+            <div><span class="text-xs font-extrabold text-slate-700 uppercase block">Ingreso mensual total en la jubilación</span><span class="text-[11px] text-slate-500"><span class="text-emerald-700 font-bold">Ahorro DPF</span> + <span class="text-indigo-700 font-bold">Pensión IESS</span> · en dólares de hoy</span></div>
             <div class="text-right"><span class="text-2xl font-black text-slate-900 block" id="ret-total">$0</span><span class="text-xs font-bold text-purple-700 hidden" id="ret-total-delta"></span></div>
         </div>
         <p class="panel tone-amber text-[11px] text-amber-900 leading-relaxed" data-country="US"><i class="fa-solid fa-triangle-exclamation text-amber-600"></i> <strong>Estimación del Seguro Social</strong>: usa tu sueldo actual como promedio de 35 años (con el tope anual), la fórmula de beneficio (90% / 32% / 15%) y tu edad de retiro (menos antes de los 67, más hasta los 70). Tu estimado real está en <a href="https://www.ssa.gov/myaccount/" target="_blank" rel="noopener" class="link">ssa.gov/myaccount</a>.</p>
@@ -1674,7 +1706,7 @@ html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
                 <label class="field field-box"><span class="field-label">Aporte personal IESS (%)</span><input type="number" class="input" step="0.01" min="0" data-bind="year.iessRate"></label>
                 <label class="field field-box"><span class="field-label"><span>SBU (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.sbu"><span class="help">Base del Décimo Cuarto.</span></label>
                 <label class="field field-box"><span class="field-label"><span>Canasta básica (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1" min="0" data-bind="year.canasta"></label>
-                <label class="field field-box"><span class="field-label">Tope deducible (× canasta)</span><input type="number" class="input" step="0.1" min="0" data-bind="year.sriCapMultiplier"><span class="help">Ajusta si tu caso (cargas, año fiscal) cambia el tope.</span></label>
+                <label class="field field-box"><span class="field-label">Rebaja por gastos personales (%)</span><input type="number" class="input" step="1" min="0" max="100" data-bind="year.sriRebajaRate"><span class="help">18% desde 2023. El tope depende de tus cargas (Ingresos).</span></label>
                 <label class="field field-box"><span class="field-label"><span>Cobertura COSEDE (<span class="cur">$</span>)</span></span><input type="number" class="input" step="1000" min="0" data-bind="year.cosede"><span class="help">Para cooperativas sin límite propio.</span></label>
             </div>
             <div>
@@ -1746,7 +1778,7 @@ html.is-native[data-theme="dark"] .main-nav { background: #070d19; }
                 <div class="flex flex-wrap items-end gap-3">
                     <label class="field"><span class="field-label">Desde el año</span><select id="cfg-copy-from" class="input" style="width:7rem"></select></label>
                     <button class="btn btn-blue" data-action="cfg.copyYear"><i class="fa-solid fa-arrow-right-to-bracket"></i> Copiar a <span class="active-year"></span></button>
-                    <button class="btn btn-secondary" data-action="cfg.propagate"><i class="fa-solid fa-forward"></i> Propagar <span class="active-year"></span> a los años siguientes</button>
+                    <button class="btn btn-secondary" data-action="cfg.propagate"><i class="fa-solid fa-forward"></i> <span>Propagar <span class="active-year"></span> a los años siguientes</span></button>
                 </div>
             </div>
             <div class="panel tone-emerald">
@@ -3929,6 +3961,82 @@ I18n.add('en', {
 ". Para pasar a otro teléfono o a un computador, abre la app allí y usa": ". To move to another phone or a computer, open the app there and use",
 "Todo se guarda automáticamente en este teléfono. Guarda una copia para no perderla o moverla a otro equipo.": "Everything saves automatically on this phone. Save a copy so you don't lose it or to move it to another device.",
 });
+
+// Review fixes (Phase 0): taxes, retirement in today's dollars, Baby Steps, PMI, quick entry
+I18n.add('en', {
+", cuentas e inversiones).": ", accounts and investments).",
+"18% desde 2023. El tope depende de tus cargas (Ingresos).": "18% since 2023. The cap depends on your dependents (Income).",
+"3. Rebaja por gastos personales:": "3. Personal-expense rebate:",
+"Ninguna (tope: 7 canastas)": "None (cap: 7 baskets)", "1 (9 canastas)": "1 (9 baskets)", "2 (11 canastas)": "2 (11 baskets)", "3 (14 canastas)": "3 (14 baskets)", "4 (17 canastas)": "4 (17 baskets)",
+"5 o más (20 canastas)": "5 or more (20 baskets)",
+"Enfermedad catastrófica (20 canastas)": "Catastrophic illness (20 baskets)",
+"Cargas familiares": "Family dependents",
+"Aún falta asignar": "Still to assign:",
+"Aún no cumples los años mínimos de aportes": "You don't have the minimum years of contributions yet",
+"Aún no tienes una": "You don't have a",
+"Base imponible anual (sueldo − IESS)": "Annual taxable base (salary − IESS)",
+"Buen progreso: lo que tienes supera lo que debes.": "Good progress: what you own is more than what you owe.",
+"Con": "With",
+"Con tu sueldo, la rebaja ya cubre todo el impuesto (o no pagas impuesto a la renta).": "With your salary, the rebate already covers all the tax (or you don't pay income tax).",
+"Con tus años de aportes no alcanzas la pensión del IESS (mínimo 10 años a los 70, 15 a los 65, 30 a los 60 o 40 a cualquier edad). Tu jubilación dependería solo de tu ahorro.": "With your years of contributions you don't qualify for the IESS pension (at least 10 years at 70, 15 at 65, 30 at 60 or 40 at any age). Your retirement would depend on your savings alone.",
+"Configuración → Parámetros legales": "Settings → Legal parameters",
+"Crecimiento de tu ahorro hasta la jubilación (dólares de hoy)": "Growth of your savings until retirement (today's dollars)",
+"Crédito": "Credit", "Débito": "Debit",
+"Entre los {0} y los {1} años no recibirás {2}: vivirías solo de tu ahorro ({3}/mes).": "Between ages {0} and {1} you won't receive {2}: you'd live on your savings alone ({3}/month).",
+"el Seguro Social": "Social Security", "la pensión": "the pension",
+"Estimación en dólares de hoy (inflación {0}% anual): tu patrimonio de hoy; tus inversiones ({1}) y lo que ahorras al mes según tu presupuesto ({2}) crecen al {3}% anual (tu casa y otros bienes se mantienen); lo que pagas a tus deudas baja lo que debes, y al terminar de pagarlas ese dinero ({4}/mes) pasa a ahorro. Cambia tu edad, el retorno y la inflación en Jubilación.": "Estimate in today's dollars ({0}% inflation a year): your net worth today; your investments ({1}) and what you save each month in your budget ({2}) grow {3}% a year (your home and other assets stay the same); your debt payments lower what you owe, and once they're paid off that money ({4}/month) goes to savings. Change your age, return and inflation in Retirement.",
+"Hijos menores de edad o con discapacidad, cónyuge o padres que dependen de ti.": "Children under 18 or with a disability, a spouse or parents who depend on you.",
+"Hoy {0}{1}{2}": "Today {0}{1}{2}",
+"(agrega tus saldos en Patrimonio → Cuentas)": "(add your balances in Net Worth → Accounts)",
+"Supusimos que cobras el último día de cada mes:": "We assumed you're paid on the last day of each month:",
+"dinos cómo te pagan": "tell us how you're paid",
+"Impuesto según la tabla del SRI": "Tax from the SRI table",
+"Inflación anual esperada (%)": "Expected annual inflation (%)",
+"Lo que permite tu efectivo hasta el cobro (tu presupuesto variable daría {0}). Hoy llevas {1}.": "What your cash allows until payday (your flexible budget would give {0}). Spent today: {1}.",
+"Para saber cuándo se quita el PMI.": "To know when PMI comes off.",
+"Valor de la casa al comprarla (": "Home value when you bought it (",
+"Rebaja por Gastos Personales": "Personal Expenses Rebate",
+"Rebaja por gastos personales (%)": "Personal-expense rebate (%)",
+"Rebaja por gastos personales ({0} de {1})": "Personal-expense rebate ({0} of {1})",
+"{0}% de {1}": "{0}% of {1}",
+"Saldo {0}": "Balance {0}",
+"Se usan las tablas de impuestos de {0}. Las de {1} aún no están en la app: verifícalas y cámbialas en": "The {0} tax tables are being used. The {1} ones aren't in the app yet: check them and update them in",
+"Tablas de impuestos de {0}. Verifícalas cada año en Configuración → Parámetros legales.": "{0} tax tables. Check them every year in Settings → Legal parameters.",
+"Si das menos del 20% de entrada. Se quita cuando debes el 78% del valor de la casa.": "If you put down less than 20%. It comes off when you owe 78% of the home's value.",
+"Vivo en esta ciudad": "I live in this city",
+"Si solo trabajas ahí, pagas la tasa de no residente (la mitad).": "If you only work there, you pay the non-resident rate (half).",
+"Impuesto de la ciudad ({0}, residente {1}%)": "City tax ({0}, resident {1}%)",
+"Impuesto de la ciudad ({0}, no residente {1}%)": "City tax ({0}, non-resident {1}%)",
+"residente": "resident", "no residente": "non-resident",
+"Sin casa propia — ahorra la entrada con una Meta": "No home of your own — save the down payment with a Goal",
+"Casa pagada": "Home paid off",
+"Sin impuesto que rebajar": "No tax to lower",
+"Te faltan {0} en gastos deducibles reales para llegar al tope: tu impuesto bajaría hasta {1} más.": "You need {0} more in actual deductible expenses to reach the cap: your tax would drop up to {1} more.",
+"Tus gastos de vivienda, salud, educación, alimentación, vestimenta y turismo bajan tu impuesto en un 18%, hasta un tope que depende de tus cargas familiares. Se calcula con los rubros marcados como deducibles en tu presupuesto real.": "Your housing, health, education, food, clothing and tourism expenses lower your tax by 18%, up to a cap that depends on your family dependents. It uses the budget lines marked as deductible in your actual budget.",
+"Usas el {0}% del tope. Con {1} más en gastos deducibles, tu impuesto bajaría hasta {2}. Marca los rubros deducibles en el Presupuesto del Mes.": "You use {0}% of the cap. With {1} more in deductible expenses, your tax would drop up to {2}. Mark the deductible lines in the Monthly Budget.",
+"Volver al promedio histórico": "Back to the historical average",
+"al impuesto de la tabla se le resta el 18% de tus gastos personales reales (vivienda, salud, educación, alimentación, vestimenta, turismo), hasta un tope de 7 canastas básicas sin cargas familiares y hasta 20 con cinco o más. El impuesto que queda se retiene en 12 cuotas.": "18% of your actual personal expenses (housing, health, education, food, clothing, tourism) is taken off the tax from the table, up to a cap of 7 basic baskets with no dependents and up to 20 with five or more. The remaining tax is withheld in 12 installments.",
+"desde los {0} años": "from age {0}",
+"en dólares de hoy · {0} en dólares de {1}": "in today's dollars · {0} in {1} dollars",
+"más en gastos personales, tu impuesto bajaría hasta": "more in personal expenses, your tax would drop up to",
+"promedio de Ecuador desde la dolarización (~2.5% al año). Todo se muestra en dólares de hoy.": "Ecuador's average since dollarization (~2.5% a year). Everything is shown in today's dollars.",
+"promedio histórico de EE. UU. (~3% al año). Todo se muestra en dólares de hoy.": "US historical average (~3% a year). Everything is shown in today's dollars.",
+"sueldo anual − IESS anual, evaluada en la tabla progresiva del SRI.": "annual salary − annual IESS, run through SRI's progressive table.",
+"{0}% es el promedio histórico de la bolsa de EE. UU. (acciones, antes de inflación). Algunos años pierde; a 20-30 años suele acercarse a ese promedio.": "{0}% is the US stock market's historical average (stocks, before inflation). Some years it loses; over 20-30 years it tends to come close to that average.",
+"en dólares de hoy": "in today's dollars",
+"🔗 Automático: lo que ya tienes ahorrado e invertido más allá de tu fondo de emergencia (": "🔗 Automatic: what you've already saved and invested beyond your emergency fund (",
+"3–6 meses de gastos esenciales para desempleo o imprevistos que tu seguro no cubre.": "3–6 months of essential expenses for job loss or emergencies your insurance doesn't cover.",
+"Abonos extraordinarios a tu hipoteca para pagarla antes.": "Extra payments on your mortgage to pay it off sooner.",
+"Lo que permite tu efectivo": "What your cash allows",
+"Ya ahorrado para la jubilación (": "Already saved for retirement (",
+"¿Para qué es este ahorro?": "What is this saving for?",
+"Automático ({0})": "Automatic ({0})",
+"fondo de emergencia": "emergency fund", "jubilación": "retirement", "ahorro general": "general savings",
+"Fondo de emergencia": "Emergency fund", "Ahorro general": "General savings",
+"El fondo de emergencia no cuenta como ahorro para la jubilación (Paso 4).": "The emergency fund doesn't count as retirement saving (Step 4).",
+"· Supusimos que cobras el último día de cada mes:": "· We assumed you're paid on the last day of each month:",
+"· en dólares de hoy": "· in today's dollars",
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -3989,7 +4097,10 @@ I18n.country('US', {
     'Saldo actual (pólizas)': 'Saldo actual (CDs)',
     'Agrega tus cuentas (Pichincha ahorros, Produbanco corriente, efectivo…) para ver tu dinero disponible de un vistazo.': 'Agrega tus cuentas (corriente, ahorros, efectivo, 401(k)…) para ver tu dinero de un vistazo.',
     'Solo cambia cómo se muestran los montos (símbolo y separadores). No convierte valores: escribe tus montos en la moneda que elijas. Los cálculos de IESS, SRI y COSEDE son de Ecuador y están en dólares.': 'Solo cambia cómo se muestran los montos (símbolo y separadores). No convierte valores: los cálculos de impuestos son de EE.UU. y están en dólares.',
-    'Dólar estadounidense (USD) — Ecuador': 'Dólar estadounidense (USD)'
+    'Dólar estadounidense (USD) — Ecuador': 'Dólar estadounidense (USD)',
+    // Baby Steps text that names Ecuador's institutions.
+    '3–6 meses de gastos esenciales para desempleo o imprevistos que el IESS no cubre.': '3–6 meses de gastos esenciales para desempleo o imprevistos que tu seguro no cubre.',
+    'Abonos extraordinarios a tu préstamo BIESS o bancario.': 'Abonos extraordinarios a tu hipoteca para pagarla antes.',
 });
 </script>
 <script>/* js/device.js */
@@ -4284,7 +4395,8 @@ I18n.country('US', {
         const d = Math.min(decimals, cur.decimals);
         const num = Math.abs(v).toLocaleString(cur.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
         const s = cur.after ? `${num} ${cur.symbol}` : `${cur.symbol}${cur.symbol.length > 1 && !cur.symbol.endsWith('$') ? ' ' : ''}${num}`;
-        return v < 0 && Math.abs(v) >= 0.5 * Math.pow(10, -d) ? '-' + s : s;
+        // A true minus sign (U+2212), the same one the views put before amounts.
+        return v < 0 && Math.abs(v) >= 0.5 * Math.pow(10, -d) ? '\u2212' + s : s;
     }
     const money = (n) => fmt(n, 2);
     const money0 = (n) => fmt(n, 0);
@@ -4410,14 +4522,20 @@ I18n.country('US', {
         'Otros Ingresos': ['Regalos Recibidos', 'Herencias', 'Venta de Artículos Usados', 'Reembolsos']
     };
 
+    // SRI income-tax table for 2026 (Resolución NAC-DGERCGC25-00000043). It changes every year:
+    // editable in Configuración → Parámetros legales.
+    const SRI_TABLE_YEAR = 2026;
     const sriBrackets = () => [
-        { min: 0, max: 11902, baseTax: 0, rate: 0 },
-        { min: 11902, max: 15159, baseTax: 0, rate: 0.05 },
-        { min: 15159, max: 19682, baseTax: 163, rate: 0.10 },
-        { min: 19682, max: 26031, baseTax: 615, rate: 0.12 },
-        { min: 26031, max: 35494, baseTax: 1377, rate: 0.15 },
-        { min: 35494, max: 49207, baseTax: 2796, rate: 0.20 },
-        { min: 49207, max: 999999, baseTax: 5538, rate: 0.25 }
+        { min: 0, max: 12208, baseTax: 0, rate: 0 },
+        { min: 12208, max: 15549, baseTax: 0, rate: 0.05 },
+        { min: 15549, max: 20188, baseTax: 167, rate: 0.10 },
+        { min: 20188, max: 26700, baseTax: 631, rate: 0.12 },
+        { min: 26700, max: 35136, baseTax: 1412, rate: 0.15 },
+        { min: 35136, max: 46575, baseTax: 2678, rate: 0.20 },
+        { min: 46575, max: 62005, baseTax: 4965, rate: 0.25 },
+        { min: 62005, max: 82679, baseTax: 8823, rate: 0.30 },
+        { min: 82679, max: 109956, baseTax: 15025, rate: 0.35 },
+        { min: 109956, max: 999999999, baseTax: 24572, rate: 0.37 }
     ];
 
     function newYear() {
@@ -4430,10 +4548,12 @@ I18n.country('US', {
             d4Region: 'costa',
             sweepSavings: false,
             iessRate: 9.45,
-            sbu: 470,
-            canasta: 764.70,
+            sbu: 482,                // salario básico unificado 2026 (Acuerdo MDT-2025-195)
+            canasta: 821.80,         // canasta familiar básica, enero 2026 (INEC)
             cosede: 32000,
-            sriCapMultiplier: 7,
+            cargas: 0,               // family dependents: sets the cap for personal expenses
+            sriRebajaRate: 18,       // % of personal expenses taken off the tax
+            taxTableYear: SRI_TABLE_YEAR,
             netWorth: { checking: 0, savings: 0, investments: 0, mortgage: 0, autoLoans: 0, creditCards: 0, personalLoans: 0, studentLoans: 0, otherDebts: 0 },
             netWorthTouched: {},
             budgetBase: clone(BUDGET_TEMPLATE),
@@ -4506,7 +4626,7 @@ I18n.country('US', {
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
-            retirement: { edadActual: 30, edadJubilacion: 65, aporteMensual: 100, tasaRetiroSegura: 4, aniosAportados: 5, tasaReemplazo: 60, tasaRetorno: null, sueldoPromedio: null, whatIfExtra: 0 },
+            retirement: { edadActual: 30, edadJubilacion: 65, aporteMensual: 100, tasaRetiroSegura: 4, aniosAportados: 5, tasaReemplazo: 60, tasaRetorno: null, inflacion: null, sueldoPromedio: null, whatIfExtra: 0 },
             debtPlan: { strategy: 'snowball', extraPayment: 0 }
         };
     }
@@ -4554,8 +4674,10 @@ I18n.country('US', {
         stdDeduction: { single: 16100, mfj: 32200, hoh: 24150 },
         childCredit: 2200,          // per qualifying child under 17
         otherDependentCredit: 500,
+        // Both credits drop $50 per $1,000 of income above these amounts (IRC §24(b)).
+        ctcPhaseoutStart: { single: 200000, mfj: 400000, hoh: 200000 }, ctcPhaseoutStep: 50,
         ssRate: 6.2, ssWageBase: 184500,
-        medicareRate: 1.45, addlMedicareRate: 0.9, addlMedicareThreshold: { single: 200000, mfj: 250000, hoh: 200000 },
+        medicareRate: 1.45, addlMedicareRate: 0.9, addlMedicareThreshold: { single: 200000, mfj: 250000, hoh: 200000 }, addlMedicareWithholding: 200000,
         // Contribution limits (for warnings)
         limit401k: 24500, catchUp401k: 8000, limitIRA: 7500, limitHSA: { self: 4400, family: 8750 },
         // Social Security benefit formula (PIA bend points, full retirement age 67)
@@ -4569,20 +4691,22 @@ I18n.country('US', {
         ['AL', 'Alabama'], ['AK', 'Alaska', 'none'], ['AZ', 'Arizona'], ['AR', 'Arkansas'], ['CA', 'California'], ['CO', 'Colorado'], ['CT', 'Connecticut'],
         ['DE', 'Delaware'], ['DC', 'District of Columbia'], ['FL', 'Florida', 'none'], ['GA', 'Georgia'], ['HI', 'Hawaii'], ['ID', 'Idaho'],
         ['IL', 'Illinois', 'flat', 4.95, 2850], ['IN', 'Indiana'], ['IA', 'Iowa'], ['KS', 'Kansas'], ['KY', 'Kentucky'], ['LA', 'Louisiana'], ['ME', 'Maine'],
-        ['MD', 'Maryland'], ['MA', 'Massachusetts'], ['MI', 'Michigan', 'flat', 4.25, 5800], ['MN', 'Minnesota'], ['MS', 'Mississippi'], ['MO', 'Missouri'],
+        ['MD', 'Maryland'], ['MA', 'Massachusetts'], ['MI', 'Michigan', 'flat', 4.25, 5900], ['MN', 'Minnesota'], ['MS', 'Mississippi'], ['MO', 'Missouri'],
         ['MT', 'Montana'], ['NE', 'Nebraska'], ['NV', 'Nevada', 'none'], ['NH', 'New Hampshire', 'none'], ['NJ', 'New Jersey'], ['NM', 'New Mexico'],
         ['NY', 'New York'], ['NC', 'North Carolina'], ['ND', 'North Dakota'], ['OH', 'Ohio'], ['OK', 'Oklahoma'], ['OR', 'Oregon'],
-        ['PA', 'Pennsylvania', 'flat', 3.07, 0], ['RI', 'Rhode Island'], ['SC', 'South Carolina'], ['SD', 'South Dakota', 'none'], ['TN', 'Tennessee', 'none'],
+        ['PA', 'Pennsylvania', 'flat', 3.07, 0, true], ['RI', 'Rhode Island'], ['SC', 'South Carolina'], ['SD', 'South Dakota', 'none'], ['TN', 'Tennessee', 'none'],
         ['TX', 'Texas', 'none'], ['UT', 'Utah'], ['VT', 'Vermont'], ['VA', 'Virginia'], ['WA', 'Washington', 'none'], ['WV', 'West Virginia'],
         ['WI', 'Wisconsin'], ['WY', 'Wyoming', 'none']
-    ].map(([code, name, type = 'custom', rate = null, exemption = 0]) => ({ code, name, type, rate, exemption }));
+    ].map(([code, name, type = 'custom', rate = null, exemption = 0, taxes401k = false]) => ({ code, name, type, rate, exemption, taxes401k }));
 
-    // Michigan cities with an income tax (resident rates, %). Verify with your city.
+    // Michigan cities with an income tax (Uniform City Income Tax Ordinance): resident rate, the
+    // non-resident rate (half) for people who only work there, and the exemption per person
+    // ($600 in most cities). Verify each year with your city.
     const MI_CITIES = [
-        ['Detroit', 2.4], ['Grand Rapids', 1.5], ['Highland Park', 2.0], ['Saginaw', 1.5], ['Albion', 1.0], ['Battle Creek', 1.0], ['Big Rapids', 1.0],
+        ['Detroit', 2.4], ['Grand Rapids', 1.5], ['Highland Park', 2.0], ['Saginaw', 1.5], ['Albion', 1.0], ['Battle Creek', 1.0], ['Benton Harbor', 1.0], ['Big Rapids', 1.0],
         ['East Lansing', 1.0], ['Flint', 1.0], ['Grayling', 1.0], ['Hamtramck', 1.0], ['Hudson', 1.0], ['Ionia', 1.0], ['Jackson', 1.0], ['Lansing', 1.0],
         ['Lapeer', 1.0], ['Muskegon', 1.0], ['Muskegon Heights', 1.0], ['Pontiac', 1.0], ['Port Huron', 1.0], ['Portland', 1.0], ['Springfield', 1.0], ['Walker', 1.0]
-    ].map(([name, rate]) => ({ name, rate }));
+    ].map(([name, rate]) => ({ name, rate, nonresident: rate / 2, exemption: 600 }));
 
     // ------------------------------------------------------------------ budget
     const BUDGET_TEMPLATE = [
@@ -4642,6 +4766,7 @@ I18n.country('US', {
             state: 'MI',
             stateRate: null,            // % override (or the rate for a 'custom' state)
             localName: '',              // city with income tax
+            localResident: true,        // false = works in the city, lives elsewhere (non-resident rate)
             localRate: 0,               // %
             itemized: 0,                // itemized deductions (used only if above the standard deduction)
             usTax: usTax2026(),
@@ -4668,7 +4793,7 @@ I18n.country('US', {
                 { id: 2, name: 'Car Loan', kind: 'vehicular', balance: 14000, rate: 7.5, minPayment: 350, monthly: 350, createdYear: thisYear }
             ],
             assets: [
-                { id: 1, name: 'Car', category: 'Vehículos', purchaseYear: thisYear - 2, purchaseValue: 22000, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} }
+                { id: 1, name: 'Car', category: 'Vehículo', purchaseYear: thisYear - 2, purchaseValue: 22000, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} }
             ],
             transactions: [
                 { id: 1, type: 'Gasto', description: 'Weekly groceries', store: 'Meijer', parentCategory: 'Alimentación', category: 'Mercado/Supermercado', amount: 85.40, date: iso, paymentType: 'Tarjeta de Débito' },
@@ -4676,7 +4801,7 @@ I18n.country('US', {
                 { id: 3, type: 'Ingreso', description: 'Side gig', store: 'Upwork', parentCategory: 'Ingresos Independientes', category: 'Freelance/Consultoría', amount: 300, date: iso, paymentType: 'Transferencia' }
             ],
             taxonomy: taxonomy(),
-            mortgage: { amount: 250000, rate: 6.5, years: 30, extraPayment: 0, propertyTax: 4000, homeInsurance: 1500, pmiRate: 0, hoa: 0 },
+            mortgage: { amount: 250000, rate: 6.5, years: 30, extraPayment: 0, propertyTax: 4000, homeInsurance: 1500, pmiRate: 0, hoa: 0, homeValue: 0 },
             retirement: Object.assign(s.retirement, { edadJubilacion: 67, aniosAportados: 8, tasaReemplazo: 40 })
         });
     }
@@ -4743,11 +4868,21 @@ I18n.country('US', {
         return Math.max(0, tax);
     }
 
-    function sriCap(yd) {
-        const mult = Number.isFinite(Number(yd.sriCapMultiplier)) && yd.sriCapMultiplier !== '' && yd.sriCapMultiplier !== null
+    // Since 2023 (Ley de Fortalecimiento de la Economía Familiar) personal expenses don't lower the
+    // taxable base: they give a tax rebate (rebaja) of 18% of the smaller of the expenses and a cap
+    // in canastas familiares básicas that grows with the family dependents (cargas): 7 with none,
+    // then 9 / 11 / 14 / 17 / 20 with 1 / 2 / 3 / 4 / 5 or more (20 also for a catastrophic illness).
+    const CARGAS_CANASTAS = [7, 9, 11, 14, 17, 20];
+    function sriCapMultiplier(yd) {
+        if (yd.cargas !== undefined && yd.cargas !== null && yd.cargas !== '') {
+            const c = yd.cargas === 'cat' ? 5 : Math.min(5, Math.max(0, Math.floor(num(yd.cargas))));
+            return CARGAS_CANASTAS[c];
+        }
+        // Years saved before the cargas field: the multiplier the person had (7 by default).
+        return Number.isFinite(Number(yd.sriCapMultiplier)) && yd.sriCapMultiplier !== '' && yd.sriCapMultiplier !== null
             ? Math.max(0, Number(yd.sriCapMultiplier)) : 7;
-        return num(yd.canasta) * mult;
     }
+    function sriCap(yd) { return num(yd.canasta) * sriCapMultiplier(yd); }
 
     // Monthly payroll for a year: IESS personal contribution, SRI income tax withheld and
     // the resulting net salary (without décimos — those depend on the month, see below).
@@ -4795,17 +4930,29 @@ I18n.country('US', {
         const std = num((t.stdDeduction || {})[status]);
         const dedApplied = Math.max(std, num(yd.itemized));
         const taxable = Math.max(0, incomeWages - dedApplied);
-        const credits = num(yd.dependents) * num(t.childCredit) + num(yd.otherDependents) * num(t.otherDependentCredit);
+        // Child / other-dependent credits phase out: $50 less per $1,000 (or part) of income above
+        // $200,000 ($400,000 married filing jointly) — IRC §24(b).
+        const baseCredits = num(yd.dependents) * num(t.childCredit) + num(yd.otherDependents) * num(t.otherDependentCredit);
+        const phaseStart = num((t.ctcPhaseoutStart || { single: 200000, mfj: 400000, hoh: 200000 })[status]);
+        const credits = Math.max(0, baseCredits - Math.ceil(Math.max(0, incomeWages - phaseStart) / 1000) * (num(t.ctcPhaseoutStep) || 50));
         const fedAnnual = Math.max(0, bracketTax(taxable, (t.brackets || {})[status]) - credits);
         // FICA
         const ssAnnual = Math.min(ficaWages, num(t.ssWageBase) || Infinity) * num(t.ssRate) / 100;
-        const medAnnual = ficaWages * num(t.medicareRate) / 100 + Math.max(0, ficaWages - num((t.addlMedicareThreshold || {})[status])) * num(t.addlMedicareRate) / 100;
+        // Employers withhold the extra 0.9% Medicare on wages above $200,000 whatever the filing
+        // status (the yearly liability threshold differs; it's settled on the tax return).
+        const medAnnual = ficaWages * num(t.medicareRate) / 100 + Math.max(0, ficaWages - (num(t.addlMedicareWithholding) || 200000)) * num(t.addlMedicareRate) / 100;
         // State (flat or a rate you enter) and city
         const st = Object.assign({}, US_STATE_DEFAULT, (states || []).find(x => x.code === yd.state) || {});
         const people = 1 + (status === 'mfj' ? 1 : 0) + num(yd.dependents) + num(yd.otherDependents);
         const stateRate = yd.stateRate !== null && yd.stateRate !== undefined && yd.stateRate !== '' ? num(yd.stateRate) : (st.type === 'none' ? 0 : num(st.rate));
-        const stateAnnual = st.type === 'none' && (yd.stateRate === null || yd.stateRate === undefined || yd.stateRate === '') ? 0 : Math.max(0, incomeWages - num(st.exemption) * people) * stateRate / 100;
-        const localAnnual = incomeWages * num(yd.localRate) / 100;
+        // Some states (Pennsylvania) tax 401(k) deferrals.
+        const stateWages = st.taxes401k ? incomeWages + pretaxRetire : incomeWages;
+        const stateAnnual = st.type === 'none' && (yd.stateRate === null || yd.stateRate === undefined || yd.stateRate === '') ? 0 : Math.max(0, stateWages - num(st.exemption) * people) * stateRate / 100;
+        // City tax (Michigan's Uniform City Income Tax): on Medicare wages (401(k) deferrals
+        // included, section-125 benefits not), after the city's exemption per person; people who
+        // only work in the city pay the non-resident rate (half).
+        const local = localTax(yd, people);
+        const localAnnual = Math.max(0, ficaWages - local.exemption * people) * local.rate / 100;
         const incomeTaxAnnual = fedAnnual + stateAnnual + localAnnual;
         const ficaM = (ssAnnual + medAnnual) / 12;
         const netoAntesM = Math.max(0, sueldo - ficaM - incomeTaxAnnual / 12);
@@ -4813,12 +4960,22 @@ I18n.country('US', {
         return {
             country: 'US', sueldo, sueldoAnual: gross, status,
             iessM: ficaM, iessAnual: ssAnnual + medAnnual, ssM: ssAnnual / 12, medM: medAnnual / 12,
-            fedM: fedAnnual / 12, stateM: stateAnnual / 12, localM: localAnnual / 12, stateRate, stateType: st.type,
+            fedM: fedAnnual / 12, stateM: stateAnnual / 12, localM: localAnnual / 12, localRate: local.rate, localResident: local.resident, stateRate, stateType: st.type,
             pretaxM: (pretaxRetire + pretax125) / 12, stdDeduction: std, credits,
             sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied, baseImponible: taxable,
             isrAnual: incomeTaxAnnual, isrM: incomeTaxAnnual / 12,
             netoAntesM, otrosDescuentosM: otros, netoM: Math.max(0, netoAntesM - otros)
         };
+    }
+
+    // The city tax rate that applies: a listed city's resident or non-resident rate and its
+    // exemption, or the rate the person typed for any other city.
+    function localTax(yd, people) {
+        const resident = yd.localResident !== false;
+        const cities = (root.DefaultsUS && root.DefaultsUS.MI_CITIES) || (typeof require !== 'undefined' ? require('./defaults-us.js').MI_CITIES : []);
+        const c = yd.state === 'MI' && yd.localName ? cities.find(x => x.name === yd.localName) : null;
+        if (c) return { rate: resident ? c.rate : c.nonresident, exemption: num(c.exemption), resident, listed: true };
+        return { rate: num(yd.localRate), exemption: num(yd.localExemption), resident, listed: false };
     }
 
     // Social Security retirement benefit (estimate): average monthly earnings over a 35-year
@@ -4846,22 +5003,33 @@ I18n.country('US', {
         const cap = sriCap(yd);
         const deductibles = annualDeductibles(yd);
         const dedApplied = Math.min(deductibles.real, cap);
-        const baseImponible = Math.max(0, sueldo * 12 - iessM * 12 - dedApplied);
-        const isrAnual = incomeTax(baseImponible, yd.sriBrackets);
+        const baseImponible = Math.max(0, sueldo * 12 - iessM * 12);
+        const isrBruto = incomeTax(baseImponible, yd.sriBrackets);
+        const rebajaRate = (yd.sriRebajaRate === undefined || yd.sriRebajaRate === null || yd.sriRebajaRate === '' ? 18 : num(yd.sriRebajaRate)) / 100;
+        // The rebate can bring the tax to zero, never below.
+        const rebaja = Math.min(isrBruto, dedApplied * rebajaRate);
+        const isrAnual = isrBruto - rebaja;
+        const otros = payDeductionsSummary(yd).taken;
         return {
             sueldo,
             sueldoAnual: sueldo * 12,
             iessM,
             iessAnual: iessM * 12,
             sriCap: cap,
+            sriCapCanastas: sriCapMultiplier(yd),
             deductibles,
             dedApplied,
             baseImponible,
+            isrBruto,
+            rebaja,
+            rebajaRate,
+            // What the rebate could still grow by with more personal expenses (up to the cap).
+            rebajaRoom: Math.max(0, Math.min(isrBruto, cap * rebajaRate) - rebaja),
             isrAnual,
             isrM: isrAnual / 12,
             netoAntesM: Math.max(0, sueldo - iessM - isrAnual / 12),
-            otrosDescuentosM: payDeductionsSummary(yd).taken,
-            netoM: Math.max(0, sueldo - iessM - isrAnual / 12 - payDeductionsSummary(yd).taken)
+            otrosDescuentosM: otros,
+            netoM: Math.max(0, sueldo - iessM - isrAnual / 12 - otros)
         };
     }
 
@@ -4966,9 +5134,13 @@ I18n.country('US', {
 
     const MODALITIES = ['Al Vencimiento (Simple)', 'Mensual (Compuesto)', 'Trimestral (Compuesto)', 'Semestral (Compuesto)', 'Anual (Compuesto)'];
 
-    function polizaInterest(p) {
+    // Interest a certificate earns over its term. Ecuador (DPF): the rate is nominal annual on a
+    // 360-day year, simple or compounded by the modality. US (CD): banks quote APY, which already
+    // includes compounding, on a 365-day year.
+    function polizaInterest(p, country) {
         const amount = num(p.amount);
         const rate = num(p.rate) / 100;
+        if (country === 'US') return amount * (Math.pow(1 + rate, (num(p.days) || 365) / 365) - 1);
         const years = (num(p.days) || 360) / 360;
         const mod = p.modality || MODALITIES[0];
         if (mod.includes('Simple') || mod.includes('Vencimiento')) return amount * rate * years;
@@ -5016,7 +5188,10 @@ I18n.country('US', {
             const yd = getYear(y);
             const contribution = annualBudget(yd).savingsReal;
             const rate = num(yd.tasa) / 100;
-            const interest = balance * rate + contribution * rate * 0.5;
+            // The first year, the certificates you have earn their own rates; renewals and new
+            // savings earn the year's rate.
+            const own = y === startYear && opening > 0 ? sum(polizas || [], p => num(p.amount) * (num(p.rate) > 0 ? num(p.rate) / 100 : rate)) : null;
+            const interest = (own !== null ? own : balance * rate) + contribution * rate * 0.5;
             balance += contribution + interest;
             totalContrib += contribution;
             totalInterest += interest;
@@ -5585,6 +5760,8 @@ I18n.country('US', {
     function goalMonths(goal) {
         const target = num(goal.target), current = num(goal.current), monthly = num(goal.monthly);
         if (current >= target) return { status: 'reached', months: 0 };
+        // With nothing going in each month, interest alone isn't a plan (it would say "2077").
+        if (monthly <= 0) return { status: 'never', months: null };
         const r = num(goal.rate) / 1200;
         if (r === 0) {
             return monthly > 0 ? { status: 'ok', months: Math.ceil((target - current) / monthly) } : { status: 'never', months: null };
@@ -5690,35 +5867,68 @@ I18n.country('US', {
         return num(sueldoPromedio) * Math.min(100, Math.max(0, num(tasaReemplazo))) / 100 * factor;
     }
 
+    // IESS old-age pension: the first age, from the retirement age on, at which the years paid in
+    // qualify — 40 years at any age, or 60 with 30, 65 with 15, 70 with 10. null = never.
+    function iessPensionAge(retireAge, years) {
+        const y = num(years);
+        if (y >= 40) return retireAge;
+        for (const [age, need] of [[60, 30], [65, 15], [70, 10]]) if (y >= need) return Math.max(retireAge, age);
+        return null;
+    }
+
+    // Long-run defaults (historical averages; the person can change them in Jubilación):
+    // US CPI inflation ~3% a year since 1926 and US stocks ~10% a year (nominal); Ecuador's
+    // inflation since dollarization ~2.5%.
+    const DEFAULT_INFLATION = { US: 3, EC: 2.5 };
+    const DEFAULT_RETURN = { US: 10 };
+
+    // Retirement in TODAY's dollars: savings grow at the (nominal) return and are brought back to
+    // today's money with inflation, so they add up with Social Security / the IESS pension, which
+    // are estimated in today's money. A pension only counts from the age you can collect it.
     function retirement(inp) {
         const edadActual = Math.max(0, Math.round(num(inp.edadActual)));
         const edadJubilacion = Math.max(edadActual, Math.round(num(inp.edadJubilacion)) || 65);
         const anios = edadJubilacion - edadActual;
         const months = anios * 12;
         const rate = Math.max(0, num(inp.tasaRetorno));
-        const schedule = (monthly) => {
+        const infl = Math.max(0, num(inp.inflacion)) / 100;
+        const deflate = (value, m) => value / Math.pow(1 + infl, m / 12);
+        const schedule = (monthly, real) => {
             const out = [];
-            for (let m = 0; m <= months; m += 12) out.push(futureValue(inp.ahorroActual, monthly, rate, m));
+            for (let m = 0; m <= months; m += 12) { const v = futureValue(inp.ahorroActual, monthly, rate, m); out.push(real ? deflate(v, m) : v); }
             return out;
         };
         const aporte = Math.max(0, num(inp.aporteMensual));
         const extra = Math.max(0, num(inp.whatIfExtra));
         const withdraw = Math.max(0, num(inp.tasaRetiroSegura)) / 100;
-        const pensionM = inp.country === 'US' ? socialSecurity({ ...inp, aniosRestantes: anios }) : pension({ ...inp, aniosRestantes: anios });
+        let pensionM, pensionDesde;
+        if (inp.country === 'US') {
+            // Social Security can't start before 62; claiming later raises it (up to 70).
+            pensionDesde = Math.min(70, Math.max(62, edadJubilacion));
+            pensionM = socialSecurity({ ...inp, aniosRestantes: anios, edadJubilacion: pensionDesde });
+        } else {
+            pensionDesde = iessPensionAge(edadJubilacion, num(inp.aniosAportados) + anios);
+            pensionM = pensionDesde === null ? 0 : pension({ ...inp, aniosRestantes: anios });
+        }
 
-        const base = schedule(aporte);
-        const valorFuturo = base[base.length - 1];
-        const ingresoAhorro = valorFuturo * withdraw / 12;
+        const base = schedule(aporte, true);
+        const valorFuturoHoy = base[base.length - 1];
+        const valorFuturo = futureValue(inp.ahorroActual, aporte, rate, months);
+        // The 4% rule: a first-year withdrawal that then rises with inflation — in today's money.
+        const ingresoAhorro = valorFuturoHoy * withdraw / 12;
         const result = {
-            edadActual, edadJubilacion, aniosRestantes: anios,
-            valorFuturo, ingresoAhorro, pension: pensionM, ingresoTotal: ingresoAhorro + pensionM,
+            edadActual, edadJubilacion, aniosRestantes: anios, inflacion: infl * 100, tasaRetorno: rate,
+            valorFuturo, valorFuturoHoy, ingresoAhorro, pension: pensionM, pensionDesde,
+            // Years between retiring and the first pension check, lived on savings alone.
+            aniosPuente: pensionDesde === null ? 0 : Math.max(0, pensionDesde - edadJubilacion),
+            ingresoTotal: ingresoAhorro + pensionM,
             schedule: base, whatIf: null
         };
         if (extra > 0) {
-            const alt = schedule(aporte + extra);
+            const alt = schedule(aporte + extra, true);
             const altFinal = alt[alt.length - 1];
             const altIngreso = altFinal * withdraw / 12 + pensionM;
-            result.whatIf = { extra, schedule: alt, valorFuturo: altFinal, gain: altFinal - valorFuturo, ingresoTotal: altIngreso, deltaIngreso: altIngreso - result.ingresoTotal };
+            result.whatIf = { extra, schedule: alt, valorFuturo: altFinal, gain: altFinal - valorFuturoHoy, ingresoTotal: altIngreso, deltaIngreso: altIngreso - result.ingresoTotal };
         }
         return result;
     }
@@ -5740,6 +5950,19 @@ I18n.country('US', {
             if (y <= year && yd && yd.netWorth && yd.netWorthTouched && yd.netWorthTouched[field] && (best === null || y > best)) best = y;
         });
         return best;
+    }
+
+    // Years worth plotting in a net-worth history: from the first year with any figure (a typed
+    // balance or an asset owned) up to the latest year that has passed or is running — never
+    // years before the data started, nor future years that would only repeat the last value.
+    function netWorthYears(years, assets, upTo) {
+        const typed = Object.keys(years || {}).map(Number).filter(y => years[y] && years[y].netWorthTouched && Object.keys(years[y].netWorthTouched).some(f => years[y].netWorthTouched[f]));
+        const bought = (assets || []).map(a => num(a.purchaseYear)).filter(y => y > 0);
+        const first = Math.min(...typed, ...bought);
+        if (!Number.isFinite(first) || first > upTo) return [upTo];
+        const out = [];
+        for (let y = first; y <= upTo; y++) out.push(y);
+        return out;
     }
 
     function netWorthField(years, year, field) {
@@ -5783,6 +6006,32 @@ I18n.country('US', {
 
     // ---------------------------------------------------- emergency fund & steps
 
+    // What a pot of savings is for: 'emergencia', 'jubilacion' or 'general'. The person can set
+    // it; otherwise the name says it (an "Emergency Fund" line, a "401(k)", "Fondo de Reserva"…).
+    const SAVINGS_PURPOSES = ['emergencia', 'jubilacion', 'general'];
+    function savingsPurpose(x) {
+        if (x && SAVINGS_PURPOSES.includes(x.purpose)) return x.purpose;
+        const n = String((x && (x.name || x.coopName)) || '').toLowerCase();
+        if (/emergenc|reserva|imprevist|colch[oó]n|rainy/.test(n)) return 'emergencia';
+        if (/401|403\(?b|457|\bira\b|roth|jubil|retir|pensi[oó]n|voluntari/.test(n)) return 'jubilacion';
+        return 'general';
+    }
+
+    // Each dollar of savings counts once. Emergency money first: savings accounts, CDs/DPF (not
+    // the ones set aside for retirement) and emergency goals, up to 6 months of essential
+    // expenses. What's beyond that, plus retirement accounts, CDs and investments, is what grows
+    // for retirement.
+    function savingsPools({ polizas = [], savingsBalance = 0, goals = [], retirementAccounts = 0, holdings = 0, monthlyEssential = 0 }) {
+        const poolPolizas = sum(polizas.filter(p => savingsPurpose(p) !== 'jubilacion'), p => num(p.amount));
+        const retirePolizas = sum(polizas.filter(p => savingsPurpose(p) === 'jubilacion'), p => num(p.amount));
+        const emergencyGoals = sum(goals.filter(g => savingsPurpose(g) === 'emergencia'), g => num(g.current));
+        const pool = poolPolizas + Math.max(0, num(savingsBalance));
+        const target = Math.max(0, num(monthlyEssential)) * 6;
+        const emergency = emergencyGoals + Math.min(pool, Math.max(0, target - emergencyGoals));
+        const excess = pool - (emergency - emergencyGoals);
+        return { emergency, invested: excess + retirePolizas + num(retirementAccounts) + num(holdings), excess, target };
+    }
+
     function emergencyFund({ liquid, budgetBase }) {
         const monthlyEssential = sum((budgetBase || []).filter(isEssentialItem), i => num(i.real));
         const monthsCovered = monthlyEssential > 0 ? liquid / monthlyEssential : 0;
@@ -5817,8 +6066,10 @@ I18n.country('US', {
     // rest of net worth (house, car, cash) is held flat. While debts are being paid, each
     // month's payment raises net worth by what goes to principal; once debt-free, that money
     // is saved and invested too.
-    function netWorthPath({ start, invested = 0, monthlySavings, rate, debtBalance = 0, debtMonths = 0, debtPayment = 0, months }) {
+    // Net worth month by month, in today's dollars when an inflation rate is given.
+    function netWorthPath({ start, invested = 0, monthlySavings, rate, debtBalance = 0, debtMonths = 0, debtPayment = 0, months, inflation = 0 }) {
         const r = num(rate) / 1200;
+        const real = (v, m) => v / Math.pow(1 + Math.max(0, num(inflation)) / 100, m / 12);
         const flat = num(start) - Math.max(0, num(invested));
         let pot = Math.max(0, num(invested));
         let paid = 0;
@@ -5827,29 +6078,33 @@ I18n.country('US', {
         for (let m = 1; m <= months; m++) {
             pot += pot * r + num(monthlySavings) + (m > debtMonths ? num(debtPayment) : 0);
             if (m <= debtMonths) paid += principalPerMonth;
-            out.push(Math.round(flat + pot + paid));
+            out.push(Math.round(real(flat + pot + paid, m)));
         }
         return out;
     }
 
-    function babySteps({ liquid, consumerDebt, monthsCovered, savingsRate, mortgageBalance }) {
+    function babySteps({ liquid, consumerDebt, monthsCovered, savingsRate, mortgageBalance, ownsHome = mortgageBalance > 0.01, money = (v) => '$' + Math.round(v).toLocaleString('en-US') }) {
         const steps = [
-            { n: 1, title: 'Fondo de Emergencia Inicial', done: liquid >= 1000, detail: `${Math.min(100, liquid / 10).toFixed(0)}% de $1,000` },
-            { n: 2, title: 'Pagar Deudas de Consumo', done: consumerDebt <= 0.01, detail: consumerDebt > 0.01 ? `Quedan $${consumerDebt.toFixed(0)}` : 'Sin deudas' },
+            { n: 1, title: 'Fondo de Emergencia Inicial', done: liquid >= 1000, detail: `${Math.min(100, liquid / 10).toFixed(0)}% de ${money(1000)}` },
+            { n: 2, title: 'Pagar Deudas de Consumo', done: consumerDebt <= 0.01, detail: consumerDebt > 0.01 ? `Quedan ${money(consumerDebt)}` : 'Sin deudas' },
             { n: 3, title: 'Fondo de Emergencia Pleno', done: monthsCovered >= 3, detail: `${monthsCovered.toFixed(1)} de 3-6 meses` },
             { n: 4, title: 'Invertir 15% para el Retiro', done: savingsRate >= 0.15, detail: `Ahorras ${(savingsRate * 100).toFixed(0)}% de tu sueldo` },
             { n: 5, title: 'Educación de los Hijos', done: null, detail: 'Opcional — usa una Meta de ahorro' },
-            { n: 6, title: 'Pagar la Hipoteca', done: mortgageBalance <= 0.01, detail: mortgageBalance > 0.01 ? `Saldo $${mortgageBalance.toFixed(0)}` : 'Sin hipoteca' },
+            // A renter hasn't "paid off the home": the step is about saving for one (or not wanting one).
+            { n: 6, title: 'Pagar la Hipoteca', done: ownsHome ? mortgageBalance <= 0.01 : null, detail: mortgageBalance > 0.01 ? `Saldo ${money(mortgageBalance)}` : (ownsHome ? 'Casa pagada' : 'Sin casa propia — ahorra la entrada con una Meta') },
             { n: 7, title: 'Construir Riqueza y Dar', done: null, detail: 'Libertad financiera' }
         ];
         let current;
         if (!steps[0].done) current = 1;
         else if (!steps[1].done) current = 2;
         else if (!steps[2].done) current = 3;
-        else if (!steps[3].done || !steps[5].done) current = 4;
+        else if (!steps[3].done || steps[5].done === false) current = 4;
         else current = 7;
         steps.forEach(s => {
-            s.state = s.done === true ? 'done' : (s.n === current || (current === 4 && s.n >= 4 && s.n <= 6) ? 'current' : 'pending');
+            // Steps are done in order: while one is current, the later ones wait (an emergency
+            // fund isn't "full" while consumer debt is open — that money goes to the snowball).
+            const reached = s.n < current || (current === 4 && s.n <= 6) || current === 7;
+            s.state = s.done === true && reached ? 'done' : (s.n === current || (current === 4 && s.n >= 4 && s.n <= 6) ? 'current' : 'pending');
         });
         return { steps, current };
     }
@@ -5859,9 +6114,19 @@ I18n.country('US', {
     // logged after the balance date. Credit-card purchases don't leave the account until the
     // card is paid, so they're not subtracted.
     // US mortgage: principal & interest + property tax + home insurance + PMI + HOA, per month.
-    function pitiMonthly({ payment, amount, propertyTax = 0, homeInsurance = 0, pmiRate = 0, hoa = 0 }) {
-        const parts = { pi: num(payment), tax: num(propertyTax) / 12, ins: num(homeInsurance) / 12, pmi: num(amount) * num(pmiRate) / 1200, hoa: num(hoa) };
-        return Object.assign(parts, { total: parts.pi + parts.tax + parts.ins + parts.pmi + parts.hoa });
+    // PMI is charged only while you owe more than 80% of the home's value, and the lender must drop
+    // it when the balance reaches 78% of the original value (Homeowners Protection Act). With the
+    // home value: PMI is 0 from the start at ≤ 80%, and pmiMonths says how long it lasts.
+    function pitiMonthly({ payment, amount, propertyTax = 0, homeInsurance = 0, pmiRate = 0, hoa = 0, homeValue = 0, schedule = null }) {
+        const value = num(homeValue);
+        const needsPmi = num(pmiRate) > 0 && !(value > 0 && num(amount) <= value * 0.8);
+        const parts = { pi: num(payment), tax: num(propertyTax) / 12, ins: num(homeInsurance) / 12, pmi: needsPmi ? num(amount) * num(pmiRate) / 1200 : 0, hoa: num(hoa) };
+        let pmiMonths = null;
+        if (needsPmi && value > 0 && schedule) {
+            const i = schedule.findIndex(r => r.balance <= value * 0.78);
+            pmiMonths = i < 0 ? schedule.length : i + 1;
+        }
+        return Object.assign(parts, { total: parts.pi + parts.tax + parts.ins + parts.pmi + parts.hoa, pmiMonths, pmiTotal: pmiMonths !== null ? pmiMonths * (needsPmi ? num(amount) * num(pmiRate) / 1200 : 0) : null });
     }
 
     // Account kinds: cash you can spend (checking, cash), savings, retirement (401(k)/IRA).
@@ -6030,7 +6295,10 @@ I18n.country('US', {
         return months.map((m, i) => {
             const nextDebt = debtHistory.length ? (i < debtHistory.length ? debtHistory[i] : 0) : debts;
             const free = debts <= 0.01;
-            savings = savings * (1 + r) + num(m.savings) + (free ? num(m.debt) : 0);
+            // The month a debt is paid off, only what was owed goes to it; the rest of that
+            // month's debt money rolls into savings (as it does every month after).
+            const paid = free ? 0 : (nextDebt <= 0.01 ? Math.min(num(m.debt), debts) : num(m.debt));
+            savings = savings * (1 + r) + num(m.savings) + (num(m.debt) - paid);
             cash += num(m.income) - num(m.expense) - num(m.savings) - num(m.debt);
             debts = Math.max(0, nextDebt);
             return { key: m.key, cash, savings, debts, net: cash + savings - debts };
@@ -6041,16 +6309,16 @@ I18n.country('US', {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
         occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear, nominalPaymentsPerYear,
-        pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
+        savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
         frenchPayment, amortization, yearMarks, chartAxis, sampleSchedule,
-        futureValue, pension, retirement,
-        netWorthSource, netWorthField, netWorthSnapshot, assetValue, assetOwned, assetsByCategory, netWorth,
+        futureValue, pension, iessPensionAge, retirement, DEFAULT_INFLATION, DEFAULT_RETURN,
+        netWorthSource, netWorthYears, netWorthField, netWorthSnapshot, assetValue, assetOwned, assetsByCategory, netWorth,
         emergencyFund, babySteps
     };
 
@@ -6541,7 +6809,22 @@ I18n.country('US', {
     let frozenDefaultYear = null;
 
     // Bring one year's data up to the current shape (older saves predate some fields).
+    // Ecuador figures that were the app's own defaults before 2026: replaced by the current ones
+    // (values the person typed are kept).
+    const OLD_EC = { sbu: 470, canasta: 764.70 };
+    const preReformTable = (b) => Array.isArray(b) && b.length && b.length <= 7 && Math.max(...b.map(x => Number(x.rate) || 0)) <= 0.25;
     function normalizeYear(yd) {
+        if (yd.country !== 'US' && COUNTRY !== 'US') {
+            // Pre-2023 SRI table (top rate 25%): the law has had 9 brackets up to 37% since 2023.
+            if (preReformTable(yd.sriBrackets)) { yd.sriBrackets = D.newYear().sriBrackets; yd.taxTableYear = D.newYear().taxTableYear; }
+            Object.keys(OLD_EC).forEach(k => { if (Number(yd[k]) === OLD_EC[k]) yd[k] = D.newYear()[k]; });
+            // Saved before "cargas": the old cap multiplier maps to its number of dependents.
+            if (yd.cargas === undefined) {
+                const m = Number(yd.sriCapMultiplier);
+                const i = Engine.CARGAS_CANASTAS.indexOf(Number.isFinite(m) && yd.sriCapMultiplier !== null && yd.sriCapMultiplier !== '' ? m : 7);
+                yd.cargas = i >= 0 ? i : null;
+            }
+        }
         const fresh = D.newYear();
         Object.keys(fresh).forEach(k => { if (yd[k] === undefined) yd[k] = fresh[k]; });
         const nw = yd.netWorth || (yd.netWorth = {});
@@ -6992,7 +7275,7 @@ I18n.country('US', {
                 datasets: { bar: { maxBarThickness: 44 } },
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { labels: { font: { family: 'Inter', size: 11 }, boxWidth: 12 } },
+                    legend: { labels: { font: { family: "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", size: 11 }, boxWidth: 12 } },
                     tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${Fmt.money(c.parsed.y)}` } }
                 },
                 scales: {
@@ -7148,31 +7431,51 @@ I18n.country('US', {
         lazy('projectionStart', () => Math.min(s.configEndYear, Math.max(s.configStartYear, ctx.today.getFullYear())));
         lazy('projection', () => Engine.projectDPF({ polizas: s.polizas, startYear: ctx.projectionStart, endYear: s.configEndYear, getYear: y => Store.effective(y) }));
         lazy('netWorth', () => Engine.netWorth(s.years, s.assets, s.activeYear));
-        lazy('ef', () => Engine.emergencyFund({ liquid: ctx.polizasCapital + ctx.netWorth.fields.savings, budgetBase: ctx.year.budgetBase }));
+        // Savings, each dollar counted once: the emergency fund first (up to 6 months of essentials),
+        // the rest — plus retirement accounts, CDs/DPF set aside for retirement and investments —
+        // grows for retirement.
+        lazy('essentialMonthly', () => Engine.emergencyFund({ liquid: 0, budgetBase: ctx.year.budgetBase }).monthlyEssential);
+        lazy('savingsBalance', () => ((s.accounts || []).some(a => a.kind === 'ahorros') ? Engine.accountTotal(s.accounts, 'ahorros') : ctx.netWorth.fields.savings));
+        lazy('pools', () => Engine.savingsPools({
+            polizas: s.polizas, savingsBalance: ctx.savingsBalance, goals: s.goals,
+            retirementAccounts: Engine.accountTotal(s.accounts, 'retiro'), holdings: Engine.holdingsValue(s.holdings),
+            monthlyEssential: ctx.essentialMonthly
+        }));
+        lazy('ef', () => Engine.emergencyFund({ liquid: ctx.pools.emergency, budgetBase: ctx.year.budgetBase }));
         // The payoff plan spends only what the budget assigns: each debt's own line, plus any
         // other "Pago deuda" rubro (which goes to the snowball target).
         lazy('debtExtraRubros', () => ctx.year.budgetBase.filter(i => i.type === 'Deuda').reduce((t, i) => t + (Number(i.real) || 0), 0));
         lazy('debts', () => Engine.debtPayoff(s.debts, s.debtPlan.strategy, ctx.debtExtraRubros));
-        // Retirement savings = the budget's own savings rubros (not goal lines) + auto-sweep.
-        // … plus retirement saved straight from the paycheck (401k, ahorro voluntario) and any employer match.
-        lazy('retirementMonthly', () => ctx.year.budgetBase.filter(i => Engine.isSavingsItem(i)).reduce((t, i) => t + (Number(i.real) || 0), 0) + ctx.baseBudget.sweep + Engine.payDeductionsSummary(ctx.year).retirement);
-        lazy('savingsRate', () => ctx.pay.sueldoAnual > 0 ? ctx.retirementMonthly * 12 / ctx.pay.sueldoAnual : 0);
+        // Retirement savings = the budget's own savings rubros (not goal lines, not the emergency
+        // fund line) + auto-sweep + retirement saved straight from the paycheck (401k, ahorro
+        // voluntario). The employer match grows the nest egg but isn't part of YOUR 15% (Step 4).
+        lazy('payRetirement', () => Engine.payDeductionsSummary(ctx.year));
+        lazy('ownRetirementMonthly', () => ctx.year.budgetBase.filter(i => Engine.isSavingsItem(i) && Engine.savingsPurpose(i) !== 'emergencia').reduce((t, i) => t + (Number(i.real) || 0), 0)
+            + ctx.baseBudget.sweep + ctx.payRetirement.byGroup.retirement);
+        lazy('employerMatchMonthly', () => ctx.payRetirement.retirement - ctx.payRetirement.byGroup.retirement);
+        lazy('retirementMonthly', () => ctx.ownRetirementMonthly + ctx.employerMatchMonthly);
+        lazy('savingsRate', () => ctx.pay.sueldoAnual > 0 ? ctx.ownRetirementMonthly * 12 / ctx.pay.sueldoAnual : 0);
+        lazy('ownsHome', () => ctx.netWorth.fields.mortgage > 0.01 || (s.assets || []).some(a => a.category === 'Bienes Raíces' && Engine.assetOwned(a, s.activeYear)));
         lazy('steps', () => Engine.babySteps({
             liquid: ctx.ef.liquid, consumerDebt: ctx.debts.totalBalance, monthsCovered: ctx.ef.monthsCovered,
-            savingsRate: ctx.savingsRate, mortgageBalance: ctx.netWorth.fields.mortgage
+            savingsRate: ctx.savingsRate, mortgageBalance: ctx.netWorth.fields.mortgage, ownsHome: ctx.ownsHome, money: Fmt.money0
         }));
         lazy('retirementInputs', () => {
             const r = s.retirement;
             return {
                 ...r,
                 country: ctx.budgetYear.country, usTax: ctx.year.usTax,
-                // US: 401(k)/IRA balances (accounts) are retirement savings too.
-                ahorroActual: ctx.polizasCapital + (ctx.budgetYear.country === 'US' ? Engine.accountTotal(s.accounts, 'retiro') : 0),
+                // What's already invested for retirement (see 'pools': beyond the emergency fund).
+                ahorroActual: ctx.pools.invested,
                 aporteMensual: ctx.retirementMonthly,
-                tasaRetorno: r.tasaRetorno === null || r.tasaRetorno === undefined ? ctx.year.tasa : r.tasaRetorno,
+                tasaRetorno: r.tasaRetorno === null || r.tasaRetorno === undefined ? ctx.defaultReturn : r.tasaRetorno,
+                inflacion: r.inflacion === null || r.inflacion === undefined ? Engine.DEFAULT_INFLATION[ctx.budgetYear.country] : r.inflacion,
                 sueldoPromedio: r.sueldoPromedio === null || r.sueldoPromedio === undefined ? ctx.year.sueldo : r.sueldoPromedio
             };
         });
+        // Long-run return when the person hasn't set one: US — the stock market's historical
+        // average (~10%); Ecuador — savings keep their own DPF rate.
+        lazy('defaultReturn', () => (ctx.budgetYear.country === 'US' ? Engine.DEFAULT_RETURN.US : ctx.year.tasa));
         lazy('retirement', () => Engine.retirement(ctx.retirementInputs));
         lazy('cosede', () => Engine.cosedeCheck(s.polizas, s.cooperativas, ctx.year.cosede));
         return ctx;
@@ -7654,7 +7957,9 @@ I18n.country('US', {
         Cash.renderCalendar(t);
         const txns = s.transactions;
         const items = Engine.monthItems(Store.effective(y), m);
-        const plannedSpend = items.filter(i => !Engine.isSavingsItem(i)).reduce((a, i) => a + (Number(i.real) || 0), 0);
+        // Everything the plan sends out this month (spending, savings, debt payments) — the same
+        // "Planeado" the budget shows, and what the curve adds up (every logged outflow).
+        const plannedSpend = items.filter(i => i.type !== 'Ingreso').reduce((a, i) => a + (Number(i.real) || 0), 0);
 
         // Spending so far vs. last month, day by day.
         const curve = Engine.monthSpendCurve(txns, t);
@@ -7688,11 +7993,18 @@ I18n.country('US', {
         const pay = Engine.nextPayday(Cash.paySchedule(), t);
         const streak = Engine.loggingStreak(txns, t);
         const DOW = Fmt.DOW_SHORT;
+        // One "spend today" number: the budget's flexible money per day, or — when your cash
+        // until payday allows less — what the cash allows (the same figure as "Seguro para gastar").
+        const safe = Cash.safeContext(t).res;
+        const cashPerDay = safe ? Math.max(0, safe.perDay) : null;
+        const today = cashPerDay !== null ? Math.min(allow.perDay, cashPerDay) : allow.perDay;
+        const byCash = cashPerDay !== null && cashPerDay < allow.perDay;
         UI.html('dash-today', `
-            <div class="kpi ${allow.perDay > 0 ? (spentToday > allow.perDay ? 'tone-amber' : 'tone-emerald') : 'tone-red'}">
+            <div class="kpi ${today > 0 ? (spentToday > today ? 'tone-amber' : 'tone-emerald') : 'tone-red'}">
                 <span class="kpi-label">Puedes gastar hoy</span>
-                <span class="kpi-value">${money0(allow.perDay)}</span>
-                <span class="kpi-note">${allow.perDay > 0 ? `Te quedan ${money0(allow.remaining)} de gastos variables para ${allow.daysLeft} día${allow.daysLeft === 1 ? '' : 's'}. Hoy llevas ${money0(spentToday)}.` : `Ya usaste tus gastos variables del mes (${money0(flexSpent)} de ${money0(flexPlanned)}).`}</span>
+                <span class="kpi-value">${money0(today)}</span>
+                <span class="kpi-note">${byCash ? `Lo que permite tu efectivo hasta el cobro (tu presupuesto variable daría ${money0(allow.perDay)}). Hoy llevas ${money0(spentToday)}.`
+                    : allow.perDay > 0 ? `Te quedan ${money0(allow.remaining)} de gastos variables para ${allow.daysLeft} día${allow.daysLeft === 1 ? '' : 's'}. Hoy llevas ${money0(spentToday)}.` : `Ya usaste tus gastos variables del mes (${money0(flexSpent)} de ${money0(flexPlanned)}).`}</span>
             </div>
             <div class="kpi tone-slate">
                 <span class="kpi-label">Próximo día de pago</span>
@@ -7822,7 +8134,7 @@ I18n.country('US', {
         if (sync) add('tone-blue', 'fa-scale-balanced text-teal-600', `Tu patrimonio ${s.activeYear} no refleja tus pólizas (${money0(sync.polizas)}) y deudas (${money0(sync.debts)}) registradas.`, 'patrimonio');
         const last = s.settings.lastBackupAt ? new Date(s.settings.lastBackupAt) : null;
         const days = last ? Math.floor((ctx.today - last) / 86400000) : null;
-        if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no descargas una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
+        if (days === null || days > 30) add('tone-amber', 'fa-download text-amber-600', days === null ? 'Aún no tienes una <strong>copia de respaldo</strong>. Si se borran los datos del navegador perderías tu plan.' : `Tu última copia de respaldo tiene <strong>${days} días</strong>. Descarga una nueva.`, 'config');
         if (ctx.debts.totalBalance > 0 && ctx.debts.shortfall > 0) add('tone-red', 'fa-snowplow text-red-600', `Tu presupuesto no cubre los pagos mínimos de tus deudas: faltan <strong>${money0(ctx.debts.shortfall)}</strong> al mes.`, 'metas');
         else if (ctx.debts.never && ctx.debts.totalBalance > 0) add('tone-red', 'fa-snowplow text-red-600', 'Con lo que tu presupuesto asigna, una deuda nunca termina de pagarse.', 'metas');
         if (ctx.steps.current >= 3) {
@@ -7830,7 +8142,7 @@ I18n.country('US', {
             if (unfunded.length) add('tone-amber', 'fa-bullseye text-purple-600', `${unfunded.map(g => `<strong>${esc(g.name)}</strong>`).join(', ')} sin dinero asignado en tu presupuesto.`, 'metas');
         }
         const p = ctx.pay;
-        if (p.sriCap > 0 && p.deductibles.real < p.sriCap * 0.8) add('tone-blue', 'fa-file-invoice-dollar text-blue-600', `Podrías deducir <strong>${money0(p.sriCap - p.deductibles.real)}</strong> más en gastos personales y pagar menos impuesto.`, 'presupuesto/ingresos');
+        if (p.sriCap > 0 && p.deductibles.real < p.sriCap * 0.8 && p.rebajaRoom >= 1) add('tone-blue', 'fa-file-invoice-dollar text-blue-600', `Con <strong>${money0(p.sriCap - p.deductibles.real)}</strong> más en gastos personales, tu impuesto bajaría hasta <strong>${money0(p.rebajaRoom)}</strong>.`, 'presupuesto/ingresos');
 
         return out.length ? out.join('') : '<div class="alert-item tone-emerald"><i class="fa-solid fa-circle-check text-emerald-600 mt-0.5"></i><span>Todo en orden. ¡Buen trabajo!</span></div>';
     }
@@ -7867,12 +8179,11 @@ I18n.country('US', {
 
         UI.html('dash-alerts', alerts(ctx));
 
-        const years = [];
-        for (let y = s.configStartYear; y <= s.configEndYear; y++) years.push(y);
+        const years = Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear());
         UI.chart('dash-nw-chart', {
             type: 'line',
-            data: { labels: years, datasets: [{ label: 'Patrimonio neto', data: years.map(y => Engine.netWorth(s.years, s.assets, y).value), borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,.1)', fill: true, tension: .25, pointRadius: years.map(y => y === s.activeYear ? 5 : 0) }] },
-            options: { scales: { y: { beginAtZero: false } } }
+            data: { labels: years, datasets: [{ label: 'Patrimonio neto', data: years.map(y => Engine.netWorth(s.years, s.assets, y).value), borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,.1)', fill: true, cubicInterpolationMode: 'monotone', pointRadius: years.map(y => y === s.activeYear ? 5 : 3) }] },
+            options: { scales: { y: { beginAtZero: false } }, plugins: { legend: { display: false } } }
         });
     }
 
@@ -8013,6 +8324,15 @@ I18n.country('US', {
         if (ctx.year.sweepSavings) (byGroup.Ahorro = byGroup.Ahorro || []).push({ id: 'sweep', sweep: true, type: 'Ahorro' });
         // Custom groups: the year's list (keeps empty ones) plus any group a line mentions.
         const custom = (ctx.year.groups || []).map(g => g.name);
+        // Savings lines say what they're for (emergency money doesn't count toward Step 4).
+        const PURPOSE_LABEL = { emergencia: 'fondo de emergencia', jubilacion: 'jubilación', general: 'ahorro general' };
+        const purposeField = (it, lineId) => {
+            if (!Engine.isSavingsItem(it)) return '';
+            const auto = PURPOSE_LABEL[Engine.savingsPurpose(Object.assign({}, it, { purpose: '' }))];
+            const opts = [{ value: '', label: `Automático (${auto})` }, { value: 'emergencia', label: 'Fondo de emergencia' }, { value: 'jubilacion', label: 'Jubilación' }, { value: 'general', label: 'Ahorro general' }];
+            return `<label class="field mt-3 max-w-sm"><span class="field-label">¿Para qué es este ahorro?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
+                <span class="help">El fondo de emergencia no cuenta como ahorro para la jubilación (Paso 4).</span></label>`;
+        };
         m.plannedItems.forEach(it => { if (it.group && !it.link && !custom.includes(it.group)) custom.push(it.group); });
         const order = GROUPS.map(g => g.type).concat(custom.map(n => 'g:' + n), Object.keys(byGroup).filter(k => !GROUPS.some(g => g.type === k) && !k.startsWith('g:')));
         const cards = order.map(g => {
@@ -8103,7 +8423,7 @@ I18n.country('US', {
         const banner = document.getElementById('bs-banner');
         banner.className = `bs-banner ${Math.abs(bal) < 0.005 ? 'ok' : bal > 0 ? 'warn' : 'bad'}`;
         banner.innerHTML = Math.abs(bal) < 0.005 ? '<i class="fa-regular fa-circle-check"></i> ¡Es un presupuesto base cero! Cada dólar tiene un trabajo.'
-            : bal > 0 ? `<i class="fa-solid fa-circle-info"></i> Te quedan <strong>${money(bal)}</strong> por asignar.`
+            : bal > 0 ? `<i class="fa-solid fa-circle-info"></i> Aún falta asignar <strong>${money(bal)}</strong>.`
             : `<i class="fa-solid fa-triangle-exclamation"></i> Planeaste <strong>${money(-bal)}</strong> más de lo que ganas.`;
 
         // Income
@@ -8256,14 +8576,23 @@ I18n.country('US', {
         const avg = withData.length ? withData.reduce((a, h) => a + h.spent, 0) / withData.length : 0;
         const over = hist.filter(h => h.planned > 0 && h.spent > h.planned + 0.005).length;
         const custom = (ctx.year.groups || []).map(g => g.name);
+        // Savings lines say what they're for (emergency money doesn't count toward Step 4).
+        const PURPOSE_LABEL = { emergencia: 'fondo de emergencia', jubilacion: 'jubilación', general: 'ahorro general' };
+        const purposeField = (it, lineId) => {
+            if (!Engine.isSavingsItem(it)) return '';
+            const auto = PURPOSE_LABEL[Engine.savingsPurpose(Object.assign({}, it, { purpose: '' }))];
+            const opts = [{ value: '', label: `Automático (${auto})` }, { value: 'emergencia', label: 'Fondo de emergencia' }, { value: 'jubilacion', label: 'Jubilación' }, { value: 'general', label: 'Ahorro general' }];
+            return `<label class="field mt-3 max-w-sm"><span class="field-label">¿Para qué es este ahorro?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
+                <span class="help">El fondo de emergencia no cuenta como ahorro para la jubilación (Paso 4).</span></label>`;
+        };
         const settings = item.link ? `<p class="help">Es la línea de ${item.link === 'debt' ? 'una deuda' : 'una meta'}: se edita en <a href="#" class="link" data-goto="metas">Deudas y Metas</a>.</p>` : `
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <label class="field"><span class="field-label">Grupo</span><select class="input" data-change="line.setGroup" data-id="${esc(String(id))}"><option value="">Según su tipo</option>${custom.map(n => `<option ${n === item.group ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
                 <label class="field"><span class="field-label">Tipo</span><select class="input" data-change="line.setType" data-id="${esc(String(id))}">${Views.selectOptions(Defaults.BUDGET_TYPES, item.type)}</select></label>
                 <label class="field"><span class="field-label">Categoría vinculada</span><select class="input" data-change="line.setCategory" data-id="${esc(String(id))}">${Views.selectOptions([{ value: 'none', label: 'Sin vincular' }].concat(Object.keys(s.taxonomy.expense).map(c => ({ value: c, label: c }))), item.linkedCategory || 'none')}</select></label>
-            </div>`;
+            </div>${purposeField(item, id)}`;
         const sheet = UI.sheet({ title: item.name, icon: 'fa-chart-simple', wide: true, html: `
-            <div class="grid grid-cols-3 gap-3 mb-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                 <div class="kpi tone-slate"><span class="kpi-label">Planeado · ${Fmt.MONTH_NAMES[sm - 1]}</span><span class="kpi-value">${money(cur.planned)}</span></div>
                 <div class="kpi tone-slate"><span class="kpi-label">Gastado</span><span class="kpi-value">${money(cur.spent)}</span></div>
                 <div class="kpi ${cur.planned - cur.spent < -0.005 ? 'tone-red' : 'tone-emerald'}"><span class="kpi-label">Restante</span><span class="kpi-value">${money(cur.planned - cur.spent)}</span></div>
@@ -8325,6 +8654,11 @@ I18n.country('US', {
         'line.setCategory': (el) => {
             lineCopies(Store.active(), el.dataset.id).forEach(i => { i.linkedCategory = el.value; });
             App.changed({ structural: true, step: true });
+            openDetail(el.dataset.id);
+        },
+        'line.setPurpose': (el) => {
+            lineCopies(Store.active(), el.dataset.id).forEach(i => { if (el.value) i.purpose = el.value; else delete i.purpose; });
+            App.changed({ step: true });
             openDetail(el.dataset.id);
         },
         'group.add': async () => {
@@ -9058,7 +9392,8 @@ I18n.country('US', {
         if (city) {
             const cities = yd.state === 'MI' ? US().MI_CITIES : [];
             const known = cities.find(c => c.name === yd.localName);
-            city.innerHTML = `<option value="">Ninguno (0%)</option>` + cities.map(c => `<option value="${esc(c.name)}">${esc(c.name)} (${c.rate}%)</option>`).join('') + `<option value="__custom">Otra tasa…</option>`;
+            city.innerHTML = `<option value="">Ninguno (0%)</option>` + cities.map(c => `<option value="${esc(c.name)}">${esc(c.name)} (${c.rate}% · ${c.nonresident}%)</option>`).join('') + `<option value="__custom">Otra tasa…</option>`;
+            UI.show('inc-city-resident', !!known);
             city.value = known ? known.name : (Number(yd.localRate) > 0 ? '__custom' : '');
             if (!known && Number(yd.localRate) > 0) city.options[city.options.length - 1].textContent = `Otra: ${yd.localRate}%`;
         }
@@ -9070,10 +9405,10 @@ I18n.country('US', {
             ['Seguro Social', '−' + money(p.ssM), 'text-red-600'],
             ['Medicare', '−' + money(p.medM), 'text-red-600'],
             [`Impuesto estatal (${esc(st.name)}${p.stateRate ? ` ${p.stateRate}%` : ''})`, '−' + money(p.stateM), 'text-red-600'],
-            p.localM > 0 ? [`Impuesto de la ciudad${yd.localName ? ` (${esc(yd.localName)})` : ''}`, '−' + money(p.localM), 'text-red-600'] : null,
+            p.localM > 0 ? [`Impuesto de la ciudad${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'residente' : 'no residente'} ${p.localRate}%)` : ''}`, '−' + money(p.localM), 'text-red-600'] : null,
             p.otrosDescuentosM - p.pretaxM > 0.004 ? ['Otros descuentos del talón (después de impuestos)', '−' + money(p.otrosDescuentosM - p.pretaxM), 'text-red-600'] : null
         ].filter(Boolean);
-        UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold ${c}">${v}</dd></div>`).join(''));
+        UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join(''));
         UI.text('inc-neto', money(p.netoM));
         UI.html('inc-us-ded-kpis', `
             <div class="kpi tone-slate"><span class="kpi-label">Deducción aplicada</span><span class="kpi-value">${money(p.dedApplied)}</span><span class="kpi-note">${Number(yd.itemized) > p.stdDeduction ? 'Detallada' : `Estándar (${money(p.stdDeduction)})`}</span></div>
@@ -9083,20 +9418,33 @@ I18n.country('US', {
         if (window.PayScan) PayScan.render(ctx);
     }
 
+    // Tax tables are for one year: say which, and warn when the year being edited is later.
+    function taxYearNote(ctx) {
+        const yd = ctx.year, ty = Number(yd.taxTableYear || (yd.usTax && yd.usTax.year)) || null, y = ctx.state.activeYear;
+        const el = document.getElementById('inc-tax-year');
+        if (!el) return;
+        el.className = ty && y > ty ? 'panel tone-amber text-[11px] mt-2' : 'help mt-2';
+        el.innerHTML = !ty ? '' : y > ty
+            ? `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> Se usan las tablas de impuestos de ${ty}. Las de ${y} aún no están en la app: verifícalas y cámbialas en <a href="#" class="link" data-goto="config" data-focus="cfg-legal">Configuración → Parámetros legales</a>.`
+            : `Tablas de impuestos de ${ty}. Verifícalas cada año en Configuración → Parámetros legales.`;
+    }
+
     function update(ctx) {
         const yd = ctx.year, p = ctx.pay;
         renderSummary();
+        taxYearNote(ctx);
         if (p.country === 'US') { renderUS(ctx); return; }
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
             ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],
             [`Aporte personal IESS (${pct(yd.iessRate, 2)})`, '−' + money(p.iessM), 'text-red-600'],
-            ['Deducción de gastos personales (anual, aplicada)', money(p.dedApplied), 'text-blue-700'],
-            ['Base imponible anual', money(p.baseImponible), 'text-slate-900'],
+            ['Base imponible anual (sueldo − IESS)', money(p.baseImponible), 'text-slate-900'],
+            ['Impuesto según la tabla del SRI', money(p.isrBruto), 'text-slate-900'],
+            [`Rebaja por gastos personales (${pct(p.rebajaRate * 100, 0)} de ${money(p.dedApplied)})`, (p.rebaja >= 0.005 ? '−' : '') + money(p.rebaja), 'text-blue-700'],
             ['Impuesto a la renta anual', money(p.isrAnual), 'text-amber-700'],
-            ['Retención mensual en el rol', '−' + money(p.isrM), 'text-red-600']
+            ['Retención mensual en el rol', (p.isrM >= 0.005 ? '−' : '') + money(p.isrM), 'text-red-600']
         ].concat(p.otrosDescuentosM > 0 ? [['Otros descuentos del rol (seguros, préstamos…)', '−' + money(p.otrosDescuentosM), 'text-red-600']] : []);
-        UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold ${c}">${v}</dd></div>`).join(''));
+        UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join(''));
         UI.text('inc-neto', money(p.netoM));
         if (window.PayScan) PayScan.render(ctx);
 
@@ -9109,12 +9457,16 @@ I18n.country('US', {
         if (p.deductibles.real >= p.sriCap) {
             tone = 'tone-emerald'; icon = 'fa-circle-check text-emerald-600'; title = 'Deducción optimizada';
             text = `Tus gastos deducibles alcanzan el tope legal de ${money(p.sriCap)}.`;
+        } else if (p.rebajaRoom < 0.01) {
+            // No tax left to lower: more receipts wouldn't change anything.
+            tone = 'tone-emerald'; icon = 'fa-circle-check text-emerald-600'; title = 'Sin impuesto que rebajar';
+            text = `Con tu sueldo, la rebaja ya cubre todo el impuesto (o no pagas impuesto a la renta).`;
         } else if (ratio >= 0.8) {
             tone = 'tone-amber'; icon = 'fa-triangle-exclamation text-amber-600'; title = 'Cerca del tope';
-            text = `Te faltan ${money(p.sriCap - p.deductibles.real)} en gastos deducibles reales para llegar al tope.`;
+            text = `Te faltan ${money(p.sriCap - p.deductibles.real)} en gastos deducibles reales para llegar al tope: tu impuesto bajaría hasta ${money(p.rebajaRoom)} más.`;
         } else {
             tone = 'tone-red'; icon = 'fa-circle-info text-red-600'; title = 'Muy por debajo del tope';
-            text = `Usas el ${Math.round(ratio * 100)}% del tope. Podrías declarar ${money(p.sriCap - p.deductibles.real)} más en gastos deducibles y pagar menos impuesto. Marca los rubros deducibles en el Presupuesto del Mes.`;
+            text = `Usas el ${Math.round(ratio * 100)}% del tope. Con ${money(p.sriCap - p.deductibles.real)} más en gastos deducibles, tu impuesto bajaría hasta ${money(p.rebajaRoom)}. Marca los rubros deducibles en el Presupuesto del Mes.`;
         }
         box.className = `panel ${tone}`;
         box.innerHTML = `<div class="text-xs font-bold text-slate-900"><i class="fa-solid ${icon}"></i> ${title}</div><p class="text-[11px] text-slate-700 mt-1">${text}</p>`;
@@ -9849,7 +10201,7 @@ I18n.country('US', {
         const end = pts[pts.length - 1];
         const net0 = start.cash + start.savings - start.debts;
         UI.html('bal-forecast-kpis', `
-            <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.cash.color}"></i>Efectivo en ${labels[labels.length - 1]}</span><span class="kpi-value">${money(end.cash)}</span><span class="kpi-note">Hoy ${money(start.cash)}${cash ? '' : ' (agrega tus saldos en Patrimonio → Cuentas)'}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.cash.color}"></i>Efectivo en ${labels[labels.length - 1]}</span><span class="kpi-value">${money(end.cash)}</span><span class="kpi-note">Hoy ${money(start.cash)}${cash ? '' : ' (agrega tus saldos en Patrimonio → Cuentas)'}${inp.assumed ? ' · Supusimos que cobras el último día de cada mes: <a href="#" class="link" data-action="pay.edit">dinos cómo te pagan</a>' : ''}</span></div>
             <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.savings.color}"></i>Ahorros e inversiones</span><span class="kpi-value">${money(end.savings)}</span><span class="kpi-note">Hoy ${money(start.savings)}</span></div>
             <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.debts.color}"></i>Deudas</span><span class="kpi-value">${money(end.debts)}</span><span class="kpi-note">Hoy ${money(start.debts)}</span></div>
             <div class="kpi ${end.net >= net0 ? 'tone-emerald' : 'tone-red'}"><span class="kpi-label">Lo que tendrías (neto)</span><span class="kpi-value">${money(end.net)}</span><span class="kpi-note">${end.net >= net0 ? '+' : '−'}${money(Math.abs(end.net - net0))} vs. hoy</span></div>`);
@@ -9867,6 +10219,7 @@ I18n.country('US', {
         if (v.description !== undefined) get('txn-description').value = v.description;
         if (v.store !== undefined) get('txn-store').value = v.store;
         if (v.amount !== undefined) get('txn-amount').value = v.amount;
+        if (v.paymentType) get('txn-payment').value = v.paymentType;
         if (v.date) { get('txn-date').value = v.date; fillLineSelect(); }
         if (v.budgetLine) fillLineSelect(v.budgetLine);
         get('txn-form-card').scrollIntoView({ block: 'start' });
@@ -10836,12 +11189,16 @@ I18n.country('US', {
     // How the salary arrives (Ingresos → ¿Cómo te pagan?); older data only had days of the month.
     const paySchedule = () => Engine.normalizeSchedule(Store.state.settings.paySchedule || Store.state.settings.paydays);
 
-    function events(fromISO, toISO) {
+    // For forecasts, a salary with no pay rhythm set is assumed to arrive on the last day of each
+    // month (instead of never) — the views say so and invite to set the real one.
+    const ASSUMED_SCHEDULE = { freq: 'monthly', days: [31] };
+    function events(fromISO, toISO, opts = {}) {
         const s = Store.state;
         const months = monthsBetween(fromISO, toISO);
         const pay = {}, base = {};
         months.forEach(d => { const k = `${d.year}-${String(d.month).padStart(2, '0')}`; pay[k] = d.pay; base[k] = d.payBase; });
-        return { months, list: Engine.cashEvents({ from: fromISO, to: toISO, months, recurring: s.recurring, schedule: paySchedule(), payPerMonth: pay, payBase: base }) };
+        const schedule = paySchedule() || (opts.assume ? Engine.normalizeSchedule(ASSUMED_SCHEDULE) : null);
+        return { months, assumed: !paySchedule() && !!opts.assume, list: Engine.cashEvents({ from: fromISO, to: toISO, months, recurring: s.recurring, schedule, payPerMonth: pay, payBase: base }) };
     }
 
     // Savings and goal lines of this month: what they still need.
@@ -11004,7 +11361,7 @@ I18n.country('US', {
     // What the plan says will come in and go out between two dates: dated paydays and repeating
     // income, plus each month's budget (other incomes, spending, savings, debt payments).
     function forecastInputs(fromISO, toISO) {
-        const ev = events(fromISO, toISO);
+        const ev = events(fromISO, toISO, { assume: true });
         const monthly = {};
         ev.months.forEach(d => {
             const k = `${d.year}-${String(d.month).padStart(2, '0')}`;
@@ -11017,7 +11374,7 @@ I18n.country('US', {
                 expense: lines.filter(i => !Engine.isSavingsItem(i) && i.type !== 'Deuda').reduce((a, i) => a + real(i), 0)
             };
         });
-        return { monthly, events: ev.list.filter(e => e.amount > 0 && (e.kind === 'payday' || e.kind === 'income')), months: ev.months };
+        return { monthly, assumed: ev.assumed, events: ev.list.filter(e => e.amount > 0 && (e.kind === 'payday' || e.kind === 'income')), months: ev.months };
     }
 
     window.Cash = { forecastInputs, paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar };
@@ -11072,7 +11429,7 @@ I18n.country('US', {
     function fromSavings(amount, ctx) {
         const liquid = ctx.ef.liquid;
         const ef2 = Engine.emergencyFund({ liquid: Math.max(0, liquid - amount), budgetBase: ctx.year.budgetBase });
-        const steps2 = Engine.babySteps({ liquid: ef2.liquid, consumerDebt: ctx.debts.totalBalance, monthsCovered: ef2.monthsCovered, savingsRate: ctx.savingsRate, mortgageBalance: ctx.netWorth.fields.mortgage });
+        const steps2 = Engine.babySteps({ liquid: ef2.liquid, consumerDebt: ctx.debts.totalBalance, monthsCovered: ef2.monthsCovered, savingsRate: ctx.savingsRate, mortgageBalance: ctx.netWorth.fields.mortgage, ownsHome: ctx.ownsHome, money: Fmt.money0 });
         const kind = amount > liquid || ef2.liquid < 1000 ? 'bad' : ef2.monthsCovered < 3 || steps2.current < ctx.steps.current ? 'warn' : 'ok';
         return `<div class="wi-col" id="wi-savings">
             <div class="wi-head"><i class="fa-solid fa-piggy-bank text-emerald-600"></i> De tus ahorros</div>
@@ -11198,6 +11555,7 @@ I18n.country('US', {
             <label class="quick-amount ${state.type === 'Ingreso' ? 'inc' : ''}"><span class="cur">${esc(Fmt.currency().symbol)}</span><input id="quick-amount" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(state.amount)}" data-input="quick.amount" aria-label="Monto"></label>
             <div class="quick-keys">${keys.map(k => `<button type="button" data-action="quick.key" data-k="${k}">${k}</button>`).join('')}</div>
             <div class="quick-chips">${cats.map(c => `<button type="button" class="quick-chip ${c === state.category ? 'on' : ''}" data-action="quick.cat" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+            ${state.type === 'Gasto' ? `<div class="quick-chips quick-pay mt-3" role="radiogroup" aria-label="Forma de pago">${PAYMENTS.map(([v, icon, label]) => `<button type="button" class="quick-chip ${v === state.payment ? 'on' : ''}" data-action="quick.pay" data-pay="${esc(v)}" role="radio" aria-checked="${v === state.payment}"><i class="fa-solid ${icon}"></i> ${label}</button>`).join('')}</div>` : ''}
             <div class="grid grid-cols-1 sm:grid-cols-${members.length ? 3 : 2} gap-2 mt-3">
                 <input id="quick-note" class="input" placeholder="Nota (opcional): Supermaxi, taxi…" autocomplete="off">
                 <input id="quick-date" type="date" class="input" value="${Engine.isoDate(new Date())}">
@@ -11207,10 +11565,15 @@ I18n.country('US', {
             <p class="help mt-2 text-center">¿Más detalles (subcategoría, rubro, repetir)? <a href="#" class="link" data-action="quick.full">Abrir el formulario completo</a></p>`;
     }
 
+    // How it was paid matters: a credit-card purchase doesn't leave checking until the card is
+    // paid, so it must not lower "safe to spend". The last choice is remembered.
+    const PAYMENTS = [['Tarjeta de Débito', 'fa-building-columns', 'Débito'], ['Tarjeta de Crédito', 'fa-credit-card', 'Crédito'], ['Efectivo', 'fa-money-bill-wave', 'Efectivo'], ['Transferencia', 'fa-right-left', 'Transferencia']];
+
     function open() {
-        state = { type: (state && state.type) || 'Gasto', amount: '', category: null };
+        state = { type: (state && state.type) || 'Gasto', amount: '', category: null, payment: Store.ui.lastPayment || 'Tarjeta de Débito' };
         state.sheet = UI.sheet({ title: 'Registro rápido', icon: 'fa-bolt', html: body(), onClose: () => { state.sheet = null; } });
-        setTimeout(() => { const a = document.getElementById('quick-amount'); if (a) a.focus(); }, 30);
+        // On a phone the app's own keypad is the keyboard: focusing would open the system one on top.
+        if (window.matchMedia && matchMedia('(pointer: fine)').matches) setTimeout(() => { const a = document.getElementById('quick-amount'); if (a) a.focus(); }, 30);
     }
 
     function redraw() {
@@ -11227,6 +11590,7 @@ I18n.country('US', {
     UI.register({
         'quick.open': () => open(),
         'quick.type': (el) => { state.type = el.dataset.type; state.category = null; redraw(); },
+        'quick.pay': (el) => { state.payment = el.dataset.pay; UI.$$('.quick-pay .quick-chip').forEach(b => { const on = b.dataset.pay === state.payment; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); }); },
         'quick.cat': (el) => { state.category = el.dataset.cat; UI.$$('.quick-chip').forEach(b => b.classList.toggle('on', b.dataset.cat === state.category)); },
         'quick.amount': (el) => { const c = clean(el.value); if (c !== el.value) el.value = c; state.amount = c; },
         'quick.key': (el) => {
@@ -11238,7 +11602,7 @@ I18n.country('US', {
             const amount = Number(state.amount) || '';
             const note = document.getElementById('quick-note').value.trim();
             state.sheet.close();
-            TxnForm.prefill({ type: state.type, parent: state.category, description: note, amount });
+            TxnForm.prefill({ type: state.type, parent: state.category, description: note, amount, paymentType: state.type === 'Gasto' ? state.payment : undefined });
         },
         'quick.save': () => {
             const amount = Math.round((Number(state.amount) || 0) * 100) / 100;
@@ -11252,7 +11616,8 @@ I18n.country('US', {
             let line;
             const rule = note ? Importers.applyRules(s.rules, note) : null;
             if (rule && tax[rule.category]) { cat = rule.category; line = rule.budgetLine; }
-            const t = { id: Store.nextId(s.transactions), type: state.type, description: (rule && rule.rename) || note || cat, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date, paymentType: 'Efectivo', createdAt: new Date().toISOString() };
+            const t = { id: Store.nextId(s.transactions), type: state.type, description: (rule && rule.rename) || note || cat, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date, paymentType: state.type === 'Ingreso' ? 'Transferencia' : state.payment, createdAt: new Date().toISOString() };
+            if (state.type !== 'Ingreso') Store.ui.lastPayment = state.payment;
             if (line && state.type !== 'Ingreso') t.budgetLine = String(line);
             if (memberSel && memberSel.value) { t.memberId = Number(memberSel.value); Store.ui.lastMember = t.memberId; }
             s.transactions.push(t);
@@ -11313,8 +11678,12 @@ I18n.country('US', {
         const ageNow = Math.max(0, Number(r.edadActual) || 0), ageEnd = Math.max(ageNow + 1, Number(r.edadJubilacion) || 65);
         const months = Math.min(600, (ageEnd - ageNow) * 12);
         const debtMonths = plan.totalBalance > 0 && !plan.never ? plan.months : 0;
-        const invested = ctx.polizasCapital + Engine.holdingsValue(s.holdings);
-        const path = Engine.netWorthPath({ start: ctx.netWorth.value, invested, monthlySavings: ctx.retirementMonthly, rate: ctx.year.tasa, debtBalance: plan.totalBalance, debtMonths, debtPayment: plan.pool, months });
+        // Same money and assumptions as Jubilación: what's invested beyond the emergency fund grows
+        // at the long-run return (the emergency fund itself is kept, not grown); today's dollars.
+        const ri = ctx.retirementInputs;
+        const invested = ctx.pools.invested;
+        const efMonthly = ctx.year.budgetBase.filter(i => Engine.isSavingsItem(i) && Engine.savingsPurpose(i) === 'emergencia').reduce((t, i) => t + (Number(i.real) || 0), 0);
+        const path = Engine.netWorthPath({ start: ctx.netWorth.value, invested, monthlySavings: ctx.retirementMonthly + efMonthly, rate: ri.tasaRetorno, inflation: ri.inflacion, debtBalance: plan.totalBalance, debtMonths, debtPayment: plan.pool, months });
         const years = Math.ceil(months / 12);
         const labels = Array.from({ length: years + 1 }, (_, i) => `${ageNow + i} años`);
         const yearly = labels.map((_, i) => path[Math.min(i * 12, path.length - 1)]);
@@ -11334,7 +11703,7 @@ I18n.country('US', {
             <div class="kpi tone-slate"><span class="kpi-label">Patrimonio hoy</span><span class="kpi-value">${money0(ctx.netWorth.value)}</span><span class="kpi-note"><a href="#" class="link" data-goto="patrimonio">Ver detalle</a></span></div>
             <div class="kpi ${plan.totalBalance <= 0 ? 'tone-emerald' : plan.never ? 'tone-red' : 'tone-blue'}"><span class="kpi-label">🎯 Libre de deudas</span><span class="kpi-value">${freeDate}</span><span class="kpi-note">${plan.totalBalance > 0 ? `Quedan ${money0(plan.totalBalance)}` : 'Sin deudas de consumo'}</span></div>
             <div class="kpi tone-emerald"><span class="kpi-label">🏖️ Proyectado a los ${ageEnd}</span><span class="kpi-value">${money0(yearly[years])}</span><span class="kpi-note">Estimación</span></div>`);
-        UI.text('road-note', `Estimación: tu patrimonio de hoy; tus pólizas e inversiones (${money0(invested)}) y lo que ahorras al mes según tu presupuesto (${money0(ctx.retirementMonthly)}) crecen al ${ctx.year.tasa}% anual (tu casa y otros bienes se mantienen); lo que pagas a tus deudas baja lo que debes, y al terminar de pagarlas ese dinero (${money0(plan.pool)}/mes) pasa a ahorro. Cambia tu edad en Jubilación.`);
+        UI.text('road-note', `Estimación en dólares de hoy (inflación ${ri.inflacion}% anual): tu patrimonio de hoy; tus inversiones (${money0(invested)}) y lo que ahorras al mes según tu presupuesto (${money0(ctx.retirementMonthly + efMonthly)}) crecen al ${ri.tasaRetorno}% anual (tu casa y otros bienes se mantienen); lo que pagas a tus deudas baja lo que debes, y al terminar de pagarlas ese dinero (${money0(plan.pool)}/mes) pasa a ahorro. Cambia tu edad, el retorno y la inflación en Jubilación.`);
         // The next concrete action, by step.
         const st = ctx.steps.current, ef = ctx.ef;
         const paidAll = s.debts.reduce((t, d) => t + Math.max(0, Math.max(Number(d.originalBalance) || 0, Number(d.balance) || 0) - (Number(d.balance) || 0)), 0);
@@ -11518,7 +11887,7 @@ I18n.country('US', {
         UI.text('proj-annual', money0(ctx.annual.savingsReal));
         UI.text('proj-annual-note', ctx.annual.sweep > 0 ? `Incluye ${money0(ctx.annual.sweep)} de barrido` : `${((ctx.savingsRate) * 100).toFixed(0)}% de tu sueldo bruto`);
         UI.text('proj-interest', money0(proj.totalInterest));
-        UI.text('proj-pol-interest', money0(s.polizas.reduce((t, p) => t + Engine.polizaInterest(p), 0)));
+        UI.text('proj-pol-interest', money0(s.polizas.reduce((t, p) => t + Engine.polizaInterest(p, ctx.year.country), 0)));
         UI.text('proj-final', money0(proj.finalBalance));
 
         UI.html('proj-body', proj.rows.map(r => `
@@ -11537,8 +11906,8 @@ I18n.country('US', {
             data: {
                 labels: proj.rows.map(r => r.year),
                 datasets: [
-                    { label: 'Capital aportado (pólizas + ahorro)', data: proj.rows.map(r => proj.opening + r.totalContrib), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.08)', fill: true, tension: .3, pointRadius: 0 },
-                    { label: 'Balance DPF con interés', data: proj.rows.map(r => r.balance), borderColor: '#059669', backgroundColor: 'rgba(16,185,129,.15)', fill: true, tension: .3, pointRadius: 0 }
+                    { label: 'Capital aportado (pólizas + ahorro)', data: proj.rows.map(r => proj.opening + r.totalContrib), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.08)', fill: true, cubicInterpolationMode: 'monotone', pointRadius: 0 },
+                    { label: 'Balance DPF con interés', data: proj.rows.map(r => r.balance), borderColor: '#059669', backgroundColor: 'rgba(16,185,129,.15)', fill: true, cubicInterpolationMode: 'monotone', pointRadius: 0 }
                 ]
             }
         });
@@ -11549,8 +11918,9 @@ I18n.country('US', {
             data: {
                 labels: series.map(r => r.year),
                 datasets: [
-                    { label: 'Costo de vida (gastos + deudas)', data: series.map(r => r.consumption), borderColor: '#dc2626', fill: false, tension: .3, pointRadius: 0 },
-                    { label: 'Ingreso neto anual', data: series.map(r => r.income), borderColor: '#059669', backgroundColor: 'rgba(5,150,105,.15)', fill: '-1', tension: .3, pointRadius: 0 }
+                    { label: 'Costo de vida (gastos + deudas)', data: series.map(r => r.consumption), borderColor: '#eb6834', fill: false, cubicInterpolationMode: 'monotone', pointRadius: 0 },
+                    // Green where income is above the cost of living, red where it falls short.
+                    { label: 'Ingreso neto anual', data: series.map(r => r.income), borderColor: '#1baf7a', fill: { target: '-1', above: 'rgba(27,175,122,.15)', below: 'rgba(220,38,38,.18)' }, cubicInterpolationMode: 'monotone', pointRadius: 0 }
                 ]
             }
         });
@@ -11597,7 +11967,7 @@ I18n.country('US', {
         s.polizas.forEach(p => {
             const row = document.querySelector(`#pol-body tr[data-row="${p.id}"]`);
             if (!row) return;
-            const interest = Engine.polizaInterest(p);
+            const interest = Engine.polizaInterest(p, ctx.year.country);
             totalInt += interest;
             row.querySelector('[data-cell="interest"]').textContent = '+' + money(interest);
             const st = Engine.maturityStatus(p.maturityDate, ctx.today);
@@ -11690,8 +12060,9 @@ I18n.country('US', {
         tiles.push(['tone-red', 'Interés total', money0(base.totalInterest)], ['tone-slate', 'Total pagado', money0(base.totalPaid)]);
         // US: what you really pay each month (PITI).
         if (ctx.budgetYear.country === 'US') {
-            const p = Engine.pitiMonthly(Object.assign({ payment: base.firstPayment }, m));
-            tiles.unshift(['tone-amber', 'Pago mensual total (PITI)', `${money(p.total)}<span class="kpi-note block">Capital e interés ${money(p.pi)} · impuesto ${money(p.tax)} · seguro ${money(p.ins)}${p.pmi ? ` · PMI ${money(p.pmi)}` : ''}${p.hoa ? ` · HOA ${money(p.hoa)}` : ''}</span>`]);
+            const p = Engine.pitiMonthly(Object.assign({ payment: base.firstPayment, schedule: (extra || base).schedule }, m));
+            const pmiEnd = p.pmi && p.pmiMonths !== null ? ` (por ${Fmt.monthsAsYears(p.pmiMonths)}, ${money0(p.pmiTotal)} en total)` : '';
+            tiles.unshift(['tone-amber', 'Pago mensual total (PITI)', `${money(p.total)}<span class="kpi-note block">Capital e interés ${money(p.pi)} · impuesto ${money(p.tax)} · seguro ${money(p.ins)}${p.pmi ? ` · PMI ${money(p.pmi)}${pmiEnd}` : ''}${p.hoa ? ` · HOA ${money(p.hoa)}` : ''}</span>`]);
         }
         let html = tiles.map(([tone, label, value]) => `<div class="kpi ${tone}"><span class="kpi-label">${label}</span><span class="kpi-value">${value}</span></div>`).join('');
         if (extra) {
@@ -11705,7 +12076,7 @@ I18n.country('US', {
         const opts = { scales: { x: { title: { display: true, text: axis.title, font: { size: 10 } } } } };
         const dataset = (label, schedule, field, cumulative, dashed) => ({
             label, data: Engine.sampleSchedule(schedule, axis, field, cumulative),
-            borderColor: dashed ? '#0f172a' : color, borderDash: dashed ? [6, 4] : [], backgroundColor: dashed ? 'transparent' : 'rgba(59,130,246,.08)',
+            borderColor: dashed ? '#eb6834' : color, borderDash: dashed ? [6, 4] : [], backgroundColor: dashed ? 'transparent' : 'rgba(59,130,246,.08)',
             fill: !dashed, tension: .2, pointRadius: 0, spanGaps: false
         });
         UI.chart('mort-balance-chart', { type: 'line', options: opts, data: { labels: axis.labels, datasets: [dataset('Saldo pendiente', base.schedule, 'balance', false, false)].concat(extra ? [dataset('Saldo con pago extra', extra.schedule, 'balance', false, true)] : []) } });
@@ -11758,15 +12129,25 @@ I18n.country('US', {
         UI.text('ret-ahorro', money(inp.ahorroActual));
         UI.text('ret-aporte', money(inp.aporteMensual));
         UI.text('ret-aporte-sweep', ctx.baseBudget.sweep > 0 ? `, incluido el barrido de ${money0(ctx.baseBudget.sweep)}` : '');
-        linkedField('ret-tasa', 'ret-tasa-note', 'tasaRetorno', yd.tasa, s.retirement.tasaRetorno,
-            `la Tasa DPF de <a href="#" class="link" data-goto="ahorro/proyeccion">${s.activeYear}</a> es ${Number(yd.tasa).toFixed(2)}%. Tu retorno en 20-30 años puede ser distinto a la tasa de hoy.`);
+        linkedField('ret-tasa', 'ret-tasa-note', 'tasaRetorno', ctx.defaultReturn, s.retirement.tasaRetorno, yd.country === 'US'
+            ? `${ctx.defaultReturn}% es el promedio histórico de la bolsa de EE. UU. (acciones, antes de inflación). Algunos años pierde; a 20-30 años suele acercarse a ese promedio.`
+            : `la Tasa DPF de <a href="#" class="link" data-goto="ahorro/proyeccion">${s.activeYear}</a> es ${Number(yd.tasa).toFixed(2)}%. Tu retorno en 20-30 años puede ser distinto a la tasa de hoy.`);
+        linkedField('ret-infl', 'ret-infl-note', 'inflacion', Engine.DEFAULT_INFLATION[yd.country === 'US' ? 'US' : 'EC'], s.retirement.inflacion, yd.country === 'US'
+            ? 'promedio histórico de EE. UU. (~3% al año). Todo se muestra en dólares de hoy.'
+            : 'promedio de Ecuador desde la dolarización (~2.5% al año). Todo se muestra en dólares de hoy.');
         linkedField('ret-sueldo', 'ret-sueldo-note', 'sueldoPromedio', yd.sueldo, s.retirement.sueldoPromedio,
             `tu sueldo de <a href="#" class="link" data-goto="presupuesto/ingresos">${s.activeYear}</a> es ${money0(yd.sueldo)}. El IESS usa tu sueldo cerca de la jubilación, que suele ser mayor.`);
 
         UI.text('ret-years', r.aniosRestantes);
-        UI.text('ret-fv', money0(r.valorFuturo));
+        UI.text('ret-fv', money0(r.valorFuturoHoy));
+        UI.text('ret-fv-note', `en dólares de hoy · ${money0(r.valorFuturo)} en dólares de ${ctx.today.getFullYear() + r.aniosRestantes}`);
         UI.text('ret-income-savings', money0(r.ingresoAhorro));
         UI.text('ret-pension', money0(r.pension));
+        UI.text('ret-pension-note', r.pensionDesde === null ? 'Aún no cumples los años mínimos de aportes' : `desde los ${r.pensionDesde} años`);
+        const bridge = document.getElementById('ret-bridge');
+        if (r.pensionDesde === null) bridge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Con tus años de aportes no alcanzas la pensión del IESS (mínimo 10 años a los 70, 15 a los 65, 30 a los 60 o 40 a cualquier edad). Tu jubilación dependería solo de tu ahorro.`;
+        else if (r.aniosPuente > 0) bridge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Entre los ${r.edadJubilacion} y los ${r.pensionDesde} años no recibirás ${yd.country === 'US' ? 'el Seguro Social' : 'la pensión'}: vivirías solo de tu ahorro (${money0(r.ingresoAhorro)}/mes).`;
+        UI.show(bridge, r.pensionDesde === null || r.aniosPuente > 0);
         UI.text('ret-total', money(r.ingresoTotal));
 
         const extra = Number(s.retirement.whatIfExtra) || 0;
@@ -11783,7 +12164,9 @@ I18n.country('US', {
         const labels = r.schedule.map((_, i) => r.edadActual + i);
         const datasets = [{ label: 'Con tu aporte actual', data: r.schedule, borderColor: '#059669', backgroundColor: 'rgba(16,185,129,.1)', fill: true, tension: .3, pointRadius: 0 }];
         if (r.whatIf) datasets.push({ label: `Con +${money0(extra)}/mes`, data: r.whatIf.schedule, borderColor: '#9333ea', borderDash: [6, 4], fill: false, tension: .3, pointRadius: 0 });
-        UI.chart('ret-chart', { type: 'line', data: { labels, datasets }, options: { scales: { x: { title: { display: true, text: 'Edad', font: { size: 10 } } } } } });
+        // Nothing saved or going in yet: keep a sensible axis instead of $0–$1 ticks.
+        const empty = !r.schedule.some(v => v > 0.5) && !(r.whatIf && r.whatIf.schedule.some(v => v > 0.5));
+        UI.chart('ret-chart', { type: 'line', data: { labels, datasets }, options: { scales: { x: { title: { display: true, text: 'Edad', font: { size: 10 } } }, y: { suggestedMax: empty ? 1000 : undefined } } } });
     }
 
     UI.register({
@@ -11794,7 +12177,7 @@ I18n.country('US', {
         },
         'ret.relink': (el) => {
             Store.state.retirement[el.dataset.field] = null;
-            const input = document.getElementById(el.dataset.field === 'tasaRetorno' ? 'ret-tasa' : 'ret-sueldo');
+            const input = document.getElementById({ tasaRetorno: 'ret-tasa', inflacion: 'ret-infl' }[el.dataset.field] || 'ret-sueldo');
             input.blur();
             App.changed();
         },
@@ -11874,10 +12257,11 @@ I18n.country('US', {
         update(ctx);
     }
 
+    // About the level only; whether it grows is said only when there's a previous year to compare.
     function verdict(v) {
         if (v < 0) return ['text-red-700', 'Patrimonio negativo: debes más de lo que tienes. Eliminar deudas (Paso 2) es tu prioridad.'];
         if (v < 5000) return ['text-slate-700', 'Vas por buen camino. Sigue avanzando paso a paso.'];
-        if (v < 50000) return ['text-emerald-700', 'Buen progreso: tu patrimonio crece de forma sólida.'];
+        if (v < 50000) return ['text-emerald-700', 'Buen progreso: lo que tienes supera lo que debes.'];
         return ['text-emerald-800', 'Excelente: estás construyendo riqueza real.'];
     }
 
@@ -11897,19 +12281,22 @@ I18n.country('US', {
         UI.text('nw-assets', money0(nw.assets));
         UI.text('nw-liabilities', money0(nw.liabilities));
         UI.text('nw-value', money(nw.value));
-        const [cls, text] = verdict(nw.value);
+        let [cls, text] = verdict(nw.value);
+        if (Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear()).includes(year - 1)) {
+            const d = nw.value - Engine.netWorth(s.years, s.assets, year - 1).value;
+            if (Math.abs(d) >= 1) text += ` ${d > 0 ? '▲' : '▼'} ${money0(Math.abs(d))} frente a ${year - 1}.`;
+        }
         document.getElementById('nw-value').className = `text-4xl font-black block my-1 ${nw.value >= 0 ? 'text-emerald-700' : 'text-red-600'}`;
         const v = document.getElementById('nw-verdict');
         v.className = `text-sm font-bold ${cls}`;
         v.textContent = text;
         document.getElementById('nw-result').className = `mt-5 rounded-xl p-5 text-center border-t-4 bg-slate-50 ${nw.value >= 0 ? 'border-emerald-500' : 'border-red-500'}`;
 
-        const years = [];
-        for (let y = s.configStartYear; y <= s.configEndYear; y++) years.push(y);
+        const years = Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear());
         UI.chart('nw-chart', {
             type: 'line',
-            data: { labels: years, datasets: [{ label: 'Patrimonio neto', data: years.map(y => Engine.netWorth(s.years, s.assets, y).value), borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,.1)', fill: true, tension: .25, pointRadius: years.map(y => y === year ? 5 : 0) }] },
-            options: { scales: { y: { beginAtZero: false } } }
+            data: { labels: years, datasets: [{ label: 'Patrimonio neto', data: years.map(y => Engine.netWorth(s.years, s.assets, y).value), borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,.1)', fill: true, cubicInterpolationMode: 'monotone', pointRadius: years.map(y => y === year ? 5 : 3) }] },
+            options: { scales: { y: { beginAtZero: false } }, plugins: { legend: { display: false } } }
         });
     }
 

@@ -12,7 +12,7 @@
         UI.text('proj-annual', money0(ctx.annual.savingsReal));
         UI.text('proj-annual-note', ctx.annual.sweep > 0 ? `Incluye ${money0(ctx.annual.sweep)} de barrido` : `${((ctx.savingsRate) * 100).toFixed(0)}% de tu sueldo bruto`);
         UI.text('proj-interest', money0(proj.totalInterest));
-        UI.text('proj-pol-interest', money0(s.polizas.reduce((t, p) => t + Engine.polizaInterest(p), 0)));
+        UI.text('proj-pol-interest', money0(s.polizas.reduce((t, p) => t + Engine.polizaInterest(p, ctx.year.country), 0)));
         UI.text('proj-final', money0(proj.finalBalance));
 
         UI.html('proj-body', proj.rows.map(r => `
@@ -31,8 +31,8 @@
             data: {
                 labels: proj.rows.map(r => r.year),
                 datasets: [
-                    { label: 'Capital aportado (pólizas + ahorro)', data: proj.rows.map(r => proj.opening + r.totalContrib), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.08)', fill: true, tension: .3, pointRadius: 0 },
-                    { label: 'Balance DPF con interés', data: proj.rows.map(r => r.balance), borderColor: '#059669', backgroundColor: 'rgba(16,185,129,.15)', fill: true, tension: .3, pointRadius: 0 }
+                    { label: 'Capital aportado (pólizas + ahorro)', data: proj.rows.map(r => proj.opening + r.totalContrib), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.08)', fill: true, cubicInterpolationMode: 'monotone', pointRadius: 0 },
+                    { label: 'Balance DPF con interés', data: proj.rows.map(r => r.balance), borderColor: '#059669', backgroundColor: 'rgba(16,185,129,.15)', fill: true, cubicInterpolationMode: 'monotone', pointRadius: 0 }
                 ]
             }
         });
@@ -43,8 +43,9 @@
             data: {
                 labels: series.map(r => r.year),
                 datasets: [
-                    { label: 'Costo de vida (gastos + deudas)', data: series.map(r => r.consumption), borderColor: '#dc2626', fill: false, tension: .3, pointRadius: 0 },
-                    { label: 'Ingreso neto anual', data: series.map(r => r.income), borderColor: '#059669', backgroundColor: 'rgba(5,150,105,.15)', fill: '-1', tension: .3, pointRadius: 0 }
+                    { label: 'Costo de vida (gastos + deudas)', data: series.map(r => r.consumption), borderColor: '#eb6834', fill: false, cubicInterpolationMode: 'monotone', pointRadius: 0 },
+                    // Green where income is above the cost of living, red where it falls short.
+                    { label: 'Ingreso neto anual', data: series.map(r => r.income), borderColor: '#1baf7a', fill: { target: '-1', above: 'rgba(27,175,122,.15)', below: 'rgba(220,38,38,.18)' }, cubicInterpolationMode: 'monotone', pointRadius: 0 }
                 ]
             }
         });
@@ -91,7 +92,7 @@
         s.polizas.forEach(p => {
             const row = document.querySelector(`#pol-body tr[data-row="${p.id}"]`);
             if (!row) return;
-            const interest = Engine.polizaInterest(p);
+            const interest = Engine.polizaInterest(p, ctx.year.country);
             totalInt += interest;
             row.querySelector('[data-cell="interest"]').textContent = '+' + money(interest);
             const st = Engine.maturityStatus(p.maturityDate, ctx.today);

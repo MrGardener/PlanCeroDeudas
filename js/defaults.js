@@ -71,14 +71,20 @@
         'Otros Ingresos': ['Regalos Recibidos', 'Herencias', 'Venta de Artículos Usados', 'Reembolsos']
     };
 
+    // SRI income-tax table for 2026 (Resolución NAC-DGERCGC25-00000043). It changes every year:
+    // editable in Configuración → Parámetros legales.
+    const SRI_TABLE_YEAR = 2026;
     const sriBrackets = () => [
-        { min: 0, max: 11902, baseTax: 0, rate: 0 },
-        { min: 11902, max: 15159, baseTax: 0, rate: 0.05 },
-        { min: 15159, max: 19682, baseTax: 163, rate: 0.10 },
-        { min: 19682, max: 26031, baseTax: 615, rate: 0.12 },
-        { min: 26031, max: 35494, baseTax: 1377, rate: 0.15 },
-        { min: 35494, max: 49207, baseTax: 2796, rate: 0.20 },
-        { min: 49207, max: 999999, baseTax: 5538, rate: 0.25 }
+        { min: 0, max: 12208, baseTax: 0, rate: 0 },
+        { min: 12208, max: 15549, baseTax: 0, rate: 0.05 },
+        { min: 15549, max: 20188, baseTax: 167, rate: 0.10 },
+        { min: 20188, max: 26700, baseTax: 631, rate: 0.12 },
+        { min: 26700, max: 35136, baseTax: 1412, rate: 0.15 },
+        { min: 35136, max: 46575, baseTax: 2678, rate: 0.20 },
+        { min: 46575, max: 62005, baseTax: 4965, rate: 0.25 },
+        { min: 62005, max: 82679, baseTax: 8823, rate: 0.30 },
+        { min: 82679, max: 109956, baseTax: 15025, rate: 0.35 },
+        { min: 109956, max: 999999999, baseTax: 24572, rate: 0.37 }
     ];
 
     function newYear() {
@@ -91,10 +97,12 @@
             d4Region: 'costa',
             sweepSavings: false,
             iessRate: 9.45,
-            sbu: 470,
-            canasta: 764.70,
+            sbu: 482,                // salario básico unificado 2026 (Acuerdo MDT-2025-195)
+            canasta: 821.80,         // canasta familiar básica, enero 2026 (INEC)
             cosede: 32000,
-            sriCapMultiplier: 7,
+            cargas: 0,               // family dependents: sets the cap for personal expenses
+            sriRebajaRate: 18,       // % of personal expenses taken off the tax
+            taxTableYear: SRI_TABLE_YEAR,
             netWorth: { checking: 0, savings: 0, investments: 0, mortgage: 0, autoLoans: 0, creditCards: 0, personalLoans: 0, studentLoans: 0, otherDebts: 0 },
             netWorthTouched: {},
             budgetBase: clone(BUDGET_TEMPLATE),
@@ -167,7 +175,7 @@
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
-            retirement: { edadActual: 30, edadJubilacion: 65, aporteMensual: 100, tasaRetiroSegura: 4, aniosAportados: 5, tasaReemplazo: 60, tasaRetorno: null, sueldoPromedio: null, whatIfExtra: 0 },
+            retirement: { edadActual: 30, edadJubilacion: 65, aporteMensual: 100, tasaRetiroSegura: 4, aniosAportados: 5, tasaReemplazo: 60, tasaRetorno: null, inflacion: null, sueldoPromedio: null, whatIfExtra: 0 },
             debtPlan: { strategy: 'snowball', extraPayment: 0 }
         };
     }

@@ -95,31 +95,51 @@
         lazy('projectionStart', () => Math.min(s.configEndYear, Math.max(s.configStartYear, ctx.today.getFullYear())));
         lazy('projection', () => Engine.projectDPF({ polizas: s.polizas, startYear: ctx.projectionStart, endYear: s.configEndYear, getYear: y => Store.effective(y) }));
         lazy('netWorth', () => Engine.netWorth(s.years, s.assets, s.activeYear));
-        lazy('ef', () => Engine.emergencyFund({ liquid: ctx.polizasCapital + ctx.netWorth.fields.savings, budgetBase: ctx.year.budgetBase }));
+        // Savings, each dollar counted once: the emergency fund first (up to 6 months of essentials),
+        // the rest — plus retirement accounts, CDs/DPF set aside for retirement and investments —
+        // grows for retirement.
+        lazy('essentialMonthly', () => Engine.emergencyFund({ liquid: 0, budgetBase: ctx.year.budgetBase }).monthlyEssential);
+        lazy('savingsBalance', () => ((s.accounts || []).some(a => a.kind === 'ahorros') ? Engine.accountTotal(s.accounts, 'ahorros') : ctx.netWorth.fields.savings));
+        lazy('pools', () => Engine.savingsPools({
+            polizas: s.polizas, savingsBalance: ctx.savingsBalance, goals: s.goals,
+            retirementAccounts: Engine.accountTotal(s.accounts, 'retiro'), holdings: Engine.holdingsValue(s.holdings),
+            monthlyEssential: ctx.essentialMonthly
+        }));
+        lazy('ef', () => Engine.emergencyFund({ liquid: ctx.pools.emergency, budgetBase: ctx.year.budgetBase }));
         // The payoff plan spends only what the budget assigns: each debt's own line, plus any
         // other "Pago deuda" rubro (which goes to the snowball target).
         lazy('debtExtraRubros', () => ctx.year.budgetBase.filter(i => i.type === 'Deuda').reduce((t, i) => t + (Number(i.real) || 0), 0));
         lazy('debts', () => Engine.debtPayoff(s.debts, s.debtPlan.strategy, ctx.debtExtraRubros));
-        // Retirement savings = the budget's own savings rubros (not goal lines) + auto-sweep.
-        // … plus retirement saved straight from the paycheck (401k, ahorro voluntario) and any employer match.
-        lazy('retirementMonthly', () => ctx.year.budgetBase.filter(i => Engine.isSavingsItem(i)).reduce((t, i) => t + (Number(i.real) || 0), 0) + ctx.baseBudget.sweep + Engine.payDeductionsSummary(ctx.year).retirement);
-        lazy('savingsRate', () => ctx.pay.sueldoAnual > 0 ? ctx.retirementMonthly * 12 / ctx.pay.sueldoAnual : 0);
+        // Retirement savings = the budget's own savings rubros (not goal lines, not the emergency
+        // fund line) + auto-sweep + retirement saved straight from the paycheck (401k, ahorro
+        // voluntario). The employer match grows the nest egg but isn't part of YOUR 15% (Step 4).
+        lazy('payRetirement', () => Engine.payDeductionsSummary(ctx.year));
+        lazy('ownRetirementMonthly', () => ctx.year.budgetBase.filter(i => Engine.isSavingsItem(i) && Engine.savingsPurpose(i) !== 'emergencia').reduce((t, i) => t + (Number(i.real) || 0), 0)
+            + ctx.baseBudget.sweep + ctx.payRetirement.byGroup.retirement);
+        lazy('employerMatchMonthly', () => ctx.payRetirement.retirement - ctx.payRetirement.byGroup.retirement);
+        lazy('retirementMonthly', () => ctx.ownRetirementMonthly + ctx.employerMatchMonthly);
+        lazy('savingsRate', () => ctx.pay.sueldoAnual > 0 ? ctx.ownRetirementMonthly * 12 / ctx.pay.sueldoAnual : 0);
+        lazy('ownsHome', () => ctx.netWorth.fields.mortgage > 0.01 || (s.assets || []).some(a => a.category === 'Bienes Raíces' && Engine.assetOwned(a, s.activeYear)));
         lazy('steps', () => Engine.babySteps({
             liquid: ctx.ef.liquid, consumerDebt: ctx.debts.totalBalance, monthsCovered: ctx.ef.monthsCovered,
-            savingsRate: ctx.savingsRate, mortgageBalance: ctx.netWorth.fields.mortgage
+            savingsRate: ctx.savingsRate, mortgageBalance: ctx.netWorth.fields.mortgage, ownsHome: ctx.ownsHome, money: Fmt.money0
         }));
         lazy('retirementInputs', () => {
             const r = s.retirement;
             return {
                 ...r,
                 country: ctx.budgetYear.country, usTax: ctx.year.usTax,
-                // US: 401(k)/IRA balances (accounts) are retirement savings too.
-                ahorroActual: ctx.polizasCapital + (ctx.budgetYear.country === 'US' ? Engine.accountTotal(s.accounts, 'retiro') : 0),
+                // What's already invested for retirement (see 'pools': beyond the emergency fund).
+                ahorroActual: ctx.pools.invested,
                 aporteMensual: ctx.retirementMonthly,
-                tasaRetorno: r.tasaRetorno === null || r.tasaRetorno === undefined ? ctx.year.tasa : r.tasaRetorno,
+                tasaRetorno: r.tasaRetorno === null || r.tasaRetorno === undefined ? ctx.defaultReturn : r.tasaRetorno,
+                inflacion: r.inflacion === null || r.inflacion === undefined ? Engine.DEFAULT_INFLATION[ctx.budgetYear.country] : r.inflacion,
                 sueldoPromedio: r.sueldoPromedio === null || r.sueldoPromedio === undefined ? ctx.year.sueldo : r.sueldoPromedio
             };
         });
+        // Long-run return when the person hasn't set one: US — the stock market's historical
+        // average (~10%); Ecuador — savings keep their own DPF rate.
+        lazy('defaultReturn', () => (ctx.budgetYear.country === 'US' ? Engine.DEFAULT_RETURN.US : ctx.year.tasa));
         lazy('retirement', () => Engine.retirement(ctx.retirementInputs));
         lazy('cosede', () => Engine.cosedeCheck(s.polizas, s.cooperativas, ctx.year.cosede));
         return ctx;
