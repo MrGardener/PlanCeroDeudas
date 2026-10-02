@@ -288,6 +288,7 @@ input[type="file"].hidden { display: none; }
 .health-ring { width: 104px; height: 104px; }
 .health-track { fill: none; stroke: var(--surface-3); stroke-width: 8; }
 .health-num { font-size: 22px; font-weight: 900; fill: var(--ink); }
+.coach-tips { display: grid; gap: .45rem; font-size: var(--fs-xs); color: var(--ink); list-style: disc; padding-left: 1.1rem; }
 .moves { display: grid; gap: .6rem; }
 .move { display: flex; align-items: flex-start; gap: .75rem; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
 .move-num { width: 1.6rem; height: 1.6rem; flex: none; border-radius: 999px; display: grid; place-items: center; font-weight: 800; font-size: .8rem; color: #fff; background: var(--brand); }

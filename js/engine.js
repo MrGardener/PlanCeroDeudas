@@ -1056,6 +1056,44 @@
         return { need: cents(need), have: cents(num(haveToday)), gap: cents(gap), pct: need > 0 ? Math.min(9.99, num(haveToday) / need) : 1, extraMonthly: extra === null ? null : cents(extra), bridge: cents(bridge) };
     }
 
+    // ------------------------------------------------------------ budget coaching
+    // Common guidelines for a household budget, as a share of take-home pay (adapted from Dave
+    // Ramsey's recommended percentages). 'lo'/'hi' bound the healthy range; null = no bound.
+    const COACH_RANGES = { dar: [5, 15], ahorro: [10, null], vivienda: [null, 35], comida: [null, 15], transporte: [null, 15], deudas: [null, null], otros: [null, null] };
+    // `itemsFor(y, m)` gives that month's budget lines; the last `months` whole months are checked.
+    function budgetCoach({ buckets = [], income = 0, itemsFor, transactions = [], today = new Date(), months = 4 }) {
+        const ranges = buckets.map(b => {
+            const pct = income > 0 ? b.amount / income * 100 : 0;
+            const [lo, hi] = COACH_RANGES[b.key] || [null, null];
+            const status = income <= 0 ? null : hi !== null && pct > hi + 0.5 ? 'alto' : lo !== null && pct < lo - 0.5 ? 'bajo' : 'ok';
+            return { key: b.key, label: b.label, amount: b.amount, pct: Math.round(pct * 10) / 10, lo, hi, status };
+        });
+        // A year back, so seasonal lines (Christmas, school) aren't "barely used" in July.
+        const t = new Date(today), per = {};
+        for (let k = 1; k <= Math.max(months, 12); k++) {
+            const d = new Date(t.getFullYear(), t.getMonth() - k, 1), y = d.getFullYear(), m = String(d.getMonth() + 1);
+            const items = itemsFor ? itemsFor(y, m) : [];
+            const spend = lineSpend(items, transactions, y, m);
+            items.filter(i => i.type !== 'Ingreso' && !isSavingsItem(i) && i.type !== 'Deuda' && !/^(debt|goal)-/.test(String(i.id))).forEach(i => {
+                const id = String(i.id), plan = num(i.real), spent = spend.byLine[id] ? spend.byLine[id].spent : 0;
+                const p = per[id] || (per[id] = { id: i.id, name: i.name, rows: [] });
+                p.rows.push({ plan, spent });
+            });
+        }
+        const lines = Object.values(per);
+        const chronicOver = lines.map(l => {
+            const over = l.rows.slice(0, months).filter(r => r.spent > r.plan * 1.05 + 1);
+            const recent = l.rows.slice(0, months);
+            return { id: l.id, name: l.name, months: over.length, avgOver: cents(over.length ? sum(over, r => r.spent - r.plan) / over.length : 0), avgSpent: cents(sum(recent, r => r.spent) / recent.length) };
+        }).filter(l => l.months >= 3).sort((a, b) => b.avgOver - a.avgOver);
+        const underUsed = lines.map(l => {
+            const recent = l.rows.slice(0, 3), plan = recent.length ? sum(recent, r => r.plan) / recent.length : 0, spent = recent.length ? sum(recent, r => r.spent) / recent.length : 0;
+            const yearPlan = sum(l.rows, r => r.plan), yearSpent = sum(l.rows, r => r.spent);
+            return { id: l.id, name: l.name, plan: cents(plan), spent: cents(spent), left: cents(plan - spent), yearUse: yearPlan > 0 ? yearSpent / yearPlan : 1 };
+        }).filter(l => l.plan >= 20 && l.spent < l.plan * 0.5 && l.spent > 0 && l.yearUse < 0.5).sort((a, b) => b.left - a.left);
+        return { ranges, chronicOver, underUsed };
+    }
+
     // ------------------------------------------------------------ financial health score
     // Eight indicators in four pillars (spend, save, borrow, plan), each 0–100, inspired by the
     // FinHealth Score. Indicators without data (null) are left out rather than counted as 0.
@@ -1924,7 +1962,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

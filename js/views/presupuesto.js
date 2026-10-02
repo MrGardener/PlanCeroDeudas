@@ -195,6 +195,31 @@
         update(ctx);
     }
 
+    // Coaching: the plan's shares vs. common guidelines, lines you go over month after month, and
+    // lines that barely get used (money that could go to debt or savings).
+    const GUIDE = (r) => r.lo !== null && r.hi !== null ? `${r.lo}–${r.hi}%` : r.lo !== null ? `${r.lo}% o más` : r.hi !== null ? `máx. ${r.hi}%` : '';
+    function coach(ctx, buckets) {
+        const c = Engine.budgetCoach({ buckets: buckets.buckets, income: buckets.income, itemsFor: (y, m) => Engine.monthItems(Store.effective(y), m), transactions: ctx.state.transactions, today: ctx.today });
+        const flagged = c.ranges.filter(r => r.status === 'alto' || r.status === 'bajo').length + c.chronicOver.length + c.underUsed.length;
+        UI.text('bud-coach-count', flagged);
+        UI.show('bud-coach-count', flagged > 0);
+        const step2 = ctx.steps.current === 2;
+        const where = step2 ? 'a la bola de nieve' : ctx.steps.current === 1 || ctx.steps.current === 3 ? 'a tu fondo de emergencia' : 'a tu jubilación o tus metas';
+        const badge = (r) => r.status === 'alto' ? '<span class="badge badge-bad">alto</span>' : r.status === 'bajo' ? '<span class="badge badge-warn">bajo</span>' : r.status === 'ok' && GUIDE(r) ? '<span class="badge badge-ok">bien</span>' : '';
+        const rows = c.ranges.filter(r => r.amount > 0 || GUIDE(r)).map(r => `<tr><td>${esc(r.label)}</td><td class="num">${r.pct}%</td><td class="text-slate-500 text-[11px]">${GUIDE(r)}</td><td>${badge(r)}</td></tr>`).join('');
+        const tips = [];
+        c.ranges.filter(r => r.status === 'alto').forEach(r => tips.push(`<li><strong>${esc(r.label)}</strong> se lleva el ${r.pct}% de tu ingreso (guía: ${GUIDE(r)}). ${r.key === 'vivienda' ? 'Es lo más difícil de bajar: si tu vivienda pasa del 35%, revisa servicios y considera opciones a largo plazo.' : 'Busca dónde recortar sin que duela.'}</li>`));
+        c.ranges.filter(r => r.status === 'bajo').forEach(r => tips.push(`<li><strong>${esc(r.label)}</strong> es solo el ${r.pct}% (guía: ${GUIDE(r)}). ${r.key === 'ahorro' && step2 ? 'Mientras pagas deudas (Paso 2) es normal: el ahorro sube cuando termines.' : 'Si puedes, sube un poco cada mes.'}</li>`));
+        c.chronicOver.forEach(l => tips.push(`<li><span data-i18n-skip><strong>${esc(l.name)}</strong></span>: te pasaste ${l.months} de los últimos 4 meses, en promedio ${money0(l.avgOver)}. Gastas unos ${money0(l.avgSpent)}: súbelo a eso y baja otro rubro, o recorta de verdad.</li>`));
+        c.underUsed.forEach(l => tips.push(`<li><span data-i18n-skip><strong>${esc(l.name)}</strong></span>: planeas ${money0(l.plan)} y gastas unos ${money0(l.spent)}. Podrías bajarlo ${money0(l.left)} y mandarlo ${where}.</li>`));
+        UI.html('bud-coach', `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div><div class="text-xs font-bold text-slate-600 mb-1">Tu plan frente a las guías (parte de tu ingreso)</div>
+                <div class="table-wrap"><table class="table"><thead><tr><th>Grupo</th><th class="num">Tu plan</th><th>Guía</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+                <p class="help mt-1">Guías generales de presupuesto (Dave Ramsey). Son un punto de partida, no una regla: tu situación manda.</p></div>
+            <div><div class="text-xs font-bold text-slate-600 mb-1">Qué ajustar</div>${tips.length ? `<ul class="coach-tips">${tips.join('')}</ul>` : '<p class="help">Tu plan está dentro de las guías y no hay rubros que se pasen o sobren mes tras mes. ¡Bien!</p>'}</div>
+        </div>`);
+    }
+
     function update(ctx) {
         const yd = ctx.year;
         const m = month();
@@ -265,7 +290,9 @@
         stickyBalance(bal);
         // Where every dollar goes: this month's plan (Engine.monthItems + monthBudget) by group.
         UI.text('bud-dollar-month', m === 'base' ? '· presupuesto base' : `· ${Fmt.MONTH_NAMES[m - 1]}`);
-        Views.htmlKeepOpen('bud-dollar', Views.dollarHTML(Engine.budgetBuckets(list, { income: mb.income, sweep: mb.sweep }), { tableId: 'bud-dollar-table' }));
+        const buckets = Engine.budgetBuckets(list, { income: mb.income, sweep: mb.sweep });
+        Views.htmlKeepOpen('bud-dollar', Views.dollarHTML(buckets, { tableId: 'bud-dollar-table' }));
+        coach(ctx, buckets);
 
         const sweepEl = document.getElementById('bud-sweep');
         const shortfall = yd.sweepSavings && bal < -0.005;

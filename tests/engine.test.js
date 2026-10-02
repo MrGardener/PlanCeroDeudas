@@ -1102,3 +1102,24 @@ test('health score: eight indicators, bands, and missing data left out', () => {
     assert.equal(partial.pillars.find(p => p.key === 'borrow').score, null);
     assert.equal(E.healthScore({}).score, null);
 });
+
+test('budget coaching: shares vs guidelines, lines always over, lines barely used', () => {
+    const buckets = [{ key: 'vivienda', label: 'Vivienda', amount: 2400 }, { key: 'ahorro', label: 'Ahorro', amount: 300 }, { key: 'comida', label: 'Comida', amount: 600 }, { key: 'dar', label: 'Dar', amount: 500 }];
+    const items = [{ id: 1, name: 'Comida', linkedCategory: 'Alimentación', real: 400, type: 'Gasto Variable' }, { id: 2, name: 'Gimnasio', linkedCategory: 'Salud', real: 100, type: 'Gasto Variable' }];
+    const txns = [];
+    ['2026-06', '2026-07', '2026-08', '2026-09'].forEach((m, i) => {
+        txns.push({ id: i * 2 + 1, type: 'Gasto', parentCategory: 'Alimentación', amount: i === 0 ? 380 : 480, date: m + '-10' });
+        txns.push({ id: i * 2 + 2, type: 'Gasto', parentCategory: 'Salud', amount: 20, date: m + '-12' });
+    });
+    const c = E.budgetCoach({ buckets, income: 5000, itemsFor: () => items, transactions: txns, today: new Date(2026, 9, 2) });
+    const by = Object.fromEntries(c.ranges.map(r => [r.key, r]));
+    assert.equal(by.vivienda.status, 'alto');   // 48% > 35%
+    assert.equal(by.ahorro.status, 'bajo');     // 6% < 10%
+    assert.equal(by.comida.status, 'ok');       // 12%
+    assert.deepEqual(c.chronicOver.map(l => [l.name, l.months, l.avgOver]), [['Comida', 3, 80]]);
+    assert.deepEqual(c.underUsed.map(l => [l.name, l.left]), [['Gimnasio', 80]]);
+    // A seasonal line (all of it spent in December) isn't "barely used" in October.
+    const xmas = [{ id: 3, name: 'Navidad', linkedCategory: 'Regalos', real: 100, type: 'Gasto Variable' }];
+    const gifts = [{ id: 90, type: 'Gasto', parentCategory: 'Regalos', amount: 1100, date: '2025-12-15' }, { id: 91, type: 'Gasto', parentCategory: 'Regalos', amount: 10, date: '2026-09-15' }];
+    assert.deepEqual(E.budgetCoach({ buckets: [], income: 5000, itemsFor: () => xmas, transactions: gifts, today: new Date(2026, 9, 2) }).underUsed, []);
+});

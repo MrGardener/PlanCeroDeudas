@@ -2331,3 +2331,21 @@ I18n.add('en', {
     "Donde más puedes subir:": "Where you can gain the most:", "Cómo se calcula": "How it's calculated", "{0} de 100": "{0} out of 100",
     "Ocho indicadores de 0 a 100, en cuatro pilares (inspirado en el FinHealth Score). 80 o más: sana; 40 a 79: en camino; menos de 40: vulnerable.": "Eight indicators from 0 to 100 in four pillars (inspired by the FinHealth Score). 80 or more: healthy; 40 to 79: getting there; under 40: vulnerable."
 });
+// Budget coaching
+I18n.add('en', {
+    "Consejos para tu presupuesto": "Tips for your budget", "Tu plan frente a las guías (parte de tu ingreso)": "Your plan vs. the guidelines (share of income)",
+    "Tu plan": "Your plan", "Guía": "Guideline", "Qué ajustar": "What to adjust", "bien": "good", "alto": "high", "bajo": "low",
+    "{0}% o más": "{0}% or more", "máx. {0}%": "max {0}%",
+    "Guías generales de presupuesto (Dave Ramsey). Son un punto de partida, no una regla: tu situación manda.": "General budget guidelines (Dave Ramsey). A starting point, not a rule: your situation comes first.",
+    "se lleva el {0}% de tu ingreso (guía: {1}). {2}": "takes {0}% of your income (guideline: {1}). {2}",
+    "es solo el {0}% (guía: {1}). {2}": "is only {0}% (guideline: {1}). {2}",
+    "Es lo más difícil de bajar: si tu vivienda pasa del 35%, revisa servicios y considera opciones a largo plazo.": "It's the hardest to lower: if housing is over 35%, review utilities and consider longer-term options.",
+    "Busca dónde recortar sin que duela.": "Look for cuts that don't hurt.",
+    "Mientras pagas deudas (Paso 2) es normal: el ahorro sube cuando termines.": "While you pay off debt (Step 2) that's normal: saving goes up when you're done.",
+    "Si puedes, sube un poco cada mes.": "If you can, raise it a little each month.",
+    ": te pasaste {0} de los últimos 4 meses, en promedio {1}. Gastas unos {2}: súbelo a eso y baja otro rubro, o recorta de verdad.": ": you went over in {0} of the last 4 months, by {1} on average. You spend about {2}: raise it to that and lower another line, or really cut back.",
+    "te pasaste {0} de los últimos 4 meses, en promedio {1}. Gastas unos {2}: súbelo a eso y baja otro rubro, o recorta de verdad.": "you went over in {0} of the last 4 months, by {1} on average. You spend about {2}: raise it to that and lower another line, or really cut back.",
+    ": planeas {0} y gastas unos {1}. Podrías bajarlo {2} y mandarlo {3}.": ": you plan {0} and spend about {1}. You could lower it by {2} and send it {3}.",
+    "planeas {0} y gastas unos {1}. Podrías bajarlo {2} y mandarlo {3}.": "you plan {0} and spend about {1}. You could lower it by {2} and send it {3}.",
+    "Tu plan está dentro de las guías y no hay rubros que se pasen o sobren mes tras mes. ¡Bien!": "Your plan is within the guidelines and no line goes over or sits unused month after month. Nice!"
+});
