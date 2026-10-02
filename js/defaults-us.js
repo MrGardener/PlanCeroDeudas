@@ -176,7 +176,17 @@
         { name: 'Life insurance (yearly)', amount: 420, every: 12, month: 1, category: 'Seguros y Protección' }
     ];
 
-    const DefaultsUS = { clone, annualIdeas, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
+    // College estimator: College Board "Trends in College Pricing" 2024–25 averages (tuition,
+    // fees, room and board for 4-year schools; tuition and fees for community college). Editable.
+    const collegeTypes = () => [
+        { id: 'in-state', label: 'Public 4-year, in-state', cost: 24920 },
+        { id: 'out-state', label: 'Public 4-year, out-of-state', cost: 44090 },
+        { id: 'private', label: 'Private 4-year', cost: 58600 },
+        { id: 'community', label: 'Community college (living at home)', cost: 4050 }
+    ];
+    const collegeDefaults = { costInflation: 5, returnPct: 6 };
+
+    const DefaultsUS = { clone, annualIdeas, collegeTypes, collegeDefaults, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = DefaultsUS;
     else root.DefaultsUS = DefaultsUS;

@@ -1140,3 +1140,17 @@ test('insurance check: what to have, guessed from the budget, answers win', () =
     const by2 = Object.fromEntries(r2.items.map(i => [i.key, i]));
     assert.equal(by2.life.status, 'na'); assert.equal(by2.health.status, 'falta'); assert.equal(by2.home.label, 'Seguro de inquilino');
 });
+
+test('college estimator: future cost, projected savings, gap and monthly needed', () => {
+    // Age 8 → starts in 10 years; $25,000/yr growing 5%: years 10..13 cost 25000·1.05^10…1.05^13.
+    const c = E.collegePlan({ age: 8, annualCost: 25000, costInflation: 5, saved: 10000, monthly: 200, returnPct: 6 });
+    const expected = [10, 11, 12, 13].reduce((a, k) => a + 25000 * Math.pow(1.05, k), 0);
+    assert.ok(Math.abs(c.total - expected) < 0.01, c.total);
+    assert.equal(c.yearsToStart, 10);
+    assert.equal(c.projected, E.growthValue(10000, 200, 6, 10).value);
+    assert.equal(c.gap, Math.round((c.total - c.projected) * 100) / 100);
+    // Saving the monthly amount it suggests (on top of what's saved) covers the total.
+    assert.ok(Math.abs(E.growthValue(10000, c.monthlyNeeded, 6, 10).value - c.total) < 1);
+    // Already in college: no months left to save.
+    assert.equal(E.collegePlan({ age: 19, annualCost: 1000 }).monthlyNeeded, null);
+});

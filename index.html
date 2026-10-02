@@ -849,6 +849,28 @@
             <div class="chart-box"><canvas id="runway-chart"></canvas></div>
         </details>
 
+        <details class="card group-card" id="metas-college">
+            <summary class="flex items-center justify-between gap-3">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-graduation-cap text-purple-600"></i> Universidad de tus hijos (Paso 5)</div>
+                    <div class="card-sub">Cuánto costará cuando empiecen, cuánto tendrías con lo que apartas y cuánto falta. Primero tu jubilación (Paso 4); después, esto.</div>
+                </div>
+                <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+            </summary>
+            <div class="table-wrap"><table class="table">
+                <thead><tr><th>Hijo/a</th><th style="width:4.5rem">Edad</th><th>Estudios</th><th style="width:7rem">Costo por año hoy ($)</th><th style="width:4.5rem">Años</th><th>Ahorro para esto</th><th></th></tr></thead>
+                <tbody id="college-body"></tbody>
+            </table></div>
+            <div class="flex flex-wrap items-end gap-3 mt-3">
+                <button type="button" class="btn btn-secondary btn-sm" data-action="college.add"><i class="fa-solid fa-plus"></i> Agregar hijo/a</button>
+                <label class="field" style="width:9rem"><span class="field-label">Sube el costo (%/año)</span><input type="number" class="input" id="college-infl" min="0" step="0.5" data-input="college.setting" data-field="costInflation"></label>
+                <label class="field" style="width:9rem"><span class="field-label">Rinde el ahorro (%/año)</span><input type="number" class="input" id="college-ret" min="0" step="0.5" data-input="college.setting" data-field="returnPct"></label>
+            </div>
+            <div id="college-results" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4"></div>
+            <p class="help mt-2" data-country="US">Costos de partida: promedios de College Board 2024–25 (matrícula, cuotas, vivienda y comida). Cámbialos por los de la universidad que tengan en mente.</p>
+            <p class="help mt-2" data-country="EC">Costos aproximados para empezar: cámbialos por los de la universidad que tengan en mente. En la universidad pública la matrícula es gratuita; quedan los gastos de vida.</p>
+        </details>
+
         <details class="card group-card" id="metas-insurance">
             <summary class="flex items-center justify-between gap-3">
                 <div>
@@ -1570,6 +1592,7 @@
 <script src="js/views/metas.js"></script>
 <script src="js/views/runway.js"></script>
 <script src="js/views/seguros.js"></script>
+<script src="js/views/universidad.js"></script>
 <script src="js/views/calculadoras.js"></script>
 <script src="js/views/ahorro.js"></script>
 <script src="js/views/hipoteca.js"></script>

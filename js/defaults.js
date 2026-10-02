@@ -184,6 +184,8 @@
             runway: { keep: {}, other: null, benefit: 0, benefitMonths: 0, lump: 0 },
             // Revisión de seguros: answers (key → 'si' | 'no'), total life coverage, dependents (null = guess).
             insurance: { answers: {}, life: 0, dependents: null },
+            // College estimator: kids { id, name, age, type, years, cost (null = type default), saved, monthly, goalId }.
+            college: { kids: [], costInflation: null, returnPct: null },
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -212,7 +214,16 @@
         { name: 'Mantenimiento del carro', amount: 200, every: 6, month: 5, category: 'Transporte' }
     ];
 
-    const Defaults = { clone, annualIdeas, BUDGET_TEMPLATE, BUDGET_TYPES, EXPENSE_TAXONOMY, INCOME_TAXONOMY, COOPERATIVAS, sriBrackets, newYear, newState, emptyState };
+    // College estimator: the kinds of studies and a yearly cost to start from (approximate; editable).
+    const collegeTypes = () => [
+        { id: 'publica', label: 'Universidad pública (gastos de vida)', cost: 2400 },
+        { id: 'privada', label: 'Universidad privada', cost: 6000 },
+        { id: 'privada-top', label: 'Universidad privada de élite', cost: 11000 },
+        { id: 'exterior', label: 'Estudios en el exterior', cost: 30000 }
+    ];
+    const collegeDefaults = { costInflation: 3, returnPct: 7 };
+
+    const Defaults = { clone, annualIdeas, collegeTypes, collegeDefaults, BUDGET_TEMPLATE, BUDGET_TYPES, EXPENSE_TAXONOMY, INCOME_TAXONOMY, COOPERATIVAS, sriBrackets, newYear, newState, emptyState };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = Defaults;
     else root.Defaults = Defaults;

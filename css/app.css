@@ -288,6 +288,7 @@ input[type="file"].hidden { display: none; }
 .health-ring { width: 104px; height: 104px; }
 .health-track { fill: none; stroke: var(--surface-3); stroke-width: 8; }
 .health-num { font-size: 22px; font-weight: 900; fill: var(--ink); }
+.college-card { border: 1px solid var(--line); border-radius: var(--r-md); padding: .75rem .85rem; background: var(--surface); }
 .ins-row { display: flex; align-items: flex-start; gap: .6rem; padding: .55rem .65rem; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
 .ins-row.na { opacity: .7; }
 .coach-tips { display: grid; gap: .45rem; font-size: var(--fs-xs); color: var(--ink); list-style: disc; padding-left: 1.1rem; }

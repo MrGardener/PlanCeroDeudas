@@ -2369,3 +2369,18 @@ I18n.add('en', {
     "Guía general, no asesoría de seguros: revisa coberturas y precios con un agente independiente.": "General guidance, not insurance advice: review coverage and prices with an independent agent."
 });
 I18n.add('en', { "Escribe cuánto te cubre para saber si alcanza.": "Enter how much it covers to see if it's enough." });
+// College estimator
+I18n.add('en', {
+    "Universidad de tus hijos (Paso 5)": "Your kids' college (Step 5)", "Cuánto costará cuando empiecen, cuánto tendrías con lo que apartas y cuánto falta. Primero tu jubilación (Paso 4); después, esto.": "What it will cost when they start, what you'd have with what you set aside, and what's missing. Retirement first (Step 4); this comes after.",
+    "Hijo/a": "Child", "Estudios": "Studies", "Costo por año hoy ($)": "Yearly cost today ($)", "Ahorro para esto": "Savings for it", "Meta de ahorro": "Savings goal", "Sin meta (escribe abajo)": "No goal (type below)",
+    "Ahorrado": "Saved", "Al mes": "Per month", "Agregar hijo/a": "Add child", "Sube el costo (%/año)": "Cost rises (%/yr)", "Rinde el ahorro (%/año)": "Savings return (%/yr)",
+    "Agrega a tus hijos para ver cuánto costará su universidad y cuánto apartar cada mes.": "Add your kids to see what college will cost and how much to set aside each month.",
+    "Empieza en {0}": "Starts in {0}", "Ya está estudiando": "Already in school", "hoy costaría {0}": "would cost {0} today",
+    "Costará en total": "Total cost", "Tendrías ahorrado": "You'd have saved", "Faltaría": "Missing",
+    "¡Con lo que apartas alcanza!": "What you set aside is enough!", "Para cubrirlo todo:": "To cover it all:", "desde hoy.": "starting today.",
+    "Ya no queda tiempo para ahorrar: becas, trabajo y una universidad que puedan pagar sin deudas.": "There's no time left to save: scholarships, work, and a school you can pay for without debt.",
+    "Crear su meta de ahorro": "Create a savings goal for it", "Meta «{0}» creada: {1} al mes en tu presupuesto": "Goal «{0}» created: {1} a month in your budget", "Quitado del estimador": "Removed from the estimator",
+    "Universidad": "College", "Universidad pública (gastos de vida)": "Public university (living costs)", "Universidad privada": "Private university", "Universidad privada de élite": "Top private university", "Estudios en el exterior": "Studying abroad",
+    "Costos de partida: promedios de College Board 2024–25 (matrícula, cuotas, vivienda y comida). Cámbialos por los de la universidad que tengan en mente.": "Starting costs: College Board 2024–25 averages (tuition, fees, room and board). Change them to the school you have in mind.",
+    "Costos aproximados para empezar: cámbialos por los de la universidad que tengan en mente. En la universidad pública la matrícula es gratuita; quedan los gastos de vida.": "Approximate costs to start with: change them to the school you have in mind. Public university tuition is free; living costs remain."
+});

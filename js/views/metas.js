@@ -34,6 +34,7 @@
         UI.html('goal-body', s.goals.length ? s.goals.map(goalRow).join('') : '<tr class="empty-row"><td colspan="8">Agrega una meta: un carro, un terreno, la universidad…</td></tr>');
         if (window.Runway) Runway.render(ctx);
         if (window.Insurance) Insurance.render(ctx);
+        if (window.College) College.render(ctx);
         update(ctx);
     }
 
@@ -169,6 +170,7 @@
 
     function update(ctx) {
         if (window.Runway) Runway.update(ctx);
+        if (window.College) College.update(ctx);
         const s = ctx.state;
         UI.html('metas-steps', Views.stepsHTML(ctx));
         roadmap(ctx);

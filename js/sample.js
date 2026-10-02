@@ -1027,6 +1027,16 @@
         s.holdings = P.holdings.map(h => Object.assign({}, h, { priceAt: new Date(T.getFullYear(), T.getMonth(), T.getDate(), 9, 30).toISOString(), priceSource: 'manual' }));
         s.polizas = P.polizas.map((p, i) => ({ id: i + 1, coopName: p.coopName, number: p.number, amount: p.amount, rate: p.rate, days: p.days, modality: p.modality, maturityDate: addDays(p.matureIn) }));
         s.assets = P.assets.map((a, i) => ({ id: i + 1, name: a.name, category: a.category, purchaseYear: a.purchaseYear, purchaseValue: a.purchaseValue, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: a.values }));
+        // The college estimator: the teen's existing college goal, the toddler with nothing saved yet.
+        const gid = (k) => (goalByKey[k] || {}).id || null;
+        s.college = { kids: US ? [
+            { id: 1, name: 'Emma', age: 15, type: 'in-state', years: 4, cost: null, saved: 0, monthly: 0, goalId: gid('college') },
+            { id: 2, name: 'Leo', age: 2, type: 'in-state', years: 4, cost: null, saved: 0, monthly: 0, goalId: null }
+        ] : [
+            { id: 1, name: 'Mateo', age: 15, type: 'privada', years: 5, cost: null, saved: 0, monthly: 0, goalId: gid('uni') },
+            { id: 2, name: 'Sofía', age: 2, type: 'publica', years: 5, cost: null, saved: 0, monthly: 0, goalId: null }
+        ], costInflation: null, returnPct: null };
+
         // Yearly bills for the annual planner (no fund yet: "Crear el apartado" is the next step).
         s.annualBills = (US ? [
             { name: 'Car registration (Odyssey + Civic)', amount: 238, every: 12, month: 3, category: 'Transporte', sub: 'Matriculación/Revisión Vehicular' },

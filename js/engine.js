@@ -1056,6 +1056,21 @@
         return { need: cents(need), have: cents(num(haveToday)), gap: cents(gap), pct: need > 0 ? Math.min(9.99, num(haveToday) / need) : 1, extraMonthly: extra === null ? null : cents(extra), bridge: cents(bridge) };
     }
 
+    // ------------------------------------------------------------ college estimator
+    // One child's studies: the total cost when they start (each year's cost grown by college-cost
+    // inflation), what the savings will have grown to, the gap and the monthly saving that closes it.
+    function collegePlan({ age = 0, startAge = 18, years = 4, annualCost = 0, costInflation = 5, saved = 0, monthly = 0, returnPct = 6 }) {
+        const toStart = Math.max(0, num(startAge) - num(age));
+        const n = Math.max(1, Math.round(num(years)));
+        const g = 1 + num(costInflation) / 100;
+        const total = sum(Array.from({ length: n }, (_, k) => k), k => num(annualCost) * Math.pow(g, toStart + k));
+        const projected = growthValue(saved, monthly, returnPct, toStart, 0).value;
+        const gap = Math.max(0, total - projected);
+        const months = Math.round(toStart * 12);
+        return { yearsToStart: toStart, startYearOffset: toStart, total: cents(total), todayCost: cents(num(annualCost) * n), projected: cents(projected), gap: cents(gap),
+            monthlyNeeded: months > 0 ? monthlyToReach(total, saved, returnPct, months) : null, pct: total > 0 ? Math.min(1, projected / total) : 1 };
+    }
+
     // ------------------------------------------------------------ insurance check
     // The coverage a household should have (Dave Ramsey's guidance): term life ~10× the yearly
     // income of each earner someone depends on, health, long-term disability (~60% of income),
@@ -1998,7 +2013,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
