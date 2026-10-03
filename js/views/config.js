@@ -231,13 +231,16 @@
             App.changed({ structural: true });
         },
         'cfg.purge': async () => {
+            // The word to type is shown in the app's language (ELIMINAR / DELETE): either one is
+            // accepted, in any mix of upper and lower case.
+            const words = ['ELIMINAR', window.I18n ? I18n.t('ELIMINAR') : 'ELIMINAR'].map(w => w.toUpperCase());
             const r = await UI.form({
                 title: 'Borrar todos mis datos',
                 message: 'Se eliminarán presupuestos, pólizas, deudas, metas, activos, transacciones y baselines de este navegador. No se puede deshacer.',
                 fields: [{ name: 'word', label: 'Escribe ELIMINAR para confirmar', placeholder: 'ELIMINAR' }],
                 confirmText: 'Borrar todo',
                 danger: true,
-                validate: v => v.word.trim() === 'ELIMINAR' ? null : 'Escribe exactamente ELIMINAR.'
+                validate: v => words.includes(String(v.word || '').trim().toUpperCase()) ? null : 'Escribe exactamente ELIMINAR.'
             });
             if (!r) return;
             App.commitHistory();
@@ -245,7 +248,18 @@
             Store.ui.month = 'base';
             App.changed({ step: true });
             App.go('resumen');
-            UI.toast('Todos tus datos fueron borrados', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            // Check that nothing is left before saying so.
+            const s = Store.state;
+            const left = ['transactions', 'debts', 'goals', 'polizas', 'assets', 'accounts', 'holdings', 'recurring', 'trash', 'annualBills'].filter(k => (s[k] || []).length);
+            if (left.length) {
+                await UI.form({ title: 'No se pudo borrar todo', message: 'Algunos datos siguen guardados. Cierra y vuelve a abrir la app, e inténtalo otra vez.', confirmText: 'Entendido', cancelText: null, danger: true });
+                return;
+            }
+            await UI.form({
+                title: 'Tus datos fueron borrados',
+                message: 'Se borraron de este dispositivo tu presupuesto, transacciones, deudas, metas, pólizas, cuentas, inversiones y activos. Tu idioma, tema y PIN se mantienen. Si fue un error, toca Deshacer arriba antes de cerrar la app.',
+                confirmText: 'Entendido', cancelText: null, icon: 'fa-circle-check'
+            });
         }
     });
 

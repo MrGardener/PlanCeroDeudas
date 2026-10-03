@@ -70,13 +70,14 @@
 
         // -------------------------------------------------------------- dialogs
         // form(): a modal with optional fields; resolves to the values, or null if cancelled.
-        form({ title, message = '', fields = [], confirmText = 'Aceptar', cancelText = 'Cancelar', danger = false, validate }) {
+        // cancelText: null shows only the OK button (a notice); icon replaces the title's icon.
+        form({ title, message = '', fields = [], confirmText = 'Aceptar', cancelText = 'Cancelar', danger = false, validate, icon = null }) {
             return new Promise((resolve) => {
                 const back = document.createElement('div');
                 back.className = 'modal-backdrop';
                 back.innerHTML = `
                     <div class="modal ${danger ? 'modal-danger' : ''}" role="dialog" aria-modal="true">
-                        <h3 class="modal-title"><i class="fa-solid ${danger ? 'fa-triangle-exclamation' : 'fa-circle-question'}"></i><span></span></h3>
+                        <h3 class="modal-title"><i class="fa-solid ${icon || (danger ? 'fa-triangle-exclamation' : 'fa-circle-question')}"></i><span></span></h3>
                         <p class="modal-message"></p>
                         <div class="modal-fields space-y-3"></div>
                         <p class="modal-error hidden"></p>
@@ -88,7 +89,8 @@
                 back.querySelector('.modal-title span').textContent = title;
                 back.querySelector('.modal-message').textContent = message;
                 if (!message) back.querySelector('.modal-message').remove();
-                back.querySelector('[data-dialog-cancel]').textContent = cancelText;
+                if (cancelText === null) back.querySelector('[data-dialog-cancel]').remove();
+                else back.querySelector('[data-dialog-cancel]').textContent = cancelText;
                 back.querySelector('[data-dialog-ok]').textContent = confirmText;
                 const host = back.querySelector('.modal-fields');
                 fields.forEach(f => {
@@ -129,7 +131,8 @@
                     if (err) { const e = back.querySelector('.modal-error'); e.textContent = err; e.classList.remove('hidden'); return; }
                     close(fields.length ? values : true);
                 };
-                back.querySelector('[data-dialog-cancel]').addEventListener('click', () => close(fields.length ? null : false));
+                const cancelBtn = back.querySelector('[data-dialog-cancel]');
+                if (cancelBtn) cancelBtn.addEventListener('click', () => close(fields.length ? null : false));
                 back.querySelector('[data-dialog-ok]').addEventListener('click', submit);
                 back.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') submit(); });
                 back.addEventListener('mousedown', (e) => { if (e.target === back) close(fields.length ? null : false); });

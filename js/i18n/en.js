@@ -2573,5 +2573,9 @@ I18n.add('en', {
     "Presupuesto al mes": "Budget per month",
     "Usar": "Use",
     "A tiempo": "On track",
-    "Objetivo": "Target"
+    "Objetivo": "Target",
+    "No se pudo borrar todo": "Couldn't erase everything",
+    "Algunos datos siguen guardados. Cierra y vuelve a abrir la app, e inténtalo otra vez.": "Some data is still saved. Close and reopen the app, then try again.",
+    "Tus datos fueron borrados": "Your data has been erased",
+    "Se borraron de este dispositivo tu presupuesto, transacciones, deudas, metas, pólizas, cuentas, inversiones y activos. Tu idioma, tema y PIN se mantienen. Si fue un error, toca Deshacer arriba antes de cerrar la app.": "Your budget, transactions, debts, goals, CDs, accounts, investments and assets were erased from this device. Your language, theme and PIN stay. If it was a mistake, tap Undo at the top before closing the app."
 });

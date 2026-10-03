@@ -5164,7 +5164,11 @@ I18n.add('en', {
     "Presupuesto al mes": "Budget per month",
     "Usar": "Use",
     "A tiempo": "On track",
-    "Objetivo": "Target"
+    "Objetivo": "Target",
+    "No se pudo borrar todo": "Couldn't erase everything",
+    "Algunos datos siguen guardados. Cierra y vuelve a abrir la app, e inténtalo otra vez.": "Some data is still saved. Close and reopen the app, then try again.",
+    "Tus datos fueron borrados": "Your data has been erased",
+    "Se borraron de este dispositivo tu presupuesto, transacciones, deudas, metas, pólizas, cuentas, inversiones y activos. Tu idioma, tema y PIN se mantienen. Si fue un error, toca Deshacer arriba antes de cerrar la app.": "Your budget, transactions, debts, goals, CDs, accounts, investments and assets were erased from this device. Your language, theme and PIN stay. If it was a mistake, tap Undo at the top before closing the app."
 });
 </script>
 <script>/* js/i18n/us.js */
@@ -10278,13 +10282,14 @@ I18n.country('US', {
 
         // -------------------------------------------------------------- dialogs
         // form(): a modal with optional fields; resolves to the values, or null if cancelled.
-        form({ title, message = '', fields = [], confirmText = 'Aceptar', cancelText = 'Cancelar', danger = false, validate }) {
+        // cancelText: null shows only the OK button (a notice); icon replaces the title's icon.
+        form({ title, message = '', fields = [], confirmText = 'Aceptar', cancelText = 'Cancelar', danger = false, validate, icon = null }) {
             return new Promise((resolve) => {
                 const back = document.createElement('div');
                 back.className = 'modal-backdrop';
                 back.innerHTML = `
                     <div class="modal ${danger ? 'modal-danger' : ''}" role="dialog" aria-modal="true">
-                        <h3 class="modal-title"><i class="fa-solid ${danger ? 'fa-triangle-exclamation' : 'fa-circle-question'}"></i><span></span></h3>
+                        <h3 class="modal-title"><i class="fa-solid ${icon || (danger ? 'fa-triangle-exclamation' : 'fa-circle-question')}"></i><span></span></h3>
                         <p class="modal-message"></p>
                         <div class="modal-fields space-y-3"></div>
                         <p class="modal-error hidden"></p>
@@ -10296,7 +10301,8 @@ I18n.country('US', {
                 back.querySelector('.modal-title span').textContent = title;
                 back.querySelector('.modal-message').textContent = message;
                 if (!message) back.querySelector('.modal-message').remove();
-                back.querySelector('[data-dialog-cancel]').textContent = cancelText;
+                if (cancelText === null) back.querySelector('[data-dialog-cancel]').remove();
+                else back.querySelector('[data-dialog-cancel]').textContent = cancelText;
                 back.querySelector('[data-dialog-ok]').textContent = confirmText;
                 const host = back.querySelector('.modal-fields');
                 fields.forEach(f => {
@@ -10337,7 +10343,8 @@ I18n.country('US', {
                     if (err) { const e = back.querySelector('.modal-error'); e.textContent = err; e.classList.remove('hidden'); return; }
                     close(fields.length ? values : true);
                 };
-                back.querySelector('[data-dialog-cancel]').addEventListener('click', () => close(fields.length ? null : false));
+                const cancelBtn = back.querySelector('[data-dialog-cancel]');
+                if (cancelBtn) cancelBtn.addEventListener('click', () => close(fields.length ? null : false));
                 back.querySelector('[data-dialog-ok]').addEventListener('click', submit);
                 back.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') submit(); });
                 back.addEventListener('mousedown', (e) => { if (e.target === back) close(fields.length ? null : false); });
@@ -18159,13 +18166,16 @@ I18n.country('US', {
             App.changed({ structural: true });
         },
         'cfg.purge': async () => {
+            // The word to type is shown in the app's language (ELIMINAR / DELETE): either one is
+            // accepted, in any mix of upper and lower case.
+            const words = ['ELIMINAR', window.I18n ? I18n.t('ELIMINAR') : 'ELIMINAR'].map(w => w.toUpperCase());
             const r = await UI.form({
                 title: 'Borrar todos mis datos',
                 message: 'Se eliminarán presupuestos, pólizas, deudas, metas, activos, transacciones y baselines de este navegador. No se puede deshacer.',
                 fields: [{ name: 'word', label: 'Escribe ELIMINAR para confirmar', placeholder: 'ELIMINAR' }],
                 confirmText: 'Borrar todo',
                 danger: true,
-                validate: v => v.word.trim() === 'ELIMINAR' ? null : 'Escribe exactamente ELIMINAR.'
+                validate: v => words.includes(String(v.word || '').trim().toUpperCase()) ? null : 'Escribe exactamente ELIMINAR.'
             });
             if (!r) return;
             App.commitHistory();
@@ -18173,7 +18183,18 @@ I18n.country('US', {
             Store.ui.month = 'base';
             App.changed({ step: true });
             App.go('resumen');
-            UI.toast('Todos tus datos fueron borrados', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            // Check that nothing is left before saying so.
+            const s = Store.state;
+            const left = ['transactions', 'debts', 'goals', 'polizas', 'assets', 'accounts', 'holdings', 'recurring', 'trash', 'annualBills'].filter(k => (s[k] || []).length);
+            if (left.length) {
+                await UI.form({ title: 'No se pudo borrar todo', message: 'Algunos datos siguen guardados. Cierra y vuelve a abrir la app, e inténtalo otra vez.', confirmText: 'Entendido', cancelText: null, danger: true });
+                return;
+            }
+            await UI.form({
+                title: 'Tus datos fueron borrados',
+                message: 'Se borraron de este dispositivo tu presupuesto, transacciones, deudas, metas, pólizas, cuentas, inversiones y activos. Tu idioma, tema y PIN se mantienen. Si fue un error, toca Deshacer arriba antes de cerrar la app.',
+                confirmText: 'Entendido', cancelText: null, icon: 'fa-circle-check'
+            });
         }
     });
 
