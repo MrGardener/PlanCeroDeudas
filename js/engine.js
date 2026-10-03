@@ -1380,6 +1380,26 @@
         const pay = r > 0 ? P * r / (1 - Math.pow(1 + r, -n)) : P / n;
         return { payment: cents(pay), total: cents(pay * n), interest: cents(pay * n - P), months: n };
     }
+    // Rate sensitivity. A loan at its rate ± `deltas` points (the first payment and the total
+    // interest), for adjustable-rate loans and refinancing; savings certificates' yearly interest
+    // today and if each renews `drop` points lower (rates never below 0).
+    function loanRateScenarios(system, principal, ratePct, months, deltas = [-1, 0, 1]) {
+        return deltas.map(d => {
+            const rate = Math.max(0, num(ratePct) + d);
+            const a = amortization(system, principal, rate, months, 0);
+            return { delta: d, rate, payment: cents(a.firstPayment), totalInterest: cents(a.totalInterest) };
+        });
+    }
+    function cdRenewalRisk(polizas, country, { drop = 1, today = new Date() } = {}) {
+        const yearOf = (p, rate) => polizaInterest(Object.assign({}, p, { rate, days: country === 'US' ? 365 : 360 }), country);
+        const list = (polizas || []).filter(p => num(p.amount) > 0);
+        const yearly = sum(list, p => yearOf(p, num(p.rate)));
+        const lower = sum(list, p => yearOf(p, Math.max(0, num(p.rate) - drop)));
+        const t = isoDate(today);
+        const next = list.map(p => p.maturityDate).filter(d => d && d >= t).sort()[0] || null;
+        return { yearly: cents(yearly), lower: cents(lower), loss: cents(yearly - lower), nextRenewal: next, count: list.length };
+    }
+
     // Pay the mortgage off early, or invest the difference? Over the loan's remaining life, path
     // "prepay" puts `extra` toward principal each month and, once the house is paid, invests the
     // whole payment + extra; path "invest" pays as scheduled and invests `extra` from the start.
@@ -2224,7 +2244,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

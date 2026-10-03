@@ -2556,5 +2556,18 @@ I18n.add('en', {
     "Desde el monto del préstamo.": "From the loan amount.",
     "En los Baby Steps, pagar la casa antes es el paso 6: primero el fondo de emergencia completo, el 15% a la jubilación y la universidad de los hijos. Y una casa pagada da tranquilidad: sin cuota, un mes difícil se lleva mejor.": "In the Baby Steps, paying off the house early is step 6: first the full emergency fund, 15% to retirement and the kids' college. And a paid-off house brings peace: with no payment, a hard month is easier to get through.",
     "si el dinero rinde {0}% cada año durante todo el plazo. Las tasas de las pólizas cambian al renovarlas; abonar a la casa es una ganancia segura del {1}%.": "if the money earns {0}% every year for the whole term. CD rates change when you renew them; paying down the house is a sure {1}% return.",
-    "Se calcula con una cuota fija (sistema francés).": "Calculated with a fixed payment (French system)."
+    "Se calcula con una cuota fija (sistema francés).": "Calculated with a fixed payment (French system).",
+    "¿Y si cambia la tasa?": "What if the rate changes?",
+    "Tu tasa": "Your rate",
+    "1 punto menos": "1 point lower",
+    "1 punto más": "1 point higher",
+    "{0} de interés": "{0} in interest",
+    "{0}/mes · {1} de interés": "{0}/mo · {1} in interest",
+    "1.ª": "1st",
+    "Con tasa ajustable (ARM), así cambiaría tu pago al ajustarse. Con tasa fija, te dice cuánto ahorrarías si refinancias a una tasa menor (resta los costos de cierre).": "With an adjustable rate (ARM), this is how your payment would change when it resets. With a fixed rate, it tells you what refinancing at a lower rate would save (minus closing costs).",
+    "Muchos créditos hipotecarios (BIESS, bancos) tienen tasa reajustable: así cambiaría tu cuota si la tasa sube o baja 1 punto.": "Many mortgages (BIESS, banks) have an adjustable rate: this is how your payment would change if the rate went up or down 1 point.",
+    "Hoy tus pólizas rinden unos": "Today your CDs earn about",
+    "al año.": "a year.",
+    "Si al renovarlas la tasa baja 1 punto, rendirían {0}:": "If the rate is 1 point lower when they renew, they'd earn {0}:",
+    "La próxima vence en {0}: compara tasas antes de renovar.": "The next one matures in {0}: compare rates before renewing."
 });

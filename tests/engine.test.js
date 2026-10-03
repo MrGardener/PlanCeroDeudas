@@ -1264,3 +1264,16 @@ test('prepay the mortgage or invest: both paths, interest saved, break-even retu
     assert.ok(E.prepayOrInvest({ balance: 250000, ratePct: 6.5, payment: P, extra: 300, returnPct: 5, deductPct: 22 }).breakEven < 6.5);
     assert.equal(E.prepayOrInvest({ balance: 100000, ratePct: 12, payment: 900, extra: 100, returnPct: 8 }).never, true);  // payment under the interest
 });
+
+test('rate sensitivity: a loan at ±1 point, certificates renewing 1 point lower', () => {
+    const sc = E.loanRateScenarios('frances', 272000, 6.25, 360);
+    assert.deepEqual(sc.map(x => x.rate), [5.25, 6.25, 7.25]);
+    assert.deepEqual(sc.map(x => x.payment), [1501.99, 1674.75, 1855.52]);
+    assert.ok(sc[0].totalInterest < sc[1].totalInterest && sc[1].totalInterest < sc[2].totalInterest);
+    assert.equal(E.loanRateScenarios('frances', 1000, 0.5, 12, [-1])[0].rate, 0);      // never below 0
+    const pol = [{ amount: 10000, rate: 5, days: 90, maturityDate: '2026-11-20' }, { amount: 5000, rate: 4, days: 365, maturityDate: '2027-02-01' }, { amount: 0, rate: 9 }];
+    const r = E.cdRenewalRisk(pol, 'US', { today: new Date(2026, 9, 3) });
+    assert.equal(r.count, 2); assert.equal(r.yearly, 700); assert.equal(r.lower, 550); assert.equal(r.loss, 150);   // APY on a full year
+    assert.equal(r.nextRenewal, '2026-11-20');
+    assert.equal(E.cdRenewalRisk([], 'EC').loss, 0);
+});

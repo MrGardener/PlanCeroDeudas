@@ -1049,6 +1049,7 @@
                     <tfoot><tr><td colspan="2">Total</td><td class="num" id="pol-total"></td><td colspan="4"></td><td class="num" id="pol-total-int"></td><td></td></tr></tfoot>
                 </table>
             </div>
+            <p class="text-xs mt-3" id="pol-rate-risk"></p>
         </div>
         <div class="card">
             <div class="card-head">
@@ -1093,6 +1094,7 @@
                 <label class="field field-box"><span class="field-label"><span>HOA al mes (<span class="cur">$</span>)</span></span><input type="number" class="input" step="10" min="0" data-bind="mortgage.hoa"></label>
             </div>
             <div id="mort-summary" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5"></div>
+            <div id="mort-rates" class="mb-5"></div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
                 <div class="panel tone-slate"><div class="section-label"><i class="fa-solid fa-chart-line text-rose-500"></i> Saldo pendiente</div><div class="chart-box"><canvas id="mort-balance-chart"></canvas></div></div>
                 <div class="panel tone-slate" id="mort-split">

@@ -1794,6 +1794,7 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                     <tfoot><tr><td colspan="2">Total</td><td class="num" id="pol-total"></td><td colspan="4"></td><td class="num" id="pol-total-int"></td><td></td></tr></tfoot>
                 </table>
             </div>
+            <p class="text-xs mt-3" id="pol-rate-risk"></p>
         </div>
         <div class="card">
             <div class="card-head">
@@ -1838,6 +1839,7 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 <label class="field field-box"><span class="field-label"><span>HOA al mes (<span class="cur">$</span>)</span></span><input type="number" class="input" step="10" min="0" data-bind="mortgage.hoa"></label>
             </div>
             <div id="mort-summary" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5"></div>
+            <div id="mort-rates" class="mb-5"></div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
                 <div class="panel tone-slate"><div class="section-label"><i class="fa-solid fa-chart-line text-rose-500"></i> Saldo pendiente</div><div class="chart-box"><canvas id="mort-balance-chart"></canvas></div></div>
                 <div class="panel tone-slate" id="mort-split">
@@ -5126,7 +5128,20 @@ I18n.add('en', {
     "Desde el monto del préstamo.": "From the loan amount.",
     "En los Baby Steps, pagar la casa antes es el paso 6: primero el fondo de emergencia completo, el 15% a la jubilación y la universidad de los hijos. Y una casa pagada da tranquilidad: sin cuota, un mes difícil se lleva mejor.": "In the Baby Steps, paying off the house early is step 6: first the full emergency fund, 15% to retirement and the kids' college. And a paid-off house brings peace: with no payment, a hard month is easier to get through.",
     "si el dinero rinde {0}% cada año durante todo el plazo. Las tasas de las pólizas cambian al renovarlas; abonar a la casa es una ganancia segura del {1}%.": "if the money earns {0}% every year for the whole term. CD rates change when you renew them; paying down the house is a sure {1}% return.",
-    "Se calcula con una cuota fija (sistema francés).": "Calculated with a fixed payment (French system)."
+    "Se calcula con una cuota fija (sistema francés).": "Calculated with a fixed payment (French system).",
+    "¿Y si cambia la tasa?": "What if the rate changes?",
+    "Tu tasa": "Your rate",
+    "1 punto menos": "1 point lower",
+    "1 punto más": "1 point higher",
+    "{0} de interés": "{0} in interest",
+    "{0}/mes · {1} de interés": "{0}/mo · {1} in interest",
+    "1.ª": "1st",
+    "Con tasa ajustable (ARM), así cambiaría tu pago al ajustarse. Con tasa fija, te dice cuánto ahorrarías si refinancias a una tasa menor (resta los costos de cierre).": "With an adjustable rate (ARM), this is how your payment would change when it resets. With a fixed rate, it tells you what refinancing at a lower rate would save (minus closing costs).",
+    "Muchos créditos hipotecarios (BIESS, bancos) tienen tasa reajustable: así cambiaría tu cuota si la tasa sube o baja 1 punto.": "Many mortgages (BIESS, banks) have an adjustable rate: this is how your payment would change if the rate went up or down 1 point.",
+    "Hoy tus pólizas rinden unos": "Today your CDs earn about",
+    "al año.": "a year.",
+    "Si al renovarlas la tasa baja 1 punto, rendirían {0}:": "If the rate is 1 point lower when they renew, they'd earn {0}:",
+    "La próxima vence en {0}: compara tasas antes de renovar.": "The next one matures in {0}: compare rates before renewing."
 });
 </script>
 <script>/* js/i18n/us.js */
@@ -8517,6 +8532,26 @@ I18n.country('US', {
         const pay = r > 0 ? P * r / (1 - Math.pow(1 + r, -n)) : P / n;
         return { payment: cents(pay), total: cents(pay * n), interest: cents(pay * n - P), months: n };
     }
+    // Rate sensitivity. A loan at its rate ± `deltas` points (the first payment and the total
+    // interest), for adjustable-rate loans and refinancing; savings certificates' yearly interest
+    // today and if each renews `drop` points lower (rates never below 0).
+    function loanRateScenarios(system, principal, ratePct, months, deltas = [-1, 0, 1]) {
+        return deltas.map(d => {
+            const rate = Math.max(0, num(ratePct) + d);
+            const a = amortization(system, principal, rate, months, 0);
+            return { delta: d, rate, payment: cents(a.firstPayment), totalInterest: cents(a.totalInterest) };
+        });
+    }
+    function cdRenewalRisk(polizas, country, { drop = 1, today = new Date() } = {}) {
+        const yearOf = (p, rate) => polizaInterest(Object.assign({}, p, { rate, days: country === 'US' ? 365 : 360 }), country);
+        const list = (polizas || []).filter(p => num(p.amount) > 0);
+        const yearly = sum(list, p => yearOf(p, num(p.rate)));
+        const lower = sum(list, p => yearOf(p, Math.max(0, num(p.rate) - drop)));
+        const t = isoDate(today);
+        const next = list.map(p => p.maturityDate).filter(d => d && d >= t).sort()[0] || null;
+        return { yearly: cents(yearly), lower: cents(lower), loss: cents(yearly - lower), nextRenewal: next, count: list.length };
+    }
+
     // Pay the mortgage off early, or invest the difference? Over the loan's remaining life, path
     // "prepay" puts `extra` toward principal each month and, once the house is paid, invests the
     // whole payment + extra; path "invest" pays as scheduled and invests `extra` from the start.
@@ -9361,7 +9396,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -17105,6 +17140,9 @@ I18n.country('US', {
         });
         UI.text('pol-total', money(ctx.polizasCapital));
         UI.text('pol-total-int', '+' + money(totalInt));
+        // Rate sensitivity: certificates renew at whatever the rate is then.
+        const risk = Engine.cdRenewalRisk(s.polizas, ctx.year.country, { today: ctx.today });
+        UI.html('pol-rate-risk', risk.count && risk.loss > 0 ? `<i class="fa-solid fa-percent text-slate-500"></i> <span>Hoy tus pólizas rinden unos <strong>${money0(risk.yearly)}</strong> al año.</span> <span>Si al renovarlas la tasa baja 1 punto, rendirían ${money0(risk.lower)}: <strong>${money0(risk.loss)} menos</strong> al año.</span>${risk.nextRenewal ? ` <span>La próxima vence en ${Fmt.monthYear(new Date(risk.nextRenewal + 'T12:00:00'))}: compara tasas antes de renovar.</span>` : ''}` : '');
 
         const over = ctx.cosede.filter(c => c.exceeded);
         const banner = document.getElementById('cosede-banner');
@@ -17201,6 +17239,17 @@ I18n.country('US', {
         }
         UI.html('mort-summary', html);
         if (window.Prepay) Prepay.render(ctx);
+
+        // Rate sensitivity: the same loan 1 point lower and higher (adjustable rates, refinancing).
+        const sc = Engine.loanRateScenarios(system, m.amount, m.rate, months);
+        const cur = sc[1];
+        const delta = (x, y) => (Math.abs(x - y) < 0.5 ? '' : `${x > y ? '+' : '−'}${money0(Math.abs(x - y))}`);
+        UI.html('mort-rates', Number(m.amount) > 0 && Number(m.rate) > 0 ? `<div class="section-label"><i class="fa-solid fa-percent text-slate-500"></i> ¿Y si cambia la tasa?</div>
+            <div class="grid grid-cols-3 gap-2 sm:gap-3">${sc.map(x => `<div class="kpi ${x.delta === 0 ? 'tone-blue' : 'tone-slate'} text-center" style="padding:.6rem .4rem">
+                <span class="kpi-label">${x.delta === 0 ? 'Tu tasa' : x.delta < 0 ? '1 punto menos' : '1 punto más'} · ${x.rate}%</span>
+                <span class="kpi-value" style="font-size:1rem">${money(x.payment)}<span class="text-[11px] font-semibold">${system === 'aleman' ? ' 1.ª' : '/mes'}</span></span>
+                <span class="kpi-note">${x.delta === 0 ? `${money0(x.totalInterest)} de interés` : `${delta(x.payment, cur.payment)}/mes · ${delta(x.totalInterest, cur.totalInterest)} de interés`}</span></div>`).join('')}</div>
+            <p class="help mt-2">${ctx.budgetYear.country === 'US' ? 'Con tasa ajustable (ARM), así cambiaría tu pago al ajustarse. Con tasa fija, te dice cuánto ahorrarías si refinancias a una tasa menor (resta los costos de cierre).' : 'Muchos créditos hipotecarios (BIESS, bancos) tienen tasa reajustable: así cambiaría tu cuota si la tasa sube o baja 1 punto.'}</p>` : '');
 
         const axis = Engine.chartAxis(base.schedule.length);
         const pal = UI.palette();

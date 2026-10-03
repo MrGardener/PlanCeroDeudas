@@ -38,6 +38,17 @@
         UI.html('mort-summary', html);
         if (window.Prepay) Prepay.render(ctx);
 
+        // Rate sensitivity: the same loan 1 point lower and higher (adjustable rates, refinancing).
+        const sc = Engine.loanRateScenarios(system, m.amount, m.rate, months);
+        const cur = sc[1];
+        const delta = (x, y) => (Math.abs(x - y) < 0.5 ? '' : `${x > y ? '+' : '−'}${money0(Math.abs(x - y))}`);
+        UI.html('mort-rates', Number(m.amount) > 0 && Number(m.rate) > 0 ? `<div class="section-label"><i class="fa-solid fa-percent text-slate-500"></i> ¿Y si cambia la tasa?</div>
+            <div class="grid grid-cols-3 gap-2 sm:gap-3">${sc.map(x => `<div class="kpi ${x.delta === 0 ? 'tone-blue' : 'tone-slate'} text-center" style="padding:.6rem .4rem">
+                <span class="kpi-label">${x.delta === 0 ? 'Tu tasa' : x.delta < 0 ? '1 punto menos' : '1 punto más'} · ${x.rate}%</span>
+                <span class="kpi-value" style="font-size:1rem">${money(x.payment)}<span class="text-[11px] font-semibold">${system === 'aleman' ? ' 1.ª' : '/mes'}</span></span>
+                <span class="kpi-note">${x.delta === 0 ? `${money0(x.totalInterest)} de interés` : `${delta(x.payment, cur.payment)}/mes · ${delta(x.totalInterest, cur.totalInterest)} de interés`}</span></div>`).join('')}</div>
+            <p class="help mt-2">${ctx.budgetYear.country === 'US' ? 'Con tasa ajustable (ARM), así cambiaría tu pago al ajustarse. Con tasa fija, te dice cuánto ahorrarías si refinancias a una tasa menor (resta los costos de cierre).' : 'Muchos créditos hipotecarios (BIESS, bancos) tienen tasa reajustable: así cambiaría tu cuota si la tasa sube o baja 1 punto.'}</p>` : '');
+
         const axis = Engine.chartAxis(base.schedule.length);
         const pal = UI.palette();
         // A single line needs no legend: the panel title names it.

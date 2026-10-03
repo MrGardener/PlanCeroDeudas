@@ -100,6 +100,9 @@
         });
         UI.text('pol-total', money(ctx.polizasCapital));
         UI.text('pol-total-int', '+' + money(totalInt));
+        // Rate sensitivity: certificates renew at whatever the rate is then.
+        const risk = Engine.cdRenewalRisk(s.polizas, ctx.year.country, { today: ctx.today });
+        UI.html('pol-rate-risk', risk.count && risk.loss > 0 ? `<i class="fa-solid fa-percent text-slate-500"></i> <span>Hoy tus pólizas rinden unos <strong>${money0(risk.yearly)}</strong> al año.</span> <span>Si al renovarlas la tasa baja 1 punto, rendirían ${money0(risk.lower)}: <strong>${money0(risk.loss)} menos</strong> al año.</span>${risk.nextRenewal ? ` <span>La próxima vence en ${Fmt.monthYear(new Date(risk.nextRenewal + 'T12:00:00'))}: compara tasas antes de renovar.</span>` : ''}` : '');
 
         const over = ctx.cosede.filter(c => c.exceeded);
         const banner = document.getElementById('cosede-banner');
