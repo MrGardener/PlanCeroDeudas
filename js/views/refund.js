@@ -36,7 +36,7 @@
         const box = document.getElementById('inc-refund-in');
         if (box && !box.contains(document.activeElement)) UI.html('inc-refund-in', inputs);
         if (!per && !Number(c.ytd)) { UI.html('inc-refund', '<p class="text-xs mt-3"><i class="fa-solid fa-circle-info text-blue-600"></i> Escribe la retención federal de tu último talón de pago para ver si te devolverán o deberás.</p>'); return; }
-        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: c.spouseWages, otherWithheld: c.spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left });
+        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: c.spouseWages, otherWithheld: c.spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left, stdExtra: window.Itemize ? Itemize.giftsOffStandard(ctx) : 0 });
         const big = Math.abs(r.diff) >= 500;
         const tone = r.diff >= 0 && r.diff < 1500 ? 'tone-emerald' : r.diff >= 0 ? 'tone-amber' : 'tone-red';
         const w4 = r.adjustPerCheck === null ? '' : r.diff < -100

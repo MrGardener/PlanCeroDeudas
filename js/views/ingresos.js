@@ -207,7 +207,7 @@
         renderSummary();
         taxYearNote(ctx);
         if (window.SideIncome) SideIncome.render(ctx);
-        if (p.country === 'US') { renderUS(ctx); if (window.Refund) Refund.render(ctx); return; }
+        if (p.country === 'US') { renderUS(ctx); if (window.Refund) Refund.render(ctx); if (window.Itemize) Itemize.render(ctx); return; }
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
             ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],

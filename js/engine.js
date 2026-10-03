@@ -98,15 +98,54 @@
     // Federal income tax on a year's income (after pre-tax deductions): the larger of the standard
     // or itemized deduction, the brackets, minus child / other-dependent credits — which phase out
     // $50 per $1,000 (or part) of income above $200,000 ($400,000 married filing jointly), IRC §24(b).
-    function usFederalTax({ income, status = 'single', dependents = 0, otherDependents = 0, itemized = 0, t = {} }) {
+    // `stdExtra`: what still comes off when taking the standard deduction (cash gifts to charity, from 2026).
+    function usFederalTax({ income, status = 'single', dependents = 0, otherDependents = 0, itemized = 0, stdExtra = 0, t = {} }) {
         const std = num((t.stdDeduction || {})[status]);
-        const dedApplied = Math.max(std, num(itemized));
+        const dedApplied = Math.max(std + num(stdExtra), num(itemized));
         const taxable = Math.max(0, num(income) - dedApplied);
         const baseCredits = num(dependents) * num(t.childCredit) + num(otherDependents) * num(t.otherDependentCredit);
         const phaseStart = num((t.ctcPhaseoutStart || { single: 200000, mfj: 400000, hoh: 200000 })[status]);
         const credits = Math.max(0, baseCredits - Math.ceil(Math.max(0, num(income) - phaseStart) / 1000) * (num(t.ctcPhaseoutStep) || 50));
         const before = bracketTax(taxable, (t.brackets || {})[status]);
         return { std, dedApplied, taxable, credits, before, tax: Math.max(0, before - credits) };
+    }
+
+    // Interest paid on a loan over the next `months` payments, from its balance today.
+    function loanInterestAhead(balance, ratePct, payment, months = 12) {
+        let b = Math.max(0, num(balance)), total = 0;
+        const r = num(ratePct) / 1200;
+        for (let i = 0; i < months && b > 0.005; i++) { const it = b * r; total += it; b = Math.max(0, b + it - num(payment)); }
+        return cents(total);
+    }
+
+    // Itemize or take the standard deduction (US, tax years from 2026): mortgage interest; state and
+    // local income and property taxes up to the SALT cap ($40,400 in 2026, less 30% of income above
+    // $505,000, never under $10,000); gifts to charity above 0.5% of income; medical costs above
+    // 7.5% of income. With the standard deduction, cash gifts up to $1,000 ($2,000 joint) still count.
+    function usItemizeCheck({ yd = {}, income = 0, mortgageInterest = 0, saltIncome = 0, propertyTax = 0, charity = 0, medical = 0 }) {
+        const t = yd.usTax || {};
+        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const inc = Math.max(0, num(income));
+        const pick = (v, d) => (v === undefined || v === null || v === '' ? d : num(v));
+        const saltCap = Math.max(pick(t.saltFloor, 10000), pick(t.saltCap, 40400) - 0.3 * Math.max(0, inc - pick(t.saltPhaseoutStart, 505000)));
+        const saltRaw = num(saltIncome) + num(propertyTax);
+        const charityFloor = inc * pick(t.charityFloorPct, 0.5) / 100;
+        const medFloor = inc * pick(t.medicalFloorPct, 7.5) / 100;
+        const items = [
+            { key: 'mortgage', label: 'Intereses de la hipoteca', amount: cents(num(mortgageInterest)), raw: cents(num(mortgageInterest)) },
+            { key: 'salt', label: 'Impuestos estatales, locales y a la propiedad', amount: cents(Math.min(saltRaw, saltCap)), raw: cents(saltRaw), limit: cents(saltCap) },
+            { key: 'charity', label: 'Donaciones', amount: cents(Math.max(0, num(charity) - charityFloor)), raw: cents(num(charity)), floor: cents(charityFloor) },
+            { key: 'medical', label: 'Gastos médicos', amount: cents(Math.max(0, num(medical) - medFloor)), raw: cents(num(medical)), floor: cents(medFloor) }
+        ];
+        const itemized = cents(sum(items, i => i.amount));
+        const std = num((t.stdDeduction || {})[status]);
+        const stdCharity = cents(Math.min(num(charity), pick((t.charityNonItemizer || {})[status], status === 'mfj' ? 2000 : 1000)));
+        const base = { income: inc, status, dependents: yd.dependents, otherDependents: yd.otherDependents };
+        const taxStandard = usFederalTax(Object.assign({}, base, { stdExtra: stdCharity, t })).tax;
+        const taxItemized = usFederalTax(Object.assign({}, base, { itemized, t: Object.assign({}, t, { stdDeduction: { [status]: 0 } }) })).tax;
+        const itemize = itemized > std + stdCharity;
+        return { items, itemized, std, stdCharity, standardTotal: cents(std + stdCharity), itemize, taxStandard: cents(taxStandard), taxItemized: cents(taxItemized),
+            saving: cents(Math.abs(taxStandard - taxItemized)), short: cents(Math.max(0, std + stdCharity - itemized)), saltCap: cents(saltCap) };
     }
 
     // Ecuador's personal expenses (gastos personales) for the 18% rebate, from what you actually
@@ -168,11 +207,11 @@
     // Refund or owe: the year's federal tax for the household against what will have been withheld
     // (so far this year + per paycheck × paychecks left), and the W-4 change that evens it out —
     // extra withholding per paycheck (Step 4(c)) when you'd owe, less when the refund is large.
-    function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0 }) {
+    function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0, stdExtra = 0 }) {
         const t = yd.usTax || {};
         const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
         const income = Math.max(0, num(wagesIncome) + num(otherWages) + num(untaxedIncome));
-        const f = usFederalTax({ income, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, t });
+        const f = usFederalTax({ income, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, stdExtra, t });
         const withheld = num(withheldYtd) + num(perCheck) * Math.max(0, num(checksLeft)) + num(otherWithheld);
         const diff = withheld - f.tax;        // > 0 refund, < 0 owe
         const n = Math.max(1, Math.round(num(checksLeft)));
@@ -2093,7 +2132,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

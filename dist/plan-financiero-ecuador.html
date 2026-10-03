@@ -1175,6 +1175,10 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 </div>
                 <div class="grid grid-cols-2 gap-3 mb-3" id="inc-us-ded-kpis"></div>
                 <label class="field max-w-xs"><span class="field-label"><span>Deducciones detalladas al año (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="100" data-bind="year.itemized"><span class="help">Déjalo en 0 si tomas la deducción estándar.</span></label>
+                <div class="section-label mt-5"><i class="fa-solid fa-scale-unbalanced text-blue-600"></i> ¿Detallar o deducción estándar?</div>
+                <p class="help mb-3">Lo que podrías detallar según tus datos, contra la deducción estándar. Corrige cualquier monto si lo sabes.</p>
+                <div id="inc-itemize-in"></div>
+                <div id="inc-itemize"></div>
             </div>
             <div class="card" data-country="EC">
                 <div class="card-head">
@@ -4171,7 +4175,7 @@ I18n.add('en', {
 "Costa e Insular (Marzo)": "Coast & Islands (March)", "Crear": "Create", "Crear baseline": "Create baseline", "Cripto": "Crypto", "Cuidado Personal": "Personal Care",
 "Cuota": "Payment", "Cuota mensual": "Monthly payment", "Cuotas": "Installments", "Deducibles presupuestados": "Budgeted deductibles", "Deducibles reales": "Actual deductibles",
 "Delivery a Domicilio": "Food Delivery", "Depositar": "Deposit", "Desactivado": "Off", "Descargar copia (.json)": "Download backup (.json)", "Descuento": "Deduction",
-"Descuentos": "Deductions", "Deshacer": "Undo", "Deshacer venta": "Undo sale", "Detallada": "Detailed", "Detalle: historial, transacciones, grupo": "Details: history, transactions, group",
+"Descuentos": "Deductions", "Deshacer": "Undo", "Deshacer venta": "Undo sale", "Detallada": "Itemized", "Detalle: historial, transacciones, grupo": "Details: history, transactions, group",
 "Diezmo/Donaciones Religiosas": "Tithe/Religious Giving", "Diferencia": "Difference", "Dinero disponible": "Available money", "Disponible": "Available", "Dividendos": "Dividends",
 "Documentos": "Documents", "Edad": "Age", "Edad actual": "Current age", "Editar": "Edit", "Editar →": "Edit →",
 "Ej: 25.50": "E.g. 25.50", "Ej: Ana": "E.g. Ana", "Ej: Cozy Coffee": "E.g. Cozy Coffee", "Ej: Dar, Mascotas, Carro": "E.g. Giving, Pets, Car", "Ej: Dar, Mascotas, Carro, Hijos": "E.g. Giving, Pets, Car, Kids",
@@ -5013,7 +5017,41 @@ I18n.add('en', {
     "Rebaja ganada hasta hoy:": "Rebate earned so far:", "Tienes {0} en gastos sin factura a tu nombre que aún caben en el tope: pídela con tu cédula y sumarías {1}.": "You have {0} of spending without an invoice in your name that still fits under the cap: ask for one with your ID number and you'd add {1}.",
     "Cuentan las facturas importadas del SRI y las marcadas «con factura». Del dividendo hipotecario solo cuentan los intereses (certificado de tu banco); los restaurantes no cuentan como alimentación.": "Imported SRI invoices and purchases marked «with invoice» count. Of a mortgage payment only the interest counts (your bank's certificate); restaurants don't count as food.",
     "Cuando registres gastos de {0} en vivienda, salud, educación, alimentación, vestimenta o turismo, aquí verás cuánto llevas.": "When you log {0} spending on housing, health, education, food, clothing or tourism, you'll see your progress here.",
-    "a mi nombre (cuenta para la rebaja de gastos personales)": "in my name (counts for the personal-expenses rebate)", "{0} gasto{1} con factura": "{0} expense{1|s} with an invoice"
+    "a mi nombre (cuenta para la rebaja de gastos personales)": "in my name (counts for the personal-expenses rebate)", "{0} gasto{1} con factura": "{0} expense{1|s} with an invoice",
+    "¿Detallar o deducción estándar?": "Itemize or take the standard deduction?",
+    "Lo que podrías detallar según tus datos, contra la deducción estándar. Corrige cualquier monto si lo sabes.": "What you could itemize based on your data, against the standard deduction. Correct any amount if you know it.",
+    "Intereses de hipoteca al año ($)": "Mortgage interest per year ($)",
+    "Vacío = estimado con tu hipoteca. El exacto está en tu Form 1098.": "Empty = estimated from your mortgage. The exact amount is on your Form 1098.",
+    "Impuesto a la propiedad al año ($)": "Property tax per year ($)",
+    "Vacío = el de tu escrow o tus movimientos.": "Empty = from your escrow or your transactions.",
+    "Donaciones al año ($)": "Charitable gifts per year ($)",
+    "Vacío = tus donaciones de los últimos 12 meses.": "Empty = your gifts over the last 12 months.",
+    "Gastos médicos al año ($)": "Medical costs per year ($)",
+    "Vacío = lo que pagaste de tu bolsillo en 12 meses.": "Empty = what you paid out of pocket in 12 months.",
+    "Intereses de la hipoteca": "Mortgage interest",
+    "Impuestos estatales, locales y a la propiedad": "State, local and property taxes",
+    "Gastos médicos": "Medical costs",
+    "{0} estatal y local + {1} propiedad": "{0} state and local + {1} property",
+    "{0} menos {1} (0.5% del ingreso)": "{0} minus {1} (0.5% of income)",
+    "{0} menos {1} (7.5% del ingreso)": "{0} minus {1} (7.5% of income)",
+    "Lo que podrías detallar": "What you could itemize",
+    "Total detallado": "Itemized total",
+    "Pagarías {0} menos de impuesto federal que con la deducción estándar.": "You'd pay {0} less federal tax than with the standard deduction.",
+    "Te conviene detallar.": "Itemizing is better for you.",
+    "Donaciones": "Charitable gifts",
+    "Deducible": "Deductible",
+    "Deducción estándar": "Standard deduction",
+    "Deducción detallada": "Itemized deduction",
+    "impuesto federal: {0}": "federal tax: {0}",
+    "Usar {0} en mi cálculo": "Use {0} in my numbers",
+    "Ya lo usas en tu cálculo.": "Already used in your numbers.",
+    "Te conviene la deducción estándar.": "The standard deduction is better for you.",
+    "Te faltarían {0} en gastos deducibles para que detallar valga la pena.": "You'd need {0} more in deductible expenses for itemizing to pay off.",
+    "Desde 2026, aun con la estándar, tus donaciones en efectivo restan hasta {0}.": "From 2026, even with the standard deduction, your cash gifts to charity take off up to {0}.",
+    "Usar la deducción estándar": "Use the standard deduction",
+    "Usas la deducción estándar": "Using the standard deduction",
+    "Si juntas las donaciones de dos años en uno (por ejemplo, las de enero en diciembre), ese año detallarías y el siguiente tomarías la estándar.": "If you bunch two years of gifts into one (for example, January's in December), you'd itemize that year and take the standard deduction the next.",
+    "Estimado con las reglas de 2026: impuestos estatales y locales hasta {0}, donaciones por encima del 0.5% de tu ingreso y gastos médicos por encima del 7.5%. Los gastos pagados con tu HSA no cuentan.": "Estimated with the 2026 rules: state and local taxes up to {0}, charitable gifts above 0.5% of your income and medical costs above 7.5%. Costs paid from your HSA don't count."
 });
 </script>
 <script>/* js/i18n/us.js */
@@ -5710,6 +5748,11 @@ I18n.country('US', {
             hoh: [[0, 0.10], [17700, 0.12], [67450, 0.22], [105700, 0.24], [201750, 0.32], [256200, 0.35], [640600, 0.37]]
         },
         stdDeduction: { single: 16100, mfj: 32200, hoh: 24150 },
+        // Itemizing (One Big Beautiful Bill Act): SALT cap, cut by 30% of income above the threshold
+        // down to a $10,000 floor; charity counts above 0.5% of income; medical above 7.5%. Taking
+        // the standard deduction, cash gifts to charity up to these amounts still come off.
+        saltCap: 40400, saltPhaseoutStart: 505000, saltFloor: 10000, charityFloorPct: 0.5, medicalFloorPct: 7.5,
+        charityNonItemizer: { single: 1000, mfj: 2000, hoh: 1000 },
         childCredit: 2200,          // per qualifying child under 17
         otherDependentCredit: 500,
         // Both credits drop $50 per $1,000 of income above these amounts (IRC §24(b)).
@@ -7113,15 +7156,54 @@ I18n.country('US', {
     // Federal income tax on a year's income (after pre-tax deductions): the larger of the standard
     // or itemized deduction, the brackets, minus child / other-dependent credits — which phase out
     // $50 per $1,000 (or part) of income above $200,000 ($400,000 married filing jointly), IRC §24(b).
-    function usFederalTax({ income, status = 'single', dependents = 0, otherDependents = 0, itemized = 0, t = {} }) {
+    // `stdExtra`: what still comes off when taking the standard deduction (cash gifts to charity, from 2026).
+    function usFederalTax({ income, status = 'single', dependents = 0, otherDependents = 0, itemized = 0, stdExtra = 0, t = {} }) {
         const std = num((t.stdDeduction || {})[status]);
-        const dedApplied = Math.max(std, num(itemized));
+        const dedApplied = Math.max(std + num(stdExtra), num(itemized));
         const taxable = Math.max(0, num(income) - dedApplied);
         const baseCredits = num(dependents) * num(t.childCredit) + num(otherDependents) * num(t.otherDependentCredit);
         const phaseStart = num((t.ctcPhaseoutStart || { single: 200000, mfj: 400000, hoh: 200000 })[status]);
         const credits = Math.max(0, baseCredits - Math.ceil(Math.max(0, num(income) - phaseStart) / 1000) * (num(t.ctcPhaseoutStep) || 50));
         const before = bracketTax(taxable, (t.brackets || {})[status]);
         return { std, dedApplied, taxable, credits, before, tax: Math.max(0, before - credits) };
+    }
+
+    // Interest paid on a loan over the next `months` payments, from its balance today.
+    function loanInterestAhead(balance, ratePct, payment, months = 12) {
+        let b = Math.max(0, num(balance)), total = 0;
+        const r = num(ratePct) / 1200;
+        for (let i = 0; i < months && b > 0.005; i++) { const it = b * r; total += it; b = Math.max(0, b + it - num(payment)); }
+        return cents(total);
+    }
+
+    // Itemize or take the standard deduction (US, tax years from 2026): mortgage interest; state and
+    // local income and property taxes up to the SALT cap ($40,400 in 2026, less 30% of income above
+    // $505,000, never under $10,000); gifts to charity above 0.5% of income; medical costs above
+    // 7.5% of income. With the standard deduction, cash gifts up to $1,000 ($2,000 joint) still count.
+    function usItemizeCheck({ yd = {}, income = 0, mortgageInterest = 0, saltIncome = 0, propertyTax = 0, charity = 0, medical = 0 }) {
+        const t = yd.usTax || {};
+        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const inc = Math.max(0, num(income));
+        const pick = (v, d) => (v === undefined || v === null || v === '' ? d : num(v));
+        const saltCap = Math.max(pick(t.saltFloor, 10000), pick(t.saltCap, 40400) - 0.3 * Math.max(0, inc - pick(t.saltPhaseoutStart, 505000)));
+        const saltRaw = num(saltIncome) + num(propertyTax);
+        const charityFloor = inc * pick(t.charityFloorPct, 0.5) / 100;
+        const medFloor = inc * pick(t.medicalFloorPct, 7.5) / 100;
+        const items = [
+            { key: 'mortgage', label: 'Intereses de la hipoteca', amount: cents(num(mortgageInterest)), raw: cents(num(mortgageInterest)) },
+            { key: 'salt', label: 'Impuestos estatales, locales y a la propiedad', amount: cents(Math.min(saltRaw, saltCap)), raw: cents(saltRaw), limit: cents(saltCap) },
+            { key: 'charity', label: 'Donaciones', amount: cents(Math.max(0, num(charity) - charityFloor)), raw: cents(num(charity)), floor: cents(charityFloor) },
+            { key: 'medical', label: 'Gastos médicos', amount: cents(Math.max(0, num(medical) - medFloor)), raw: cents(num(medical)), floor: cents(medFloor) }
+        ];
+        const itemized = cents(sum(items, i => i.amount));
+        const std = num((t.stdDeduction || {})[status]);
+        const stdCharity = cents(Math.min(num(charity), pick((t.charityNonItemizer || {})[status], status === 'mfj' ? 2000 : 1000)));
+        const base = { income: inc, status, dependents: yd.dependents, otherDependents: yd.otherDependents };
+        const taxStandard = usFederalTax(Object.assign({}, base, { stdExtra: stdCharity, t })).tax;
+        const taxItemized = usFederalTax(Object.assign({}, base, { itemized, t: Object.assign({}, t, { stdDeduction: { [status]: 0 } }) })).tax;
+        const itemize = itemized > std + stdCharity;
+        return { items, itemized, std, stdCharity, standardTotal: cents(std + stdCharity), itemize, taxStandard: cents(taxStandard), taxItemized: cents(taxItemized),
+            saving: cents(Math.abs(taxStandard - taxItemized)), short: cents(Math.max(0, std + stdCharity - itemized)), saltCap: cents(saltCap) };
     }
 
     // Ecuador's personal expenses (gastos personales) for the 18% rebate, from what you actually
@@ -7183,11 +7265,11 @@ I18n.country('US', {
     // Refund or owe: the year's federal tax for the household against what will have been withheld
     // (so far this year + per paycheck × paychecks left), and the W-4 change that evens it out —
     // extra withholding per paycheck (Step 4(c)) when you'd owe, less when the refund is large.
-    function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0 }) {
+    function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0, stdExtra = 0 }) {
         const t = yd.usTax || {};
         const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
         const income = Math.max(0, num(wagesIncome) + num(otherWages) + num(untaxedIncome));
-        const f = usFederalTax({ income, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, t });
+        const f = usFederalTax({ income, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, stdExtra, t });
         const withheld = num(withheldYtd) + num(perCheck) * Math.max(0, num(checksLeft)) + num(otherWithheld);
         const diff = withheld - f.tax;        // > 0 refund, < 0 owe
         const n = Math.max(1, Math.round(num(checksLeft)));
@@ -9108,7 +9190,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -12927,7 +13009,7 @@ I18n.country('US', {
         renderSummary();
         taxYearNote(ctx);
         if (window.SideIncome) SideIncome.render(ctx);
-        if (p.country === 'US') { renderUS(ctx); if (window.Refund) Refund.render(ctx); return; }
+        if (p.country === 'US') { renderUS(ctx); if (window.Refund) Refund.render(ctx); if (window.Itemize) Itemize.render(ctx); return; }
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
             ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],
@@ -13056,7 +13138,7 @@ I18n.country('US', {
         const box = document.getElementById('inc-refund-in');
         if (box && !box.contains(document.activeElement)) UI.html('inc-refund-in', inputs);
         if (!per && !Number(c.ytd)) { UI.html('inc-refund', '<p class="text-xs mt-3"><i class="fa-solid fa-circle-info text-blue-600"></i> Escribe la retención federal de tu último talón de pago para ver si te devolverán o deberás.</p>'); return; }
-        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: c.spouseWages, otherWithheld: c.spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left });
+        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: c.spouseWages, otherWithheld: c.spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left, stdExtra: window.Itemize ? Itemize.giftsOffStandard(ctx) : 0 });
         const big = Math.abs(r.diff) >= 500;
         const tone = r.diff >= 0 && r.diff < 1500 ? 'tone-emerald' : r.diff >= 0 ? 'tone-amber' : 'tone-red';
         const w4 = r.adjustPerCheck === null ? '' : r.diff < -100
@@ -13080,6 +13162,98 @@ I18n.country('US', {
     });
 
     window.Refund = { render };
+})();
+</script>
+    <script>/* js/views/itemize.js */
+/* Ingresos (US) → ¿Detallar o deducción estándar?: what you could itemize — mortgage interest (from
+ * your mortgage), state and local taxes (from your paycheck and the escrow's property tax), gifts to
+ * charity and medical costs (your last 12 months of transactions) — against the standard deduction,
+ * and the federal tax each way (Engine.usItemizeCheck). Any amount can be typed over;
+ * yd.itemizeInputs: { mortgage, property, charity, medical } (null = from your data). */
+(function () {
+    'use strict';
+    const { money, money0, esc } = Fmt;
+    const CHARITY = ['Diezmo/Donaciones Religiosas', 'Donaciones Benéficas'];
+    const cfg = (yd) => yd.itemizeInputs || (yd.itemizeInputs = { mortgage: null, property: null, charity: null, medical: null });
+
+    // What your own data says for each amount.
+    function auto(ctx) {
+        const s = ctx.state, yd = ctx.year, t = ctx.today;
+        const since = Engine.isoDate(new Date(t.getFullYear() - 1, t.getMonth(), t.getDate() + 1));
+        const spent = (test) => s.transactions.filter(x => (x.type || 'Gasto') === 'Gasto' && x.date >= since && !x.fromGoal && test(x)).reduce((a, x) => a + Engine.spendAmount(x), 0);
+        const m = s.mortgage || {};
+        const balance = Number((yd.netWorth || {}).mortgage) || 0;
+        const pay = Engine.loanPayment(m.amount, m.rate, (Number(m.years) || 30) * 12).payment;
+        const mortgage = balance > 0 && Number(m.rate) > 0 ? Engine.loanInterestAhead(balance, m.rate, pay, 12) : 0;
+        const property = balance > 0 && Number(m.propertyTax) > 0 ? Number(m.propertyTax) : spent(x => x.category === 'Impuesto Predial');
+        return { mortgage, property, charity: spent(x => CHARITY.includes(x.category)), medical: spent(x => x.parentCategory === 'Salud' && x.category !== 'Seguro Médico') };
+    }
+
+    function check(ctx) {
+        const yd = ctx.year, p = ctx.pay, c = cfg(yd), a = auto(ctx);
+        const val = (k) => (c[k] === null || c[k] === undefined || c[k] === '' ? a[k] : Number(c[k]) || 0);
+        const w = yd.withholding || {};
+        const income = (Number(p.incomeWages) || 0) + (yd.filingStatus === 'mfj' ? Number(w.spouseWages) || 0 : 0) + (Number(w.untaxed) || 0);
+        const saltIncome = ((Number(p.stateM) || 0) + (Number(p.localM) || 0)) * 12;
+        const r = Engine.usItemizeCheck({ yd, income, mortgageInterest: val('mortgage'), saltIncome, propertyTax: val('property'), charity: val('charity'), medical: val('medical') });
+        return { yd, c, a, val, saltIncome, r };
+    }
+
+    // Cash gifts that still come off when taking the standard deduction (for the refund estimate).
+    const giftsOffStandard = (ctx) => (Number(ctx.year.itemized) > 0 ? 0 : check(ctx).r.stdCharity);
+
+    function render(ctx) {
+        const el = document.getElementById('inc-itemize');
+        if (!el) return;
+        const { yd, c, a, val, saltIncome, r } = check(ctx);
+
+        const v = (x) => (x === null || x === undefined ? '' : esc(String(x)));
+        const field = (key, label, help) => `<label class="field"><span class="field-label">${label}</span><input type="number" class="input" min="0" step="10" data-input="itemize.set" data-key="${key}" value="${v(c[key])}" placeholder="${esc(money0(a[key]))}"><span class="help">${help}</span></label>`;
+        const box = document.getElementById('inc-itemize-in');
+        if (box && !box.contains(document.activeElement)) UI.html('inc-itemize-in', `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            ${field('mortgage', 'Intereses de hipoteca al año ($)', 'Vacío = estimado con tu hipoteca. El exacto está en tu Form 1098.')}
+            ${field('property', 'Impuesto a la propiedad al año ($)', 'Vacío = el de tu escrow o tus movimientos.')}
+            ${field('charity', 'Donaciones al año ($)', 'Vacío = tus donaciones de los últimos 12 meses.')}
+            ${field('medical', 'Gastos médicos al año ($)', 'Vacío = lo que pagaste de tu bolsillo en 12 meses.')}
+        </div>`);
+
+        const note = (i) => i.key === 'salt' ? (i.raw > i.limit ? `tope ${money0(i.limit)}` : `${money0(saltIncome)} estatal y local + ${money0(val('property'))} propiedad`)
+            : i.key === 'charity' ? `${money0(i.raw)} menos ${money0(i.floor)} (0.5% del ingreso)`
+            : i.key === 'medical' ? `${money0(i.raw)} menos ${money0(i.floor)} (7.5% del ingreso)` : '';
+        const rows = r.items.map(i => `<tr><td>${esc(i.label)}${note(i) ? `<div class="text-[11px] text-slate-500">${note(i)}</div>` : ''}</td><td class="num">${money0(i.amount)}</td></tr>`).join('');
+        const using = Number(yd.itemized) || 0;
+        const verdict = r.itemize
+            ? `<p><strong>Te conviene detallar.</strong> Pagarías ${money0(r.saving)} menos de impuesto federal que con la deducción estándar.</p>${Math.abs(using - r.itemized) >= 1 ? `<button type="button" class="btn btn-primary btn-sm mt-2" data-action="itemize.use" data-amount="${r.itemized}"><i class="fa-solid fa-check"></i> Usar ${money0(r.itemized)} en mi cálculo</button>` : '<p class="text-emerald-700 mt-1"><i class="fa-solid fa-circle-check"></i> Ya lo usas en tu cálculo.</p>'}`
+            : `<p><strong>Te conviene la deducción estándar.</strong> Te faltarían ${money0(r.short)} en gastos deducibles para que detallar valga la pena.</p>${r.stdCharity > 0 ? `<p class="mt-1">Desde 2026, aun con la estándar, tus donaciones en efectivo restan hasta ${money0(r.stdCharity)}.</p>` : ''}${using > 0 ? `<button type="button" class="btn btn-secondary btn-sm mt-2" data-action="itemize.use" data-amount="0">Usar la deducción estándar</button>` : ''}`;
+        const bunch = !r.itemize && r.short > 0 && val('charity') > 0 && r.short <= val('charity')
+            ? `<p class="text-xs mt-2"><i class="fa-solid fa-lightbulb text-amber-500"></i> Si juntas las donaciones de dos años en uno (por ejemplo, las de enero en diciembre), ese año detallarías y el siguiente tomarías la estándar.</p>` : '';
+        UI.html('inc-itemize', `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div class="table-wrap"><table class="table"><thead><tr><th>Lo que podrías detallar</th><th class="num">Deducible</th></tr></thead><tbody>${rows}</tbody>
+                <tfoot><tr><td>Total detallado</td><td class="num">${money0(r.itemized)}</td></tr></tfoot></table></div>
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="kpi ${r.itemize ? 'tone-slate' : 'tone-emerald'}"><span class="kpi-label">Deducción estándar</span><span class="kpi-value">${money0(r.standardTotal)}</span><span class="kpi-note">impuesto federal: ${money0(r.taxStandard)}</span></div>
+                        <div class="kpi ${r.itemize ? 'tone-emerald' : 'tone-slate'}"><span class="kpi-label">Deducción detallada</span><span class="kpi-value">${money0(r.itemized)}</span><span class="kpi-note">impuesto federal: ${money0(r.taxItemized)}</span></div>
+                    </div>
+                    <div class="panel ${r.itemize ? 'tone-emerald' : 'tone-blue'} text-xs">${verdict}</div>${bunch}
+                </div>
+            </div>
+            <p class="help mt-2">Estimado con las reglas de 2026: impuestos estatales y locales hasta ${money0(r.saltCap)}, donaciones por encima del 0.5% de tu ingreso y gastos médicos por encima del 7.5%. Los gastos pagados con tu HSA no cuentan.</p>`);
+    }
+
+    UI.register({
+        'itemize.set': (el) => {
+            const c = cfg(Store.active());
+            c[el.dataset.key] = el.value === '' ? null : Math.max(0, Fmt.parseNum(el.value, 0));
+            App.changed({ step: true });
+        },
+        'itemize.use': (el) => {
+            const amount = Math.max(0, Number(el.dataset.amount) || 0);
+            App.undoable(amount > 0 ? `Deducciones detalladas: ${money(amount)}` : 'Usas la deducción estándar', () => { Store.active().itemized = amount; });
+        }
+    });
+
+    window.Itemize = { render, giftsOffStandard };
 })();
 </script>
 <script>/* js/views/sideincome.js */

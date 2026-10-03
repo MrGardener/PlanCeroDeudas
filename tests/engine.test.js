@@ -1209,3 +1209,23 @@ test('Ecuador personal expenses: SRI categories, invoices, rebate vs cap', () =>
     assert.equal(r.missingInvoices, 0);   // the invoiced part already passes the cap
     assert.equal(E.sriPersonalExpenses(txns, 2026, { cap: 1000 }).missingInvoices, 40);
 });
+
+test('itemize or standard (US 2026): SALT cap, charity and medical floors, tax each way', () => {
+    const yd = usYear({ filingStatus: 'mfj', dependents: 2 });
+    const a = E.usItemizeCheck({ yd, income: 150000, mortgageInterest: 15000, saltIncome: 6000, propertyTax: 4000, charity: 5000, medical: 3000 });
+    assert.deepEqual(a.items.map(i => i.amount), [15000, 10000, 4250, 0]);   // charity − 0.5% × 150,000; medical under 7.5%
+    assert.equal(a.itemized, 29250); assert.equal(a.stdCharity, 2000); assert.equal(a.standardTotal, 34200);
+    assert.equal(a.itemize, false); assert.equal(a.short, 4950);
+    assert.equal(a.taxStandard, 10500);   // (150,000 − 34,200) through the joint brackets − $4,400 credits
+    const b = E.usItemizeCheck({ yd, income: 150000, mortgageInterest: 25000, saltIncome: 6000, propertyTax: 4000, charity: 5000, medical: 3000 });
+    assert.equal(b.itemize, true); assert.equal(b.taxItemized, 9389); assert.equal(b.saving, 1111);
+    // SALT cap shrinks 30% of income above $505,000, never under $10,000.
+    const c = E.usItemizeCheck({ yd: usYear({ filingStatus: 'single' }), income: 600000, saltIncome: 30000, propertyTax: 9000 });
+    assert.equal(c.saltCap, 11900); assert.equal(c.items[1].amount, 11900);
+    assert.equal(E.usItemizeCheck({ yd: usYear({}), income: 900000, saltIncome: 50000 }).saltCap, 10000);
+    // The refund estimate takes the gifts that come off the standard deduction too (12% bracket here).
+    const ref = (x) => E.usRefundEstimate({ yd, wagesIncome: 90000, stdExtra: x }).tax;
+    assert.equal(Math.round((ref(0) - ref(2000)) * 100) / 100, 240);
+    const i = E.loanInterestAhead(100000, 6, E.loanPayment(100000, 6, 360).payment, 12);
+    assert.ok(i > 5900 && i < 6000, String(i));
+});

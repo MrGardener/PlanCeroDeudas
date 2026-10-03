@@ -24,6 +24,11 @@
             hoh: [[0, 0.10], [17700, 0.12], [67450, 0.22], [105700, 0.24], [201750, 0.32], [256200, 0.35], [640600, 0.37]]
         },
         stdDeduction: { single: 16100, mfj: 32200, hoh: 24150 },
+        // Itemizing (One Big Beautiful Bill Act): SALT cap, cut by 30% of income above the threshold
+        // down to a $10,000 floor; charity counts above 0.5% of income; medical above 7.5%. Taking
+        // the standard deduction, cash gifts to charity up to these amounts still come off.
+        saltCap: 40400, saltPhaseoutStart: 505000, saltFloor: 10000, charityFloorPct: 0.5, medicalFloorPct: 7.5,
+        charityNonItemizer: { single: 1000, mfj: 2000, hoh: 1000 },
         childCredit: 2200,          // per qualifying child under 17
         otherDependentCredit: 500,
         // Both credits drop $50 per $1,000 of income above these amounts (IRC §24(b)).

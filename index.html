@@ -434,6 +434,10 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3 mb-3" id="inc-us-ded-kpis"></div>
                 <label class="field max-w-xs"><span class="field-label"><span>Deducciones detalladas al año (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="100" data-bind="year.itemized"><span class="help">Déjalo en 0 si tomas la deducción estándar.</span></label>
+                <div class="section-label mt-5"><i class="fa-solid fa-scale-unbalanced text-blue-600"></i> ¿Detallar o deducción estándar?</div>
+                <p class="help mb-3">Lo que podrías detallar según tus datos, contra la deducción estándar. Corrige cualquier monto si lo sabes.</p>
+                <div id="inc-itemize-in"></div>
+                <div id="inc-itemize"></div>
             </div>
             <div class="card" data-country="EC">
                 <div class="card-head">
@@ -1610,6 +1614,7 @@
 <script src="js/views/cierre.js"></script>
 <script src="js/views/ingresos.js"></script>
 <script src="js/views/refund.js"></script>
+    <script src="js/views/itemize.js"></script>
 <script src="js/views/sideincome.js"></script>
 <script src="js/views/payscan.js"></script>
 <script src="js/views/transacciones.js"></script>
