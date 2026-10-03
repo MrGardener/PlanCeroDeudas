@@ -1249,3 +1249,18 @@ test('investments: cost and gain, mix by asset class, drift, rebalancing and new
     assert.equal(none.hasTarget, false); assert.equal(none.rebalance, false); assert.deepEqual(none.split, []);
     assert.equal(E.portfolioMix([{ ticker: 'VOO', shares: 1, price: 500 }], null).gain, null);   // no cost entered
 });
+
+test('prepay the mortgage or invest: both paths, interest saved, break-even return', () => {
+    const P = E.loanPayment(250000, 6.5, 300).payment;
+    const a = E.prepayOrInvest({ balance: 250000, ratePct: 6.5, payment: P, extra: 300, returnPct: 10, gainsTaxPct: 15 });
+    assert.equal(a.horizon, 300); assert.equal(a.prepayMonths, 212); assert.equal(a.monthsSooner, 88);
+    assert.ok(a.interestSaved > 85000 && a.interestSaved < 86000, String(a.interestSaved));
+    assert.equal(a.winner, 'invest'); assert.ok(a.diff > 100000);
+    close(a.breakEven, 7.04, 0.01);                       // above the 6.5% rate: the gains tax
+    const b = E.prepayOrInvest({ balance: 250000, ratePct: 6.5, payment: P, extra: 300, returnPct: 5 });
+    assert.equal(b.winner, 'prepay');
+    close(b.breakEven, 6.5, 0.001);                       // no taxes: even exactly at the mortgage rate
+    // Deducting the interest lowers the mortgage's real cost, so the break-even drops.
+    assert.ok(E.prepayOrInvest({ balance: 250000, ratePct: 6.5, payment: P, extra: 300, returnPct: 5, deductPct: 22 }).breakEven < 6.5);
+    assert.equal(E.prepayOrInvest({ balance: 100000, ratePct: 12, payment: 900, extra: 100, returnPct: 8 }).never, true);  // payment under the interest
+});

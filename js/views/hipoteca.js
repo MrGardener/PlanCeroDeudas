@@ -36,6 +36,7 @@
                      <div class="kpi tone-emerald col-span-2"><span class="kpi-label">Interés que te ahorras</span><span class="kpi-value">${money0(base.totalInterest - extra.totalInterest)}</span><span class="kpi-note">Pagas ${money0(extra.totalInterest)} de interés en total</span></div>`;
         }
         UI.html('mort-summary', html);
+        if (window.Prepay) Prepay.render(ctx);
 
         const axis = Engine.chartAxis(base.schedule.length);
         const pal = UI.palette();

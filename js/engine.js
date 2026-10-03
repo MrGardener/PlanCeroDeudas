@@ -1380,6 +1380,50 @@
         const pay = r > 0 ? P * r / (1 - Math.pow(1 + r, -n)) : P / n;
         return { payment: cents(pay), total: cents(pay * n), interest: cents(pay * n - P), months: n };
     }
+    // Pay the mortgage off early, or invest the difference? Over the loan's remaining life, path
+    // "prepay" puts `extra` toward principal each month and, once the house is paid, invests the
+    // whole payment + extra; path "invest" pays as scheduled and invests `extra` from the start.
+    // Both end with no mortgage; what's compared is the investments then, after tax on the gains
+    // (`gainsTaxPct`). `deductPct` is the tax saved per dollar of mortgage interest (only when you
+    // itemize), reinvested in both paths. `breakEven`: the return at which both come out even.
+    function prepayOrInvest({ balance, ratePct, payment, extra, returnPct, gainsTaxPct = 0, deductPct = 0, maxMonths = 600 }) {
+        const B0 = Math.max(0, num(balance)), r = num(ratePct) / 1200, P = Math.max(0, num(payment)), X = Math.max(0, num(extra));
+        const run = (ret) => {
+            const g = num(ret) / 1200, d = num(deductPct) / 100;
+            const path = (extraToLoan) => {
+                let bal = B0, inv = 0, put = 0, interest = 0, paidOff = null, m = 0;
+                for (m = 1; m <= horizon; m++) {
+                    let toInvest = extraToLoan ? 0 : X;
+                    if (bal > 0.005) {
+                        const it = bal * r, due = P + (extraToLoan ? X : 0), pay = Math.min(bal + it, due);
+                        bal = bal + it - pay; interest += it; toInvest += due - pay + it * d;
+                        if (bal <= 0.005 && paidOff === null) paidOff = m;
+                    } else toInvest += P + (extraToLoan ? X : 0);
+                    inv = inv * (1 + g) + toInvest; put += toInvest;
+                }
+                const after = inv - Math.max(0, inv - put) * num(gainsTaxPct) / 100;
+                return { wealth: after, interest, paidOff: paidOff === null ? horizon : paidOff };
+            };
+            return { a: path(true), b: path(false) };
+        };
+        // The horizon: when the loan would be paid as scheduled.
+        let horizon = 0;
+        for (let bal = B0; bal > 0.005 && horizon < maxMonths; horizon++) bal = bal * (1 + r) - P;
+        if (!B0 || !horizon || P <= B0 * r) return { horizon, never: P <= B0 * r && B0 > 0 };
+        const x = run(returnPct);
+        // Break-even return: invest wins above it (bisection; invest − prepay grows with the return).
+        let lo = 0, hi = 40;
+        const diffAt = (ret) => { const y = run(ret); return y.b.wealth - y.a.wealth; };
+        let breakEven = null;
+        if (X > 0 && diffAt(lo) < 0 && diffAt(hi) > 0) {
+            for (let i = 0; i < 50; i++) { const mid = (lo + hi) / 2; if (diffAt(mid) > 0) hi = mid; else lo = mid; }
+            breakEven = (lo + hi) / 2;
+        }
+        return { horizon, prepayMonths: x.a.paidOff, monthsSooner: horizon - x.a.paidOff, interestPrepay: cents(x.a.interest), interestInvest: cents(x.b.interest),
+            interestSaved: cents(x.b.interest - x.a.interest), wealthPrepay: cents(x.a.wealth), wealthInvest: cents(x.b.wealth),
+            diff: cents(x.b.wealth - x.a.wealth), winner: x.b.wealth > x.a.wealth + 0.5 ? 'invest' : x.a.wealth > x.b.wealth + 0.5 ? 'prepay' : 'tie', breakEven };
+    }
+
     // Paying a credit card: months and interest at a fixed payment, and at the card's minimum
     // (a common formula: 1% of the balance plus that month's interest, at least $25).
     function cardPayoff(balance, aprPct, payment, { minPct = 1, minFloor = 25, maxMonths = 600 } = {}) {
@@ -2180,7 +2224,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

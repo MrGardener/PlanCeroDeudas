@@ -1863,6 +1863,12 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 </div>
                 <p class="help text-amber-800">Un abono adicional cada mes, directo al capital. Mira cómo cambian las líneas punteadas de arriba y el resumen.</p>
             </div>
+            <div class="panel tone-slate mb-5" id="mort-prepay">
+                <div class="section-label"><i class="fa-solid fa-scale-unbalanced-flip text-indigo-600"></i> ¿Abonar a la hipoteca o invertir?</div>
+                <p class="help mb-3">El mismo dinero extra cada mes, de dos formas: abonarlo a la casa (y, ya pagada, invertir toda la cuota) o invertirlo desde hoy. Al terminar el plazo normal, ¿cuánto tendrías en cada caso?</p>
+                <div id="mort-prepay-in"></div>
+                <div id="mort-prepay-out"></div>
+            </div>
             <details class="explain mb-5">
                 <summary>¿Cómo se calculan los sistemas Francés y Alemán?</summary>
                 <div>
@@ -5093,7 +5099,34 @@ I18n.add('en', {
     "Ganancia": "Gain",
     "Costo total: lo que pagaste por todas las unidades (con comisiones). Así ves cuánto has ganado o perdido.": "Total cost: what you paid for all the units (with fees). That's how you see what you've gained or lost.",
     "Costo total": "Total cost",
-    "Clase": "Class"
+    "Clase": "Class",
+    "¿Abonar a la hipoteca o invertir?": "Pay off the mortgage early or invest?",
+    "El mismo dinero extra cada mes, de dos formas: abonarlo a la casa (y, ya pagada, invertir toda la cuota) o invertirlo desde hoy. Al terminar el plazo normal, ¿cuánto tendrías en cada caso?": "The same extra money each month, two ways: put it toward the house (and, once it's paid off, invest the whole payment) or invest it from today. At the end of the normal term, how much would you have each way?",
+    "Dinero extra al mes ($)": "Extra money per month ($)",
+    "Rendimiento esperado al invertir (%)": "Expected return when investing (%)",
+    "Promedio histórico de la bolsa: ~10%, con años malos.": "Stock market historical average: ~10%, with bad years.",
+    "Por ejemplo, la tasa de tus pólizas.": "For example, your CDs' rate.",
+    "Impuesto sobre la ganancia (%)": "Tax on the gain (%)",
+    "En una cuenta normal, 15% para la mayoría. 0 en un Roth IRA.": "In a regular account, 15% for most people. 0 in a Roth IRA.",
+    "Ahorro de impuesto por interés (%)": "Tax saved on interest (%)",
+    "Tu tramo federal si detallas deducciones; 0 si tomas la estándar.": "Your federal bracket if you itemize; 0 if you take the standard deduction.",
+    "Completa el monto, la tasa y el plazo de tu hipoteca arriba.": "Fill in your mortgage's amount, rate and term above.",
+    "Escribe cuánto dinero extra tendrías cada mes.": "Type how much extra money you'd have each month.",
+    "Abonando {0} al mes": "Paying {0} extra a month",
+    "Casa pagada {0} antes, {1} menos de interés; luego inviertes la cuota": "House paid off {0} sooner, {1} less interest; then you invest the payment",
+    "Invirtiendo {0} al mes": "Investing {0} a month",
+    "Invertido en {0}, cuando la hipoteca termina igual": "Invested by {0}, when the mortgage ends anyway",
+    "Por números, invertir dejaría {0} más": "By the numbers, investing would leave {0} more",
+    "si el dinero rinde {0}% cada año. Pero ese rendimiento no está garantizado: hay años en que la bolsa cae. Abonar a la casa es una ganancia segura del {1}%.": "if the money earns {0}% every year. But that return isn't guaranteed: some years the market falls. Paying down the house is a sure {1}% return.",
+    "Abonar a la casa deja {0} más": "Paying down the house leaves {0} more",
+    ", y sin riesgo: con un rendimiento de {0}%, invertir no le gana al {1}% de la hipoteca.": ", with no risk: at a {0}% return, investing doesn't beat the mortgage's {1}%.",
+    "Invertir gana solo si rinde más de": "Investing only wins if it earns more than",
+    "al año en promedio durante {0}.": "a year on average for {0}.",
+    "Desde tu saldo de hoy ({0}).": "From your balance today ({0}).",
+    "Desde el monto del préstamo.": "From the loan amount.",
+    "En los Baby Steps, pagar la casa antes es el paso 6: primero el fondo de emergencia completo, el 15% a la jubilación y la universidad de los hijos. Y una casa pagada da tranquilidad: sin cuota, un mes difícil se lleva mejor.": "In the Baby Steps, paying off the house early is step 6: first the full emergency fund, 15% to retirement and the kids' college. And a paid-off house brings peace: with no payment, a hard month is easier to get through.",
+    "si el dinero rinde {0}% cada año durante todo el plazo. Las tasas de las pólizas cambian al renovarlas; abonar a la casa es una ganancia segura del {1}%.": "if the money earns {0}% every year for the whole term. CD rates change when you renew them; paying down the house is a sure {1}% return.",
+    "Se calcula con una cuota fija (sistema francés).": "Calculated with a fixed payment (French system)."
 });
 </script>
 <script>/* js/i18n/us.js */
@@ -8484,6 +8517,50 @@ I18n.country('US', {
         const pay = r > 0 ? P * r / (1 - Math.pow(1 + r, -n)) : P / n;
         return { payment: cents(pay), total: cents(pay * n), interest: cents(pay * n - P), months: n };
     }
+    // Pay the mortgage off early, or invest the difference? Over the loan's remaining life, path
+    // "prepay" puts `extra` toward principal each month and, once the house is paid, invests the
+    // whole payment + extra; path "invest" pays as scheduled and invests `extra` from the start.
+    // Both end with no mortgage; what's compared is the investments then, after tax on the gains
+    // (`gainsTaxPct`). `deductPct` is the tax saved per dollar of mortgage interest (only when you
+    // itemize), reinvested in both paths. `breakEven`: the return at which both come out even.
+    function prepayOrInvest({ balance, ratePct, payment, extra, returnPct, gainsTaxPct = 0, deductPct = 0, maxMonths = 600 }) {
+        const B0 = Math.max(0, num(balance)), r = num(ratePct) / 1200, P = Math.max(0, num(payment)), X = Math.max(0, num(extra));
+        const run = (ret) => {
+            const g = num(ret) / 1200, d = num(deductPct) / 100;
+            const path = (extraToLoan) => {
+                let bal = B0, inv = 0, put = 0, interest = 0, paidOff = null, m = 0;
+                for (m = 1; m <= horizon; m++) {
+                    let toInvest = extraToLoan ? 0 : X;
+                    if (bal > 0.005) {
+                        const it = bal * r, due = P + (extraToLoan ? X : 0), pay = Math.min(bal + it, due);
+                        bal = bal + it - pay; interest += it; toInvest += due - pay + it * d;
+                        if (bal <= 0.005 && paidOff === null) paidOff = m;
+                    } else toInvest += P + (extraToLoan ? X : 0);
+                    inv = inv * (1 + g) + toInvest; put += toInvest;
+                }
+                const after = inv - Math.max(0, inv - put) * num(gainsTaxPct) / 100;
+                return { wealth: after, interest, paidOff: paidOff === null ? horizon : paidOff };
+            };
+            return { a: path(true), b: path(false) };
+        };
+        // The horizon: when the loan would be paid as scheduled.
+        let horizon = 0;
+        for (let bal = B0; bal > 0.005 && horizon < maxMonths; horizon++) bal = bal * (1 + r) - P;
+        if (!B0 || !horizon || P <= B0 * r) return { horizon, never: P <= B0 * r && B0 > 0 };
+        const x = run(returnPct);
+        // Break-even return: invest wins above it (bisection; invest − prepay grows with the return).
+        let lo = 0, hi = 40;
+        const diffAt = (ret) => { const y = run(ret); return y.b.wealth - y.a.wealth; };
+        let breakEven = null;
+        if (X > 0 && diffAt(lo) < 0 && diffAt(hi) > 0) {
+            for (let i = 0; i < 50; i++) { const mid = (lo + hi) / 2; if (diffAt(mid) > 0) hi = mid; else lo = mid; }
+            breakEven = (lo + hi) / 2;
+        }
+        return { horizon, prepayMonths: x.a.paidOff, monthsSooner: horizon - x.a.paidOff, interestPrepay: cents(x.a.interest), interestInvest: cents(x.b.interest),
+            interestSaved: cents(x.b.interest - x.a.interest), wealthPrepay: cents(x.a.wealth), wealthInvest: cents(x.b.wealth),
+            diff: cents(x.b.wealth - x.a.wealth), winner: x.b.wealth > x.a.wealth + 0.5 ? 'invest' : x.a.wealth > x.b.wealth + 0.5 ? 'prepay' : 'tie', breakEven };
+    }
+
     // Paying a credit card: months and interest at a fixed payment, and at the card's minimum
     // (a common formula: 1% of the balance plus that month's interest, at least $25).
     function cardPayoff(balance, aprPct, payment, { minPct = 1, minFloor = 25, maxMonths = 600 } = {}) {
@@ -9284,7 +9361,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -13463,6 +13540,87 @@ I18n.country('US', {
     window.Mix = { render, update: render };
 })();
 </script>
+    <script>/* js/views/abonar.js */
+/* Futuro → Hipoteca → ¿Abonar a la hipoteca o invertir?: the same extra money each month, put
+ * toward the house (then the whole payment invested once it's paid) or invested from today, and
+ * what each leaves at the end of the loan's normal term (Engine.prepayOrInvest). The inputs live
+ * on screen only (Store.ui.prepay); they start from your extra payment and your expected return. */
+(function () {
+    'use strict';
+    const { money0, esc } = Fmt;
+
+    // The tax saved per dollar of mortgage interest: your federal bracket, only when you itemize.
+    function deductDefault(ctx) {
+        const yd = ctx.year, t = yd.usTax;
+        if (ctx.budgetYear.country !== 'US' || !t || !(Number(yd.itemized) > (ctx.pay.stdDeduction || 0))) return 0;
+        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const taxable = Number(ctx.pay.baseImponible) || 0;
+        const br = ((t.brackets || {})[status] || []).filter(([from]) => taxable > from).pop();
+        return br ? Math.round(br[1] * 100) : 0;
+    }
+
+    function st(ctx) {
+        if (!Store.ui.prepay) {
+            const us = ctx.budgetYear.country === 'US';
+            Store.ui.prepay = { extra: Number(ctx.state.mortgage.extraPayment) || 200, returnPct: Number(ctx.defaultReturn) || (us ? 10 : 7), gainsTax: us ? 15 : 0, deduct: deductDefault(ctx) };
+        }
+        return Store.ui.prepay;
+    }
+
+    function render(ctx) {
+        if (!document.getElementById('mort-prepay')) return;
+        const c = st(ctx), us = ctx.budgetYear.country === 'US';
+        const field = (key, label, help, step) => `<label class="field"><span class="field-label">${label}</span><input type="number" class="input" min="0" step="${step}" data-input="prepay.set" data-key="${key}" value="${esc(String(c[key]))}">${help ? `<span class="help">${help}</span>` : ''}</label>`;
+        const box = document.getElementById('mort-prepay-in');
+        if (box && !box.contains(document.activeElement)) box.innerHTML = `<div class="grid grid-cols-2 ${us ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-3">
+            ${field('extra', 'Dinero extra al mes ($)', '', 10)}
+            ${field('returnPct', 'Rendimiento esperado al invertir (%)', us ? 'Promedio histórico de la bolsa: ~10%, con años malos.' : 'Por ejemplo, la tasa de tus pólizas.', 0.5)}
+            ${field('gainsTax', 'Impuesto sobre la ganancia (%)', us ? 'En una cuenta normal, 15% para la mayoría. 0 en un Roth IRA.' : '', 1)}
+            ${us ? field('deduct', 'Ahorro de impuesto por interés (%)', 'Tu tramo federal si detallas deducciones; 0 si tomas la estándar.', 1) : ''}
+        </div>`;
+        update(ctx);
+    }
+
+    function update(ctx) {
+        const out = document.getElementById('mort-prepay-out');
+        if (!out) return;
+        const c = st(ctx), m = ctx.state.mortgage, yd = ctx.year;
+        const months = Math.max(1, Math.round(Number(m.years) || 1)) * 12;
+        const payment = Engine.loanPayment(m.amount, m.rate, months).payment;
+        const now = Number((yd.netWorth || {}).mortgage) || 0;
+        const balance = now > 0 && now < Number(m.amount) ? now : Number(m.amount) || 0;
+        const r = Engine.prepayOrInvest({ balance, ratePct: m.rate, payment, extra: c.extra, returnPct: c.returnPct, gainsTaxPct: c.gainsTax, deductPct: c.deduct });
+        if (!r.wealthPrepay && r.wealthPrepay !== 0) { out.innerHTML = '<p class="help mt-3">Completa el monto, la tasa y el plazo de tu hipoteca arriba.</p>'; return; }
+        if (!(Number(c.extra) > 0)) { out.innerHTML = '<p class="help mt-3">Escribe cuánto dinero extra tendrías cada mes.</p>'; return; }
+        const end = Fmt.monthYear(Engine.addMonths(ctx.today, r.horizon));
+        const kpi = (tone, label, value, note) => `<div class="kpi ${tone}"><span class="kpi-label">${label}</span><span class="kpi-value">${value}</span><span class="kpi-note">${note}</span></div>`;
+        const win = r.winner;
+        const verdict = win === 'invest'
+            ? (ctx.budgetYear.country === 'US'
+                ? `<p><strong>Por números, invertir dejaría ${money0(r.diff)} más</strong> si el dinero rinde ${c.returnPct}% cada año. Pero ese rendimiento no está garantizado: hay años en que la bolsa cae. Abonar a la casa es una ganancia segura del ${m.rate}%.</p>`
+                : `<p><strong>Por números, invertir dejaría ${money0(r.diff)} más</strong> si el dinero rinde ${c.returnPct}% cada año durante todo el plazo. Las tasas de las pólizas cambian al renovarlas; abonar a la casa es una ganancia segura del ${m.rate}%.</p>`)
+            : win === 'prepay' ? `<p><strong>Abonar a la casa deja ${money0(-r.diff)} más</strong>, y sin riesgo: con un rendimiento de ${c.returnPct}%, invertir no le gana al ${m.rate}% de la hipoteca.</p>`
+            : '<p><strong>Quedan casi iguales.</strong></p>';
+        const be = r.breakEven === null ? '' : `<p class="mt-1">Invertir gana solo si rinde más de <strong>${r.breakEven.toFixed(1)}%</strong> al año en promedio durante ${Fmt.monthsAsYears(r.horizon)}.</p>`;
+        out.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                ${kpi(win === 'prepay' ? 'tone-emerald' : 'tone-slate', `Abonando ${money0(c.extra)} al mes`, money0(r.wealthPrepay), `Casa pagada ${Fmt.monthsAsYears(r.monthsSooner)} antes, ${money0(r.interestSaved)} menos de interés; luego inviertes la cuota`)}
+                ${kpi(win === 'invest' ? 'tone-emerald' : 'tone-slate', `Invirtiendo ${money0(c.extra)} al mes`, money0(r.wealthInvest), `Invertido en ${end}, cuando la hipoteca termina igual`)}
+            </div>
+            <div class="panel ${win === 'invest' ? 'tone-blue' : 'tone-emerald'} text-xs mt-3">${verdict}${be}</div>
+            <p class="help mt-2"><span>${now > 0 && now < Number(m.amount) ? `Desde tu saldo de hoy (${money0(balance)}).` : 'Desde el monto del préstamo.'}</span>${ctx.state.settings.mortgageSystem === 'aleman' ? ' <span>Se calcula con una cuota fija (sistema francés).</span>' : ''} <span>En los Baby Steps, pagar la casa antes es el paso 6: primero el fondo de emergencia completo, el 15% a la jubilación y la universidad de los hijos. Y una casa pagada da tranquilidad: sin cuota, un mes difícil se lleva mejor.</span></p>`;
+    }
+
+    UI.register({
+        'prepay.set': (el) => {
+            const c = st(App.buildContext());
+            c[el.dataset.key] = Math.max(0, Fmt.parseNum(el.value, 0));
+            update(App.buildContext());
+        }
+    });
+
+    window.Prepay = { render, update };
+})();
+</script>
 <script>/* js/views/sideincome.js */
 /* Ingresos → Impuestos de tus ingresos extra: freelance / small-business income of the last 12
  * months (minus its business expenses) and how much of it to set aside for taxes
@@ -17042,6 +17200,7 @@ I18n.country('US', {
                      <div class="kpi tone-emerald col-span-2"><span class="kpi-label">Interés que te ahorras</span><span class="kpi-value">${money0(base.totalInterest - extra.totalInterest)}</span><span class="kpi-note">Pagas ${money0(extra.totalInterest)} de interés en total</span></div>`;
         }
         UI.html('mort-summary', html);
+        if (window.Prepay) Prepay.render(ctx);
 
         const axis = Engine.chartAxis(base.schedule.length);
         const pal = UI.palette();
