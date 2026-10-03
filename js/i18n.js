@@ -13,7 +13,7 @@
  */
 (function (root) {
     'use strict';
-    const ATTRS = ['placeholder', 'title', 'aria-label'];
+    const ATTRS = ['placeholder', 'title', 'aria-label', 'data-label'];
     const norm = (s) => String(s).replace(/\s+/g, ' ').trim();
     const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 

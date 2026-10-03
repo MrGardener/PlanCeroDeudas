@@ -3,28 +3,29 @@
     'use strict';
     const { money, money0, esc, parseNum } = Fmt;
 
+    // On phones these tables show as one card per row (css: .table-cards); data-label names each field.
     function debtRow(d) {
         return `<tr data-row="${d.id}">
-            <td><input class="cell-input" value="${esc(d.name)}" data-change="debt.set" data-id="${d.id}" data-field="name" aria-label="Nombre de la deuda"></td>
-            <td><select class="cell-input" data-change="debt.set" data-id="${d.id}" data-field="kind">${Views.selectOptions(Engine.DEBT_KINDS.map(k => ({ value: k.id, label: k.label })), d.kind)}</select></td>
-            <td><input type="number" class="cell-input num" min="0" step="50" value="${Number(d.balance) || 0}" data-input="debt.set" data-id="${d.id}" data-field="balance" aria-label="Saldo"></td>
-            <td><input type="number" class="cell-input num" min="0" step="0.1" value="${Number(d.rate) || 0}" data-input="debt.set" data-id="${d.id}" data-field="rate" aria-label="Tasa"></td>
-            <td><input type="number" class="cell-input num" min="0" step="5" value="${Number(d.minPayment) || 0}" data-input="debt.set" data-id="${d.id}" data-field="minPayment" aria-label="Pago mínimo"></td>
-            <td><input type="number" class="cell-input num money" min="0" step="10" value="${Number(d.monthly) || 0}" data-input="debt.set" data-id="${d.id}" data-field="monthly" aria-label="Monto en tu presupuesto" title="Lo que tu presupuesto le paga cada mes"></td>
-            <td class="text-center" data-cell="order"></td>
-            <td class="text-center whitespace-nowrap font-bold text-slate-700" data-cell="payoff"></td>
-            <td class="text-center whitespace-nowrap">${Number(d.balance) > 0 ? `<button class="mini-btn" data-action="debt.pay" data-id="${d.id}" title="Registrar un pago: baja el saldo y queda en Transacciones">Pagar</button> ` : ''}<button class="row-del" data-action="debt.delete" data-id="${d.id}" title="Eliminar deuda"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td class="c-wide" data-label="Deuda"><input class="cell-input" value="${esc(d.name)}" data-change="debt.set" data-id="${d.id}" data-field="name" aria-label="Nombre de la deuda"></td>
+            <td data-label="Tipo"><select class="cell-input" data-change="debt.set" data-id="${d.id}" data-field="kind" aria-label="Tipo">${Views.selectOptions(Engine.DEBT_KINDS.map(k => ({ value: k.id, label: k.label })), d.kind)}</select></td>
+            <td data-label="Saldo"><input type="number" class="cell-input num" min="0" step="50" value="${Number(d.balance) || 0}" data-input="debt.set" data-id="${d.id}" data-field="balance" aria-label="Saldo"></td>
+            <td data-label="Tasa (%)"><input type="number" class="cell-input num" min="0" step="0.1" value="${Number(d.rate) || 0}" data-input="debt.set" data-id="${d.id}" data-field="rate" aria-label="Tasa"></td>
+            <td data-label="Pago mínimo"><input type="number" class="cell-input num" min="0" step="5" value="${Number(d.minPayment) || 0}" data-input="debt.set" data-id="${d.id}" data-field="minPayment" aria-label="Pago mínimo"></td>
+            <td data-label="Presupuesto al mes"><input type="number" class="cell-input num money" min="0" step="10" value="${Number(d.monthly) || 0}" data-input="debt.set" data-id="${d.id}" data-field="monthly" aria-label="Monto en tu presupuesto" title="Lo que tu presupuesto le paga cada mes"></td>
+            <td class="text-center" data-label="Orden" data-cell="order"></td>
+            <td class="text-center whitespace-nowrap font-bold text-slate-700" data-label="Se paga en" data-cell="payoff"></td>
+            <td class="c-wide c-actions text-center whitespace-nowrap">${Number(d.balance) > 0 ? `<button class="mini-btn" data-action="debt.pay" data-id="${d.id}" title="Registrar un pago: baja el saldo y queda en Transacciones">Pagar</button> ` : ''}<button class="row-del" data-action="debt.delete" data-id="${d.id}" title="Eliminar deuda"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 
     function goalRow(g) {
-        const cell = (field, step) => `<td><input type="number" class="cell-input num" min="0" step="${step}" value="${Number(g[field]) || 0}" data-input="goal.set" data-id="${g.id}" data-field="${field}"></td>`;
+        const cell = (field, step, label, cls = '') => `<td data-label="${label}"><input type="number" class="cell-input num ${cls}" min="0" step="${step}" value="${Number(g[field]) || 0}" data-input="goal.set" data-id="${g.id}" data-field="${field}" aria-label="${label}"></td>`;
         return `<tr data-row="${g.id}">
-            <td><input class="cell-input" value="${esc(g.name)}" data-change="goal.set" data-id="${g.id}" data-field="name" aria-label="Nombre de la meta"></td>
-            ${cell('target', 100)}${cell('current', 100)}${cell('monthly', 10).replace('cell-input num', 'cell-input num money')}${cell('rate', 0.1)}
-            <td><input type="month" class="cell-input" value="${esc(g.targetDate || '')}" data-change="goal.set" data-id="${g.id}" data-field="targetDate" aria-label="Fecha meta"></td>
-            <td data-cell="time"></td>
-            <td class="text-center whitespace-nowrap"><button class="mini-btn" data-action="goal.deposit" data-id="${g.id}" title="Sumar un depósito a lo ahorrado">Depositar</button> ${Number(g.current) > 0 ? `<button class="mini-btn" data-action="goal.spend" data-id="${g.id}" title="Pagar una compra con este dinero ahorrado (no cuenta otra vez en el presupuesto del mes)">Usar</button> ` : ''}<button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td class="c-wide" data-label="Meta"><input class="cell-input" value="${esc(g.name)}" data-change="goal.set" data-id="${g.id}" data-field="name" aria-label="Nombre de la meta"></td>
+            ${cell('target', 100, 'Objetivo')}${cell('current', 100, 'Ahorrado')}${cell('monthly', 10, 'Presupuesto al mes', 'money')}${cell('rate', 0.1, Store.COUNTRY === 'US' ? 'Tasa (%)' : 'Tasa DPF (%)')}
+            <td data-label="¿Para cuándo?"><input type="month" class="cell-input" value="${esc(g.targetDate || '')}" data-change="goal.set" data-id="${g.id}" data-field="targetDate" aria-label="Fecha meta"></td>
+            <td class="c-wide" data-label="Progreso" data-cell="time"></td>
+            <td class="c-wide c-actions text-center whitespace-nowrap"><button class="mini-btn" data-action="goal.deposit" data-id="${g.id}" title="Sumar un depósito a lo ahorrado">Depositar</button> ${Number(g.current) > 0 ? `<button class="mini-btn" data-action="goal.spend" data-id="${g.id}" title="Pagar una compra con este dinero ahorrado (no cuenta otra vez en el presupuesto del mes)">Usar</button> ` : ''}<button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 

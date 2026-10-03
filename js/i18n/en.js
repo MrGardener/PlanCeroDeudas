@@ -2569,5 +2569,9 @@ I18n.add('en', {
     "Hoy tus pólizas rinden unos": "Today your CDs earn about",
     "al año.": "a year.",
     "Si al renovarlas la tasa baja 1 punto, rendirían {0}:": "If the rate is 1 point lower when they renew, they'd earn {0}:",
-    "La próxima vence en {0}: compara tasas antes de renovar.": "The next one matures in {0}: compare rates before renewing."
+    "La próxima vence en {0}: compara tasas antes de renovar.": "The next one matures in {0}: compare rates before renewing.",
+    "Presupuesto al mes": "Budget per month",
+    "Usar": "Use",
+    "A tiempo": "On track",
+    "Objetivo": "Target"
 });

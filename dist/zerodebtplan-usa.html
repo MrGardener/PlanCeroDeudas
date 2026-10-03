@@ -763,6 +763,25 @@ html[data-theme="dark"] .nwc-comp { color: #94a3b8; }
 .nwc-note { font-size: 11px; font-weight: 700; color: #0f172a; }
 html[data-theme="dark"] .nwc-label { color: #94a3b8; } html[data-theme="dark"] .nwc-label b, html[data-theme="dark"] .nwc-note { color: #e2e8f0; }
 html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
+
+/* Debts and goals on a phone: one card per row instead of a table that scrolls sideways.
+   Each cell's name comes from its data-label; the name and the buttons take the full width. */
+@media (max-width: 639px) {
+    .table-cards-wrap { border: 0; border-radius: 0; background: none; overflow: visible; }
+    .table-cards thead { display: none; }
+    .table-cards, .table-cards tbody { display: block; }
+    .table-cards tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem .7rem; padding: .8rem; margin-bottom: .7rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+    .table-cards tbody tr:hover td { background: none; }
+    .table-cards td { display: block; padding: 0; border: 0; min-width: 0; text-align: left; }
+    .table-cards td[data-label]::before { content: attr(data-label); display: block; margin-bottom: .2rem; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+    .table-cards td.c-wide { grid-column: 1 / -1; }
+    .table-cards td.c-actions { display: flex; justify-content: flex-end; align-items: center; gap: .4rem; padding-top: .55rem; border-top: 1px solid var(--line-soft); }
+    .table-cards td.c-actions .mini-btn { padding: .4rem .8rem; font-size: .75rem; }
+    .table-cards .cell-input { min-width: 0; font-size: .9rem; padding: .45rem .55rem; }
+    .table-cards td:first-child .cell-input { font-weight: 800; }
+    .table-cards tr.empty-row { display: block; padding: 0; border: 0; background: none; }
+    .table-cards tr.empty-row td { display: block; }
+}
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -1658,8 +1677,8 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 </div>
                 <button class="btn btn-primary" data-action="debt.add"><i class="fa-solid fa-plus"></i> Agregar Deuda</button>
             </div>
-            <div class="table-wrap mb-4">
-                <table class="table">
+            <div class="table-wrap table-cards-wrap mb-4">
+                <table class="table table-cards">
                     <thead><tr><th style="min-width:11rem">Deuda</th><th>Tipo</th><th style="width:8rem">Saldo (<span class="cur">$</span>)</th><th style="width:6.5rem">Tasa (%)</th><th style="width:8rem">Pago mínimo (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th class="text-center">Orden</th><th class="text-center">Se paga en</th><th></th></tr></thead>
                     <tbody id="debt-body"></tbody>
                 </table>
@@ -1713,8 +1732,8 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 </div>
                 <button class="btn btn-secondary" data-action="goal.add"><i class="fa-solid fa-plus"></i> Nueva Meta</button>
             </div>
-            <div class="table-wrap mb-4">
-                <table class="table">
+            <div class="table-wrap table-cards-wrap mb-4">
+                <table class="table table-cards">
                     <thead><tr><th style="min-width:11rem">Meta</th><th style="width:8rem">Objetivo (<span class="cur">$</span>)</th><th style="width:8rem">Ahorrado (<span class="cur">$</span>)</th><th style="width:8.5rem">En tu presupuesto (<span class="cur">$</span>/mes)</th><th style="width:6.5rem">Tasa DPF (%)</th><th style="width:9rem">¿Para cuándo?</th><th style="min-width:13rem">Progreso</th><th></th></tr></thead>
                     <tbody id="goal-body"></tbody>
                 </table>
@@ -2363,7 +2382,7 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
  */
 (function (root) {
     'use strict';
-    const ATTRS = ['placeholder', 'title', 'aria-label'];
+    const ATTRS = ['placeholder', 'title', 'aria-label', 'data-label'];
     const norm = (s) => String(s).replace(/\s+/g, ' ').trim();
     const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -5141,7 +5160,11 @@ I18n.add('en', {
     "Hoy tus pólizas rinden unos": "Today your CDs earn about",
     "al año.": "a year.",
     "Si al renovarlas la tasa baja 1 punto, rendirían {0}:": "If the rate is 1 point lower when they renew, they'd earn {0}:",
-    "La próxima vence en {0}: compara tasas antes de renovar.": "The next one matures in {0}: compare rates before renewing."
+    "La próxima vence en {0}: compara tasas antes de renovar.": "The next one matures in {0}: compare rates before renewing.",
+    "Presupuesto al mes": "Budget per month",
+    "Usar": "Use",
+    "A tiempo": "On track",
+    "Objetivo": "Target"
 });
 </script>
 <script>/* js/i18n/us.js */
@@ -16298,28 +16321,29 @@ I18n.country('US', {
     'use strict';
     const { money, money0, esc, parseNum } = Fmt;
 
+    // On phones these tables show as one card per row (css: .table-cards); data-label names each field.
     function debtRow(d) {
         return `<tr data-row="${d.id}">
-            <td><input class="cell-input" value="${esc(d.name)}" data-change="debt.set" data-id="${d.id}" data-field="name" aria-label="Nombre de la deuda"></td>
-            <td><select class="cell-input" data-change="debt.set" data-id="${d.id}" data-field="kind">${Views.selectOptions(Engine.DEBT_KINDS.map(k => ({ value: k.id, label: k.label })), d.kind)}</select></td>
-            <td><input type="number" class="cell-input num" min="0" step="50" value="${Number(d.balance) || 0}" data-input="debt.set" data-id="${d.id}" data-field="balance" aria-label="Saldo"></td>
-            <td><input type="number" class="cell-input num" min="0" step="0.1" value="${Number(d.rate) || 0}" data-input="debt.set" data-id="${d.id}" data-field="rate" aria-label="Tasa"></td>
-            <td><input type="number" class="cell-input num" min="0" step="5" value="${Number(d.minPayment) || 0}" data-input="debt.set" data-id="${d.id}" data-field="minPayment" aria-label="Pago mínimo"></td>
-            <td><input type="number" class="cell-input num money" min="0" step="10" value="${Number(d.monthly) || 0}" data-input="debt.set" data-id="${d.id}" data-field="monthly" aria-label="Monto en tu presupuesto" title="Lo que tu presupuesto le paga cada mes"></td>
-            <td class="text-center" data-cell="order"></td>
-            <td class="text-center whitespace-nowrap font-bold text-slate-700" data-cell="payoff"></td>
-            <td class="text-center whitespace-nowrap">${Number(d.balance) > 0 ? `<button class="mini-btn" data-action="debt.pay" data-id="${d.id}" title="Registrar un pago: baja el saldo y queda en Transacciones">Pagar</button> ` : ''}<button class="row-del" data-action="debt.delete" data-id="${d.id}" title="Eliminar deuda"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td class="c-wide" data-label="Deuda"><input class="cell-input" value="${esc(d.name)}" data-change="debt.set" data-id="${d.id}" data-field="name" aria-label="Nombre de la deuda"></td>
+            <td data-label="Tipo"><select class="cell-input" data-change="debt.set" data-id="${d.id}" data-field="kind" aria-label="Tipo">${Views.selectOptions(Engine.DEBT_KINDS.map(k => ({ value: k.id, label: k.label })), d.kind)}</select></td>
+            <td data-label="Saldo"><input type="number" class="cell-input num" min="0" step="50" value="${Number(d.balance) || 0}" data-input="debt.set" data-id="${d.id}" data-field="balance" aria-label="Saldo"></td>
+            <td data-label="Tasa (%)"><input type="number" class="cell-input num" min="0" step="0.1" value="${Number(d.rate) || 0}" data-input="debt.set" data-id="${d.id}" data-field="rate" aria-label="Tasa"></td>
+            <td data-label="Pago mínimo"><input type="number" class="cell-input num" min="0" step="5" value="${Number(d.minPayment) || 0}" data-input="debt.set" data-id="${d.id}" data-field="minPayment" aria-label="Pago mínimo"></td>
+            <td data-label="Presupuesto al mes"><input type="number" class="cell-input num money" min="0" step="10" value="${Number(d.monthly) || 0}" data-input="debt.set" data-id="${d.id}" data-field="monthly" aria-label="Monto en tu presupuesto" title="Lo que tu presupuesto le paga cada mes"></td>
+            <td class="text-center" data-label="Orden" data-cell="order"></td>
+            <td class="text-center whitespace-nowrap font-bold text-slate-700" data-label="Se paga en" data-cell="payoff"></td>
+            <td class="c-wide c-actions text-center whitespace-nowrap">${Number(d.balance) > 0 ? `<button class="mini-btn" data-action="debt.pay" data-id="${d.id}" title="Registrar un pago: baja el saldo y queda en Transacciones">Pagar</button> ` : ''}<button class="row-del" data-action="debt.delete" data-id="${d.id}" title="Eliminar deuda"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 
     function goalRow(g) {
-        const cell = (field, step) => `<td><input type="number" class="cell-input num" min="0" step="${step}" value="${Number(g[field]) || 0}" data-input="goal.set" data-id="${g.id}" data-field="${field}"></td>`;
+        const cell = (field, step, label, cls = '') => `<td data-label="${label}"><input type="number" class="cell-input num ${cls}" min="0" step="${step}" value="${Number(g[field]) || 0}" data-input="goal.set" data-id="${g.id}" data-field="${field}" aria-label="${label}"></td>`;
         return `<tr data-row="${g.id}">
-            <td><input class="cell-input" value="${esc(g.name)}" data-change="goal.set" data-id="${g.id}" data-field="name" aria-label="Nombre de la meta"></td>
-            ${cell('target', 100)}${cell('current', 100)}${cell('monthly', 10).replace('cell-input num', 'cell-input num money')}${cell('rate', 0.1)}
-            <td><input type="month" class="cell-input" value="${esc(g.targetDate || '')}" data-change="goal.set" data-id="${g.id}" data-field="targetDate" aria-label="Fecha meta"></td>
-            <td data-cell="time"></td>
-            <td class="text-center whitespace-nowrap"><button class="mini-btn" data-action="goal.deposit" data-id="${g.id}" title="Sumar un depósito a lo ahorrado">Depositar</button> ${Number(g.current) > 0 ? `<button class="mini-btn" data-action="goal.spend" data-id="${g.id}" title="Pagar una compra con este dinero ahorrado (no cuenta otra vez en el presupuesto del mes)">Usar</button> ` : ''}<button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td class="c-wide" data-label="Meta"><input class="cell-input" value="${esc(g.name)}" data-change="goal.set" data-id="${g.id}" data-field="name" aria-label="Nombre de la meta"></td>
+            ${cell('target', 100, 'Objetivo')}${cell('current', 100, 'Ahorrado')}${cell('monthly', 10, 'Presupuesto al mes', 'money')}${cell('rate', 0.1, Store.COUNTRY === 'US' ? 'Tasa (%)' : 'Tasa DPF (%)')}
+            <td data-label="¿Para cuándo?"><input type="month" class="cell-input" value="${esc(g.targetDate || '')}" data-change="goal.set" data-id="${g.id}" data-field="targetDate" aria-label="Fecha meta"></td>
+            <td class="c-wide" data-label="Progreso" data-cell="time"></td>
+            <td class="c-wide c-actions text-center whitespace-nowrap"><button class="mini-btn" data-action="goal.deposit" data-id="${g.id}" title="Sumar un depósito a lo ahorrado">Depositar</button> ${Number(g.current) > 0 ? `<button class="mini-btn" data-action="goal.spend" data-id="${g.id}" title="Pagar una compra con este dinero ahorrado (no cuenta otra vez en el presupuesto del mes)">Usar</button> ` : ''}<button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Eliminar meta"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 
