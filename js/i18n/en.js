@@ -2418,3 +2418,23 @@ I18n.add('en', {
     "Haz tu testamento": "Make your will", "Tienes hijos que dependen de ti: nombra a su tutor y decide quién hereda. Es de lo más importante y de lo que más se posterga.": "You have children who depend on you: name their guardian and decide who inherits. It's among the most important things, and the most put off.",
     "Haz tu revisión anual": "Do your yearly review", "Un año nuevo: seguros, jubilación, crédito, impuestos y tu fondo de emergencia, en una lista.": "A new year: insurance, retirement, credit, taxes and your emergency fund, in one list."
 });
+// US refund or owe + W-4
+I18n.add('en', {
+    "¿Te devolverán o deberás? (impuesto federal)": "Refund or owe? (federal tax)",
+    "Con lo que te retienen en cada pago, ¿alcanza para tu impuesto del año? Y qué cambiar en tu W-4 para no deber ni dejar dinero parado en el IRS.": "Does what's withheld from each paycheck cover the year's tax? And what to change on your W-4 so you neither owe nor leave money sitting with the IRS.",
+    "Retención federal por pago ($)": "Federal withholding per paycheck ($)", "De tu último talón (\"Federal Withholding\"). Con tu W-4 sería unos {0}.": "From your latest pay stub (\"Federal Withholding\"). Based on your W-4 it would be about {0}.",
+    "Retenido en el año hasta hoy ($)": "Withheld so far this year ($)", "El acumulado del talón (\"YTD\"). Vacío = {0} pagos × lo de arriba.": "The stub's year-to-date (\"YTD\"). Empty = {0} paychecks × the amount above.",
+    "Sueldo bruto de tu pareja al año ($)": "Your spouse's yearly gross pay ($)", "Si también trabaja con W-2.": "If they also have W-2 wages.", "Solo si declaran juntos.": "Only if you file jointly.",
+    "Su retención federal del año ($)": "Their federal withholding for the year ($)",
+    "Otros ingresos sin retención ($/año)": "Other income with no withholding ($/yr)", "Intereses, trabajos por tu cuenta, etc.": "Interest, side work, etc.",
+    "Escribe la retención federal de tu último talón de pago para ver si te devolverán o deberás.": "Enter the federal withholding from your latest pay stub to see whether you'll get a refund or owe.",
+    "Disponible para el año en curso.": "Available for the current year.",
+    "Impuesto federal del año": "Federal tax for the year", "sobre {0}, menos {1} de deducción{2}": "on {0}, minus {1} deduction{2}", " y {0} en créditos": " and {0} in credits", "y {0} en créditos": "and {0} in credits",
+    "Retenido en el año": "Withheld for the year", "{0} hasta hoy + {1} pagos{2}": "{0} so far + {1} paychecks{2}", " (cada 2 semanas)": " (every 2 weeks)", "(cada 2 semanas)": "(every 2 weeks)",
+    "Te devolverían": "Your refund would be", "Deberías": "You'd owe", "en abril": "in April", "al declarar en abril": "when you file in April", "casi en cero": "close to zero",
+    "para no deber, pide": "to avoid owing, ask for", "{0} más por pago": "{0} more per paycheck", "(paso 4(c), \"Extra withholding\") en tus {0} pagos que quedan.{1}": "(Step 4(c), \"Extra withholding\") on your {0} remaining paychecks.{1}",
+    "Deber más de $1,000 puede traer multa por pago insuficiente.": "Owing more than $1,000 can bring an underpayment penalty.",
+    "le prestas {0} sin intereses al IRS. Podrías retener unos": "you're lending the IRS {0} interest-free. You could withhold about", "{0} menos por pago": "{0} less per paycheck", "y mandar ese dinero a tu plan cada mes.": "and send that money to your plan each month.",
+    "Tu retención está bien ajustada.": "Your withholding is well tuned.",
+    "Estimado solo del impuesto federal sobre sueldos (no estatal, ni créditos especiales). Para el W-4 exacto, usa el Tax Withholding Estimator del IRS.": "An estimate of federal tax on wages only (not state, nor special credits). For an exact W-4, use the IRS Tax Withholding Estimator."
+});

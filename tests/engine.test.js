@@ -1154,3 +1154,20 @@ test('college estimator: future cost, projected savings, gap and monthly needed'
     // Already in college: no months left to save.
     assert.equal(E.collegePlan({ age: 19, annualCost: 1000 }).monthlyNeeded, null);
 });
+
+test('US refund or owe: household tax vs withholding, and the W-4 fix per paycheck', () => {
+    const U = require('../js/defaults-us.js');
+    const yd = Object.assign(U.newYear(), { filingStatus: 'mfj', dependents: 2, otherDependents: 0, itemized: 0 });
+    // MFJ 2026: $100,000 − $32,200 standard = $67,800 taxable → 10% × 24,800 + 12% × 43,000 = $7,640; − 2 × $2,200 = $3,240.
+    const r = E.usRefundEstimate({ yd, wagesIncome: 100000, withheldYtd: 2000, perCheck: 100, checksLeft: 6 });
+    assert.equal(r.tax, 3240);
+    assert.equal(r.withheld, 2600);
+    assert.equal(r.diff, -640);
+    assert.equal(r.adjustPerCheck, 106.67);
+    assert.equal(r.penaltyRisk, false);
+    // A spouse's wages and withholding count; a big refund suggests withholding less.
+    const r2 = E.usRefundEstimate({ yd, wagesIncome: 100000, otherWages: 0, otherWithheld: 0, withheldYtd: 6000, perCheck: 300, checksLeft: 4 });
+    assert.equal(r2.diff, 7200 - 3240);
+    assert.equal(r2.refund, true);
+    assert.equal(r2.adjustPerCheck, -990);
+});

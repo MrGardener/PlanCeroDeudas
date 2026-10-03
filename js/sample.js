@@ -1037,6 +1037,10 @@
             { id: 2, name: 'Sofía', age: 2, type: 'publica', years: 5, cost: null, saved: 0, monthly: 0, goalId: null }
         ], costInflation: null, returnPct: null };
 
+        // US: what the pay stubs say is withheld (federal), Sarah's part-time W-2 and the
+        // photography side income — for the refund-or-owe estimate.
+        if (US) s.years[cur].withholding = { perCheck: 195, ytd: null, spouseWages: 22800, spouseWithheld: 1150, untaxed: 2400 };
+
         // Yearly bills for the annual planner (no fund yet: "Crear el apartado" is the next step).
         s.annualBills = (US ? [
             { name: 'Car registration (Odyssey + Civic)', amount: 238, every: 12, month: 3, category: 'Transporte', sub: 'Matriculación/Revisión Vehicular' },

@@ -1155,6 +1155,12 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 <p class="help mt-3" data-country="US">Fuentes: <a class="link" href="https://www.irs.gov/individuals/tax-withholding-estimator" target="_blank" rel="noopener">IRS</a> · <a class="link" href="https://www.ssa.gov" target="_blank" rel="noopener">SSA</a> · <a class="link" href="https://www.michigan.gov/taxes" target="_blank" rel="noopener">Michigan Treasury</a></p>
             </div>
 
+            <div class="card" data-country="US" id="inc-refund-card">
+                <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-scale-balanced text-blue-600"></i> ¿Te devolverán o deberás? (impuesto federal)</div>
+                    <div class="card-sub">Con lo que te retienen en cada pago, ¿alcanza para tu impuesto del año? Y qué cambiar en tu W-4 para no deber ni dejar dinero parado en el IRS.</div></div></div>
+                <div id="inc-refund-in"></div>
+                <div id="inc-refund"></div>
+            </div>
             <div class="card" data-country="US" id="inc-us-ded">
                 <div class="card-head">
                     <div>
@@ -4957,6 +4963,26 @@ I18n.add('en', {
     "Haz tu testamento": "Make your will", "Tienes hijos que dependen de ti: nombra a su tutor y decide quién hereda. Es de lo más importante y de lo que más se posterga.": "You have children who depend on you: name their guardian and decide who inherits. It's among the most important things, and the most put off.",
     "Haz tu revisión anual": "Do your yearly review", "Un año nuevo: seguros, jubilación, crédito, impuestos y tu fondo de emergencia, en una lista.": "A new year: insurance, retirement, credit, taxes and your emergency fund, in one list."
 });
+// US refund or owe + W-4
+I18n.add('en', {
+    "¿Te devolverán o deberás? (impuesto federal)": "Refund or owe? (federal tax)",
+    "Con lo que te retienen en cada pago, ¿alcanza para tu impuesto del año? Y qué cambiar en tu W-4 para no deber ni dejar dinero parado en el IRS.": "Does what's withheld from each paycheck cover the year's tax? And what to change on your W-4 so you neither owe nor leave money sitting with the IRS.",
+    "Retención federal por pago ($)": "Federal withholding per paycheck ($)", "De tu último talón (\"Federal Withholding\"). Con tu W-4 sería unos {0}.": "From your latest pay stub (\"Federal Withholding\"). Based on your W-4 it would be about {0}.",
+    "Retenido en el año hasta hoy ($)": "Withheld so far this year ($)", "El acumulado del talón (\"YTD\"). Vacío = {0} pagos × lo de arriba.": "The stub's year-to-date (\"YTD\"). Empty = {0} paychecks × the amount above.",
+    "Sueldo bruto de tu pareja al año ($)": "Your spouse's yearly gross pay ($)", "Si también trabaja con W-2.": "If they also have W-2 wages.", "Solo si declaran juntos.": "Only if you file jointly.",
+    "Su retención federal del año ($)": "Their federal withholding for the year ($)",
+    "Otros ingresos sin retención ($/año)": "Other income with no withholding ($/yr)", "Intereses, trabajos por tu cuenta, etc.": "Interest, side work, etc.",
+    "Escribe la retención federal de tu último talón de pago para ver si te devolverán o deberás.": "Enter the federal withholding from your latest pay stub to see whether you'll get a refund or owe.",
+    "Disponible para el año en curso.": "Available for the current year.",
+    "Impuesto federal del año": "Federal tax for the year", "sobre {0}, menos {1} de deducción{2}": "on {0}, minus {1} deduction{2}", " y {0} en créditos": " and {0} in credits", "y {0} en créditos": "and {0} in credits",
+    "Retenido en el año": "Withheld for the year", "{0} hasta hoy + {1} pagos{2}": "{0} so far + {1} paychecks{2}", " (cada 2 semanas)": " (every 2 weeks)", "(cada 2 semanas)": "(every 2 weeks)",
+    "Te devolverían": "Your refund would be", "Deberías": "You'd owe", "en abril": "in April", "al declarar en abril": "when you file in April", "casi en cero": "close to zero",
+    "para no deber, pide": "to avoid owing, ask for", "{0} más por pago": "{0} more per paycheck", "(paso 4(c), \"Extra withholding\") en tus {0} pagos que quedan.{1}": "(Step 4(c), \"Extra withholding\") on your {0} remaining paychecks.{1}",
+    "Deber más de $1,000 puede traer multa por pago insuficiente.": "Owing more than $1,000 can bring an underpayment penalty.",
+    "le prestas {0} sin intereses al IRS. Podrías retener unos": "you're lending the IRS {0} interest-free. You could withhold about", "{0} menos por pago": "{0} less per paycheck", "y mandar ese dinero a tu plan cada mes.": "and send that money to your plan each month.",
+    "Tu retención está bien ajustada.": "Your withholding is well tuned.",
+    "Estimado solo del impuesto federal sobre sueldos (no estatal, ni créditos especiales). Para el W-4 exacto, usa el Tax Withholding Estimator del IRS.": "An estimate of federal tax on wages only (not state, nor special credits). For an exact W-4, use the IRS Tax Withholding Estimator."
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -6883,6 +6909,10 @@ I18n.country('US', {
             { id: 2, name: 'Sofía', age: 2, type: 'publica', years: 5, cost: null, saved: 0, monthly: 0, goalId: null }
         ], costInflation: null, returnPct: null };
 
+        // US: what the pay stubs say is withheld (federal), Sarah's part-time W-2 and the
+        // photography side income — for the refund-or-owe estimate.
+        if (US) s.years[cur].withholding = { perCheck: 195, ytd: null, spouseWages: 22800, spouseWithheld: 1150, untaxed: 2400 };
+
         // Yearly bills for the annual planner (no fund yet: "Crear el apartado" is the next step).
         s.annualBills = (US ? [
             { name: 'Car registration (Odyssey + Civic)', amount: 238, every: 12, month: 3, category: 'Transporte', sub: 'Matriculación/Revisión Vehicular' },
@@ -7044,6 +7074,36 @@ I18n.country('US', {
     const US_STATES_FALLBACK = () => (typeof require !== 'undefined' ? require('./defaults-us.js').STATES : []);
     // Paycheck math for the US (annual figures ÷ 12): pre-tax 401(k)/403(b) lower income tax;
     // pre-tax health, dental, vision, FSA and HSA (section 125) lower income tax and FICA too.
+    // Federal income tax on a year's income (after pre-tax deductions): the larger of the standard
+    // or itemized deduction, the brackets, minus child / other-dependent credits — which phase out
+    // $50 per $1,000 (or part) of income above $200,000 ($400,000 married filing jointly), IRC §24(b).
+    function usFederalTax({ income, status = 'single', dependents = 0, otherDependents = 0, itemized = 0, t = {} }) {
+        const std = num((t.stdDeduction || {})[status]);
+        const dedApplied = Math.max(std, num(itemized));
+        const taxable = Math.max(0, num(income) - dedApplied);
+        const baseCredits = num(dependents) * num(t.childCredit) + num(otherDependents) * num(t.otherDependentCredit);
+        const phaseStart = num((t.ctcPhaseoutStart || { single: 200000, mfj: 400000, hoh: 200000 })[status]);
+        const credits = Math.max(0, baseCredits - Math.ceil(Math.max(0, num(income) - phaseStart) / 1000) * (num(t.ctcPhaseoutStep) || 50));
+        const before = bracketTax(taxable, (t.brackets || {})[status]);
+        return { std, dedApplied, taxable, credits, before, tax: Math.max(0, before - credits) };
+    }
+
+    // Refund or owe: the year's federal tax for the household against what will have been withheld
+    // (so far this year + per paycheck × paychecks left), and the W-4 change that evens it out —
+    // extra withholding per paycheck (Step 4(c)) when you'd owe, less when the refund is large.
+    function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0 }) {
+        const t = yd.usTax || {};
+        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const income = Math.max(0, num(wagesIncome) + num(otherWages) + num(untaxedIncome));
+        const f = usFederalTax({ income, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, t });
+        const withheld = num(withheldYtd) + num(perCheck) * Math.max(0, num(checksLeft)) + num(otherWithheld);
+        const diff = withheld - f.tax;        // > 0 refund, < 0 owe
+        const n = Math.max(1, Math.round(num(checksLeft)));
+        return Object.assign({}, f, { income: cents(income), withheld: cents(withheld), diff: cents(diff), refund: diff > 0, adjustPerCheck: num(checksLeft) > 0 ? cents(-diff / n) : null,
+            // Owing $1,000+ (after withholding) can bring an underpayment penalty unless withholding covers 90% of this year's tax or 100% of last year's.
+            penaltyRisk: diff < -1000 && withheld < f.tax * 0.9 });
+    }
+
     function payrollUS(yd, states) {
         const t = yd.usTax || {};
         const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
@@ -7055,15 +7115,7 @@ I18n.country('US', {
         const incomeWages = Math.max(0, gross - pretaxRetire - pretax125);
         const ficaWages = Math.max(0, gross - pretax125);
         // Federal income tax
-        const std = num((t.stdDeduction || {})[status]);
-        const dedApplied = Math.max(std, num(yd.itemized));
-        const taxable = Math.max(0, incomeWages - dedApplied);
-        // Child / other-dependent credits phase out: $50 less per $1,000 (or part) of income above
-        // $200,000 ($400,000 married filing jointly) — IRC §24(b).
-        const baseCredits = num(yd.dependents) * num(t.childCredit) + num(yd.otherDependents) * num(t.otherDependentCredit);
-        const phaseStart = num((t.ctcPhaseoutStart || { single: 200000, mfj: 400000, hoh: 200000 })[status]);
-        const credits = Math.max(0, baseCredits - Math.ceil(Math.max(0, incomeWages - phaseStart) / 1000) * (num(t.ctcPhaseoutStep) || 50));
-        const fedAnnual = Math.max(0, bracketTax(taxable, (t.brackets || {})[status]) - credits);
+        const { std, dedApplied, taxable, credits, tax: fedAnnual } = usFederalTax({ income: incomeWages, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, t });
         // FICA
         const ssAnnual = Math.min(ficaWages, num(t.ssWageBase) || Infinity) * num(t.ssRate) / 100;
         // Employers withhold the extra 0.9% Medicare on wages above $200,000 whatever the filing
@@ -7089,7 +7141,7 @@ I18n.country('US', {
             country: 'US', sueldo, sueldoAnual: gross, status,
             iessM: ficaM, iessAnual: ssAnnual + medAnnual, ssM: ssAnnual / 12, medM: medAnnual / 12,
             fedM: fedAnnual / 12, stateM: stateAnnual / 12, localM: localAnnual / 12, localRate: local.rate, localResident: local.resident, stateRate, stateType: st.type,
-            pretaxM: (pretaxRetire + pretax125) / 12, stdDeduction: std, credits,
+            pretaxM: (pretaxRetire + pretax125) / 12, stdDeduction: std, credits, incomeWages,
             sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied, baseImponible: taxable,
             isrAnual: incomeTaxAnnual, isrM: incomeTaxAnnual / 12,
             netoAntesM, otrosDescuentosM: otros, netoM: Math.max(0, netoAntesM - otros)
@@ -8964,7 +9016,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usRefundEstimate, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -12766,7 +12818,7 @@ I18n.country('US', {
         const yd = ctx.year, p = ctx.pay;
         renderSummary();
         taxYearNote(ctx);
-        if (p.country === 'US') { renderUS(ctx); return; }
+        if (p.country === 'US') { renderUS(ctx); if (window.Refund) Refund.render(ctx); return; }
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
             ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],
@@ -12853,6 +12905,71 @@ I18n.country('US', {
     });
 
     App.defineView('presupuesto/ingresos', { update });
+})();
+</script>
+<script>/* js/views/refund.js */
+/* Ingresos (US) → ¿Te devuelven o debes?: the year's federal tax for the household against what will
+ * have been withheld (so far + per paycheck × paychecks left), and the W-4 change that evens it out.
+ * yd.withholding: { perCheck, ytd (null = estimated), spouseWages, spouseWithheld, untaxed }. */
+(function () {
+    'use strict';
+    const { money, money0, esc } = Fmt;
+    const cfg = (yd) => yd.withholding || (yd.withholding = { perCheck: null, ytd: null, spouseWages: 0, spouseWithheld: 0, untaxed: 0 });
+
+    // Paychecks paid so far this year and still to come (the pay schedule, or every 2 weeks).
+    function checks(today) {
+        const sch = Store.state.settings.paySchedule || (Store.state.settings.paydays || []).length && Store.state.settings.paydays;
+        const y = today.getFullYear(), t = Engine.isoDate(today);
+        const next = Engine.isoDate(new Date(y, today.getMonth(), today.getDate() + 1));
+        const paid = sch ? Engine.payDates(sch, `${y}-01-01`, t).length : Math.floor((today - new Date(y, 0, 1)) / 86400000 / 14);
+        const left = sch ? Engine.payDates(sch, next, `${y}-12-31`).length : Math.ceil((new Date(y, 11, 31) - today) / 86400000 / 14);
+        return { paid, left, assumed: !sch };
+    }
+
+    function render(ctx) {
+        const el = document.getElementById('inc-refund');
+        if (!el || ctx.year.country !== 'US' || ctx.state.activeYear !== ctx.today.getFullYear()) { if (el) { UI.html('inc-refund-in', ''); UI.html('inc-refund', '<p class="help">Disponible para el año en curso.</p>'); } return; }
+        const yd = ctx.year, c = cfg(yd), p = ctx.pay, k = checks(ctx.today);
+        const v = (x) => (x === null || x === undefined ? '' : esc(String(x)));
+        const per = Number(c.perCheck) || 0;
+        const ytd = c.ytd === null || c.ytd === undefined ? per * k.paid : Number(c.ytd) || 0;
+        const field = (key, label, val, help, ph) => `<label class="field"><span class="field-label">${label}</span><input type="number" class="input" min="0" step="10" data-input="refund.set" data-key="${key}" value="${v(val)}" ${ph ? `placeholder="${esc(ph)}"` : ''}>${help ? `<span class="help">${help}</span>` : ''}</label>`;
+        const computedPer = k.paid + k.left > 0 ? p.fedM * 12 / (k.paid + k.left) : 0;
+        const inputs = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            ${field('perCheck', 'Retención federal por pago ($)', c.perCheck, `De tu último talón ("Federal Withholding"). Con tu W-4 sería unos ${money0(computedPer)}.`)}
+            ${field('ytd', 'Retenido en el año hasta hoy ($)', c.ytd, `El acumulado del talón ("YTD"). Vacío = ${k.paid} pagos × lo de arriba.`, money0(per * k.paid))}
+            ${field('spouseWages', 'Sueldo bruto de tu pareja al año ($)', c.spouseWages, yd.filingStatus === 'mfj' ? 'Si también trabaja con W-2.' : 'Solo si declaran juntos.')}
+            ${field('spouseWithheld', 'Su retención federal del año ($)', c.spouseWithheld, '')}
+            ${field('untaxed', 'Otros ingresos sin retención ($/año)', c.untaxed, 'Intereses, trabajos por tu cuenta, etc.')}
+        </div>`;
+        // Inputs are drawn once (re-drawing them while typing would lose the cursor).
+        const box = document.getElementById('inc-refund-in');
+        if (box && !box.contains(document.activeElement)) UI.html('inc-refund-in', inputs);
+        if (!per && !Number(c.ytd)) { UI.html('inc-refund', '<p class="text-xs mt-3"><i class="fa-solid fa-circle-info text-blue-600"></i> Escribe la retención federal de tu último talón de pago para ver si te devolverán o deberás.</p>'); return; }
+        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: c.spouseWages, otherWithheld: c.spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left });
+        const big = Math.abs(r.diff) >= 500;
+        const tone = r.diff >= 0 && r.diff < 1500 ? 'tone-emerald' : r.diff >= 0 ? 'tone-amber' : 'tone-red';
+        const w4 = r.adjustPerCheck === null ? '' : r.diff < -100
+            ? `<p class="text-xs mt-2"><strong>W-4:</strong> para no deber, pide <strong>${money(r.adjustPerCheck)} más por pago</strong> (paso 4(c), "Extra withholding") en tus ${k.left} pagos que quedan.${r.penaltyRisk ? ' <span class="text-red-700">Deber más de $1,000 puede traer multa por pago insuficiente.</span>' : ''}</p>`
+            : r.diff > 1500 ? `<p class="text-xs mt-2"><strong>W-4:</strong> le prestas ${money0(r.diff)} sin intereses al IRS. Podrías retener unos <strong>${money(-r.adjustPerCheck)} menos por pago</strong> y mandar ese dinero a tu plan cada mes.</p>`
+            : '<p class="text-xs mt-2 text-emerald-700"><i class="fa-solid fa-circle-check"></i> Tu retención está bien ajustada.</p>';
+        UI.html('inc-refund', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+                <div class="kpi tone-slate"><span class="kpi-label">Impuesto federal del año</span><span class="kpi-value">${money0(r.tax)}</span><span class="kpi-note">sobre ${money0(r.income)}, menos ${money0(r.dedApplied)} de deducción${r.credits ? ` y ${money0(r.credits)} en créditos` : ''}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">Retenido en el año</span><span class="kpi-value">${money0(r.withheld)}</span><span class="kpi-note">${money0(ytd)} hasta hoy + ${k.left} pagos${k.assumed ? ' (cada 2 semanas)' : ''}</span></div>
+                <div class="kpi ${tone}"><span class="kpi-label">${r.diff >= 0 ? 'Te devolverían' : 'Deberías'}</span><span class="kpi-value">${money0(Math.abs(r.diff))}</span><span class="kpi-note">${big ? (r.diff >= 0 ? 'en abril' : 'al declarar en abril') : 'casi en cero'}</span></div>
+            </div>${w4}
+            <p class="help mt-2">Estimado solo del impuesto federal sobre sueldos (no estatal, ni créditos especiales). Para el W-4 exacto, usa el Tax Withholding Estimator del IRS.</p>`);
+    }
+
+    UI.register({
+        'refund.set': (el) => {
+            const c = cfg(Store.active()), k = el.dataset.key;
+            c[k] = el.value === '' ? (k === 'perCheck' || k === 'ytd' ? null : 0) : Math.max(0, Fmt.parseNum(el.value, 0));
+            App.changed({ step: true });
+        }
+    });
+
+    window.Refund = { render };
 })();
 </script>
 <script>/* js/views/payscan.js */

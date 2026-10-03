@@ -95,6 +95,36 @@
     const US_STATES_FALLBACK = () => (typeof require !== 'undefined' ? require('./defaults-us.js').STATES : []);
     // Paycheck math for the US (annual figures ÷ 12): pre-tax 401(k)/403(b) lower income tax;
     // pre-tax health, dental, vision, FSA and HSA (section 125) lower income tax and FICA too.
+    // Federal income tax on a year's income (after pre-tax deductions): the larger of the standard
+    // or itemized deduction, the brackets, minus child / other-dependent credits — which phase out
+    // $50 per $1,000 (or part) of income above $200,000 ($400,000 married filing jointly), IRC §24(b).
+    function usFederalTax({ income, status = 'single', dependents = 0, otherDependents = 0, itemized = 0, t = {} }) {
+        const std = num((t.stdDeduction || {})[status]);
+        const dedApplied = Math.max(std, num(itemized));
+        const taxable = Math.max(0, num(income) - dedApplied);
+        const baseCredits = num(dependents) * num(t.childCredit) + num(otherDependents) * num(t.otherDependentCredit);
+        const phaseStart = num((t.ctcPhaseoutStart || { single: 200000, mfj: 400000, hoh: 200000 })[status]);
+        const credits = Math.max(0, baseCredits - Math.ceil(Math.max(0, num(income) - phaseStart) / 1000) * (num(t.ctcPhaseoutStep) || 50));
+        const before = bracketTax(taxable, (t.brackets || {})[status]);
+        return { std, dedApplied, taxable, credits, before, tax: Math.max(0, before - credits) };
+    }
+
+    // Refund or owe: the year's federal tax for the household against what will have been withheld
+    // (so far this year + per paycheck × paychecks left), and the W-4 change that evens it out —
+    // extra withholding per paycheck (Step 4(c)) when you'd owe, less when the refund is large.
+    function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0 }) {
+        const t = yd.usTax || {};
+        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const income = Math.max(0, num(wagesIncome) + num(otherWages) + num(untaxedIncome));
+        const f = usFederalTax({ income, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, t });
+        const withheld = num(withheldYtd) + num(perCheck) * Math.max(0, num(checksLeft)) + num(otherWithheld);
+        const diff = withheld - f.tax;        // > 0 refund, < 0 owe
+        const n = Math.max(1, Math.round(num(checksLeft)));
+        return Object.assign({}, f, { income: cents(income), withheld: cents(withheld), diff: cents(diff), refund: diff > 0, adjustPerCheck: num(checksLeft) > 0 ? cents(-diff / n) : null,
+            // Owing $1,000+ (after withholding) can bring an underpayment penalty unless withholding covers 90% of this year's tax or 100% of last year's.
+            penaltyRisk: diff < -1000 && withheld < f.tax * 0.9 });
+    }
+
     function payrollUS(yd, states) {
         const t = yd.usTax || {};
         const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
@@ -106,15 +136,7 @@
         const incomeWages = Math.max(0, gross - pretaxRetire - pretax125);
         const ficaWages = Math.max(0, gross - pretax125);
         // Federal income tax
-        const std = num((t.stdDeduction || {})[status]);
-        const dedApplied = Math.max(std, num(yd.itemized));
-        const taxable = Math.max(0, incomeWages - dedApplied);
-        // Child / other-dependent credits phase out: $50 less per $1,000 (or part) of income above
-        // $200,000 ($400,000 married filing jointly) — IRC §24(b).
-        const baseCredits = num(yd.dependents) * num(t.childCredit) + num(yd.otherDependents) * num(t.otherDependentCredit);
-        const phaseStart = num((t.ctcPhaseoutStart || { single: 200000, mfj: 400000, hoh: 200000 })[status]);
-        const credits = Math.max(0, baseCredits - Math.ceil(Math.max(0, incomeWages - phaseStart) / 1000) * (num(t.ctcPhaseoutStep) || 50));
-        const fedAnnual = Math.max(0, bracketTax(taxable, (t.brackets || {})[status]) - credits);
+        const { std, dedApplied, taxable, credits, tax: fedAnnual } = usFederalTax({ income: incomeWages, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, t });
         // FICA
         const ssAnnual = Math.min(ficaWages, num(t.ssWageBase) || Infinity) * num(t.ssRate) / 100;
         // Employers withhold the extra 0.9% Medicare on wages above $200,000 whatever the filing
@@ -140,7 +162,7 @@
             country: 'US', sueldo, sueldoAnual: gross, status,
             iessM: ficaM, iessAnual: ssAnnual + medAnnual, ssM: ssAnnual / 12, medM: medAnnual / 12,
             fedM: fedAnnual / 12, stateM: stateAnnual / 12, localM: localAnnual / 12, localRate: local.rate, localResident: local.resident, stateRate, stateType: st.type,
-            pretaxM: (pretaxRetire + pretax125) / 12, stdDeduction: std, credits,
+            pretaxM: (pretaxRetire + pretax125) / 12, stdDeduction: std, credits, incomeWages,
             sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied, baseImponible: taxable,
             isrAnual: incomeTaxAnnual, isrM: incomeTaxAnnual / 12,
             netoAntesM, otrosDescuentosM: otros, netoM: Math.max(0, netoAntesM - otros)
@@ -2015,7 +2037,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usRefundEstimate, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

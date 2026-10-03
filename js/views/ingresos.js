@@ -190,7 +190,7 @@
         const yd = ctx.year, p = ctx.pay;
         renderSummary();
         taxYearNote(ctx);
-        if (p.country === 'US') { renderUS(ctx); return; }
+        if (p.country === 'US') { renderUS(ctx); if (window.Refund) Refund.render(ctx); return; }
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
             ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],
