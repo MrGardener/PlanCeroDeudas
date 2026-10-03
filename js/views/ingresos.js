@@ -1,7 +1,7 @@
 /* Presupuesto → Ingresos e Impuestos: payroll (IESS + SRI), décimos and deductions. */
 (function () {
     'use strict';
-    const { money, pct, esc } = Fmt;
+    const { money, money0, pct, esc } = Fmt;
 
     // ------------------------------------------------------------------ how you get paid
     const WD = Fmt.WEEKDAYS;
@@ -186,6 +186,22 @@
             : `Tablas de impuestos de ${ty}. Verifícalas cada año en Configuración → Parámetros legales.`;
     }
 
+    // What you've actually spent this year in the SRI's personal-expense categories, how much of
+    // it has an invoice in your name, and the rebate it's worth so far.
+    function sriTracker(ctx) {
+        const p = ctx.pay, y = ctx.state.activeYear;
+        const r = Engine.sriPersonalExpenses(ctx.state.transactions, y, { cap: p.sriCap, ratePct: Number(ctx.year.sriRebajaRate) || 18 });
+        const pct = r.cap > 0 ? Math.min(100, Math.round(r.invoiced / r.cap * 100)) : 0;
+        UI.html('inc-sri-tracker', r.total <= 0 ? `<p class="help">Cuando registres gastos de ${y} en vivienda, salud, educación, alimentación, vestimenta o turismo, aquí verás cuánto llevas.</p>` : `
+            <div class="table-wrap"><table class="table"><thead><tr><th>Categoría del SRI</th><th class="num">Gastado</th><th class="num">Con factura</th></tr></thead>
+            <tbody>${r.groups.map(g => `<tr><td>${esc(g.label)}</td><td class="num">${money0(g.total)}</td><td class="num ${g.invoiced < g.total ? 'text-amber-700' : ''}">${money0(g.invoiced)}</td></tr>`).join('')}</tbody>
+            <tfoot><tr><td>Total</td><td class="num">${money0(r.total)}</td><td class="num">${money0(r.invoiced)}</td></tr></tfoot></table></div>
+            <div class="flex justify-between text-xs mt-3"><span>Facturas frente al tope (${money0(r.cap)})</span><strong>${pct}%</strong></div>
+            <div class="progress-track mt-1"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <p class="text-xs mt-2">Rebaja ganada hasta hoy: <strong>${money0(r.rebate)}</strong>${r.missingInvoices > 0 ? `. <span class="text-amber-700">Tienes ${money0(r.missingInvoices)} en gastos sin factura a tu nombre que aún caben en el tope: pídela con tu cédula y sumarías ${money0(r.potential - r.rebate)}.</span>` : '.'}</p>
+            <p class="help mt-1">Cuentan las facturas importadas del SRI y las marcadas «con factura». Del dividendo hipotecario solo cuentan los intereses (certificado de tu banco); los restaurantes no cuentan como alimentación.</p>`);
+    }
+
     function update(ctx) {
         const yd = ctx.year, p = ctx.pay;
         renderSummary();
@@ -228,6 +244,7 @@
         }
         box.className = `panel ${tone}`;
         box.innerHTML = `<div class="text-xs font-bold text-slate-900"><i class="fa-solid ${icon}"></i> ${title}</div><p class="text-[11px] text-slate-700 mt-1">${text}</p>`;
+        sriTracker(ctx);
     }
 
     UI.register({

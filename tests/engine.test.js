@@ -1190,3 +1190,22 @@ test('side income: what to set aside (US self-employment + income tax + state; E
     assert.equal(x.total, Math.round((E.incomeTax(30000, ec.sriBrackets) - E.incomeTax(20000, ec.sriBrackets)) * 100) / 100);
     assert.equal(E.sideIncomeTax({ net: 0, yd }).total, 0);
 });
+
+test('Ecuador personal expenses: SRI categories, invoices, rebate vs cap', () => {
+    const t = (id, cat, sub, amount, extra = {}) => Object.assign({ id, type: 'Gasto', parentCategory: cat, category: sub, amount, date: '2026-05-10' }, extra);
+    const txns = [
+        t(1, 'Alimentación', 'Mercado/Supermercado', 300, { source: 'sri' }),
+        t(2, 'Alimentación', 'Restaurantes', 80, { source: 'sri' }),          // restaurants don't count
+        t(3, 'Salud', 'Medicinas', 120, { factura: true }),
+        t(4, 'Vivienda', 'Hipoteca', 900, { factura: true }),                 // only the interest counts
+        t(5, 'Servicios Básicos y Comunicación', 'Energía Eléctrica', 40),     // no invoice marked
+        t(6, 'Educación', 'Útiles Escolares', 60, { factura: true, date: '2025-09-01' })   // another year
+    ];
+    const r = E.sriPersonalExpenses(txns, 2026, { cap: 400 });
+    const by = Object.fromEntries(r.groups.map(g => [g.key, g]));
+    assert.equal(by.alimentacion.total, 300); assert.equal(by.salud.invoiced, 120); assert.equal(by.vivienda.total, 40); assert.equal(by.vivienda.invoiced, 0);
+    assert.equal(r.total, 460); assert.equal(r.invoiced, 420);
+    assert.equal(r.rebate, 72);           // 18% × min(420, 400)
+    assert.equal(r.missingInvoices, 0);   // the invoiced part already passes the cap
+    assert.equal(E.sriPersonalExpenses(txns, 2026, { cap: 1000 }).missingInvoices, 40);
+});

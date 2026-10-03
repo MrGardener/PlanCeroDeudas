@@ -54,6 +54,7 @@
         UI.show('txn-from-field', tr);
         UI.show('txn-to-field', tr);
         UI.show('txn-refund-field', type === 'Gasto');
+        UI.show('txn-factura-field', type === 'Gasto');
         if (tr) {
             UI.show('txn-line-field', false);
             UI.show('txn-income-field', false);
@@ -83,6 +84,7 @@
         document.getElementById('txn-line').value = '';
         document.getElementById('txn-refund').checked = false;
         document.getElementById('txn-tags').value = '';
+        document.getElementById('txn-factura').checked = false;
     }
 
     // Income lines of the budget (active year) that a new income can be the receipt of.
@@ -881,6 +883,13 @@
                 ['budgetLine', 'splits', 'incomeId', 'refund', 'countAsExtra'].forEach(k => delete t[k]);
             });
         },
+        // Ecuador: these purchases have an invoice in your name (they count for the SRI rebate).
+        'txn.bulkFactura': () => {
+            const list = picked().filter(t => (t.type || 'Gasto') === 'Gasto');
+            if (!list.length) return;
+            const ids = new Set(list.map(t => t.id));
+            bulkApply(`${list.length} gasto${list.length === 1 ? '' : 's'} con factura`, t => { if (ids.has(t.id)) t.factura = true; });
+        },
         // A rule so the next ones like these sort themselves (Importar → Reglas automáticas).
         'txn.bulkRule': () => {
             const list = picked();
@@ -964,7 +973,8 @@
                 from: tr ? get('txn-from').value : undefined,
                 to: tr ? get('txn-to').value : undefined,
                 refund: type === 'Gasto' && get('txn-refund').checked ? true : undefined,
-                tags: Engine.parseTags(get('txn-tags').value)
+                tags: Engine.parseTags(get('txn-tags').value),
+                factura: type === 'Gasto' && get('txn-factura').checked ? true : undefined
             };
             if (!values.tags.length) values.tags = undefined;
             Store.ui.lastMember = values.memberId || null;
@@ -977,6 +987,7 @@
                 if (!tr) { delete editing.from; delete editing.to; }
                 if (!values.refund) delete editing.refund;
                 if (!values.tags) delete editing.tags;
+                if (!values.factura) delete editing.factura;
                 if (tr || values.refund) delete editing.splits;
                 setEditing(null);
                 clearForm();
@@ -1034,6 +1045,7 @@
             pay.value = t.paymentType || pay.options[0].value;
             get('txn-refund').checked = !!t.refund;
             get('txn-tags').value = (t.tags || []).join(', ');
+            get('txn-factura').checked = !!t.factura || t.source === 'sri';
             if (Engine.isTransfer(t)) fillTransferSelects(t.from || '', t.to || '');
             setEditing(t);
             document.getElementById('txn-form-card').scrollIntoView({ block: 'start', behavior: 'smooth' });

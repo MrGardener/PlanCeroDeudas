@@ -944,6 +944,10 @@
             else if (t.date.slice(5, 7) === '12' && t.parentCategory === 'Regalos, Celebraciones y Donaciones') t.tags = [(US ? 'christmas-' : 'navidad-') + y];
         });
 
+        // Ecuador: most purchases in the SRI's personal-expense categories ask for an invoice with
+        // the family's cédula (about 3 in 4: some markets and small shops don't give one).
+        if (!US) txns.forEach(t => { if (t.type === 'Gasto' && Engine.sriPersonalExpenses([t], t.date.slice(0, 4), {}).total > 0 && R.chance(0.75)) t.factura = true; });
+
         // ------------------------------------------------------------ transfers + refunds
         // Cash from the ATM twice a month (checking → wallet), and a few purchases returned:
         // neither changes what the family earned, and a refund lowers what they spent.

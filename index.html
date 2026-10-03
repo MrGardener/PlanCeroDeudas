@@ -452,6 +452,8 @@
                     <div class="kpi tone-blue"><span class="kpi-label">Deducibles reales</span><span class="kpi-value" id="inc-ded-real">$0.00</span></div>
                 </div>
                 <div id="inc-ded-status" class="panel"></div>
+                <div class="section-label mt-4"><i class="fa-solid fa-receipt text-blue-600"></i> Lo que llevas este año</div>
+                <div id="inc-sri-tracker"></div>
             </div>
         </div>
 
@@ -536,6 +538,7 @@
                     <datalist id="txn-tag-list"></datalist>
                     <span class="help">Para seguir un viaje, un proyecto o lo que te deben reembolsar, aunque esté en varias categorías.</span></label>
                 <label class="check-row self-end" id="txn-refund-field"><input type="checkbox" id="txn-refund"> <span>Es un <strong>reembolso o devolución</strong>: resta de lo gastado en su categoría</span></label>
+                <label class="check-row self-end" data-country="EC" id="txn-factura-field"><input type="checkbox" id="txn-factura"> <span><strong>Con factura</strong> a mi nombre (cuenta para la rebaja de gastos personales)</span></label>
                 <label class="field"><span class="field-label">Fecha</span>
                     <input type="date" id="txn-date" class="input" data-change="txn.dateChanged"></label>
                 <label class="field" id="txn-repeat-field"><span class="field-label">Repetir</span>
@@ -597,6 +600,7 @@
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkTag"><i class="fa-solid fa-hashtag"></i> Etiqueta</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkPayment"><i class="fa-solid fa-credit-card"></i> Forma de pago</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkTransfer"><i class="fa-solid fa-right-left"></i> Es transferencia</button>
+                    <button type="button" class="mini-btn" data-needs data-action="txn.bulkFactura" data-country="EC"><i class="fa-solid fa-file-invoice"></i> Con factura</button>
                     <button type="button" class="mini-btn" data-needs data-action="txn.bulkRule"><i class="fa-solid fa-wand-magic-sparkles"></i> Crear regla</button>
                     <button type="button" class="mini-btn text-red-600" data-needs data-action="txn.bulkDelete"><i class="fa-solid fa-trash-can"></i> Eliminar</button>
                 </div>

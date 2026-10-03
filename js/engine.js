@@ -109,6 +109,35 @@
         return { std, dedApplied, taxable, credits, before, tax: Math.max(0, before - credits) };
     }
 
+    // Ecuador's personal expenses (gastos personales) for the 18% rebate, from what you actually
+    // spent this year: which categories and subcategories the SRI accepts, how much has an
+    // invoice in your name (imported SRI invoices, or marked "con factura"), and against the cap.
+    // Mortgage payments are left out: only their interest counts (the bank's yearly certificate).
+    const SRI_PERSONAL = [
+        { key: 'vivienda', label: 'Vivienda', cats: { 'Vivienda': ['Arriendo', 'Alícuotas/Condominio', 'Impuesto Predial'], 'Servicios Básicos y Comunicación': ['Agua', 'Energía Eléctrica', 'Gas'] } },
+        { key: 'salud', label: 'Salud', cats: { 'Salud': null } },
+        { key: 'educacion', label: 'Educación, arte y cultura', cats: { 'Educación': null } },
+        { key: 'alimentacion', label: 'Alimentación', cats: { 'Alimentación': ['Mercado/Supermercado', 'Mercado Municipal/Ferias', 'Panadería'] } },
+        { key: 'vestimenta', label: 'Vestimenta', cats: { 'Vestimenta': ['Ropa y Calzado', 'Ropa de Trabajo'] } },
+        { key: 'turismo', label: 'Turismo', cats: { 'Viajes y Vacaciones': ['Hospedaje', 'Vuelos', 'Alquiler de Auto de Viaje'] } }
+    ];
+    const sriGroupOf = (t) => SRI_PERSONAL.find(g => { const subs = g.cats[t.parentCategory]; return subs !== undefined && (subs === null || subs.includes(t.category)); });
+    function sriPersonalExpenses(transactions, year, { cap = 0, ratePct = 18 } = {}) {
+        const groups = SRI_PERSONAL.map(g => ({ key: g.key, label: g.label, total: 0, invoiced: 0 }));
+        (transactions || []).forEach(t => {
+            if (txnType(t) !== 'Gasto' || !t.date || Number(t.date.slice(0, 4)) !== Number(year)) return;
+            const g = sriGroupOf(t);
+            if (!g) return;
+            const row = groups.find(x => x.key === g.key), v = amt(t);
+            row.total += v;
+            if (t.source === 'sri' || t.factura) row.invoiced += v;
+        });
+        groups.forEach(g => { g.total = cents(g.total); g.invoiced = cents(g.invoiced); });
+        const total = cents(sum(groups, g => g.total)), invoiced = cents(sum(groups, g => g.invoiced));
+        const rate = num(ratePct) / 100;
+        return { groups, total, invoiced, cap: num(cap), rebate: cents(Math.min(invoiced, num(cap)) * rate), potential: cents(Math.min(total, num(cap)) * rate), toCap: cents(Math.max(0, num(cap) - invoiced)), missingInvoices: cents(Math.max(0, Math.min(total, num(cap)) - invoiced)) };
+    }
+
     // Side income (freelance, a small business): what to set aside for taxes. US: self-employment
     // tax (15.3% of 92.35% of the net, Social Security only up to the wage base left after W-2
     // wages), then federal income tax on top of your other taxable income — half the SE tax and the
@@ -2064,7 +2093,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usRefundEstimate, sideIncomeTax, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

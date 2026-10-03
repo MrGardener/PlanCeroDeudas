@@ -2452,3 +2452,12 @@ I18n.add('en', {
     "Cuando registres ingresos en «{0}» (trabajos por tu cuenta, ventas, honorarios), aquí verás cuánto apartar para impuestos.": "When you log income under «{0}» (gigs, sales, professional fees), you'll see here how much to set aside for taxes.",
     "Estimado con tus tablas de {0}. Cuenta tus ingresos en «{1}» y tus gastos en «{2}».": "Estimated with your {0} tables. It counts your income under «{1}» and your expenses under «{2}»."
 });
+// Ecuador personal-expenses tracker
+I18n.add('en', {
+    "Lo que llevas este año": "This year so far", "Categoría del SRI": "SRI category", "Gastado": "Spent", "Con factura": "With invoice",
+    "Educación, arte y cultura": "Education, arts and culture", "Turismo": "Tourism", "Facturas frente al tope ({0})": "Invoices vs. the cap ({0})",
+    "Rebaja ganada hasta hoy:": "Rebate earned so far:", "Tienes {0} en gastos sin factura a tu nombre que aún caben en el tope: pídela con tu cédula y sumarías {1}.": "You have {0} of spending without an invoice in your name that still fits under the cap: ask for one with your ID number and you'd add {1}.",
+    "Cuentan las facturas importadas del SRI y las marcadas «con factura». Del dividendo hipotecario solo cuentan los intereses (certificado de tu banco); los restaurantes no cuentan como alimentación.": "Imported SRI invoices and purchases marked «with invoice» count. Of a mortgage payment only the interest counts (your bank's certificate); restaurants don't count as food.",
+    "Cuando registres gastos de {0} en vivienda, salud, educación, alimentación, vestimenta o turismo, aquí verás cuánto llevas.": "When you log {0} spending on housing, health, education, food, clothing or tourism, you'll see your progress here.",
+    "a mi nombre (cuenta para la rebaja de gastos personales)": "in my name (counts for the personal-expenses rebate)", "{0} gasto{1} con factura": "{0} expense{1|s} with an invoice"
+});
