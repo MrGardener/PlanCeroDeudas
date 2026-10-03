@@ -1349,9 +1349,11 @@
                 <button class="btn btn-primary" data-action="hold.add"><i class="fa-solid fa-plus"></i> Agregar inversión</button>
             </div>
         </div>
-        <div class="table-wrap"><table class="table"><thead><tr><th>Símbolo</th><th>Nombre</th><th>Tipo</th><th style="width:7rem">Unidades</th><th style="width:8rem">Precio (<span class="cur">$</span>)</th><th class="num">Valor</th><th>Precio de</th><th></th></tr></thead>
+        <div class="table-wrap"><table class="table"><thead><tr><th>Símbolo</th><th>Nombre</th><th>Tipo</th><th style="width:7rem">Unidades</th><th style="width:8rem">Precio (<span class="cur">$</span>)</th><th class="num">Valor</th><th style="width:8rem">Costo total (<span class="cur">$</span>)</th><th class="num">Ganancia</th><th>Precio de</th><th></th></tr></thead>
             <tbody id="hold-body"></tbody>
-            <tfoot><tr><td colspan="5">Total en inversiones</td><td class="num" id="hold-total"></td><td colspan="2"></td></tr></tfoot></table></div>
+            <tfoot><tr><td colspan="5">Total en inversiones</td><td class="num" id="hold-total"></td><td class="num" id="hold-cost"></td><td class="num" id="hold-gain"></td><td colspan="2"></td></tr></tfoot></table></div>
+        <p class="help mt-2">Costo total: lo que pagaste por todas las unidades (con comisiones). Así ves cuánto has ganado o perdido.</p>
+        <div id="hold-mix"></div>
     </div>
 
     <div class="card">
@@ -1615,6 +1617,7 @@
 <script src="js/views/ingresos.js"></script>
 <script src="js/views/refund.js"></script>
     <script src="js/views/itemize.js"></script>
+    <script src="js/views/mezcla.js"></script>
 <script src="js/views/sideincome.js"></script>
 <script src="js/views/payscan.js"></script>
 <script src="js/views/transacciones.js"></script>

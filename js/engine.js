@@ -1040,6 +1040,54 @@
     const holdingValue = (h) => Math.max(0, num(h.shares)) * Math.max(0, num(h.price));
     const holdingsValue = (holdings) => sum(holdings || [], holdingValue);
 
+    // What each holding is, for the mix: U.S. stocks, international stocks, bonds, cash, other.
+    // Set by hand (h.asset), or guessed from common index-fund tickers and the kind.
+    const ASSET_CLASSES = ['us', 'intl', 'bonds', 'cash', 'other'];
+    const TICKER_CLASS = {};
+    [['us', 'VTI VOO SPY IVV ITOT SCHB SCHX SPLG VTSAX VFIAX FXAIX FSKAX SWPPX SWTSX QQQ QQQM VUG VTV VO VB VXF IWM IJH IJR SCHD SCHG DIA RSP VIG VYM VGT XLK SPTM'],
+     ['intl', 'VXUS VEA VWO IXUS IEFA IEMG EFA EEM VTIAX FTIHX SWISX SCHF SCHE VEU VSS ACWX SPDW SPEM'],
+     ['bonds', 'BND AGG BNDX VBTLX FXNAX SCHZ TIP VTIP SCHP BIV BSV BLV VGIT VGSH VGLT IEF TLT SHY IUSB GOVT MUB VTEB LQD'],
+     ['cash', 'SGOV BIL SHV VMFXX SPAXX SWVXX FDRXX VUSXX USFR TFLO']]
+        .forEach(([k, list]) => list.split(' ').forEach(t => { TICKER_CLASS[t] = k; }));
+    function assetClassOf(h) {
+        if (ASSET_CLASSES.includes(h.asset)) return h.asset;
+        const t = String(h.ticker || '').trim().toUpperCase();
+        if (TICKER_CLASS[t]) return TICKER_CLASS[t];
+        return h.kind === 'Cripto' || h.kind === 'Otro' ? 'other' : 'us';
+    }
+
+    // Your investments: what you paid (h.cost, the total), what they're worth and the gain; the mix
+    // by asset class against a target (% per class); and how to get back to it — selling and
+    // buying (diff per class), or putting `newMoney` only where you're short (no sales, no taxes).
+    function portfolioMix(holdings, target, { newMoney = 0, driftLimit = 5 } = {}) {
+        const list = (holdings || []).map(h => {
+            const value = holdingValue(h), cost = Math.max(0, num(h.cost));
+            return { id: h.id, ticker: h.ticker, value: cents(value), cost: cents(cost), gain: cost > 0 ? cents(value - cost) : null, gainPct: cost > 0 ? (value - cost) / cost : null, asset: assetClassOf(h) };
+        });
+        const total = sum(list, x => x.value);
+        const withCost = list.filter(x => x.cost > 0);
+        const cost = sum(withCost, x => x.cost), costValue = sum(withCost, x => x.value);
+        const tSum = target ? sum(ASSET_CLASSES, k => Math.max(0, num(target[k]))) : 0;
+        const hasTarget = tSum > 0;
+        const N = Math.max(0, num(newMoney));
+        const classes = ASSET_CLASSES.map(k => {
+            const value = sum(list.filter(x => x.asset === k), x => x.value);
+            const tp = hasTarget ? Math.max(0, num(target[k])) / tSum * 100 : null;
+            return { key: k, value: cents(value), pct: total > 0 ? value / total * 100 : 0, target: tp, diff: hasTarget ? cents(total * tp / 100 - value) : null };
+        });
+        const drift = hasTarget && total > 0 ? Math.max(...classes.map(c => Math.abs(c.pct - c.target))) : 0;
+        // New money only: each class short of its target share (counting the new money) gets a part
+        // proportional to how short it is.
+        let split = [];
+        if (hasTarget && N > 0) {
+            const short = classes.map(c => ({ key: c.key, s: Math.max(0, (total + N) * c.target / 100 - c.value) }));
+            const S = sum(short, x => x.s);
+            split = short.filter(x => x.s > 0).map(x => ({ key: x.key, amount: cents(N * x.s / S) }));
+        }
+        return { list, total: cents(total), cost: cents(cost), gain: withCost.length ? cents(costValue - cost) : null, gainPct: cost > 0 ? (costValue - cost) / cost : null,
+            classes, hasTarget, drift, rebalance: hasTarget && drift >= driftLimit, split };
+    }
+
     // ------------------------------------------------------------ bills
     // Lines with a due day in a given month: paid once what was spent on the line covers
     // what's planned; otherwise overdue (day passed), due soon (within `soonDays`) or later.
@@ -2132,7 +2180,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

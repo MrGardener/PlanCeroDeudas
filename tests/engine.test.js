@@ -1229,3 +1229,23 @@ test('itemize or standard (US 2026): SALT cap, charity and medical floors, tax e
     const i = E.loanInterestAhead(100000, 6, E.loanPayment(100000, 6, 360).payment, 12);
     assert.ok(i > 5900 && i < 6000, String(i));
 });
+
+test('investments: cost and gain, mix by asset class, drift, rebalancing and new money only', () => {
+    const H = [{ id: 1, ticker: 'VTI', shares: 24, price: 318.42, cost: 6120 }, { id: 2, ticker: 'vxus', shares: 61, price: 71.15, cost: 3660 },
+        { id: 3, ticker: 'BND', shares: 28, price: 73.86, cost: 2030 }, { id: 4, ticker: 'XYZ', kind: 'Cripto', shares: 0, price: 10 }];
+    assert.deepEqual(H.map(E.assetClassOf), ['us', 'intl', 'bonds', 'other']);
+    assert.equal(E.assetClassOf({ ticker: 'VTI', asset: 'bonds' }), 'bonds');   // set by hand wins
+    const m = E.portfolioMix(H, { us: 60, intl: 30, bonds: 10 }, { newMoney: 500 });
+    assert.equal(m.total, 14050.31); assert.equal(m.cost, 11810); assert.equal(m.gain, 2240.31);
+    close(m.drift, 5.609, 0.001); assert.equal(m.rebalance, true);
+    const by = Object.fromEntries(m.classes.map(c => [c.key, c]));
+    assert.equal(by.us.diff, 788.11); assert.equal(by.bonds.diff, -663.05);
+    close(m.classes.reduce((a, c) => a + c.diff, 0), 0);                        // buys and sells net out
+    assert.deepEqual(m.split, [{ key: 'us', amount: 488.8 }, { key: 'intl', amount: 11.2 }]);
+    close(m.split.reduce((a, x) => a + x.amount, 0), 500);
+    // Targets that don't add to 100 are taken proportionally; no target → no rebalancing.
+    close(E.portfolioMix(H, { us: 6, intl: 3, bonds: 1 }).drift, m.drift, 1e-9);
+    const none = E.portfolioMix(H, null);
+    assert.equal(none.hasTarget, false); assert.equal(none.rebalance, false); assert.deepEqual(none.split, []);
+    assert.equal(E.portfolioMix([{ ticker: 'VOO', shares: 1, price: 500 }], null).gain, null);   // no cost entered
+});

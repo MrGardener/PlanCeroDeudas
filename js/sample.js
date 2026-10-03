@@ -211,9 +211,9 @@
             { id: 6, name: 'HSA – HealthEquity', kind: 'retiro', balance: 4210.32 }
         ];
         const holdings = [
-            { id: 1, ticker: 'VTI', name: 'Vanguard Total Stock Market ETF', kind: 'ETF', shares: 24, price: 318.42 },
-            { id: 2, ticker: 'VXUS', name: 'Vanguard Total International Stock ETF', kind: 'ETF', shares: 61, price: 71.15 },
-            { id: 3, ticker: 'BND', name: 'Vanguard Total Bond Market ETF', kind: 'ETF', shares: 28, price: 73.86 }
+            { id: 1, ticker: 'VTI', name: 'Vanguard Total Stock Market ETF', kind: 'ETF', shares: 24, price: 318.42, cost: 6120 },
+            { id: 2, ticker: 'VXUS', name: 'Vanguard Total International Stock ETF', kind: 'ETF', shares: 61, price: 71.15, cost: 3660 },
+            { id: 3, ticker: 'BND', name: 'Vanguard Total Bond Market ETF', kind: 'ETF', shares: 28, price: 73.86, cost: 2030 }
         ];
         const polizas = [
             { coopName: 'Ally Bank', number: 'CD-40217', amount: 5000, rate: 4.0, days: 365, modality: 'Al Vencimiento (Simple)', matureIn: 152 },
@@ -1040,6 +1040,8 @@
             { id: 1, name: 'Mateo', age: 15, type: 'privada', years: 5, cost: null, saved: 0, monthly: 0, goalId: gid('uni') },
             { id: 2, name: 'Sofía', age: 2, type: 'publica', years: 5, cost: null, saved: 0, monthly: 0, goalId: null }
         ], costInflation: null, returnPct: null };
+        // The brokerage account's target mix (it has drifted: a little light on U.S. stocks).
+        s.investTarget = US ? { us: 60, intl: 30, bonds: 10, cash: 0, other: 0 } : null;
 
         // US: what the pay stubs say is withheld (federal), Sarah's part-time W-2 and the
         // photography side income — for the refund-or-owe estimate.

@@ -333,6 +333,10 @@ input[type="file"].hidden { display: none; }
 .milestone.done i { color: var(--pos); }
 .progress-track { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
 .progress-fill { height: 100%; border-radius: 999px; background: var(--brand); }
+/* Investment mix: current share as a bar, the target as a tick. */
+.mix-bar { position: relative; height: 8px; border-radius: 999px; background: var(--surface-3); margin-top: 4px; }
+.mix-fill { height: 100%; border-radius: 999px; background: #6366f1; }
+.mix-target { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 2px var(--surface); }
 .found-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .45rem .6rem; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); }
 .annual-steps { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
 .annual-step { border: 1px solid var(--line); border-radius: var(--r-md); padding: .55rem .7rem; font-size: var(--fs-xs); background: var(--surface); }
@@ -2090,9 +2094,11 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 <button class="btn btn-primary" data-action="hold.add"><i class="fa-solid fa-plus"></i> Agregar inversión</button>
             </div>
         </div>
-        <div class="table-wrap"><table class="table"><thead><tr><th>Símbolo</th><th>Nombre</th><th>Tipo</th><th style="width:7rem">Unidades</th><th style="width:8rem">Precio (<span class="cur">$</span>)</th><th class="num">Valor</th><th>Precio de</th><th></th></tr></thead>
+        <div class="table-wrap"><table class="table"><thead><tr><th>Símbolo</th><th>Nombre</th><th>Tipo</th><th style="width:7rem">Unidades</th><th style="width:8rem">Precio (<span class="cur">$</span>)</th><th class="num">Valor</th><th style="width:8rem">Costo total (<span class="cur">$</span>)</th><th class="num">Ganancia</th><th>Precio de</th><th></th></tr></thead>
             <tbody id="hold-body"></tbody>
-            <tfoot><tr><td colspan="5">Total en inversiones</td><td class="num" id="hold-total"></td><td colspan="2"></td></tr></tfoot></table></div>
+            <tfoot><tr><td colspan="5">Total en inversiones</td><td class="num" id="hold-total"></td><td class="num" id="hold-cost"></td><td class="num" id="hold-gain"></td><td colspan="2"></td></tr></tfoot></table></div>
+        <p class="help mt-2">Costo total: lo que pagaste por todas las unidades (con comisiones). Así ves cuánto has ganado o perdido.</p>
+        <div id="hold-mix"></div>
     </div>
 
     <div class="card">
@@ -2657,7 +2663,7 @@ I18n.add('en', {
 "Abrir el formulario completo": "Open the full form",
 "Abrir la app": "Open the app",
 "Acceso directo al registro rápido": "Shortcut to quick entry",
-"Acción": "Action",
+"Acción": "Stock",
 "Acción no registrada:": "Unregistered action:",
 "Activar bloqueo con PIN": "Turn on PIN lock",
 "Activos − Pasivos: el número más importante a seguir en el tiempo. Cada saldo se mantiene igual año a año hasta que lo edites para un año posterior.": "Assets − Liabilities: the most important number to track over time. Each balance stays the same year to year until you edit it for a later year.",
@@ -5051,7 +5057,43 @@ I18n.add('en', {
     "Usar la deducción estándar": "Use the standard deduction",
     "Usas la deducción estándar": "Using the standard deduction",
     "Si juntas las donaciones de dos años en uno (por ejemplo, las de enero en diciembre), ese año detallarías y el siguiente tomarías la estándar.": "If you bunch two years of gifts into one (for example, January's in December), you'd itemize that year and take the standard deduction the next.",
-    "Estimado con las reglas de 2026: impuestos estatales y locales hasta {0}, donaciones por encima del 0.5% de tu ingreso y gastos médicos por encima del 7.5%. Los gastos pagados con tu HSA no cuentan.": "Estimated with the 2026 rules: state and local taxes up to {0}, charitable gifts above 0.5% of your income and medical costs above 7.5%. Costs paid from your HSA don't count."
+    "Estimado con las reglas de 2026: impuestos estatales y locales hasta {0}, donaciones por encima del 0.5% de tu ingreso y gastos médicos por encima del 7.5%. Los gastos pagados con tu HSA no cuentan.": "Estimated with the 2026 rules: state and local taxes up to {0}, charitable gifts above 0.5% of your income and medical costs above 7.5%. Costs paid from your HSA don't count.",
+    "Tu mezcla de inversiones": "Your investment mix",
+    "¿Qué es cada una?": "What is each one?",
+    "Se adivina por el símbolo de los fondos más comunes; cámbialo si no es así.": "Guessed from the ticker of the most common funds; change it if it's wrong.",
+    "Tu mezcla meta (%)": "Your target mix (%)",
+    "Por tu edad ({0}% en acciones)": "By your age ({0}% in stocks)",
+    "Todo en acciones (largo plazo)": "All stocks (long term)",
+    "Conservadora": "Conservative",
+    "Acciones de EE.UU.": "U.S. stocks",
+    "Acciones internacionales": "International stocks",
+    "Efectivo / mercado monetario": "Cash / money market",
+    "Otro (cripto, oro…)": "Other (crypto, gold…)",
+    "Suman {0}%: se toman en proporción.": "They add up to {0}%: taken proportionally.",
+    "(meta {0}%)": "(target {0}%)",
+    "En la meta": "On target",
+    "Comprar {0}": "Buy {0}",
+    "Vender {0}": "Sell {0}",
+    "Elige una mezcla meta para ver si necesitas rebalancear.": "Pick a target mix to see whether you need to rebalance.",
+    "Tu mezcla se desvió {0} puntos de la meta": "Your mix has drifted {0} points from the target",
+    "(más de 5): conviene rebalancear, comprando y vendiendo como se indica, o con tus próximos aportes.": "(more than 5): time to rebalance, buying and selling as shown, or with your next contributions.",
+    "Tu mezcla está a menos de 5 puntos de la meta: no hace falta mover nada. Revísala una vez al año.": "Your mix is within 5 points of the target: nothing to move. Check it once a year.",
+    "Tu próximo aporte ($)": "Your next contribution ($)",
+    "Sin vender nada, reparte ese aporte así:": "Without selling anything, split that contribution like this:",
+    "Escribe cuánto vas a invertir y te decimos dónde ponerlo.": "Type how much you'll invest and we'll tell you where to put it.",
+    "Has ganado": "You've gained",
+    "Has perdido": "You've lost",
+    "({0}{1}%) sobre {2} invertidos.": "({0}{1}%) on {2} invested.",
+    "Rebalancear con dinero nuevo evita vender. Dentro de un 401(k) o IRA vender no paga impuestos; en una cuenta normal, vender con ganancia sí (menos si la tuviste más de un año).": "Rebalancing with new money avoids selling. Inside a 401(k) or IRA, selling isn't taxed; in a regular account, selling at a gain is (less if you held it more than a year).",
+    "Rebalancear con dinero nuevo evita vender (y el impuesto que puede tener la ganancia).": "Rebalancing with new money avoids selling (and the tax the gain may carry).",
+    "Solo cuenta lo que está en esta tabla, no tus cuentas de jubilación.": "Only what's in this table counts, not your retirement accounts.",
+    "Mezcla meta actualizada": "Target mix updated",
+    "A mano": "Manual",
+    "Costo total (": "Total cost (",
+    "Ganancia": "Gain",
+    "Costo total: lo que pagaste por todas las unidades (con comisiones). Así ves cuánto has ganado o perdido.": "Total cost: what you paid for all the units (with fees). That's how you see what you've gained or lost.",
+    "Costo total": "Total cost",
+    "Clase": "Class"
 });
 </script>
 <script>/* js/i18n/us.js */
@@ -5655,6 +5697,8 @@ I18n.country('US', {
             college: { kids: [], costInflation: null, returnPct: null },
             // Checklists: estate { key: 'YYYY-MM-DD' } and the yearly review { 'YYYY': { key: date } }.
             checklists: { estate: {}, review: {} },
+            // Target mix of your investments, % per asset class { us, intl, bonds, cash, other } (null = not set).
+            investTarget: null,
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.
@@ -6158,9 +6202,9 @@ I18n.country('US', {
             { id: 6, name: 'HSA – HealthEquity', kind: 'retiro', balance: 4210.32 }
         ];
         const holdings = [
-            { id: 1, ticker: 'VTI', name: 'Vanguard Total Stock Market ETF', kind: 'ETF', shares: 24, price: 318.42 },
-            { id: 2, ticker: 'VXUS', name: 'Vanguard Total International Stock ETF', kind: 'ETF', shares: 61, price: 71.15 },
-            { id: 3, ticker: 'BND', name: 'Vanguard Total Bond Market ETF', kind: 'ETF', shares: 28, price: 73.86 }
+            { id: 1, ticker: 'VTI', name: 'Vanguard Total Stock Market ETF', kind: 'ETF', shares: 24, price: 318.42, cost: 6120 },
+            { id: 2, ticker: 'VXUS', name: 'Vanguard Total International Stock ETF', kind: 'ETF', shares: 61, price: 71.15, cost: 3660 },
+            { id: 3, ticker: 'BND', name: 'Vanguard Total Bond Market ETF', kind: 'ETF', shares: 28, price: 73.86, cost: 2030 }
         ];
         const polizas = [
             { coopName: 'Ally Bank', number: 'CD-40217', amount: 5000, rate: 4.0, days: 365, modality: 'Al Vencimiento (Simple)', matureIn: 152 },
@@ -6987,6 +7031,8 @@ I18n.country('US', {
             { id: 1, name: 'Mateo', age: 15, type: 'privada', years: 5, cost: null, saved: 0, monthly: 0, goalId: gid('uni') },
             { id: 2, name: 'Sofía', age: 2, type: 'publica', years: 5, cost: null, saved: 0, monthly: 0, goalId: null }
         ], costInflation: null, returnPct: null };
+        // The brokerage account's target mix (it has drifted: a little light on U.S. stocks).
+        s.investTarget = US ? { us: 60, intl: 30, bonds: 10, cash: 0, other: 0 } : null;
 
         // US: what the pay stubs say is withheld (federal), Sarah's part-time W-2 and the
         // photography side income — for the refund-or-owe estimate.
@@ -8098,6 +8144,54 @@ I18n.country('US', {
     const holdingValue = (h) => Math.max(0, num(h.shares)) * Math.max(0, num(h.price));
     const holdingsValue = (holdings) => sum(holdings || [], holdingValue);
 
+    // What each holding is, for the mix: U.S. stocks, international stocks, bonds, cash, other.
+    // Set by hand (h.asset), or guessed from common index-fund tickers and the kind.
+    const ASSET_CLASSES = ['us', 'intl', 'bonds', 'cash', 'other'];
+    const TICKER_CLASS = {};
+    [['us', 'VTI VOO SPY IVV ITOT SCHB SCHX SPLG VTSAX VFIAX FXAIX FSKAX SWPPX SWTSX QQQ QQQM VUG VTV VO VB VXF IWM IJH IJR SCHD SCHG DIA RSP VIG VYM VGT XLK SPTM'],
+     ['intl', 'VXUS VEA VWO IXUS IEFA IEMG EFA EEM VTIAX FTIHX SWISX SCHF SCHE VEU VSS ACWX SPDW SPEM'],
+     ['bonds', 'BND AGG BNDX VBTLX FXNAX SCHZ TIP VTIP SCHP BIV BSV BLV VGIT VGSH VGLT IEF TLT SHY IUSB GOVT MUB VTEB LQD'],
+     ['cash', 'SGOV BIL SHV VMFXX SPAXX SWVXX FDRXX VUSXX USFR TFLO']]
+        .forEach(([k, list]) => list.split(' ').forEach(t => { TICKER_CLASS[t] = k; }));
+    function assetClassOf(h) {
+        if (ASSET_CLASSES.includes(h.asset)) return h.asset;
+        const t = String(h.ticker || '').trim().toUpperCase();
+        if (TICKER_CLASS[t]) return TICKER_CLASS[t];
+        return h.kind === 'Cripto' || h.kind === 'Otro' ? 'other' : 'us';
+    }
+
+    // Your investments: what you paid (h.cost, the total), what they're worth and the gain; the mix
+    // by asset class against a target (% per class); and how to get back to it — selling and
+    // buying (diff per class), or putting `newMoney` only where you're short (no sales, no taxes).
+    function portfolioMix(holdings, target, { newMoney = 0, driftLimit = 5 } = {}) {
+        const list = (holdings || []).map(h => {
+            const value = holdingValue(h), cost = Math.max(0, num(h.cost));
+            return { id: h.id, ticker: h.ticker, value: cents(value), cost: cents(cost), gain: cost > 0 ? cents(value - cost) : null, gainPct: cost > 0 ? (value - cost) / cost : null, asset: assetClassOf(h) };
+        });
+        const total = sum(list, x => x.value);
+        const withCost = list.filter(x => x.cost > 0);
+        const cost = sum(withCost, x => x.cost), costValue = sum(withCost, x => x.value);
+        const tSum = target ? sum(ASSET_CLASSES, k => Math.max(0, num(target[k]))) : 0;
+        const hasTarget = tSum > 0;
+        const N = Math.max(0, num(newMoney));
+        const classes = ASSET_CLASSES.map(k => {
+            const value = sum(list.filter(x => x.asset === k), x => x.value);
+            const tp = hasTarget ? Math.max(0, num(target[k])) / tSum * 100 : null;
+            return { key: k, value: cents(value), pct: total > 0 ? value / total * 100 : 0, target: tp, diff: hasTarget ? cents(total * tp / 100 - value) : null };
+        });
+        const drift = hasTarget && total > 0 ? Math.max(...classes.map(c => Math.abs(c.pct - c.target))) : 0;
+        // New money only: each class short of its target share (counting the new money) gets a part
+        // proportional to how short it is.
+        let split = [];
+        if (hasTarget && N > 0) {
+            const short = classes.map(c => ({ key: c.key, s: Math.max(0, (total + N) * c.target / 100 - c.value) }));
+            const S = sum(short, x => x.s);
+            split = short.filter(x => x.s > 0).map(x => ({ key: x.key, amount: cents(N * x.s / S) }));
+        }
+        return { list, total: cents(total), cost: cents(cost), gain: withCost.length ? cents(costValue - cost) : null, gainPct: cost > 0 ? (costValue - cost) / cost : null,
+            classes, hasTarget, drift, rebalance: hasTarget && drift >= driftLimit, split };
+    }
+
     // ------------------------------------------------------------ bills
     // Lines with a due day in a given month: paid once what was spent on the line covers
     // what's planned; otherwise overdue (day passed), due soon (within `soonDays`) or later.
@@ -9190,7 +9284,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -13256,6 +13350,119 @@ I18n.country('US', {
     window.Itemize = { render, giftsOffStandard };
 })();
 </script>
+    <script>/* js/views/mezcla.js */
+/* Patrimonio → Inversiones → Tu mezcla: your holdings by asset class (U.S. stocks, international,
+ * bonds, cash, other) against a target mix (state.investTarget, % per class), whether it has
+ * drifted enough to rebalance, what to buy and sell to get back, and how to split your next
+ * contribution so you get there without selling (Engine.portfolioMix). */
+(function () {
+    'use strict';
+    const { money0, esc } = Fmt;
+    const LABELS = { us: 'Acciones de EE.UU.', intl: 'Acciones internacionales', bonds: 'Bonos', cash: 'Efectivo / mercado monetario', other: 'Otro (cripto, oro…)' };
+    const ui = () => (Store.ui.mix || (Store.ui.mix = { newMoney: 500 }));
+
+    function presets() {
+        const age = Number((Store.state.retirement || {}).edadActual) || 40;
+        const stocks = Math.max(30, Math.min(90, 110 - age));
+        const us = Math.round(stocks * 0.7);
+        return [
+            { key: 'age', label: `Por tu edad (${stocks}% en acciones)`, mix: { us, intl: stocks - us, bonds: 100 - stocks, cash: 0, other: 0 } },
+            { key: 'growth', label: 'Todo en acciones (largo plazo)', mix: { us: 75, intl: 25, bonds: 0, cash: 0, other: 0 } },
+            { key: 'calm', label: 'Conservadora', mix: { us: 40, intl: 20, bonds: 40, cash: 0, other: 0 } }
+        ];
+    }
+
+    // Inputs are redrawn only when the cursor isn't in them (re-drawing while typing would lose it).
+    const draw = (id, html) => { const el = document.getElementById(id); if (el && !el.contains(document.activeElement)) el.innerHTML = html; };
+
+    function render(ctx) {
+        const box = document.getElementById('hold-mix');
+        if (!box) return;
+        const list = (ctx.state.holdings || []).filter(h => Engine.holdingValue(h) > 0);
+        if (!list.length) { box.innerHTML = ''; return; }
+        if (!document.getElementById('mix-in')) box.innerHTML = `<div class="section-label mt-5"><i class="fa-solid fa-chart-pie text-indigo-600"></i> Tu mezcla de inversiones</div>
+            <div id="mix-in"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                <div class="space-y-3" id="mix-bars"></div>
+                <div><div id="mix-verdict"></div>
+                    <div class="flex flex-wrap items-end gap-3 mt-3" id="mix-split-box"><div id="mix-new-in"></div><p class="text-xs flex-1 min-w-[14rem] pb-2" id="mix-split"></p></div>
+                    <p class="text-xs mt-3" id="mix-gain"></p>
+                    <p class="help mt-2" id="mix-help"></p>
+                </div>
+            </div>`;
+        draw('mix-in', inputsHTML(ctx, list));
+        fill(ctx);
+    }
+
+    function inputsHTML(ctx, list) {
+        const t = ctx.state.investTarget || {};
+        const v = (k) => (ctx.state.investTarget ? esc(String(Number(t[k]) || 0)) : '');
+        const opts = Engine.ASSET_CLASSES.map(k => ({ value: k, label: LABELS[k] }));
+        return `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+                <div class="text-xs font-bold text-slate-600 mb-1.5">¿Qué es cada una?</div>
+                <div class="space-y-1.5">${list.map(h => `<label class="flex items-center gap-2 text-xs"><strong class="w-16 shrink-0 truncate" data-i18n-skip>${esc(h.ticker || h.name || '—')}</strong>
+                    <select class="input py-1 text-xs" data-change="mix.asset" data-id="${h.id}" aria-label="Clase">${Views.selectOptions(opts, Engine.assetClassOf(h))}</select></label>`).join('')}</div>
+                <p class="help mt-1.5">Se adivina por el símbolo de los fondos más comunes; cámbialo si no es así.</p>
+            </div>
+            <div>
+                <div class="text-xs font-bold text-slate-600 mb-1.5">Tu mezcla meta (%)</div>
+                <div class="flex flex-wrap gap-1.5 mb-2">${presets().map(p => `<button type="button" class="quick-chip" data-action="mix.preset" data-key="${p.key}">${esc(p.label)}</button>`).join('')}</div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">${Engine.ASSET_CLASSES.map(k => `<label class="field"><span class="field-label text-[11px]">${LABELS[k]}</span>
+                    <input type="number" class="input" min="0" max="100" step="5" data-input="mix.target" data-key="${k}" value="${v(k)}" placeholder="0"></label>`).join('')}</div>
+                <p class="help mt-1" id="mix-sum"></p>
+            </div>
+        </div>`;
+    }
+
+    function fill(ctx) {
+        const s = ctx.state, u = ui();
+        const m = Engine.portfolioMix(s.holdings, s.investTarget, { newMoney: u.newMoney });
+        const tSum = s.investTarget ? Engine.ASSET_CLASSES.reduce((a, k) => a + (Number(s.investTarget[k]) || 0), 0) : 0;
+        UI.text('mix-sum', s.investTarget && Math.round(tSum) !== 100 ? `Suman ${Math.round(tSum)}%: se toman en proporción.` : '');
+        UI.html('mix-bars', m.classes.filter(c => c.value > 0 || (c.target || 0) > 0).map(c => {
+            const act = !m.hasTarget ? '' : Math.abs(c.diff) < Math.max(25, m.total * 0.005) ? '<span class="text-slate-500">En la meta</span>'
+                : c.diff > 0 ? `<span class="text-emerald-700 font-semibold">Comprar ${money0(c.diff)}</span>` : `<span class="text-red-700 font-semibold">Vender ${money0(-c.diff)}</span>`;
+            return `<div class="mix-row">
+                <div class="flex justify-between gap-2 text-xs"><span class="font-semibold">${LABELS[c.key]}</span><span class="whitespace-nowrap">${money0(c.value)} · <strong>${c.pct.toFixed(0)}%</strong>${m.hasTarget ? ` <span class="text-slate-500">(meta ${c.target.toFixed(0)}%)</span>` : ''}</span></div>
+                <div class="mix-bar"><div class="mix-fill" style="width:${Math.min(100, c.pct).toFixed(1)}%"></div>${m.hasTarget ? `<div class="mix-target" style="left:${Math.min(100, c.target).toFixed(1)}%" title="Meta"></div>` : ''}</div>
+                ${act ? `<div class="text-[11px] text-right">${act}</div>` : ''}
+            </div>`;
+        }).join(''));
+        UI.html('mix-verdict', !m.hasTarget ? '<div class="panel tone-blue text-xs"><i class="fa-solid fa-circle-info"></i> Elige una mezcla meta para ver si necesitas rebalancear.</div>'
+            : m.rebalance ? `<div class="panel tone-amber text-xs"><strong>Tu mezcla se desvió ${m.drift.toFixed(1)} puntos de la meta</strong> (más de 5): conviene rebalancear, comprando y vendiendo como se indica, o con tus próximos aportes.</div>`
+            : '<div class="panel tone-emerald text-xs"><i class="fa-solid fa-circle-check"></i> Tu mezcla está a menos de 5 puntos de la meta: no hace falta mover nada. Revísala una vez al año.</div>');
+        UI.show('mix-split-box', m.hasTarget);
+        draw('mix-new-in', `<label class="field" style="max-width:11rem"><span class="field-label">Tu próximo aporte ($)</span><input type="number" class="input" min="0" step="50" id="mix-new" data-input="mix.new" value="${esc(String(u.newMoney || ''))}"></label>`);
+        UI.html('mix-split', m.split.length ? `<span class="block mb-1">Sin vender nada, reparte ese aporte así:</span>${m.split.map(x => `<span class="flex justify-between gap-3"><span>${LABELS[x.key]}</span><strong>${money0(x.amount)}</strong></span>`).join('')}` : 'Escribe cuánto vas a invertir y te decimos dónde ponerlo.');
+        UI.html('mix-gain', m.gain === null ? '' : `${m.gain >= 0 ? 'Has ganado' : 'Has perdido'} <strong class="${m.gain >= 0 ? 'text-emerald-700' : 'text-red-700'}">${money0(Math.abs(m.gain))}</strong> (${m.gain >= 0 ? '+' : '−'}${Math.abs(m.gainPct * 100).toFixed(1)}%) sobre ${money0(m.cost)} invertidos.`);
+        UI.html('mix-help', `<span>${Store.COUNTRY === 'US' ? 'Rebalancear con dinero nuevo evita vender. Dentro de un 401(k) o IRA vender no paga impuestos; en una cuenta normal, vender con ganancia sí (menos si la tuviste más de un año).' : 'Rebalancear con dinero nuevo evita vender (y el impuesto que puede tener la ganancia).'}</span> <span>Solo cuenta lo que está en esta tabla, no tus cuentas de jubilación.</span>`);
+    }
+
+    UI.register({
+        'mix.asset': (el) => {
+            const h = (Store.state.holdings || []).find(x => x.id === Number(el.dataset.id));
+            if (!h) return;
+            h.asset = el.value;
+            App.changed();
+        },
+        'mix.target': (el) => {
+            const t = Store.state.investTarget || (Store.state.investTarget = { us: 0, intl: 0, bonds: 0, cash: 0, other: 0 });
+            t[el.dataset.key] = Math.max(0, Math.min(100, Fmt.parseNum(el.value, 0)));
+            App.changed();
+        },
+        'mix.preset': (el) => {
+            const p = presets().find(x => x.key === el.dataset.key);
+            if (!p) return;
+            el.blur();   // so the target inputs (next to the button) are redrawn with the preset
+            App.undoable('Mezcla meta actualizada', () => { Store.state.investTarget = Object.assign({}, p.mix); });
+        },
+        'mix.new': (el) => { ui().newMoney = Math.max(0, Fmt.parseNum(el.value, 0)); fill(App.buildContext()); }
+    });
+
+    window.Mix = { render, update: render };
+})();
+</script>
 <script>/* js/views/sideincome.js */
 /* Ingresos → Impuestos de tus ingresos extra: freelance / small-business income of the last 12
  * months (minus its business expenses) and how much of it to set aside for taxes
@@ -17244,14 +17451,21 @@ I18n.country('US', {
             <td><input type="number" class="cell-input num" min="0" step="any" value="${Number(h.shares) || 0}" data-input="hold.set" data-id="${h.id}" data-field="shares" aria-label="Cantidad"></td>
             <td><input type="number" class="cell-input num money" min="0" step="any" value="${Number(h.price) || 0}" data-input="hold.set" data-id="${h.id}" data-field="price" aria-label="Precio"></td>
             <td class="num font-bold" data-cell="value"></td>
+            <td><input type="number" class="cell-input num money" min="0" step="any" value="${Number(h.cost) || ''}" data-input="hold.set" data-id="${h.id}" data-field="cost" aria-label="Costo total" placeholder="—"></td>
+            <td class="num whitespace-nowrap" data-cell="gain"></td>
             <td class="text-[11px] text-slate-500" data-cell="when"></td>
             <td class="text-center"><button class="row-del" data-action="hold.delete" data-id="${h.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 
+    // A gain or loss in money and %, green or red.
+    const gainHTML = (gain, cost) => gain === null || gain === undefined || !(cost > 0) ? '<span class="text-slate-400">—</span>'
+        : `<span class="${gain >= 0 ? 'text-emerald-700' : 'text-red-700'} font-semibold">${gain >= 0 ? '+' : '−'}${money0(Math.abs(gain))} <span class="text-[11px]">(${gain >= 0 ? '+' : '−'}${Math.abs(gain / cost * 100).toFixed(1)}%)</span></span>`;
+
     function renderHoldings(ctx) {
         const list = ctx.state.holdings || [];
-        UI.html('hold-body', list.length ? list.map(holdingRow).join('') : `<tr class="empty-row"><td colspan="8">${Views.emptyState('fa-chart-line', 'Agrega tus ETF, acciones o fondos: símbolo (ticker) y cuántas unidades tienes.')}</td></tr>`);
+        UI.html('hold-body', list.length ? list.map(holdingRow).join('') : `<tr class="empty-row"><td colspan="10">${Views.emptyState('fa-chart-line', 'Agrega tus ETF, acciones o fondos: símbolo (ticker) y cuántas unidades tienes.')}</td></tr>`);
+        if (window.Mix) Mix.render(ctx);
         updateHoldings(ctx);
     }
 
@@ -17261,9 +17475,14 @@ I18n.country('US', {
             const row = document.querySelector(`#hold-body tr[data-row="${h.id}"]`);
             if (!row) return;
             row.querySelector('[data-cell="value"]').textContent = money(Engine.holdingValue(h));
-            row.querySelector('[data-cell="when"]').innerHTML = h.priceAt ? `${h.priceSource === 'manual' ? 'A mano' : 'Mercado'} · ${esc(new Date(h.priceAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">Sin precio</span>';
+            row.querySelector('[data-cell="gain"]').innerHTML = gainHTML(Number(h.cost) > 0 ? Engine.holdingValue(h) - Number(h.cost) : null, Number(h.cost));
+            row.querySelector('[data-cell="when"]').innerHTML = h.priceAt ? `${h.priceSource === 'manual' ? 'A mano' : 'Mercado'} · ${esc(new Date(h.priceAt).toLocaleString(window.I18n && I18n.lang === 'en' ? 'en-US' : 'es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">Sin precio</span>';
         });
         UI.text('hold-total', money0(Engine.holdingsValue(s.holdings)));
+        const mix = Engine.portfolioMix(s.holdings, null);
+        UI.text('hold-cost', mix.cost > 0 ? money0(mix.cost) : '');
+        UI.html('hold-gain', gainHTML(mix.gain, mix.cost));
+        if (window.Mix) Mix.update(ctx);
         const key = (s.settings.priceKey || '').trim();
         UI.html('hold-key-note', key ? `Precios de <strong>${s.settings.priceProvider === 'alphavantage' ? 'Alpha Vantage' : 'Finnhub'}</strong> con tu clave. Se actualizan cuando tocas el botón.`
             : 'Para traer precios del mercado, pega tu clave gratuita en <a href="#" class="link" data-goto="config" data-focus="cfg-prices">Configuración → Precios</a>. Sin clave, escribe el precio a mano.');
@@ -17328,7 +17547,7 @@ I18n.country('US', {
             const h = (Store.state.holdings || []).find(x => x.id === Number(el.dataset.id));
             if (!h) return;
             const f = el.dataset.field;
-            if (f === 'shares' || f === 'price') h[f] = Math.max(0, parseNum(el.value, 0));
+            if (f === 'shares' || f === 'price' || f === 'cost') h[f] = Math.max(0, parseNum(el.value, 0));
             else h[f] = f === 'ticker' ? el.value.trim().toUpperCase() : el.value;
             if (f === 'price') { h.priceAt = new Date().toISOString(); h.priceSource = 'manual'; }
             App.changed();

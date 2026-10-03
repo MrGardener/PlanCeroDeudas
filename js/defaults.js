@@ -188,6 +188,8 @@
             college: { kids: [], costInflation: null, returnPct: null },
             // Checklists: estate { key: 'YYYY-MM-DD' } and the yearly review { 'YYYY': { key: date } }.
             checklists: { estate: {}, review: {} },
+            // Target mix of your investments, % per asset class { us, intl, bonds, cash, other } (null = not set).
+            investTarget: null,
             mortgage: { amount: 80000, rate: 10.5, years: 20, extraPayment: 0 },
             // tasaRetorno/sueldoPromedio: null means "linked" (follow the active year's DPF rate /
             // sueldo); a number is the user's deliberate override for a what-if scenario.

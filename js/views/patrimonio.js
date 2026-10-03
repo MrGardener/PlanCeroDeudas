@@ -199,14 +199,21 @@
             <td><input type="number" class="cell-input num" min="0" step="any" value="${Number(h.shares) || 0}" data-input="hold.set" data-id="${h.id}" data-field="shares" aria-label="Cantidad"></td>
             <td><input type="number" class="cell-input num money" min="0" step="any" value="${Number(h.price) || 0}" data-input="hold.set" data-id="${h.id}" data-field="price" aria-label="Precio"></td>
             <td class="num font-bold" data-cell="value"></td>
+            <td><input type="number" class="cell-input num money" min="0" step="any" value="${Number(h.cost) || ''}" data-input="hold.set" data-id="${h.id}" data-field="cost" aria-label="Costo total" placeholder="—"></td>
+            <td class="num whitespace-nowrap" data-cell="gain"></td>
             <td class="text-[11px] text-slate-500" data-cell="when"></td>
             <td class="text-center"><button class="row-del" data-action="hold.delete" data-id="${h.id}" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 
+    // A gain or loss in money and %, green or red.
+    const gainHTML = (gain, cost) => gain === null || gain === undefined || !(cost > 0) ? '<span class="text-slate-400">—</span>'
+        : `<span class="${gain >= 0 ? 'text-emerald-700' : 'text-red-700'} font-semibold">${gain >= 0 ? '+' : '−'}${money0(Math.abs(gain))} <span class="text-[11px]">(${gain >= 0 ? '+' : '−'}${Math.abs(gain / cost * 100).toFixed(1)}%)</span></span>`;
+
     function renderHoldings(ctx) {
         const list = ctx.state.holdings || [];
-        UI.html('hold-body', list.length ? list.map(holdingRow).join('') : `<tr class="empty-row"><td colspan="8">${Views.emptyState('fa-chart-line', 'Agrega tus ETF, acciones o fondos: símbolo (ticker) y cuántas unidades tienes.')}</td></tr>`);
+        UI.html('hold-body', list.length ? list.map(holdingRow).join('') : `<tr class="empty-row"><td colspan="10">${Views.emptyState('fa-chart-line', 'Agrega tus ETF, acciones o fondos: símbolo (ticker) y cuántas unidades tienes.')}</td></tr>`);
+        if (window.Mix) Mix.render(ctx);
         updateHoldings(ctx);
     }
 
@@ -216,9 +223,14 @@
             const row = document.querySelector(`#hold-body tr[data-row="${h.id}"]`);
             if (!row) return;
             row.querySelector('[data-cell="value"]').textContent = money(Engine.holdingValue(h));
-            row.querySelector('[data-cell="when"]').innerHTML = h.priceAt ? `${h.priceSource === 'manual' ? 'A mano' : 'Mercado'} · ${esc(new Date(h.priceAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">Sin precio</span>';
+            row.querySelector('[data-cell="gain"]').innerHTML = gainHTML(Number(h.cost) > 0 ? Engine.holdingValue(h) - Number(h.cost) : null, Number(h.cost));
+            row.querySelector('[data-cell="when"]').innerHTML = h.priceAt ? `${h.priceSource === 'manual' ? 'A mano' : 'Mercado'} · ${esc(new Date(h.priceAt).toLocaleString(window.I18n && I18n.lang === 'en' ? 'en-US' : 'es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">Sin precio</span>';
         });
         UI.text('hold-total', money0(Engine.holdingsValue(s.holdings)));
+        const mix = Engine.portfolioMix(s.holdings, null);
+        UI.text('hold-cost', mix.cost > 0 ? money0(mix.cost) : '');
+        UI.html('hold-gain', gainHTML(mix.gain, mix.cost));
+        if (window.Mix) Mix.update(ctx);
         const key = (s.settings.priceKey || '').trim();
         UI.html('hold-key-note', key ? `Precios de <strong>${s.settings.priceProvider === 'alphavantage' ? 'Alpha Vantage' : 'Finnhub'}</strong> con tu clave. Se actualizan cuando tocas el botón.`
             : 'Para traer precios del mercado, pega tu clave gratuita en <a href="#" class="link" data-goto="config" data-focus="cfg-prices">Configuración → Precios</a>. Sin clave, escribe el precio a mano.');
@@ -283,7 +295,7 @@
             const h = (Store.state.holdings || []).find(x => x.id === Number(el.dataset.id));
             if (!h) return;
             const f = el.dataset.field;
-            if (f === 'shares' || f === 'price') h[f] = Math.max(0, parseNum(el.value, 0));
+            if (f === 'shares' || f === 'price' || f === 'cost') h[f] = Math.max(0, parseNum(el.value, 0));
             else h[f] = f === 'ticker' ? el.value.trim().toUpperCase() : el.value;
             if (f === 'price') { h.priceAt = new Date().toISOString(); h.priceSource = 'manual'; }
             App.changed();
