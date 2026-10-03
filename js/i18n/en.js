@@ -2438,3 +2438,17 @@ I18n.add('en', {
     "Tu retención está bien ajustada.": "Your withholding is well tuned.",
     "Estimado solo del impuesto federal sobre sueldos (no estatal, ni créditos especiales). Para el W-4 exacto, usa el Tax Withholding Estimator del IRS.": "An estimate of federal tax on wages only (not state, nor special credits). For an exact W-4, use the IRS Tax Withholding Estimator."
 });
+// Side income tax set-aside
+I18n.add('en', {
+    "Impuestos de tus ingresos extra": "Taxes on your side income",
+    "Lo que ganas por tu cuenta (trabajos, ventas, honorarios) no trae impuestos descontados: cuánto apartar de cada cobro para que no te sorprendan.": "What you earn on your own (gigs, sales, fees) has no taxes taken out: how much to set aside from each payment so taxes don't surprise you.",
+    "Ingreso extra (12 meses)": "Side income (12 months)", "{0} cobrado − {1} de gastos del negocio": "{0} received − {1} of business expenses",
+    "Impuestos estimados": "Estimated taxes", "autoempleo {0}": "self-employment {0}", "federal {0}": "federal {0}", "estatal {0}": "state {0}", "impuesto a la renta a tu tasa": "income tax at your rate",
+    "Aparta de cada cobro": "Set aside from each payment", "este mes: {0} de {1}": "this month: {0} of {1}", "de lo que cobres": "of what you're paid",
+    "Nadie te retiene impuestos de este dinero. Págalos por trimestre (próximo:": "No one withholds taxes from this money. Pay them quarterly (next:", ", unos {0}) o súbele a tu retención en el W-4 para cubrirlos.": ", about {0}) or raise the withholding on your W-4 to cover them.",
+    "unos {0}) o súbele a tu retención en el W-4 para cubrirlos.": "about {0}) or raise the withholding on your W-4 to cover them.",
+    "Va en la declaración anual del impuesto a la renta. Si los clientes hacen retención, esa parte ya está pagada; en el RIMPE el cálculo es distinto (sobre las ventas).": "It goes in the yearly income tax return. If clients withhold tax, that part is already paid; under RIMPE the calculation is different (on sales).", "Calculado como ingreso de {0}, que declara por separado.": "Calculated as {0}'s income, who files separately.",
+    "Crear un apartado para estos impuestos": "Set up a fund for these taxes", "Impuestos por pagar": "Taxes to pay", "Ya tienes tu apartado de impuestos en Deudas y Metas.": "You already have your tax fund in Debts & Goals.",
+    "Cuando registres ingresos en «{0}» (trabajos por tu cuenta, ventas, honorarios), aquí verás cuánto apartar para impuestos.": "When you log income under «{0}» (gigs, sales, professional fees), you'll see here how much to set aside for taxes.",
+    "Estimado con tus tablas de {0}. Cuenta tus ingresos en «{1}» y tus gastos en «{2}».": "Estimated with your {0} tables. It counts your income under «{1}» and your expenses under «{2}»."
+});

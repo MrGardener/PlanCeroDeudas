@@ -109,6 +109,33 @@
         return { std, dedApplied, taxable, credits, before, tax: Math.max(0, before - credits) };
     }
 
+    // Side income (freelance, a small business): what to set aside for taxes. US: self-employment
+    // tax (15.3% of 92.35% of the net, Social Security only up to the wage base left after W-2
+    // wages), then federal income tax on top of your other taxable income — half the SE tax and the
+    // 20% qualified-business-income deduction come off first — plus the state's flat rate.
+    // Ecuador: the extra income tax from the SRI table when it's added to your taxable base.
+    function sideIncomeTax({ country = 'US', net = 0, yd = {}, wages = 0, taxableBefore = 0, stateRate = 0, ecBase = 0 }) {
+        const n = Math.max(0, num(net));
+        if (n <= 0) return { net: 0, total: 0, pct: 0, parts: {} };
+        if (country !== 'US') {
+            const brackets = yd.sriBrackets || [];
+            const ir = incomeTax(num(ecBase) + n, brackets) - incomeTax(num(ecBase), brackets);
+            return { net: cents(n), total: cents(ir), pct: ir / n, parts: { ir: cents(ir) } };
+        }
+        const t = yd.usTax || {};
+        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const base = n * 0.9235;
+        const ssRoom = Math.max(0, (num(t.ssWageBase) || Infinity) - num(wages));
+        const se = Math.min(base, ssRoom) * 2 * num(t.ssRate) / 100 + base * 2 * num(t.medicareRate) / 100;
+        const qbi = 0.2 * Math.max(0, n - se / 2);
+        const added = Math.max(0, n - se / 2 - qbi);
+        const brackets = (t.brackets || {})[status];
+        const fed = bracketTax(num(taxableBefore) + added, brackets) - bracketTax(num(taxableBefore), brackets);
+        const state = n * num(stateRate) / 100;
+        const total = se + fed + state;
+        return { net: cents(n), total: cents(total), pct: total / n, parts: { se: cents(se), fed: cents(fed), state: cents(state) } };
+    }
+
     // Refund or owe: the year's federal tax for the household against what will have been withheld
     // (so far this year + per paycheck × paychecks left), and the W-4 change that evens it out —
     // extra withholding per paycheck (Step 4(c)) when you'd owe, less when the refund is large.
@@ -2037,7 +2064,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usRefundEstimate, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usRefundEstimate, sideIncomeTax, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

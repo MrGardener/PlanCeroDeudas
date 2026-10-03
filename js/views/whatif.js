@@ -119,7 +119,8 @@
         });
         st.sheet.el.querySelector('.modal').classList.add('modal-xwide');
         results();
-        setTimeout(() => { const a = document.getElementById('wi-amount'); if (a) a.focus(); }, 30);
+        // Start on the amount, unless you're already typing somewhere in the sheet.
+        setTimeout(() => { const a = document.getElementById('wi-amount'); if (a && st && !st.sheet.el.contains(document.activeElement)) a.focus(); }, 30);
     }
 
     UI.register({

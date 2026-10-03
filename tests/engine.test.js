@@ -1171,3 +1171,22 @@ test('US refund or owe: household tax vs withholding, and the W-4 fix per payche
     assert.equal(r2.refund, true);
     assert.equal(r2.adjustPerCheck, -990);
 });
+
+test('side income: what to set aside (US self-employment + income tax + state; Ecuador SRI table)', () => {
+    const U = require('../js/defaults-us.js');
+    const yd = Object.assign(U.newYear(), { filingStatus: 'mfj' });
+    // $10,000 net: SE = 10,000 × 0.9235 × 15.3% = $1,412.96; QBI = 20% × (10,000 − 706.48) = $1,858.70;
+    // added income $7,434.82, all in the 12% bracket above $50,000 taxable → $892.18; state 4.25% → $425.
+    const r = E.sideIncomeTax({ country: 'US', net: 10000, yd, wages: 80000, taxableBefore: 50000, stateRate: 4.25 });
+    assert.equal(r.parts.se, 1412.96);
+    assert.ok(Math.abs(r.parts.fed - 892.18) < 0.02, r.parts.fed);
+    assert.equal(r.parts.state, 425);
+    assert.ok(Math.abs(r.pct - 0.2730) < 0.001, r.pct);
+    // Over the Social Security wage base, only Medicare (2.9%) is left.
+    assert.equal(E.sideIncomeTax({ country: 'US', net: 10000, yd, wages: 200000, taxableBefore: 150000 }).parts.se, 267.82);
+    // Ecuador: the difference the SRI table makes on the taxable base.
+    const ec = D.newYear();
+    const x = E.sideIncomeTax({ country: 'EC', net: 10000, yd: ec, ecBase: 20000 });
+    assert.equal(x.total, Math.round((E.incomeTax(30000, ec.sriBrackets) - E.incomeTax(20000, ec.sriBrackets)) * 100) / 100);
+    assert.equal(E.sideIncomeTax({ net: 0, yd }).total, 0);
+});

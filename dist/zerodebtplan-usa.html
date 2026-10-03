@@ -1155,6 +1155,11 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 <p class="help mt-3" data-country="US">Fuentes: <a class="link" href="https://www.irs.gov/individuals/tax-withholding-estimator" target="_blank" rel="noopener">IRS</a> · <a class="link" href="https://www.ssa.gov" target="_blank" rel="noopener">SSA</a> · <a class="link" href="https://www.michigan.gov/taxes" target="_blank" rel="noopener">Michigan Treasury</a></p>
             </div>
 
+            <div class="card" id="inc-side-card">
+                <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-briefcase text-amber-600"></i> Impuestos de tus ingresos extra</div>
+                    <div class="card-sub">Lo que ganas por tu cuenta (trabajos, ventas, honorarios) no trae impuestos descontados: cuánto apartar de cada cobro para que no te sorprendan.</div></div></div>
+                <div id="inc-side"></div>
+            </div>
             <div class="card" data-country="US" id="inc-refund-card">
                 <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-scale-balanced text-blue-600"></i> ¿Te devolverán o deberás? (impuesto federal)</div>
                     <div class="card-sub">Con lo que te retienen en cada pago, ¿alcanza para tu impuesto del año? Y qué cambiar en tu W-4 para no deber ni dejar dinero parado en el IRS.</div></div></div>
@@ -4983,6 +4988,20 @@ I18n.add('en', {
     "Tu retención está bien ajustada.": "Your withholding is well tuned.",
     "Estimado solo del impuesto federal sobre sueldos (no estatal, ni créditos especiales). Para el W-4 exacto, usa el Tax Withholding Estimator del IRS.": "An estimate of federal tax on wages only (not state, nor special credits). For an exact W-4, use the IRS Tax Withholding Estimator."
 });
+// Side income tax set-aside
+I18n.add('en', {
+    "Impuestos de tus ingresos extra": "Taxes on your side income",
+    "Lo que ganas por tu cuenta (trabajos, ventas, honorarios) no trae impuestos descontados: cuánto apartar de cada cobro para que no te sorprendan.": "What you earn on your own (gigs, sales, fees) has no taxes taken out: how much to set aside from each payment so taxes don't surprise you.",
+    "Ingreso extra (12 meses)": "Side income (12 months)", "{0} cobrado − {1} de gastos del negocio": "{0} received − {1} of business expenses",
+    "Impuestos estimados": "Estimated taxes", "autoempleo {0}": "self-employment {0}", "federal {0}": "federal {0}", "estatal {0}": "state {0}", "impuesto a la renta a tu tasa": "income tax at your rate",
+    "Aparta de cada cobro": "Set aside from each payment", "este mes: {0} de {1}": "this month: {0} of {1}", "de lo que cobres": "of what you're paid",
+    "Nadie te retiene impuestos de este dinero. Págalos por trimestre (próximo:": "No one withholds taxes from this money. Pay them quarterly (next:", ", unos {0}) o súbele a tu retención en el W-4 para cubrirlos.": ", about {0}) or raise the withholding on your W-4 to cover them.",
+    "unos {0}) o súbele a tu retención en el W-4 para cubrirlos.": "about {0}) or raise the withholding on your W-4 to cover them.",
+    "Va en la declaración anual del impuesto a la renta. Si los clientes hacen retención, esa parte ya está pagada; en el RIMPE el cálculo es distinto (sobre las ventas).": "It goes in the yearly income tax return. If clients withhold tax, that part is already paid; under RIMPE the calculation is different (on sales).", "Calculado como ingreso de {0}, que declara por separado.": "Calculated as {0}'s income, who files separately.",
+    "Crear un apartado para estos impuestos": "Set up a fund for these taxes", "Impuestos por pagar": "Taxes to pay", "Ya tienes tu apartado de impuestos en Deudas y Metas.": "You already have your tax fund in Debts & Goals.",
+    "Cuando registres ingresos en «{0}» (trabajos por tu cuenta, ventas, honorarios), aquí verás cuánto apartar para impuestos.": "When you log income under «{0}» (gigs, sales, professional fees), you'll see here how much to set aside for taxes.",
+    "Estimado con tus tablas de {0}. Cuenta tus ingresos en «{1}» y tus gastos en «{2}».": "Estimated with your {0} tables. It counts your income under «{1}» and your expenses under «{2}»."
+});
 </script>
 <script>/* js/i18n/us.js */
 /* US edition (ZeroDebtPlan): Spanish wording for the United States, applied before translating
@@ -7088,6 +7107,33 @@ I18n.country('US', {
         return { std, dedApplied, taxable, credits, before, tax: Math.max(0, before - credits) };
     }
 
+    // Side income (freelance, a small business): what to set aside for taxes. US: self-employment
+    // tax (15.3% of 92.35% of the net, Social Security only up to the wage base left after W-2
+    // wages), then federal income tax on top of your other taxable income — half the SE tax and the
+    // 20% qualified-business-income deduction come off first — plus the state's flat rate.
+    // Ecuador: the extra income tax from the SRI table when it's added to your taxable base.
+    function sideIncomeTax({ country = 'US', net = 0, yd = {}, wages = 0, taxableBefore = 0, stateRate = 0, ecBase = 0 }) {
+        const n = Math.max(0, num(net));
+        if (n <= 0) return { net: 0, total: 0, pct: 0, parts: {} };
+        if (country !== 'US') {
+            const brackets = yd.sriBrackets || [];
+            const ir = incomeTax(num(ecBase) + n, brackets) - incomeTax(num(ecBase), brackets);
+            return { net: cents(n), total: cents(ir), pct: ir / n, parts: { ir: cents(ir) } };
+        }
+        const t = yd.usTax || {};
+        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const base = n * 0.9235;
+        const ssRoom = Math.max(0, (num(t.ssWageBase) || Infinity) - num(wages));
+        const se = Math.min(base, ssRoom) * 2 * num(t.ssRate) / 100 + base * 2 * num(t.medicareRate) / 100;
+        const qbi = 0.2 * Math.max(0, n - se / 2);
+        const added = Math.max(0, n - se / 2 - qbi);
+        const brackets = (t.brackets || {})[status];
+        const fed = bracketTax(num(taxableBefore) + added, brackets) - bracketTax(num(taxableBefore), brackets);
+        const state = n * num(stateRate) / 100;
+        const total = se + fed + state;
+        return { net: cents(n), total: cents(total), pct: total / n, parts: { se: cents(se), fed: cents(fed), state: cents(state) } };
+    }
+
     // Refund or owe: the year's federal tax for the household against what will have been withheld
     // (so far this year + per paycheck × paychecks left), and the W-4 change that evens it out —
     // extra withholding per paycheck (Step 4(c)) when you'd owe, less when the refund is large.
@@ -9016,7 +9062,7 @@ I18n.country('US', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usRefundEstimate, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usRefundEstimate, sideIncomeTax, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -12818,6 +12864,7 @@ I18n.country('US', {
         const yd = ctx.year, p = ctx.pay;
         renderSummary();
         taxYearNote(ctx);
+        if (window.SideIncome) SideIncome.render(ctx);
         if (p.country === 'US') { renderUS(ctx); if (window.Refund) Refund.render(ctx); return; }
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
@@ -12970,6 +13017,75 @@ I18n.country('US', {
     });
 
     window.Refund = { render };
+})();
+</script>
+<script>/* js/views/sideincome.js */
+/* Ingresos → Impuestos de tus ingresos extra: freelance / small-business income of the last 12
+ * months (minus its business expenses) and how much of it to set aside for taxes
+ * (Engine.sideIncomeTax). US: self-employment + income tax + state, and the quarterly due dates. */
+(function () {
+    'use strict';
+    const { money, money0, esc } = Fmt;
+    const SIDE = 'Ingresos Independientes', BIZ = 'Negocio Propio / Freelance';
+
+    function facts(ctx) {
+        const s = ctx.state, t = ctx.today;
+        const since = Engine.isoDate(new Date(t.getFullYear() - 1, t.getMonth(), t.getDate() + 1)), month = Engine.isoDate(t).slice(0, 7);
+        const inc = s.transactions.filter(x => x.type === 'Ingreso' && x.parentCategory === SIDE && x.date >= since);
+        const exp = s.transactions.filter(x => (x.type || 'Gasto') === 'Gasto' && x.parentCategory === BIZ && x.date >= since);
+        const income = inc.reduce((a, x) => a + Number(x.amount), 0), expenses = exp.reduce((a, x) => a + Engine.spendAmount(x), 0);
+        const thisMonth = inc.filter(x => x.date.startsWith(month)).reduce((a, x) => a + Number(x.amount), 0);
+        // Who earns it (Ecuador taxes each person separately): when it's all someone other than
+        // the main earner (the first person in the household), it isn't added to the salary.
+        const members = s.members || [], main = members[0];
+        const owners = [...new Set(inc.map(x => x.memberId).filter(Boolean))];
+        const other = main && owners.length > 0 && !owners.includes(main.id) ? members.find(m => m.id === owners[0]) : null;
+        return { income, expenses, net: Math.max(0, income - expenses), thisMonth, count: inc.length, other: owners.length === 1 ? other : null };
+    }
+
+    function quarterly(today) {
+        const y = today.getFullYear();
+        const dues = [[y, 3, 15], [y, 5, 15], [y, 8, 15], [y + 1, 0, 15]].map(([yy, m, d]) => new Date(yy, m, d));
+        return dues.find(d => d >= today) || new Date(y + 1, 3, 15);
+    }
+
+    function render(ctx) {
+        if (!document.getElementById('inc-side')) return;
+        const f = facts(ctx), p = ctx.pay, yd = ctx.year, us = p.country === 'US';
+        if (!f.count) { UI.html('inc-side', `<p class="help">Cuando registres ingresos en «${esc(SIDE)}» (trabajos por tu cuenta, ventas, honorarios), aquí verás cuánto apartar para impuestos.</p>`); return; }
+        const w = yd.withholding || {};
+        const r = Engine.sideIncomeTax(us
+            ? { country: 'US', net: f.net, yd, wages: p.sueldoAnual + (Number(w.spouseWages) || 0), taxableBefore: p.baseImponible + (Number(w.spouseWages) || 0), stateRate: p.stateRate }
+            : { country: 'EC', net: f.net, yd, ecBase: f.other ? 0 : p.baseImponible });
+        const pct = Math.round(r.pct * 100);
+        const parts = us ? `autoempleo ${money0(r.parts.se)} + federal ${money0(r.parts.fed)}${r.parts.state ? ` + estatal ${money0(r.parts.state)}` : ''}` : `impuesto a la renta a tu tasa`;
+        const due = quarterly(ctx.today);
+        UI.html('inc-side', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="kpi tone-slate"><span class="kpi-label">Ingreso extra (12 meses)</span><span class="kpi-value">${money0(f.net)}</span><span class="kpi-note">${money0(f.income)} cobrado − ${money0(f.expenses)} de gastos del negocio</span></div>
+                <div class="kpi tone-amber"><span class="kpi-label">Impuestos estimados</span><span class="kpi-value">${money0(r.total)}</span><span class="kpi-note">${parts}</span></div>
+                <div class="kpi tone-emerald"><span class="kpi-label">Aparta de cada cobro</span><span class="kpi-value">${pct}%</span><span class="kpi-note">${f.thisMonth ? `este mes: ${money0(f.thisMonth * r.pct)} de ${money0(f.thisMonth)}` : 'de lo que cobres'}</span></div>
+            </div>
+            <p class="text-xs mt-3">${us
+                ? `Nadie te retiene impuestos de este dinero. Págalos por trimestre (próximo: <strong>${esc(Fmt.dayMonth ? Fmt.dayMonth(due) : due.toISOString().slice(0, 10))}</strong>, unos ${money0(r.total / 4)}) o súbele a tu retención en el W-4 para cubrirlos.`
+                : `${f.other ? `<span>Calculado como ingreso de ${esc(f.other.name)}, que declara por separado.</span> ` : ''}<span>Va en la declaración anual del impuesto a la renta. Si los clientes hacen retención, esa parte ya está pagada; en el RIMPE el cálculo es distinto (sobre las ventas).</span>`}
+                <button type="button" class="link" data-action="side.goal" data-amount="${Math.round(r.total)}">Crear un apartado para estos impuestos</button></p>
+            <p class="help mt-1">Estimado con tus tablas de ${yd.taxTableYear || ctx.state.activeYear}. Cuenta tus ingresos en «${esc(SIDE)}» y tus gastos en «${esc(BIZ)}».</p>`);
+    }
+
+    UI.register({
+        // A savings goal that holds the tax money until it's paid.
+        'side.goal': (el) => {
+            const total = Number(el.dataset.amount) || 0;
+            const name = window.I18n ? I18n.t('Impuestos por pagar') : 'Impuestos por pagar';
+            const goals = Store.state.goals;
+            if (goals.some(g => g.taxFund)) { UI.toast('Ya tienes tu apartado de impuestos en Deudas y Metas.', 'warn'); return; }
+            App.undoable(`Meta «${name}» creada: ${money(total / 12)} al mes en tu presupuesto`, () => {
+                goals.push({ id: Store.nextId(goals), name, target: total, current: 0, monthly: Math.ceil(total / 12), rate: 0, createdYear: new Date().getFullYear(), taxFund: true });
+            });
+        }
+    });
+
+    window.SideIncome = { render, facts };
 })();
 </script>
 <script>/* js/views/payscan.js */
@@ -15393,7 +15509,8 @@ I18n.country('US', {
         });
         st.sheet.el.querySelector('.modal').classList.add('modal-xwide');
         results();
-        setTimeout(() => { const a = document.getElementById('wi-amount'); if (a) a.focus(); }, 30);
+        // Start on the amount, unless you're already typing somewhere in the sheet.
+        setTimeout(() => { const a = document.getElementById('wi-amount'); if (a && st && !st.sheet.el.contains(document.activeElement)) a.focus(); }, 30);
     }
 
     UI.register({
