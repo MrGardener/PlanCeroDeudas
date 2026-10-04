@@ -44,6 +44,18 @@
         return '';
     }
 
+    // Weekly / every-2-weeks pay: the months with an extra paycheck, and the choice to budget on
+    // the usual paychecks so that one is real extra money (Engine.paycheckSalary).
+    function renderExtraPay(ctx) {
+        const plan = Engine.extraPaycheckMonths(Cash.paySchedule(), ctx.state.activeYear);
+        if (!plan || !plan.months.length) { UI.html('pay-extra', ''); return; }
+        const names = plan.months.map(m => Fmt.MONTH_NAMES[m.month - 1]);
+        const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+        const on = !!ctx.year.budgetOnPaychecks, nth = plan.usual === 2 ? '3rd' : '5th';
+        UI.html('pay-extra', `<p><i class="fa-solid fa-gift text-emerald-600"></i> <span>In ${ctx.state.activeYear}, a ${nth} paycheck in</span> <strong data-i18n-skip>${esc(Fmt.lang === 'en' ? list : list.replace(' and ', ' y ').toLowerCase())}</strong>.</p>
+            <label class="check"><input type="checkbox" data-change="pay.onChecks" ${on ? 'checked' : ''}><span>Budget on ${plan.usual} paychecks a month <span class="block text-[11px] font-normal text-slate-500">${on ? 'The extra paycheck shows up as extra money in its month: give it a job.' : 'Dave Ramsey\'s way: then the extra paycheck is real extra money in its month.'}</span></span></label>`);
+    }
+
     function renderSummary() {
         const sch = Cash.paySchedule();
         const next = sch ? Engine.nextPayday(sch, new Date()) : null;
@@ -284,6 +296,7 @@
     function update(ctx) {
         const yd = ctx.year, p = ctx.pay;
         renderSummary();
+        renderExtraPay(ctx);
         taxYearNote(ctx);
         if (window.SideIncome) SideIncome.render(ctx);
         if (p.country === 'US') { renderUS(ctx); if (window.Refund) Refund.render(ctx); if (window.Itemize) Itemize.render(ctx); return; }
@@ -327,6 +340,10 @@
     }
 
     UI.register({
+        'pay.onChecks': (el) => {
+            const y = Store.active();
+            App.undoable(el.checked ? 'Budgeting on your paychecks' : 'Budgeting on your monthly pay', () => { y.budgetOnPaychecks = el.checked; });
+        },
         'paytype.set': (el) => {
             const y = payFields(Store.active());
             App.undoable(el.value === 'hourly' ? 'Paid by the hour' : 'Paid a salary', () => {

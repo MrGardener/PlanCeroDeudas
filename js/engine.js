@@ -425,7 +425,7 @@
     function monthBudget(yd, month, pay) {
         pay = pay || payroll(yd);
         const items = monthItems(yd, month);
-        const salary = pay.netoM + bonusForMonth(yd, month, pay);
+        const salary = paycheckSalary(yd, month, pay) + bonusForMonth(yd, month, pay);
         const other = otherIncome(yd, month);
         const income = salary + other.total;
         const expPrep = sum(items, i => num(i.prep));
@@ -891,6 +891,30 @@
             }
         }
         return [...out].sort();
+    }
+
+    // Weekly / every-2-weeks pay: the months with more paychecks than usual. Every 2 weeks is 2 a
+    // month, so 2 months a year (3 in some years) bring a 3rd; weekly is 4, so 4 months bring a 5th.
+    function extraPaycheckMonths(schedule, year) {
+        const sch = normalizeSchedule(schedule);
+        if (!sch || sch.freq !== 'weekly' || sch.interval > 2) return null;
+        const usual = sch.interval === 2 ? 2 : 4;
+        const byMonth = {};
+        payDates(sch, `${year}-01-01`, `${year}-12-31`).forEach(d => { const m = Number(d.slice(5, 7)); (byMonth[m] = byMonth[m] || []).push(d); });
+        const months = Object.keys(byMonth).map(Number).filter(m => byMonth[m].length > usual)
+            .map(m => ({ month: m, count: byMonth[m].length, extra: byMonth[m].length - usual, dates: byMonth[m] }));
+        return { usual, perYear: 52 / sch.interval, months };
+    }
+
+    // The take-home pay a month's budget counts. Normally the year's pay spread over 12 months.
+    // Budgeting on paychecks (Ramsey, for weekly / every-2-weeks pay): each month counts its usual
+    // paychecks (2 or 4), and a month with an extra one counts it as extra income to give a job.
+    function paycheckSalary(yd, month, pay) {
+        const plan = yd.budgetOnPaychecks ? extraPaycheckMonths(yd.paySchedule, yd.calYear) : null;
+        if (!plan) return pay.netoM;
+        const each = pay.netoM * 12 / plan.perYear;
+        const extra = month === 'base' ? 0 : ((plan.months.find(x => x.month === Number(month)) || {}).extra || 0);
+        return each * (plan.usual + extra);
     }
 
     const paymentsPerYear = (schedule, year) => payDates(schedule, `${year}-01-01`, `${year}-12-31`).length;
@@ -1390,6 +1414,12 @@
         }
         if (f.step === 2 && f.target) add(80, 'snowball', 'fa-snowflake', `Attack «${f.target.name}»`, `It's next in your snowball: ${money(f.target.balance)} at ${f.target.rate}%. Every extra dollar goes there; the others get just the minimum.`, { goto: 'futuro/metas', focus: 'metas-debts' });
         if (f.monthToClose) add(72, 'close', 'fa-calendar-check', `Close out ${f.monthToClose.label}`, 'See where you went over and give what\'s left a job.', { action: 'close.open', data: { y: f.monthToClose.y, m: f.monthToClose.m } });
+        if (f.extraPaycheck) {
+            const where = f.step === 2 ? 'the snowball' : f.step === 1 || f.step === 3 ? 'your emergency fund' : 'retirement or your goals';
+            add(70, 'extraPay', 'fa-gift', `${f.extraPaycheck.label} brings an extra paycheck`, f.extraPaycheck.onChecks
+                ? `About ${money(f.extraPaycheck.amount)} on top of your usual pay. Give it a job before it arrives: ${where}.`
+                : `About ${money(f.extraPaycheck.amount)}. Budget on your usual paychecks so it's real extra money, then send it to ${where}.`, { goto: 'presupuesto/ingresos', focus: 'pay-schedule' });
+        }
         if (f.uncategorized >= 3) add(62, 'uncategorized', 'fa-tags', `Assign ${f.uncategorized} expenses with no line`, 'Until they have a line, your budget doesn\'t know you spent them.', { goto: 'transacciones/lista' });
         if (f.annualShort) add(60, 'annual', 'fa-calendar-days', 'Set aside for your annual bills', f.annualShort.noFund
             ? `You're not setting money aside for them yet: ${money(f.annualShort.yearly)} a year, ${money(f.annualShort.monthly)} a month.`
@@ -2271,7 +2301,7 @@
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
-        occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear, nominalPaymentsPerYear,
+        occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear, nominalPaymentsPerYear, extraPaycheckMonths, paycheckSalary,
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,

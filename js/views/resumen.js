@@ -61,6 +61,7 @@
             uncategorized: spend.unassigned.length, overdueBills: bills.map(b => b.item.name),
             target: debt ? { name: debt.name, balance: Number(debt.balance) || 0, rate: Number(debt.rate) || 0 } : null,
             monthToClose: window.MonthClose ? MonthClose.pending(t) : null,
+            extraPaycheck: extraPaycheck(ctx),
             subsYearly: subs.reduce((a, x) => a + x.yearly, 0),
             annualShort: annual && annual.firstShort ? { label: Fmt.monthYear(new Date(annual.firstShort.year, annual.firstShort.month - 1, 1)), needed: annual.needed, noFund: !fund, yearly: annual.yearly, monthly: Engine.annualSetAside(s.annualBills) } : null,
             maturing: (s.polizas || []).filter(p => { const st = Engine.maturityStatus(p.maturityDate, t); return st && st.kind === 'pronto'; }).map(p => p.number),
@@ -68,6 +69,15 @@
             needsWill: !!(window.Checklists && !Checklists.progress().will && ((s.college && s.college.kids.length) || (s.members || []).length > 2)),
             reviewDue: !!(window.Checklists && t.getMonth() <= 1 && Checklists.progress().review < 0.5 && s.transactions.length > 0)
         };
+    }
+    // This month or next brings an extra paycheck (weekly / every-2-weeks pay).
+    function extraPaycheck(ctx) {
+        const t = ctx.today, plan = Engine.extraPaycheckMonths(Cash.paySchedule(), t.getFullYear());
+        if (!plan) return null;
+        const m = plan.months.find(x => x.month === t.getMonth() + 1 || x.month === t.getMonth() + 2);
+        if (!m) return null;
+        const yd = Store.effective(t.getFullYear()), pay = Engine.payroll(yd);
+        return { label: Fmt.MONTH_NAMES[m.month - 1], amount: pay.netoM * 12 / plan.perYear * m.extra, onChecks: !!yd.budgetOnPaychecks };
     }
     // ---------------------------------------------------------------- health score
     const GOTO = { spendLess: ['transacciones/reportes'], onTime: ['resumen', 'dash-bills-card'], cushion: ['futuro/metas', 'metas-ef'], longTerm: ['futuro/jubilacion'], dti: ['futuro/metas', 'metas-debts'], costly: ['futuro/metas', 'metas-debts'], budget: ['presupuesto/plan'], retire: ['futuro/jubilacion'] };

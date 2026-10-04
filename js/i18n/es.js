@@ -2,6 +2,20 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "About {0}. Budget on your usual paychecks so it's real extra money, then send it to {1}.": "Unos {0}. Presupuesta con tus pagos de siempre para que sea dinero extra de verdad, y mándalo a {1}.",
+    "About {0} on top of your usual pay. Give it a job before it arrives: {1}.": "Unos {0} además de tu pago de siempre. Dale un trabajo antes de que llegue: {1}.",
+    "{0} brings an extra paycheck": "{0} trae un pago extra",
+    "Budgeting on your monthly pay": "Presupuesto con tu pago mensual",
+    "Budgeting on your paychecks": "Presupuesto con tus pagos",
+    "Dave Ramsey's way: then the extra paycheck is real extra money in its month.": "Como dice Dave Ramsey: así el pago extra es dinero extra de verdad en su mes.",
+    "The extra paycheck shows up as extra money in its month: give it a job.": "El pago extra aparece como dinero extra en su mes: dale un trabajo.",
+    "retirement or your goals": "la jubilación o tus metas",
+    "the snowball": "la bola de nieve",
+    "your emergency fund": "tu fondo de emergencia",
+    "In {0}, a {1} paycheck in": "En {0}, un {1} pago en",
+    "3rd": "tercer",
+    "5th": "quinto",
+    "Budget on {0} paychecks a month": "Presupuestar con {0} pagos al mes",
     "Add a bonus": "Agregar un bono",
     "Amount before taxes": "Monto antes de impuestos",
     "Before taxes": "Antes de impuestos",

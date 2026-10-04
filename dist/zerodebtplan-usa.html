@@ -1117,6 +1117,7 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 <div class="field field-box tone-emerald" id="pay-schedule">
                     <span class="field-label">How do you get paid?</span>
                     <div id="pay-summary" class="text-sm font-bold text-slate-800"></div>
+                    <div id="pay-extra" class="text-xs space-y-1"></div>
                     <button type="button" class="btn btn-secondary btn-sm mt-1 self-start" data-action="pay.edit" id="pay-edit"><i class="fa-regular fa-calendar"></i> Set up</button>
                     <span class="help">Every week, every 2 weeks, fixed days, 2nd and 4th Friday, daily… The calendar and "Safe to spend" use it.</span>
                 </div>
@@ -5352,6 +5353,20 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "About {0}. Budget on your usual paychecks so it's real extra money, then send it to {1}.": "Unos {0}. Presupuesta con tus pagos de siempre para que sea dinero extra de verdad, y mándalo a {1}.",
+    "About {0} on top of your usual pay. Give it a job before it arrives: {1}.": "Unos {0} además de tu pago de siempre. Dale un trabajo antes de que llegue: {1}.",
+    "{0} brings an extra paycheck": "{0} trae un pago extra",
+    "Budgeting on your monthly pay": "Presupuesto con tu pago mensual",
+    "Budgeting on your paychecks": "Presupuesto con tus pagos",
+    "Dave Ramsey's way: then the extra paycheck is real extra money in its month.": "Como dice Dave Ramsey: así el pago extra es dinero extra de verdad en su mes.",
+    "The extra paycheck shows up as extra money in its month: give it a job.": "El pago extra aparece como dinero extra en su mes: dale un trabajo.",
+    "retirement or your goals": "la jubilación o tus metas",
+    "the snowball": "la bola de nieve",
+    "your emergency fund": "tu fondo de emergencia",
+    "In {0}, a {1} paycheck in": "En {0}, un {1} pago en",
+    "3rd": "tercer",
+    "5th": "quinto",
+    "Budget on {0} paychecks a month": "Presupuestar con {0} pagos al mes",
     "Add a bonus": "Agregar un bono",
     "Amount before taxes": "Monto antes de impuestos",
     "Before taxes": "Antes de impuestos",
@@ -8754,6 +8769,7 @@ I18n.override('EC', 'es', {
             payType: 'salary',          // 'salary' | 'hourly'
             hourly: { rate: 0, hours: 40, otHours: 0, otRate: 1.5, otInBudget: false },   // hours per week
             bonuses: [],                // [{ id, name, amount, month: '1'…'12', inBudget }] gross, this year
+            budgetOnPaychecks: false,   // weekly / every 2 weeks: budget on the usual paychecks; extra ones are extra income
             tasa: 4.0,                  // savings / CD rate (APY %)
             d3: false, d4: false, iessRate: 0, sbu: 0, canasta: 0, sriCapMultiplier: 0, sriBrackets: [],
             cosede: 250000,             // FDIC / NCUA coverage per depositor, per bank, per ownership category
@@ -10401,7 +10417,7 @@ I18n.override('EC', 'es', {
     function monthBudget(yd, month, pay) {
         pay = pay || payroll(yd);
         const items = monthItems(yd, month);
-        const salary = pay.netoM + bonusForMonth(yd, month, pay);
+        const salary = paycheckSalary(yd, month, pay) + bonusForMonth(yd, month, pay);
         const other = otherIncome(yd, month);
         const income = salary + other.total;
         const expPrep = sum(items, i => num(i.prep));
@@ -10867,6 +10883,30 @@ I18n.override('EC', 'es', {
             }
         }
         return [...out].sort();
+    }
+
+    // Weekly / every-2-weeks pay: the months with more paychecks than usual. Every 2 weeks is 2 a
+    // month, so 2 months a year (3 in some years) bring a 3rd; weekly is 4, so 4 months bring a 5th.
+    function extraPaycheckMonths(schedule, year) {
+        const sch = normalizeSchedule(schedule);
+        if (!sch || sch.freq !== 'weekly' || sch.interval > 2) return null;
+        const usual = sch.interval === 2 ? 2 : 4;
+        const byMonth = {};
+        payDates(sch, `${year}-01-01`, `${year}-12-31`).forEach(d => { const m = Number(d.slice(5, 7)); (byMonth[m] = byMonth[m] || []).push(d); });
+        const months = Object.keys(byMonth).map(Number).filter(m => byMonth[m].length > usual)
+            .map(m => ({ month: m, count: byMonth[m].length, extra: byMonth[m].length - usual, dates: byMonth[m] }));
+        return { usual, perYear: 52 / sch.interval, months };
+    }
+
+    // The take-home pay a month's budget counts. Normally the year's pay spread over 12 months.
+    // Budgeting on paychecks (Ramsey, for weekly / every-2-weeks pay): each month counts its usual
+    // paychecks (2 or 4), and a month with an extra one counts it as extra income to give a job.
+    function paycheckSalary(yd, month, pay) {
+        const plan = yd.budgetOnPaychecks ? extraPaycheckMonths(yd.paySchedule, yd.calYear) : null;
+        if (!plan) return pay.netoM;
+        const each = pay.netoM * 12 / plan.perYear;
+        const extra = month === 'base' ? 0 : ((plan.months.find(x => x.month === Number(month)) || {}).extra || 0);
+        return each * (plan.usual + extra);
     }
 
     const paymentsPerYear = (schedule, year) => payDates(schedule, `${year}-01-01`, `${year}-12-31`).length;
@@ -11366,6 +11406,12 @@ I18n.override('EC', 'es', {
         }
         if (f.step === 2 && f.target) add(80, 'snowball', 'fa-snowflake', `Attack «${f.target.name}»`, `It's next in your snowball: ${money(f.target.balance)} at ${f.target.rate}%. Every extra dollar goes there; the others get just the minimum.`, { goto: 'futuro/metas', focus: 'metas-debts' });
         if (f.monthToClose) add(72, 'close', 'fa-calendar-check', `Close out ${f.monthToClose.label}`, 'See where you went over and give what\'s left a job.', { action: 'close.open', data: { y: f.monthToClose.y, m: f.monthToClose.m } });
+        if (f.extraPaycheck) {
+            const where = f.step === 2 ? 'the snowball' : f.step === 1 || f.step === 3 ? 'your emergency fund' : 'retirement or your goals';
+            add(70, 'extraPay', 'fa-gift', `${f.extraPaycheck.label} brings an extra paycheck`, f.extraPaycheck.onChecks
+                ? `About ${money(f.extraPaycheck.amount)} on top of your usual pay. Give it a job before it arrives: ${where}.`
+                : `About ${money(f.extraPaycheck.amount)}. Budget on your usual paychecks so it's real extra money, then send it to ${where}.`, { goto: 'presupuesto/ingresos', focus: 'pay-schedule' });
+        }
         if (f.uncategorized >= 3) add(62, 'uncategorized', 'fa-tags', `Assign ${f.uncategorized} expenses with no line`, 'Until they have a line, your budget doesn\'t know you spent them.', { goto: 'transacciones/lista' });
         if (f.annualShort) add(60, 'annual', 'fa-calendar-days', 'Set aside for your annual bills', f.annualShort.noFund
             ? `You're not setting money aside for them yet: ${money(f.annualShort.yearly)} a year, ${money(f.annualShort.monthly)} a month.`
@@ -12247,7 +12293,7 @@ I18n.override('EC', 'es', {
     const Engine = {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
-        occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear, nominalPaymentsPerYear,
+        occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear, nominalPaymentsPerYear, extraPaycheckMonths, paycheckSalary,
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
@@ -13244,7 +13290,10 @@ I18n.override('EC', 'es', {
                 country: (this.state.settings && this.state.settings.country) || COUNTRY,
                 budgetBase: (yd.budgetBase || []).concat(rows),
                 monthOverrides: overrides,
-                receivedIncome: Engine.receivedIncome(this.state.transactions, y)
+                receivedIncome: Engine.receivedIncome(this.state.transactions, y),
+                // For paycheck-based budgets (Engine.paycheckSalary): how and when you're paid.
+                paySchedule: (this.state.settings && this.state.settings.paySchedule) || null,
+                calYear: y
             });
         },
 
@@ -14454,6 +14503,7 @@ I18n.override('EC', 'es', {
             uncategorized: spend.unassigned.length, overdueBills: bills.map(b => b.item.name),
             target: debt ? { name: debt.name, balance: Number(debt.balance) || 0, rate: Number(debt.rate) || 0 } : null,
             monthToClose: window.MonthClose ? MonthClose.pending(t) : null,
+            extraPaycheck: extraPaycheck(ctx),
             subsYearly: subs.reduce((a, x) => a + x.yearly, 0),
             annualShort: annual && annual.firstShort ? { label: Fmt.monthYear(new Date(annual.firstShort.year, annual.firstShort.month - 1, 1)), needed: annual.needed, noFund: !fund, yearly: annual.yearly, monthly: Engine.annualSetAside(s.annualBills) } : null,
             maturing: (s.polizas || []).filter(p => { const st = Engine.maturityStatus(p.maturityDate, t); return st && st.kind === 'pronto'; }).map(p => p.number),
@@ -14461,6 +14511,15 @@ I18n.override('EC', 'es', {
             needsWill: !!(window.Checklists && !Checklists.progress().will && ((s.college && s.college.kids.length) || (s.members || []).length > 2)),
             reviewDue: !!(window.Checklists && t.getMonth() <= 1 && Checklists.progress().review < 0.5 && s.transactions.length > 0)
         };
+    }
+    // This month or next brings an extra paycheck (weekly / every-2-weeks pay).
+    function extraPaycheck(ctx) {
+        const t = ctx.today, plan = Engine.extraPaycheckMonths(Cash.paySchedule(), t.getFullYear());
+        if (!plan) return null;
+        const m = plan.months.find(x => x.month === t.getMonth() + 1 || x.month === t.getMonth() + 2);
+        if (!m) return null;
+        const yd = Store.effective(t.getFullYear()), pay = Engine.payroll(yd);
+        return { label: Fmt.MONTH_NAMES[m.month - 1], amount: pay.netoM * 12 / plan.perYear * m.extra, onChecks: !!yd.budgetOnPaychecks };
     }
     // ---------------------------------------------------------------- health score
     const GOTO = { spendLess: ['transacciones/reportes'], onTime: ['resumen', 'dash-bills-card'], cushion: ['futuro/metas', 'metas-ef'], longTerm: ['futuro/jubilacion'], dti: ['futuro/metas', 'metas-debts'], costly: ['futuro/metas', 'metas-debts'], budget: ['presupuesto/plan'], retire: ['futuro/jubilacion'] };
@@ -16220,6 +16279,18 @@ I18n.override('EC', 'es', {
         return '';
     }
 
+    // Weekly / every-2-weeks pay: the months with an extra paycheck, and the choice to budget on
+    // the usual paychecks so that one is real extra money (Engine.paycheckSalary).
+    function renderExtraPay(ctx) {
+        const plan = Engine.extraPaycheckMonths(Cash.paySchedule(), ctx.state.activeYear);
+        if (!plan || !plan.months.length) { UI.html('pay-extra', ''); return; }
+        const names = plan.months.map(m => Fmt.MONTH_NAMES[m.month - 1]);
+        const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+        const on = !!ctx.year.budgetOnPaychecks, nth = plan.usual === 2 ? '3rd' : '5th';
+        UI.html('pay-extra', `<p><i class="fa-solid fa-gift text-emerald-600"></i> <span>In ${ctx.state.activeYear}, a ${nth} paycheck in</span> <strong data-i18n-skip>${esc(Fmt.lang === 'en' ? list : list.replace(' and ', ' y ').toLowerCase())}</strong>.</p>
+            <label class="check"><input type="checkbox" data-change="pay.onChecks" ${on ? 'checked' : ''}><span>Budget on ${plan.usual} paychecks a month <span class="block text-[11px] font-normal text-slate-500">${on ? 'The extra paycheck shows up as extra money in its month: give it a job.' : 'Dave Ramsey\'s way: then the extra paycheck is real extra money in its month.'}</span></span></label>`);
+    }
+
     function renderSummary() {
         const sch = Cash.paySchedule();
         const next = sch ? Engine.nextPayday(sch, new Date()) : null;
@@ -16460,6 +16531,7 @@ I18n.override('EC', 'es', {
     function update(ctx) {
         const yd = ctx.year, p = ctx.pay;
         renderSummary();
+        renderExtraPay(ctx);
         taxYearNote(ctx);
         if (window.SideIncome) SideIncome.render(ctx);
         if (p.country === 'US') { renderUS(ctx); if (window.Refund) Refund.render(ctx); if (window.Itemize) Itemize.render(ctx); return; }
@@ -16503,6 +16575,10 @@ I18n.override('EC', 'es', {
     }
 
     UI.register({
+        'pay.onChecks': (el) => {
+            const y = Store.active();
+            App.undoable(el.checked ? 'Budgeting on your paychecks' : 'Budgeting on your monthly pay', () => { y.budgetOnPaychecks = el.checked; });
+        },
         'paytype.set': (el) => {
             const y = payFields(Store.active());
             App.undoable(el.value === 'hourly' ? 'Paid by the hour' : 'Paid a salary', () => {
