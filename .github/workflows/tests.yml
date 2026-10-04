@@ -1,9 +1,10 @@
-# Every push and pull request: unit tests, the built files are current, and the browser suites
+# Every pull request (and main): unit tests, the built files are current, and the browser suites
 # (both editions in a real Chromium, the phone build, and the leftover-Spanish scans).
 name: Tests
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
