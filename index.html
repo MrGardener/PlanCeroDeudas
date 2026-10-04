@@ -319,9 +319,11 @@
                 <a href="#" class="link text-xs" data-goto="config" data-focus="cfg-legal"><span data-country="EC">Legal parameters (taxes, minimum wage) →</span><span data-country="US">Tax parameters (federal, Social Security, state) →</span></a>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <!-- US: salary or hourly (with overtime), and bonuses — js/views/ingresos.js -->
+                <div class="field-box tone-amber sm:col-span-2 lg:col-span-5 space-y-3" data-country="US" id="inc-paytype"></div>
                 <label class="field field-box tone-amber">
-                    <span class="field-label"><span>Monthly gross salary (<span class="cur">$</span>)</span></span>
-                    <input type="number" class="input" step="50" min="0" data-bind="year.sueldo">
+                    <span class="field-label"><span id="inc-sueldo-label">Monthly gross salary</span> (<span class="cur">$</span>)</span>
+                    <input type="number" class="input" step="50" min="0" data-bind="year.sueldo" id="inc-sueldo">
                     <span class="help" data-country="EC">Salary as an employee.</span>
                     <span class="help" data-country="US" id="inc-annual"></span>
                 </label>

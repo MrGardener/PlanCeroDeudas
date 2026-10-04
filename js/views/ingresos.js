@@ -150,6 +150,64 @@
 
     // ------------------------------------------------------------------ United States
     const US = () => window.DefaultsUS || { STATES: [], MI_CITIES: [] };
+    // ------------------------------------------------------------------ how you're paid (US)
+    // Salary, or hourly with usual overtime; and the bonuses expected this year. Taxes count the
+    // whole year; the budget counts base pay (overtime only if the person says so) and a bonus only
+    // in its month when it's planned (Engine.usGrossPay / bonusForMonth).
+    const HOURLY = { rate: 0, hours: 40, otHours: 0, otRate: 1.5, otInBudget: false };
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    function payFields(y) {
+        if (!y.hourly) y.hourly = Object.assign({}, HOURLY);
+        if (!Array.isArray(y.bonuses)) y.bonuses = [];
+        return y;
+    }
+    // With hourly pay the monthly gross the rest of the app reads is the base pay.
+    function syncSalary(y) {
+        if (y.payType === 'hourly') y.sueldo = Math.round(Engine.usGrossPay(y).baseM * 100) / 100;
+    }
+
+    function renderPayType(ctx) {
+        const el = document.getElementById('inc-paytype');
+        if (!el) return;
+        const yd = ctx.year, g = Engine.usGrossPay(yd), hourly = g.payType === 'hourly';
+        const h = Object.assign({}, HOURLY, yd.hourly || {});
+        const num = (field, label, step, value, help) => `<label class="field"><span class="field-label">${label}</span><input type="number" class="input" min="0" step="${step}" value="${value}" data-change="paytype.hourly" data-field="${field}">${help ? `<span class="help">${help}</span>` : ''}</label>`;
+        const bonuses = yd.bonuses || [];
+        el.innerHTML = `
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="field-label mb-0">How you're paid</span>
+                <select class="input w-auto" data-change="paytype.set" aria-label="How you're paid">
+                    <option value="salary" ${hourly ? '' : 'selected'}>Salary (the same every month)</option>
+                    <option value="hourly" ${hourly ? 'selected' : ''}>By the hour</option>
+                </select>
+                ${hourly ? `<span class="text-xs text-slate-600"><span>Base pay: ${money(g.baseM)} a month</span>${g.overtimeM > 0 ? ` · <span>Usual overtime: ${money(g.overtimeM)} a month</span>` : ''}</span>` : ''}
+            </div>
+            ${hourly ? `<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                ${num('rate', `Hourly rate (${esc(Fmt.currency().symbol)})`, '0.01', h.rate || '', '')}
+                ${num('hours', 'Regular hours a week', '0.5', h.hours, '')}
+                ${num('otHours', 'Usual overtime hours a week', '0.5', h.otHours || '', 'An average; 0 if it varies a lot')}
+                ${num('otRate', 'Overtime pay (× your rate)', '0.1', h.otRate, 'Usually 1.5 (time and a half)')}
+            </div>
+            <label class="check"><input type="checkbox" data-change="paytype.hourly" data-field="otInBudget" ${h.otInBudget ? 'checked' : ''}><span>Count my usual overtime in the budget <span class="block text-[11px] font-normal text-slate-500">Dave Ramsey: budget on the pay you can count on. Leave overtime out and give it a job when it comes.</span></span></label>` : ''}
+            <div>
+                <div class="flex items-center justify-between gap-2"><span class="field-label mb-0">Bonuses this year</span><button type="button" class="btn btn-secondary btn-sm" data-action="bonus.add"><i class="fa-solid fa-plus"></i> Add a bonus</button></div>
+                ${bonuses.length ? `<div class="space-y-2 mt-2">${bonuses.map(b => `<div class="grid grid-cols-2 sm:grid-cols-[1fr_8rem_9rem_auto_auto] gap-2 items-center">
+                    <input class="input col-span-2 sm:col-span-1" value="${esc(b.name || '')}" placeholder="E.g. Year-end bonus" data-change="bonus.set" data-id="${b.id}" data-field="name" aria-label="Bonus name" data-i18n-skip>
+                    <input type="number" class="input" min="0" step="50" value="${Number(b.amount) || ''}" placeholder="Before taxes" data-change="bonus.set" data-id="${b.id}" data-field="amount" aria-label="Amount before taxes">
+                    <select class="input" data-change="bonus.set" data-id="${b.id}" data-field="month" aria-label="Month">${MONTHS.map((m, i) => `<option value="${i + 1}" ${String(b.month) === String(i + 1) ? 'selected' : ''}>${m}</option>`).join('')}</select>
+                    <label class="check text-xs"><input type="checkbox" data-change="bonus.set" data-id="${b.id}" data-field="inBudget" ${b.inBudget ? 'checked' : ''}><span>Plan it in that month</span></label>
+                    <button type="button" class="row-del" data-action="bonus.del" data-id="${b.id}" title="Remove" aria-label="Remove"><i class="fa-solid fa-trash-can"></i></button>
+                </div>`).join('')}</div>
+                <p class="help mt-1">Bonuses always count in your taxes. Check "Plan it" only for a bonus you're sure of; otherwise give it a job when it arrives.</p>` : '<p class="help mt-1">Expect a bonus or commission this year? Add it so your taxes are right.</p>'}
+            </div>`;
+        // The monthly gross: typed for a salary, worked out from the hours when paid by the hour.
+        // (Kept in sync here too, for plans set up elsewhere: a backup, the example family.)
+        if (hourly) syncSalary(yd);
+        const input = document.getElementById('inc-sueldo');
+        if (input) { input.readOnly = hourly; input.classList.toggle('bg-slate-50', hourly); if (hourly) input.value = yd.sueldo; }
+        UI.text('inc-sueldo-label', hourly ? 'Monthly base pay (from your hours)' : 'Monthly gross salary');
+    }
+
     function renderUS(ctx) {
         const yd = ctx.year, p = ctx.pay;
         const st = US().STATES.find(x => x.code === yd.state) || { type: 'custom', name: yd.state };
@@ -172,9 +230,11 @@
             city.value = known ? known.name : (Number(yd.localRate) > 0 ? '__custom' : '');
             if (!known && Number(yd.localRate) > 0) city.options[city.options.length - 1].textContent = `Other: ${yd.localRate}%`;
         }
-        UI.text('inc-annual', `Before taxes. Per year: ${money(p.sueldoAnual)}.`);
+        renderPayType(ctx);
+        const extra = p.gross && p.gross.annual - p.gross.budgetM * 12 > 0.5;
+        UI.text('inc-annual', extra ? `Before taxes. The year with overtime and bonuses: ${money(p.sueldoAnual)}.` : `Before taxes. Per year: ${money(p.sueldoAnual)}.`);
         const rows = [
-            ['Monthly gross salary', money(p.sueldo), 'text-slate-900'],
+            [p.gross && p.gross.payType === 'hourly' ? 'Monthly base pay' : 'Monthly gross salary', money(p.sueldo), 'text-slate-900'],
             p.pretaxM > 0 ? ['Pre-tax deductions (401(k), health insurance…)', '−' + money(p.pretaxM), 'text-blue-700'] : null,
             ['Federal income tax', '−' + money(p.fedM), 'text-red-600'],
             ['Seguro Social', '−' + money(p.ssM), 'text-red-600'],
@@ -183,7 +243,8 @@
             p.localM > 0 ? [`City tax${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'residente' : 'non-resident'} ${p.localRate}%)` : ''}`, '−' + money(p.localM), 'text-red-600'] : null,
             p.otrosDescuentosM - p.pretaxM > 0.004 ? ['Other paycheck deductions (after tax)', '−' + money(p.otrosDescuentosM - p.pretaxM), 'text-red-600'] : null
         ].filter(Boolean);
-        UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join(''));
+        UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join('')
+            + (extra ? `<p class="help pt-2">Taxes are figured on the whole year (${money(p.sueldoAnual)}). This paycheck carries its share; overtime and bonuses keep the rest.</p>` : ''));
         UI.text('inc-neto', money(p.netoM));
         UI.html('inc-us-ded-kpis', `
             <div class="kpi tone-slate"><span class="kpi-label">Deduction applied</span><span class="kpi-value">${money(p.dedApplied)}</span><span class="kpi-note">${Number(yd.itemized) > p.stdDeduction ? 'Itemized' : `Standard (${money(p.stdDeduction)})`}</span></div>
@@ -266,6 +327,37 @@
     }
 
     UI.register({
+        'paytype.set': (el) => {
+            const y = payFields(Store.active());
+            App.undoable(el.value === 'hourly' ? 'Paid by the hour' : 'Paid a salary', () => {
+                // Switching to hourly starts from the salary: an hourly rate that gives the same base pay.
+                if (el.value === 'hourly' && !(Number(y.hourly.rate) > 0) && Number(y.sueldo) > 0) y.hourly.rate = Math.round(Number(y.sueldo) / ((Number(y.hourly.hours) || 40) * 52 / 12) * 100) / 100;
+                y.payType = el.value === 'hourly' ? 'hourly' : 'salary';
+                syncSalary(y);
+            });
+        },
+        'paytype.hourly': (el) => {
+            const y = payFields(Store.active()), f = el.dataset.field;
+            y.hourly[f] = f === 'otInBudget' ? el.checked : Math.max(0, Fmt.parseNum(el.value, 0));
+            syncSalary(y);
+            App.changed({ step: true });
+        },
+        'bonus.add': () => {
+            const y = payFields(Store.active());
+            App.undoable('Bonus added', () => { y.bonuses.push({ id: Store.nextId(y.bonuses), name: '', amount: 0, month: '12', inBudget: false }); });
+        },
+        'bonus.set': (el) => {
+            const b = (payFields(Store.active()).bonuses || []).find(x => String(x.id) === el.dataset.id);
+            if (!b) return;
+            const f = el.dataset.field;
+            b[f] = f === 'inBudget' ? el.checked : f === 'amount' ? Math.max(0, Fmt.parseNum(el.value, 0)) : f === 'month' ? el.value : el.value.trim().slice(0, 40);
+            App.changed({ step: true });
+        },
+        'bonus.del': (el) => {
+            const y = payFields(Store.active());
+            const b = y.bonuses.find(x => String(x.id) === el.dataset.id);
+            App.undoable(`Bonus "${(b && b.name) || ''}" removed`, () => { y.bonuses = y.bonuses.filter(x => x !== b); });
+        },
         'us.state': (el) => { const y = Store.active(); y.state = el.value; y.stateRate = null; y.localName = ''; y.localRate = 0; App.changed({ structural: true, step: true }); },
         'us.stateRate': (el) => { Store.active().stateRate = el.value === '' ? null : Math.max(0, Fmt.parseNum(el.value, 0)); App.changed({ step: true }); },
         'us.city': async (el) => {
