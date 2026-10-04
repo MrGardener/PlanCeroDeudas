@@ -28,13 +28,13 @@
         UI.text('ins-count', r.missing + r.review);
         UI.show('ins-count', r.missing + r.review > 0);
         const ICON = { ok: 'fa-circle-check text-emerald-600', falta: 'fa-circle-xmark text-red-600', revisar: 'fa-triangle-exclamation text-amber-600', na: 'fa-circle-minus text-slate-400' };
-        const STATUS = { ok: 'Lo tienes', falta: 'Te falta', revisar: 'Revisa la cobertura', na: 'No lo necesitas aún' };
+        const STATUS = { ok: 'You have it', falta: 'Missing', revisar: 'Check the coverage', na: 'Not needed yet' };
         UI.html('ins-list', r.items.map(i => `<li class="ins-row ${i.status}">
             <i class="fa-solid ${ICON[i.status]} mt-0.5"></i>
-            <div class="min-w-0 flex-1"><div class="font-bold text-xs">${esc(i.label)} <span class="text-[11px] font-semibold text-slate-500">· <span>${STATUS[i.status]}</span>${i.guessed && i.needed ? ' <span>(lo vimos en tu presupuesto)</span>' : ''}</span></div>
+            <div class="min-w-0 flex-1"><div class="font-bold text-xs">${esc(i.label)} <span class="text-[11px] font-semibold text-slate-500">· <span>${STATUS[i.status]}</span>${i.guessed && i.needed ? ' <span>(we saw it in your budget)</span>' : ''}</span></div>
                 <p class="text-[11px] text-slate-600">${esc(i.why)}</p>
-                ${i.key === 'life' && i.needed ? `<label class="flex items-center gap-2 mt-1 text-[11px]"><span>Cobertura total de vida que tienes ($)</span><input type="number" class="cell-input num" style="width:8rem" min="0" step="10000" data-input="ins.life" value="${Number(c.life) || ''}" placeholder="0"></label>${i.has && !(Number(c.life) > 0) ? '<p class="text-[11px] text-slate-500 mt-1">Escribe cuánto te cubre para saber si alcanza.</p>' : r.lifeGap > 0 && i.has ? `<p class="text-[11px] text-amber-700 mt-1">Te faltarían ${money0(r.lifeGap)} de cobertura.</p>` : ''}` : ''}</div>
-            ${i.needed ? `<select class="cell-input text-xs" style="width:auto" data-change="ins.answer" data-key="${i.key}" aria-label="¿Lo tienes?">${Views.selectOptions([{ value: '', label: 'Automático' }, { value: 'si', label: 'Lo tengo' }, { value: 'no', label: 'No lo tengo' }], (c.answers || {})[i.key] || '')}</select>` : ''}
+                ${i.key === 'life' && i.needed ? `<label class="flex items-center gap-2 mt-1 text-[11px]"><span>Total life coverage you have ($)</span><input type="number" class="cell-input num" style="width:8rem" min="0" step="10000" data-input="ins.life" value="${Number(c.life) || ''}" placeholder="0"></label>${i.has && !(Number(c.life) > 0) ? '<p class="text-[11px] text-slate-500 mt-1">Enter how much it covers to see if it\'s enough.</p>' : r.lifeGap > 0 && i.has ? `<p class="text-[11px] text-amber-700 mt-1">You'd be ${money0(r.lifeGap)} of coverage short.</p>` : ''}` : ''}</div>
+            ${i.needed ? `<select class="cell-input text-xs" style="width:auto" data-change="ins.answer" data-key="${i.key}" aria-label="Do you have it?">${Views.selectOptions([{ value: '', label: 'Automático' }, { value: 'si', label: 'I have it' }, { value: 'no', label: 'I don\'t have it' }], (c.answers || {})[i.key] || '')}</select>` : ''}
         </li>`).join(''));
         const dep = document.getElementById('ins-dependents');
         if (dep) dep.checked = f.dependents;

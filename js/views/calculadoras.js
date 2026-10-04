@@ -25,36 +25,36 @@
     const result = (rows) => `<div class="calc-result">${rows.map(([k, v, strong]) => `<div class="flex justify-between gap-3"><span>${k}</span><span class="${strong ? 'font-black text-base' : 'font-bold'} whitespace-nowrap">${v}</span></div>`).join('')}</div>`;
 
     function render() {
-        UI.html('calc-loan-in', field('loan', 'amount', 'Monto del préstamo ($)', { step: 100 }) + field('loan', 'rate', 'Tasa anual (%)', { step: 0.1 }) + field('loan', 'years', 'Plazo (años)', { step: 1 }));
-        UI.html('calc-card-in', field('card', 'balance', 'Saldo de la tarjeta ($)', { step: 50 }) + field('card', 'rate', 'Tasa anual (%)', { step: 0.1 }) + field('card', 'payment', 'Pagarías cada mes ($)', { step: 10 }));
-        UI.html('calc-grow-in', field('grow', 'initial', 'Tienes hoy ($)', { step: 100 }) + field('grow', 'monthly', 'Pones cada mes ($)', { step: 10 }) + field('grow', 'rate', 'Rendimiento anual (%)', { step: 0.1 }) + field('grow', 'years', 'Años', { step: 1 }) + field('grow', 'inflation', 'Inflación anual (%)', { step: 0.1 }));
-        UI.html('calc-goal-in', field('goal', 'target', 'Necesitas ($)', { step: 100 }) + field('goal', 'have', 'Ya tienes ($)', { step: 100 }) + field('goal', 'rate', 'Interés anual del ahorro (%)', { step: 0.1 }) + field('goal', 'months', 'Lo quieres en (meses)', { step: 1 }) + field('goal', 'monthly', 'O puedes poner al mes ($)', { step: 10 }));
+        UI.html('calc-loan-in', field('loan', 'amount', 'Loan amount ($)', { step: 100 }) + field('loan', 'rate', 'Annual rate (%)', { step: 0.1 }) + field('loan', 'years', 'Term (years)', { step: 1 }));
+        UI.html('calc-card-in', field('card', 'balance', 'Card balance ($)', { step: 50 }) + field('card', 'rate', 'Annual rate (%)', { step: 0.1 }) + field('card', 'payment', 'You\'d pay each month ($)', { step: 10 }));
+        UI.html('calc-grow-in', field('grow', 'initial', 'You have today ($)', { step: 100 }) + field('grow', 'monthly', 'You add each month ($)', { step: 10 }) + field('grow', 'rate', 'Annual return (%)', { step: 0.1 }) + field('grow', 'years', 'Años', { step: 1 }) + field('grow', 'inflation', 'Annual inflation (%)', { step: 0.1 }));
+        UI.html('calc-goal-in', field('goal', 'target', 'You need ($)', { step: 100 }) + field('goal', 'have', 'You already have ($)', { step: 100 }) + field('goal', 'rate', 'Annual interest on savings (%)', { step: 0.1 }) + field('goal', 'months', 'You want it in (months)', { step: 1 }) + field('goal', 'monthly', 'Or you can put in per month ($)', { step: 10 }));
         update();
     }
 
     function update() {
         const c = st(), today = new Date();
         const L = Engine.loanPayment(c.loan.amount, c.loan.rate, (Number(c.loan.years) || 0) * 12);
-        UI.html('calc-loan-out', result([['Cuota mensual', money(L.payment), true], ['Pagas en total', money0(L.total)], ['De eso, intereses', money0(L.interest)]])
-            + `<p class="help mt-2">${L.interest > 0 ? `Los intereses son el ${Math.round(L.interest / Math.max(1, Number(c.loan.amount)) * 100)}% de lo que pides. Un plazo más corto o una entrada más grande los bajan.` : 'Sin intereses.'}</p>`);
+        UI.html('calc-loan-out', result([['Monthly payment', money(L.payment), true], ['Total you pay', money0(L.total)], ['Of that, interest', money0(L.interest)]])
+            + `<p class="help mt-2">${L.interest > 0 ? `Interest is ${Math.round(L.interest / Math.max(1, Number(c.loan.amount)) * 100)}% of what you borrow. A shorter term or a bigger down payment lowers it.` : 'No interest.'}</p>`);
 
         const K = Engine.cardPayoff(c.card.balance, c.card.rate, c.card.payment);
         const when = (n) => Fmt.monthYear(Engine.addMonths(today, n));
-        const fixed = K.fixed.never ? ['Con tu pago', 'Nunca: no cubre los intereses', true] : ['Con tu pago', `${K.fixed.months} meses (${when(K.fixed.months)})`, true];
+        const fixed = K.fixed.never ? ['With your payment', 'Never: it doesn\'t cover the interest', true] : ['With your payment', `${K.fixed.months} months (${when(K.fixed.months)})`, true];
         const rows = [fixed];
-        if (!K.fixed.never) rows.push(['Intereses que pagarías', money0(K.fixed.interest)]);
-        rows.push(['Solo el pago mínimo', K.minimum.never ? 'Nunca' : `${K.minimum.months} meses · ${money0(K.minimum.interest)} de intereses`]);
+        if (!K.fixed.never) rows.push(['Interest you\'d pay', money0(K.fixed.interest)]);
+        rows.push(['Minimum payment only', K.minimum.never ? 'Nunca' : `${K.minimum.months} months · ${money0(K.minimum.interest)} interest`]);
         const saved = !K.fixed.never && !K.minimum.never ? K.minimum.interest - K.fixed.interest : null;
-        UI.html('calc-card-out', result(rows) + `<p class="help mt-2">${saved && saved > 0 ? `<span>Pagando ${money0(c.card.payment)} en vez del mínimo te ahorras <strong>${money0(saved)}</strong> y ${Math.max(0, K.minimum.months - K.fixed.months)} meses.</span> ` : ''}<span>Mínimo típico: 1% del saldo + los intereses del mes (al menos $25).</span></p>`);
+        UI.html('calc-card-out', result(rows) + `<p class="help mt-2">${saved && saved > 0 ? `<span>Paying ${money0(c.card.payment)} instead of the minimum saves you <strong>${money0(saved)}</strong> and ${Math.max(0, K.minimum.months - K.fixed.months)} months.</span> ` : ''}<span>Typical minimum: 1% of the balance + the month's interest (at least $25).</span></p>`);
 
         const G = Engine.growthValue(c.grow.initial, c.grow.monthly, c.grow.rate, c.grow.years, c.grow.inflation);
-        UI.html('calc-grow-out', result([[`En ${Number(c.grow.years) || 0} años tendrías`, money0(G.value), true], ['En dinero de hoy', money0(G.today)], ['Lo que pusiste', money0(G.contributed)], ['Lo que creció', money0(G.growth)]])
-            + `<p class="help mt-2">${G.contributed > 0 && G.growth > G.contributed ? 'El interés compuesto ganó más que tus propios depósitos: por eso conviene empezar temprano.' : 'Con más años, el crecimiento pesa cada vez más que lo que pones.'}</p>`);
+        UI.html('calc-grow-out', result([[`In ${Number(c.grow.years) || 0} years you'd have`, money0(G.value), true], ['In today\'s dollars', money0(G.today)], ['What you put in', money0(G.contributed)], ['What it grew', money0(G.growth)]])
+            + `<p class="help mt-2">${G.contributed > 0 && G.growth > G.contributed ? 'Compound interest earned more than your own deposits: that\'s why starting early pays.' : 'With more years, growth matters more and more than what you put in.'}</p>`);
 
         const need = Engine.monthlyToReach(c.goal.target, c.goal.have, c.goal.rate, c.goal.months);
         const n = Engine.goalMonths({ target: c.goal.target, current: c.goal.have, monthly: c.goal.monthly, rate: c.goal.rate });
-        const inMonths = n === 'never' || n === null || n === undefined ? 'Nunca' : n === 0 ? 'Ya lo tienes' : `${n} meses (${when(n)})`;
-        UI.html('calc-goal-out', result([[`Para tenerlo en ${Number(c.goal.months) || 0} meses`, need > 0 ? `${money(need)}/mes` : 'Ya lo tienes', true], [`Con ${money0(c.goal.monthly)}/mes llegas en`, inMonths]]));
+        const inMonths = n === 'never' || n === null || n === undefined ? 'Nunca' : n === 0 ? 'You already have it' : `${n} months (${when(n)})`;
+        UI.html('calc-goal-out', result([[`To have it in ${Number(c.goal.months) || 0} months`, need > 0 ? `${money(need)}/mes` : 'You already have it', true], [`With ${money0(c.goal.monthly)}/mo you get there in`, inMonths]]));
     }
 
     UI.register({

@@ -30,7 +30,7 @@
 
     function describe(sch) {
         if (!sch) return 'Sin configurar';
-        if (window.I18n && I18n.lang === 'en') return describeEn(sch);
+        if (!window.I18n || I18n.lang !== 'es') return describeEn(sch);
         if (sch.freq === 'monthly') {
             const wk = sch.weekend === 'before' ? ' (si cae en fin de semana, el viernes antes)' : sch.weekend === 'after' ? ' (si cae en fin de semana, el lunes después)' : '';
             const days = sch.days.length === 1
@@ -47,7 +47,7 @@
     function renderSummary() {
         const sch = Cash.paySchedule();
         const next = sch ? Engine.nextPayday(sch, new Date()) : null;
-        UI.html('pay-summary', sch ? `<span data-i18n-skip>${esc(describe(sch))}</span>${next ? `<div class="text-xs font-normal text-slate-600"><span>Próximo:</span> <span>${esc(dayLabel(Engine.isoDate(next.date)))}</span> <span>${next.days === 0 ? '(hoy)' : `(en ${next.days} día${next.days === 1 ? '' : 's'})`}</span></div>` : ''}` : '<span class="text-slate-500 font-normal">Sin configurar</span>');
+        UI.html('pay-summary', sch ? `<span data-i18n-skip>${esc(describe(sch))}</span>${next ? `<div class="text-xs font-normal text-slate-600"><span>Next:</span> <span>${esc(dayLabel(Engine.isoDate(next.date)))}</span> <span>${next.days === 0 ? '(today)' : `(in ${next.days} day${next.days === 1 ? '' : 's'})`}</span></div>` : ''}` : '<span class="text-slate-500 font-normal">Not set up</span>');
     }
 
     // The editor works on a draft; nothing changes until "Guardar".
@@ -77,7 +77,7 @@
 
     // First paydays a year ahead with their amounts, from this draft.
     function previewHTML(sch) {
-        if (!sch) return '<p class="text-sm text-red-600">Completa los datos: faltan los días o el día de la semana.</p>';
+        if (!sch) return '<p class="text-sm text-red-600">Fill in the details: the days or the weekday are missing.</p>';
         const t = new Date();
         const from = Engine.isoDate(t), to = Engine.isoDate(new Date(t.getFullYear() + 1, t.getMonth(), t.getDate() - 1));
         const months = Cash.monthsBetween(from, to);
@@ -89,45 +89,45 @@
         const perYear = Engine.paymentsPerYear(sch, t.getFullYear());
         const each = pays.length ? pays[0].amount : 0;
         return `<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
-                <div class="kpi tone-emerald"><span class="kpi-label">Pagos al año</span><span class="kpi-value" id="pay-per-year">${perYear}</span></div>
-                <div class="kpi tone-slate"><span class="kpi-label">Cada pago</span><span class="kpi-value">${money(each)}</span><span class="kpi-note">${sch.amount ? 'El monto que escribiste' : 'Tu sueldo neto repartido'}</span></div>
-                <div class="kpi tone-slate"><span class="kpi-label">En 12 meses</span><span class="kpi-value">${money(total)}</span><span class="kpi-note">≈ ${money(total / 12)} al mes${ev.some(e => e.name !== 'Día de pago') ? ', décimos incluidos' : ''}</span></div>
+                <div class="kpi tone-emerald"><span class="kpi-label">Payments a year</span><span class="kpi-value" id="pay-per-year">${perYear}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">Each payment</span><span class="kpi-value">${money(each)}</span><span class="kpi-note">${sch.amount ? 'The amount you typed' : 'Your net salary spread out'}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">In 12 months</span><span class="kpi-value">${money(total)}</span><span class="kpi-note">≈ ${money(total / 12)} a month${ev.some(e => e.name !== 'Día de pago') ? ', bonuses included' : ''}</span></div>
             </div>
-            <div class="section-label">Próximos pagos</div>
-            <ul class="pay-next" id="pay-next">${ev.slice(0, 8).map(e => `<li><span>${esc(dayLabel(e.date))}${e.name !== 'Día de pago' ? ` <span class="badge badge-info">${esc(e.name)}</span>` : ''}</span><strong class="num">+${money(e.amount)}</strong></li>`).join('') || '<li class="help">Sin pagos en los próximos 12 meses.</li>'}</ul>
-            ${sch.amount ? '<p class="help mt-2">El presupuesto sigue usando tu sueldo de esta pestaña; este monto solo cambia el calendario y "Seguro para gastar".</p>' : ''}`;
+            <div class="section-label">Upcoming bills</div>
+            <ul class="pay-next" id="pay-next">${ev.slice(0, 8).map(e => `<li><span>${esc(dayLabel(e.date))}${e.name !== 'Día de pago' ? ` <span class="badge badge-info">${esc(e.name)}</span>` : ''}</span><strong class="num">+${money(e.amount)}</strong></li>`).join('') || '<li class="help">No payments in the next 12 months.</li>'}</ul>
+            ${sch.amount ? '<p class="help mt-2">The budget still uses the salary on this tab; this amount only changes the calendar and "Safe to spend".</p>' : ''}`;
     }
 
     function editorHTML() {
         const d = draft;
-        const wdSel = `<label class="field"><span class="field-label">Día de la semana</span><select class="input" id="ps-weekday" data-change="pay.field">${[1, 2, 3, 4, 5, 6, 0].map(i => `<option value="${i}" ${Number(d.weekday) === i ? 'selected' : ''}>${WD[i].charAt(0).toUpperCase() + WD[i].slice(1)}</option>`).join('')}</select></label>`;
+        const wdSel = `<label class="field"><span class="field-label">Weekday</span><select class="input" id="ps-weekday" data-change="pay.field">${[1, 2, 3, 4, 5, 6, 0].map(i => `<option value="${i}" ${Number(d.weekday) === i ? 'selected' : ''}>${WD[i].charAt(0).toUpperCase() + WD[i].slice(1)}</option>`).join('')}</select></label>`;
         let extra = '';
         if (d.freq === 'monthly') extra = `
-            <label class="field"><span class="field-label">Días del mes</span><input class="input" id="ps-days" data-change="pay.field" value="${esc(d.days)}" placeholder="Ej: 15, 30  (31 = último día)" inputmode="numeric"></label>
-            <label class="field"><span class="field-label">Cada cuánto</span><select class="input" id="ps-interval" data-change="pay.field">${[1, 2, 3, 6, 12].map(n => `<option value="${n}" ${Number(d.interval) === n ? 'selected' : ''}>${EVERY[n].charAt(0).toUpperCase() + EVERY[n].slice(1)}</option>`).join('')}</select></label>
-            ${Number(d.interval) > 1 ? `<label class="field"><span class="field-label">Un mes en que cobras</span><input type="month" class="input" id="ps-anchor-month" data-change="pay.field" value="${esc(String(d.anchor).slice(0, 7))}"></label>` : ''}
-            <label class="field"><span class="field-label">Si cae en sábado o domingo</span><select class="input" id="ps-weekend" data-change="pay.field"><option value="same" ${d.weekend === 'same' ? 'selected' : ''}>Se paga ese mismo día</option><option value="before" ${d.weekend === 'before' ? 'selected' : ''}>Se adelanta al viernes</option><option value="after" ${d.weekend === 'after' ? 'selected' : ''}>Pasa al lunes</option></select></label>`;
+            <label class="field"><span class="field-label">Days of the month</span><input class="input" id="ps-days" data-change="pay.field" value="${esc(d.days)}" placeholder="E.g. 15, 30 (31 = last day)" inputmode="numeric"></label>
+            <label class="field"><span class="field-label">How often</span><select class="input" id="ps-interval" data-change="pay.field">${[1, 2, 3, 6, 12].map(n => `<option value="${n}" ${Number(d.interval) === n ? 'selected' : ''}>${EVERY[n].charAt(0).toUpperCase() + EVERY[n].slice(1)}</option>`).join('')}</select></label>
+            ${Number(d.interval) > 1 ? `<label class="field"><span class="field-label">A month you get paid</span><input type="month" class="input" id="ps-anchor-month" data-change="pay.field" value="${esc(String(d.anchor).slice(0, 7))}"></label>` : ''}
+            <label class="field"><span class="field-label">If it falls on a Saturday or Sunday</span><select class="input" id="ps-weekend" data-change="pay.field"><option value="same" ${d.weekend === 'same' ? 'selected' : ''}>Paid that same day</option><option value="before" ${d.weekend === 'before' ? 'selected' : ''}>Moves up to Friday</option><option value="after" ${d.weekend === 'after' ? 'selected' : ''}>Moves to Monday</option></select></label>`;
         else if (d.freq === 'weekly') extra = wdSel;
-        else if (d.freq === 'biweekly') extra = wdSel + `<label class="field"><span class="field-label">Una fecha en que cobraste o cobrarás</span><input type="date" class="input" id="ps-anchor" data-change="pay.field" value="${esc(d.anchor)}"><span class="help">Para saber cuál semana sí y cuál no.</span></label>`;
-        else if (d.freq === 'nth') extra = wdSel + `<div class="field"><span class="field-label">¿Cuáles del mes?</span><div class="flex flex-wrap gap-3 pt-1">${[1, 2, 3, 4, -1].map(n => `<label class="check"><input type="checkbox" class="ps-nth" data-n="${n}" data-change="pay.field" ${d.nths.map(Number).includes(n) ? 'checked' : ''}> ${ORD[n]}</label>`).join('')}</div></div>`;
-        else extra = `<label class="check pt-6"><input type="checkbox" id="ps-business" data-change="pay.field" ${d.businessDays ? 'checked' : ''}> Solo de lunes a viernes</label>`;
+        else if (d.freq === 'biweekly') extra = wdSel + `<label class="field"><span class="field-label">A date you were or will be paid</span><input type="date" class="input" id="ps-anchor" data-change="pay.field" value="${esc(d.anchor)}"><span class="help">So we know which weeks count.</span></label>`;
+        else if (d.freq === 'nth') extra = wdSel + `<div class="field"><span class="field-label">Which ones in the month?</span><div class="flex flex-wrap gap-3 pt-1">${[1, 2, 3, 4, -1].map(n => `<label class="check"><input type="checkbox" class="ps-nth" data-n="${n}" data-change="pay.field" ${d.nths.map(Number).includes(n) ? 'checked' : ''}> ${ORD[n]}</label>`).join('')}</div></div>`;
+        else extra = `<label class="check pt-6"><input type="checkbox" id="ps-business" data-change="pay.field" ${d.businessDays ? 'checked' : ''}> Monday to Friday only</label>`;
         const sch = scheduleFrom(d);
         return `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <label class="field"><span class="field-label">Frecuencia</span><select class="input" id="ps-freq" data-change="pay.field">
-                    <option value="monthly" ${d.freq === 'monthly' ? 'selected' : ''}>Días fijos del mes</option>
-                    <option value="weekly" ${d.freq === 'weekly' ? 'selected' : ''}>Cada semana</option>
-                    <option value="biweekly" ${d.freq === 'biweekly' ? 'selected' : ''}>Cada 2 semanas</option>
-                    <option value="nth" ${d.freq === 'nth' ? 'selected' : ''}>Semanas del mes</option>
-                    <option value="daily" ${d.freq === 'daily' ? 'selected' : ''}>Todos los días</option>
-                </select><span class="help">${{ monthly: 'Ej: 15 y 30, fin de mes, trimestral.', weekly: 'Ej: todos los viernes.', biweekly: 'Ej: un jueves sí y otro no.', nth: 'Ej: el 2.º y 4.º viernes.', daily: 'Ej: jornal diario.' }[d.freq] || ''}</span></label>
+                <label class="field"><span class="field-label">Frequency</span><select class="input" id="ps-freq" data-change="pay.field">
+                    <option value="monthly" ${d.freq === 'monthly' ? 'selected' : ''}>Fixed days of the month</option>
+                    <option value="weekly" ${d.freq === 'weekly' ? 'selected' : ''}>Every week</option>
+                    <option value="biweekly" ${d.freq === 'biweekly' ? 'selected' : ''}>Every 2 weeks</option>
+                    <option value="nth" ${d.freq === 'nth' ? 'selected' : ''}>Weeks of the month</option>
+                    <option value="daily" ${d.freq === 'daily' ? 'selected' : ''}>Every day</option>
+                </select><span class="help">${{ monthly: 'E.g. the 15th and 30th, end of month, quarterly.', weekly: 'E.g. every Friday.', biweekly: 'E.g. every other Thursday.', nth: 'E.g. the 2nd and 4th Friday.', daily: 'E.g. daily wage.' }[d.freq] || ''}</span></label>
                 ${extra}
-                <label class="field"><span class="field-label"><span>Monto de cada pago (<span class="cur">${esc(Fmt.currency().symbol)}</span>)</span></span><input class="input" id="ps-amount" data-change="pay.field" inputmode="decimal" value="${esc(String(d.amount || ''))}" placeholder="Automático: tu sueldo neto repartido"><span class="help">Déjalo vacío si cobras tu sueldo de esta pestaña.</span></label>
+                <label class="field"><span class="field-label"><span>Amount of each payment (<span class="cur">${esc(Fmt.currency().symbol)}</span>)</span></span><input class="input" id="ps-amount" data-change="pay.field" inputmode="decimal" value="${esc(String(d.amount || ''))}" placeholder="Automatic: your net salary spread out"><span class="help">Leave it empty if you're paid the salary on this tab.</span></label>
             </div>
             <div class="bs-banner ok mt-3" id="pay-describe"><i class="fa-regular fa-calendar-check"></i> <span data-i18n-skip>${esc(describe(sch))}</span></div>
             <div class="mt-3">${previewHTML(sch)}</div>
             <div class="flex flex-wrap justify-between gap-2 mt-4">
-                <button type="button" class="btn btn-ghost btn-sm" data-action="pay.clear">Quitar</button>
-                <button type="button" class="btn btn-primary" data-action="pay.save" id="pay-save" ${sch ? '' : 'disabled'}><i class="fa-solid fa-check"></i> Guardar</button>
+                <button type="button" class="btn btn-ghost btn-sm" data-action="pay.clear">Remove</button>
+                <button type="button" class="btn btn-primary" data-action="pay.save" id="pay-save" ${sch ? '' : 'disabled'}><i class="fa-solid fa-check"></i> Save</button>
             </div>`;
     }
 
@@ -158,38 +158,38 @@
         if (sel) sel.value = yd.state || 'MI';
         const rate = document.getElementById('inc-state-rate');
         if (rate && rate !== document.activeElement) rate.value = yd.stateRate === null || yd.stateRate === undefined ? '' : yd.stateRate;
-        if (rate) rate.placeholder = st.type === 'none' ? '0' : st.type === 'flat' ? String(st.rate) : 'Escribe tu %';
-        UI.html('inc-state-note', st.type === 'none' ? `${esc(st.name)} no cobra impuesto sobre el sueldo.`
-            : st.type === 'flat' ? `${esc(st.name)}: ${st.rate}% fijo${st.exemption ? ` después de ${money(st.exemption)} de exención por persona` : ''}.`
-            : `Aún no tenemos la tabla de ${esc(st.name)}: escribe el porcentaje de impuesto estatal de tu talón de pago (impuesto estatal ÷ sueldo bruto).`);
+        if (rate) rate.placeholder = st.type === 'none' ? '0' : st.type === 'flat' ? String(st.rate) : 'Type your %';
+        UI.html('inc-state-note', st.type === 'none' ? `${esc(st.name)} doesn't tax wages.`
+            : st.type === 'flat' ? `${esc(st.name)}: ${st.rate}% flat${st.exemption ? ` after a ${money(st.exemption)} exemption per person` : ''}.`
+            : `We don't have ${esc(st.name)}'s table yet: type the state tax percentage from your pay stub (state tax ÷ gross pay).`);
         // Cities with an income tax (Michigan list) or a rate you type.
         const city = document.getElementById('inc-city');
         if (city) {
             const cities = yd.state === 'MI' ? US().MI_CITIES : [];
             const known = cities.find(c => c.name === yd.localName);
-            city.innerHTML = `<option value="">Ninguno (0%)</option>` + cities.map(c => `<option value="${esc(c.name)}">${esc(c.name)} (${c.rate}% · ${c.nonresident}%)</option>`).join('') + `<option value="__custom">Otra tasa…</option>`;
+            city.innerHTML = `<option value="">None (0%)</option>` + cities.map(c => `<option value="${esc(c.name)}">${esc(c.name)} (${c.rate}% · ${c.nonresident}%)</option>`).join('') + `<option value="__custom">Another rate…</option>`;
             UI.show('inc-city-resident', !!known);
             city.value = known ? known.name : (Number(yd.localRate) > 0 ? '__custom' : '');
-            if (!known && Number(yd.localRate) > 0) city.options[city.options.length - 1].textContent = `Otra: ${yd.localRate}%`;
+            if (!known && Number(yd.localRate) > 0) city.options[city.options.length - 1].textContent = `Other: ${yd.localRate}%`;
         }
-        UI.text('inc-annual', `Antes de impuestos. Al año: ${money(p.sueldoAnual)}.`);
+        UI.text('inc-annual', `Before taxes. Per year: ${money(p.sueldoAnual)}.`);
         const rows = [
-            ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],
-            p.pretaxM > 0 ? ['Descuentos antes de impuestos (401(k), seguro médico…)', '−' + money(p.pretaxM), 'text-blue-700'] : null,
-            ['Impuesto federal', '−' + money(p.fedM), 'text-red-600'],
+            ['Monthly gross salary', money(p.sueldo), 'text-slate-900'],
+            p.pretaxM > 0 ? ['Pre-tax deductions (401(k), health insurance…)', '−' + money(p.pretaxM), 'text-blue-700'] : null,
+            ['Federal income tax', '−' + money(p.fedM), 'text-red-600'],
             ['Seguro Social', '−' + money(p.ssM), 'text-red-600'],
             ['Medicare', '−' + money(p.medM), 'text-red-600'],
             [`Impuesto estatal (${esc(st.name)}${p.stateRate ? ` ${p.stateRate}%` : ''})`, '−' + money(p.stateM), 'text-red-600'],
-            p.localM > 0 ? [`Impuesto de la ciudad${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'residente' : 'no residente'} ${p.localRate}%)` : ''}`, '−' + money(p.localM), 'text-red-600'] : null,
-            p.otrosDescuentosM - p.pretaxM > 0.004 ? ['Otros descuentos del talón (después de impuestos)', '−' + money(p.otrosDescuentosM - p.pretaxM), 'text-red-600'] : null
+            p.localM > 0 ? [`City tax${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'residente' : 'non-resident'} ${p.localRate}%)` : ''}`, '−' + money(p.localM), 'text-red-600'] : null,
+            p.otrosDescuentosM - p.pretaxM > 0.004 ? ['Other paycheck deductions (after tax)', '−' + money(p.otrosDescuentosM - p.pretaxM), 'text-red-600'] : null
         ].filter(Boolean);
         UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join(''));
         UI.text('inc-neto', money(p.netoM));
         UI.html('inc-us-ded-kpis', `
-            <div class="kpi tone-slate"><span class="kpi-label">Deducción aplicada</span><span class="kpi-value">${money(p.dedApplied)}</span><span class="kpi-note">${Number(yd.itemized) > p.stdDeduction ? 'Detallada' : `Estándar (${money(p.stdDeduction)})`}</span></div>
-            <div class="kpi tone-slate"><span class="kpi-label">Ingreso sujeto a impuesto federal</span><span class="kpi-value">${money(p.baseImponible)}</span><span class="kpi-note">al año</span></div>
-            <div class="kpi tone-blue"><span class="kpi-label">Créditos por dependientes</span><span class="kpi-value">${money(p.credits)}</span><span class="kpi-note">al año</span></div>
-            <div class="kpi tone-amber"><span class="kpi-label">Impuestos sobre la renta</span><span class="kpi-value">${money(p.isrAnual)}</span><span class="kpi-note">al año (federal + estado + ciudad)</span></div>`);
+            <div class="kpi tone-slate"><span class="kpi-label">Deduction applied</span><span class="kpi-value">${money(p.dedApplied)}</span><span class="kpi-note">${Number(yd.itemized) > p.stdDeduction ? 'Detallada' : `Standard (${money(p.stdDeduction)})`}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Federal taxable income</span><span class="kpi-value">${money(p.baseImponible)}</span><span class="kpi-note">a year</span></div>
+            <div class="kpi tone-blue"><span class="kpi-label">Dependent credits</span><span class="kpi-value">${money(p.credits)}</span><span class="kpi-note">a year</span></div>
+            <div class="kpi tone-amber"><span class="kpi-label">Income taxes</span><span class="kpi-value">${money(p.isrAnual)}</span><span class="kpi-note">a year (federal + state + city)</span></div>`);
         if (window.PayScan) PayScan.render(ctx);
     }
 
@@ -200,8 +200,8 @@
         if (!el) return;
         el.className = ty && y > ty ? 'panel tone-amber text-[11px] mt-2' : 'help mt-2';
         el.innerHTML = !ty ? '' : y > ty
-            ? `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> Se usan las tablas de impuestos de ${ty}. Las de ${y} aún no están en la app: verifícalas y cámbialas en <a href="#" class="link" data-goto="config" data-focus="cfg-legal">Configuración → Parámetros legales</a>.`
-            : `Tablas de impuestos de ${ty}. Verifícalas cada año en Configuración → Parámetros legales.`;
+            ? `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> The ${ty} tax tables are being used. The ${y} ones aren't in the app yet: check them and update them in <a href="#" class="link" data-goto="config" data-focus="cfg-legal">Settings → Legal parameters</a>.`
+            : `${ty} tax tables. Check them every year in Settings → Legal parameters.`;
     }
 
     // What you've actually spent this year in the SRI's personal-expense categories, how much of
@@ -210,14 +210,14 @@
         const p = ctx.pay, y = ctx.state.activeYear;
         const r = Engine.sriPersonalExpenses(ctx.state.transactions, y, { cap: p.sriCap, ratePct: Number(ctx.year.sriRebajaRate) || 18 });
         const pct = r.cap > 0 ? Math.min(100, Math.round(r.invoiced / r.cap * 100)) : 0;
-        UI.html('inc-sri-tracker', r.total <= 0 ? `<p class="help">Cuando registres gastos de ${y} en vivienda, salud, educación, alimentación, vestimenta o turismo, aquí verás cuánto llevas.</p>` : `
-            <div class="table-wrap"><table class="table"><thead><tr><th>Categoría del SRI</th><th class="num">Gastado</th><th class="num">Con factura</th></tr></thead>
+        UI.html('inc-sri-tracker', r.total <= 0 ? `<p class="help">When you log ${y} spending on housing, health, education, food, clothing or tourism, you'll see your progress here.</p>` : `
+            <div class="table-wrap"><table class="table"><thead><tr><th>SRI category</th><th class="num">Spent</th><th class="num">With invoice</th></tr></thead>
             <tbody>${r.groups.map(g => `<tr><td>${esc(g.label)}</td><td class="num">${money0(g.total)}</td><td class="num ${g.invoiced < g.total ? 'text-amber-700' : ''}">${money0(g.invoiced)}</td></tr>`).join('')}</tbody>
             <tfoot><tr><td>Total</td><td class="num">${money0(r.total)}</td><td class="num">${money0(r.invoiced)}</td></tr></tfoot></table></div>
-            <div class="flex justify-between text-xs mt-3"><span>Facturas frente al tope (${money0(r.cap)})</span><strong>${pct}%</strong></div>
+            <div class="flex justify-between text-xs mt-3"><span>Invoices vs. the cap (${money0(r.cap)})</span><strong>${pct}%</strong></div>
             <div class="progress-track mt-1"><div class="progress-fill" style="width:${pct}%"></div></div>
-            <p class="text-xs mt-2">Rebaja ganada hasta hoy: <strong>${money0(r.rebate)}</strong>${r.missingInvoices > 0 ? `. <span class="text-amber-700">Tienes ${money0(r.missingInvoices)} en gastos sin factura a tu nombre que aún caben en el tope: pídela con tu cédula y sumarías ${money0(r.potential - r.rebate)}.</span>` : '.'}</p>
-            <p class="help mt-1">Cuentan las facturas importadas del SRI y las marcadas «con factura». Del dividendo hipotecario solo cuentan los intereses (certificado de tu banco); los restaurantes no cuentan como alimentación.</p>`);
+            <p class="text-xs mt-2">Rebate earned so far: <strong>${money0(r.rebate)}</strong>${r.missingInvoices > 0 ? `. <span class="text-amber-700">You have ${money0(r.missingInvoices)} of spending without an invoice in your name that still fits under the cap: ask for one with your ID number and you'd add ${money0(r.potential - r.rebate)}.</span>` : '.'}</p>
+            <p class="help mt-1">Imported SRI invoices and purchases marked «with invoice» count. Of a mortgage payment only the interest counts (your bank's certificate); restaurants don't count as food.</p>`);
     }
 
     function update(ctx) {
@@ -228,14 +228,14 @@
         if (p.country === 'US') { renderUS(ctx); if (window.Refund) Refund.render(ctx); if (window.Itemize) Itemize.render(ctx); return; }
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
-            ['Sueldo bruto mensual', money(p.sueldo), 'text-slate-900'],
-            [`Aporte personal IESS (${pct(yd.iessRate, 2)})`, '−' + money(p.iessM), 'text-red-600'],
-            ['Base imponible anual (sueldo − IESS)', money(p.baseImponible), 'text-slate-900'],
-            ['Impuesto según la tabla del SRI', money(p.isrBruto), 'text-slate-900'],
-            [`Rebaja por gastos personales (${pct(p.rebajaRate * 100, 0)} de ${money(p.dedApplied)})`, (p.rebaja >= 0.005 ? '−' : '') + money(p.rebaja), 'text-blue-700'],
-            ['Impuesto a la renta anual', money(p.isrAnual), 'text-amber-700'],
-            ['Retención mensual en el rol', (p.isrM >= 0.005 ? '−' : '') + money(p.isrM), 'text-red-600']
-        ].concat(p.otrosDescuentosM > 0 ? [['Otros descuentos del rol (seguros, préstamos…)', '−' + money(p.otrosDescuentosM), 'text-red-600']] : []);
+            ['Monthly gross salary', money(p.sueldo), 'text-slate-900'],
+            [`IESS personal contribution (${pct(yd.iessRate, 2)})`, '−' + money(p.iessM), 'text-red-600'],
+            ['Annual taxable base (salary − IESS)', money(p.baseImponible), 'text-slate-900'],
+            ['Tax from the SRI table', money(p.isrBruto), 'text-slate-900'],
+            [`Personal-expense rebate (${pct(p.rebajaRate * 100, 0)} of ${money(p.dedApplied)})`, (p.rebaja >= 0.005 ? '−' : '') + money(p.rebaja), 'text-blue-700'],
+            ['Annual income tax', money(p.isrAnual), 'text-amber-700'],
+            ['Monthly withholding on your pay', (p.isrM >= 0.005 ? '−' : '') + money(p.isrM), 'text-red-600']
+        ].concat(p.otrosDescuentosM > 0 ? [['Other paycheck deductions (insurance, loans…)', '−' + money(p.otrosDescuentosM), 'text-red-600']] : []);
         UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join(''));
         UI.text('inc-neto', money(p.netoM));
         if (window.PayScan) PayScan.render(ctx);
@@ -247,18 +247,18 @@
         const box = document.getElementById('inc-ded-status');
         let tone, icon, title, text;
         if (p.deductibles.real >= p.sriCap) {
-            tone = 'tone-emerald'; icon = 'fa-circle-check text-emerald-600'; title = 'Deducción optimizada';
-            text = `Tus gastos deducibles alcanzan el tope legal de ${money(p.sriCap)}.`;
+            tone = 'tone-emerald'; icon = 'fa-circle-check text-emerald-600'; title = 'Deduction maxed out';
+            text = `Your deductible expenses reach the legal cap of ${money(p.sriCap)}.`;
         } else if (p.rebajaRoom < 0.01) {
             // No tax left to lower: more receipts wouldn't change anything.
-            tone = 'tone-emerald'; icon = 'fa-circle-check text-emerald-600'; title = 'Sin impuesto que rebajar';
-            text = `Con tu sueldo, la rebaja ya cubre todo el impuesto (o no pagas impuesto a la renta).`;
+            tone = 'tone-emerald'; icon = 'fa-circle-check text-emerald-600'; title = 'No tax to lower';
+            text = `With your salary, the rebate already covers all the tax (or you don't pay income tax).`;
         } else if (ratio >= 0.8) {
-            tone = 'tone-amber'; icon = 'fa-triangle-exclamation text-amber-600'; title = 'Cerca del tope';
-            text = `Te faltan ${money(p.sriCap - p.deductibles.real)} en gastos deducibles reales para llegar al tope: tu impuesto bajaría hasta ${money(p.rebajaRoom)} más.`;
+            tone = 'tone-amber'; icon = 'fa-triangle-exclamation text-amber-600'; title = 'Near the limit';
+            text = `You need ${money(p.sriCap - p.deductibles.real)} more in actual deductible expenses to reach the cap: your tax would drop up to ${money(p.rebajaRoom)} more.`;
         } else {
-            tone = 'tone-red'; icon = 'fa-circle-info text-red-600'; title = 'Muy por debajo del tope';
-            text = `Usas el ${Math.round(ratio * 100)}% del tope. Con ${money(p.sriCap - p.deductibles.real)} más en gastos deducibles, tu impuesto bajaría hasta ${money(p.rebajaRoom)}. Marca los rubros deducibles en el Presupuesto del Mes.`;
+            tone = 'tone-red'; icon = 'fa-circle-info text-red-600'; title = 'Well below the cap';
+            text = `You use ${Math.round(ratio * 100)}% of the cap. With ${money(p.sriCap - p.deductibles.real)} more in deductible expenses, your tax would drop up to ${money(p.rebajaRoom)}. Mark the deductible lines in the Monthly Budget.`;
         }
         box.className = `panel ${tone}`;
         box.innerHTML = `<div class="text-xs font-bold text-slate-900"><i class="fa-solid ${icon}"></i> ${title}</div><p class="text-[11px] text-slate-700 mt-1">${text}</p>`;
@@ -271,7 +271,7 @@
         'us.city': async (el) => {
             const y = Store.active();
             if (el.value === '__custom') {
-                const r = await UI.form({ title: 'Impuesto de tu ciudad', fields: [{ name: 'name', label: 'Ciudad', value: y.localName || '' }, { name: 'rate', label: 'Tasa (%)', type: 'number', step: '0.01', min: 0, value: y.localRate || '' }], confirmText: 'Guardar' });
+                const r = await UI.form({ title: 'Your city\'s tax', fields: [{ name: 'name', label: 'Ciudad', value: y.localName || '' }, { name: 'rate', label: 'Rate (%)', type: 'number', step: '0.01', min: 0, value: y.localRate || '' }], confirmText: 'Guardar' });
                 if (!r) { App.render(); return; }
                 y.localName = r.name.trim().slice(0, 40); y.localRate = Math.max(0, Number(r.rate) || 0);
             } else {
@@ -284,7 +284,7 @@
             draft = draftFrom(Cash.paySchedule());
             // A sensible "one payday" for every-2-weeks: the next such weekday.
             if (!(Cash.paySchedule() || {}).anchor) { const t = new Date(); t.setDate(t.getDate() + ((Number(draft.weekday) - t.getDay() + 7) % 7)); draft.anchor = Engine.isoDate(t); }
-            sheet = UI.sheet({ title: '¿Cómo te pagan?', icon: 'fa-money-check-dollar', wide: true, html: editorHTML(), onClose: () => { sheet = null; draft = null; } });
+            sheet = UI.sheet({ title: 'How do you get paid?', icon: 'fa-money-check-dollar', wide: true, html: editorHTML(), onClose: () => { sheet = null; draft = null; } });
         },
         'pay.field': () => {
             if (!draft || !sheet) return;

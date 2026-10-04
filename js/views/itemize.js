@@ -44,34 +44,34 @@
         const field = (key, label, help) => `<label class="field"><span class="field-label">${label}</span><input type="number" class="input" min="0" step="10" data-input="itemize.set" data-key="${key}" value="${v(c[key])}" placeholder="${esc(money0(a[key]))}"><span class="help">${help}</span></label>`;
         const box = document.getElementById('inc-itemize-in');
         if (box && !box.contains(document.activeElement)) UI.html('inc-itemize-in', `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            ${field('mortgage', 'Intereses de hipoteca al año ($)', 'Vacío = estimado con tu hipoteca. El exacto está en tu Form 1098.')}
-            ${field('property', 'Impuesto a la propiedad al año ($)', 'Vacío = el de tu escrow o tus movimientos.')}
-            ${field('charity', 'Donaciones al año ($)', 'Vacío = tus donaciones de los últimos 12 meses.')}
-            ${field('medical', 'Gastos médicos al año ($)', 'Vacío = lo que pagaste de tu bolsillo en 12 meses.')}
+            ${field('mortgage', 'Mortgage interest per year ($)', 'Empty = estimated from your mortgage. The exact amount is on your Form 1098.')}
+            ${field('property', 'Property tax per year ($)', 'Empty = from your escrow or your transactions.')}
+            ${field('charity', 'Charitable gifts per year ($)', 'Empty = your gifts over the last 12 months.')}
+            ${field('medical', 'Medical costs per year ($)', 'Empty = what you paid out of pocket in 12 months.')}
         </div>`);
 
-        const note = (i) => i.key === 'salt' ? (i.raw > i.limit ? `tope ${money0(i.limit)}` : `${money0(saltIncome)} estatal y local + ${money0(val('property'))} propiedad`)
-            : i.key === 'charity' ? `${money0(i.raw)} menos ${money0(i.floor)} (0.5% del ingreso)`
-            : i.key === 'medical' ? `${money0(i.raw)} menos ${money0(i.floor)} (7.5% del ingreso)` : '';
+        const note = (i) => i.key === 'salt' ? (i.raw > i.limit ? `tope ${money0(i.limit)}` : `${money0(saltIncome)} state and local + ${money0(val('property'))} property`)
+            : i.key === 'charity' ? `${money0(i.raw)} minus ${money0(i.floor)} (0.5% of income)`
+            : i.key === 'medical' ? `${money0(i.raw)} minus ${money0(i.floor)} (7.5% of income)` : '';
         const rows = r.items.map(i => `<tr><td>${esc(i.label)}${note(i) ? `<div class="text-[11px] text-slate-500">${note(i)}</div>` : ''}</td><td class="num">${money0(i.amount)}</td></tr>`).join('');
         const using = Number(yd.itemized) || 0;
         const verdict = r.itemize
-            ? `<p><strong>Te conviene detallar.</strong> Pagarías ${money0(r.saving)} menos de impuesto federal que con la deducción estándar.</p>${Math.abs(using - r.itemized) >= 1 ? `<button type="button" class="btn btn-primary btn-sm mt-2" data-action="itemize.use" data-amount="${r.itemized}"><i class="fa-solid fa-check"></i> Usar ${money0(r.itemized)} en mi cálculo</button>` : '<p class="text-emerald-700 mt-1"><i class="fa-solid fa-circle-check"></i> Ya lo usas en tu cálculo.</p>'}`
-            : `<p><strong>Te conviene la deducción estándar.</strong> Te faltarían ${money0(r.short)} en gastos deducibles para que detallar valga la pena.</p>${r.stdCharity > 0 ? `<p class="mt-1">Desde 2026, aun con la estándar, tus donaciones en efectivo restan hasta ${money0(r.stdCharity)}.</p>` : ''}${using > 0 ? `<button type="button" class="btn btn-secondary btn-sm mt-2" data-action="itemize.use" data-amount="0">Usar la deducción estándar</button>` : ''}`;
+            ? `<p><strong>Itemizing is better for you.</strong> You'd pay ${money0(r.saving)} less federal tax than with the standard deduction.</p>${Math.abs(using - r.itemized) >= 1 ? `<button type="button" class="btn btn-primary btn-sm mt-2" data-action="itemize.use" data-amount="${r.itemized}"><i class="fa-solid fa-check"></i> Use ${money0(r.itemized)} in my numbers</button>` : '<p class="text-emerald-700 mt-1"><i class="fa-solid fa-circle-check"></i> Already used in your numbers.</p>'}`
+            : `<p><strong>The standard deduction is better for you.</strong> You'd need ${money0(r.short)} more in deductible expenses for itemizing to pay off.</p>${r.stdCharity > 0 ? `<p class="mt-1">From 2026, even with the standard deduction, your cash gifts to charity take off up to ${money0(r.stdCharity)}.</p>` : ''}${using > 0 ? `<button type="button" class="btn btn-secondary btn-sm mt-2" data-action="itemize.use" data-amount="0">Use the standard deduction</button>` : ''}`;
         const bunch = !r.itemize && r.short > 0 && val('charity') > 0 && r.short <= val('charity')
-            ? `<p class="text-xs mt-2"><i class="fa-solid fa-lightbulb text-amber-500"></i> Si juntas las donaciones de dos años en uno (por ejemplo, las de enero en diciembre), ese año detallarías y el siguiente tomarías la estándar.</p>` : '';
+            ? `<p class="text-xs mt-2"><i class="fa-solid fa-lightbulb text-amber-500"></i> If you bunch two years of gifts into one (for example, January's in December), you'd itemize that year and take the standard deduction the next.</p>` : '';
         UI.html('inc-itemize', `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div class="table-wrap"><table class="table"><thead><tr><th>Lo que podrías detallar</th><th class="num">Deducible</th></tr></thead><tbody>${rows}</tbody>
-                <tfoot><tr><td>Total detallado</td><td class="num">${money0(r.itemized)}</td></tr></tfoot></table></div>
+                <div class="table-wrap"><table class="table"><thead><tr><th>What you could itemize</th><th class="num">Deductible</th></tr></thead><tbody>${rows}</tbody>
+                <tfoot><tr><td>Itemized total</td><td class="num">${money0(r.itemized)}</td></tr></tfoot></table></div>
                 <div class="space-y-3">
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="kpi ${r.itemize ? 'tone-slate' : 'tone-emerald'}"><span class="kpi-label">Deducción estándar</span><span class="kpi-value">${money0(r.standardTotal)}</span><span class="kpi-note">impuesto federal: ${money0(r.taxStandard)}</span></div>
-                        <div class="kpi ${r.itemize ? 'tone-emerald' : 'tone-slate'}"><span class="kpi-label">Deducción detallada</span><span class="kpi-value">${money0(r.itemized)}</span><span class="kpi-note">impuesto federal: ${money0(r.taxItemized)}</span></div>
+                        <div class="kpi ${r.itemize ? 'tone-slate' : 'tone-emerald'}"><span class="kpi-label">Standard deduction</span><span class="kpi-value">${money0(r.standardTotal)}</span><span class="kpi-note">federal tax: ${money0(r.taxStandard)}</span></div>
+                        <div class="kpi ${r.itemize ? 'tone-emerald' : 'tone-slate'}"><span class="kpi-label">Itemized deduction</span><span class="kpi-value">${money0(r.itemized)}</span><span class="kpi-note">federal tax: ${money0(r.taxItemized)}</span></div>
                     </div>
                     <div class="panel ${r.itemize ? 'tone-emerald' : 'tone-blue'} text-xs">${verdict}</div>${bunch}
                 </div>
             </div>
-            <p class="help mt-2">Estimado con las reglas de 2026: impuestos estatales y locales hasta ${money0(r.saltCap)}, donaciones por encima del 0.5% de tu ingreso y gastos médicos por encima del 7.5%. Los gastos pagados con tu HSA no cuentan.</p>`);
+            <p class="help mt-2">Estimated with the 2026 rules: state and local taxes up to ${money0(r.saltCap)}, charitable gifts above 0.5% of your income and medical costs above 7.5%. Costs paid from your HSA don't count.</p>`);
     }
 
     UI.register({
@@ -82,7 +82,7 @@
         },
         'itemize.use': (el) => {
             const amount = Math.max(0, Number(el.dataset.amount) || 0);
-            App.undoable(amount > 0 ? `Deducciones detalladas: ${money(amount)}` : 'Usas la deducción estándar', () => { Store.active().itemized = amount; });
+            App.undoable(amount > 0 ? `Deducciones detalladas: ${money(amount)}` : 'Using the standard deduction', () => { Store.active().itemized = amount; });
         }
     });
 

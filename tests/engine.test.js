@@ -205,7 +205,7 @@ test('amortization: French and German both repay the principal; German pays less
 test('chart axis resamples long schedules by year', () => {
     const axis = E.chartAxis(30);
     assert.deepEqual(axis.marks, [12, 24, 30]);
-    assert.deepEqual(axis.labels, ['Año 1', 'Año 2', 'Año 2+6m']);
+    assert.deepEqual(axis.labels, ['Year 1', 'Year 2', 'Year 2+6m']);
     const s = [{ v: 1 }, { v: 2 }, { v: 3 }];
     assert.deepEqual(E.sampleSchedule(s, { marks: [1, 3, 5] }, 'v', true), [1, 6, undefined]);
 });
@@ -583,7 +583,7 @@ test('what if: a purchase takes from free money, its line, variable lines, then 
     ];
     const spend = { byLine: { 2: { spent: 250 }, 3: { spent: 20 }, 4: { spent: 0 } } };
     const r = E.starveLines({ items, spend, amount: 500, lineId: 4, free: 30, sweep: 0 });
-    assert.deepEqual(r.takes.map(t => [t.name, t.take]), [['Dinero sin asignar', 30], ['Ropa', 50], ['Salidas', 80], ['Comida', 50], ['Ahorro', 200], ['Viaje', 80]]);
+    assert.deepEqual(r.takes.map(t => [t.name, t.take]), [['Unassigned money', 30], ['Ropa', 50], ['Salidas', 80], ['Comida', 50], ['Ahorro', 200], ['Viaje', 80]]);
     assert.equal(r.short, 10);
     assert.ok(!r.takes.some(t => t.name === 'Arriendo'));
     assert.deepEqual(E.starveLines({ items, spend, amount: 20, lineId: 4 }).takes.map(t => t.name), ['Ropa']);
@@ -1069,7 +1069,7 @@ test('next moves: urgent first, then the Baby Step, housekeeping last; snoozed o
     assert.deepEqual(m.map(x => x.key), ['snowball', 'backup']);
     m = E.nextMoves(Object.assign({}, base, { overdueBills: ['Luz'], unassigned: 300, uncategorized: 5 }));
     assert.deepEqual(m.map(x => x.key), ['overdue', 'unassigned', 'snowball']);
-    assert.match(m[1].text, /bola de nieve/);
+    assert.match(m[1].text, /snowball/);
     m = E.nextMoves(Object.assign({}, base, { overdueBills: ['Luz'] }), { snoozed: { overdue: '2099-01-01' } });
     assert.equal(m[0].key, 'snowball');
     assert.deepEqual(E.nextMoves({ hasIncome: false }).map(x => x.key), ['setup']);
@@ -1133,12 +1133,12 @@ test('insurance check: what to have, guessed from the budget, answers win', () =
     assert.equal(by.life.status, 'revisar');        // $500k < 10 × $90k
     assert.equal(r.lifeGap, 400000);
     assert.equal(by.disability.status, 'falta');
-    assert.equal(by.home.label, 'Seguro de hogar');
+    assert.equal(by.home.label, "Homeowner's insurance");
     assert.equal(by.umbrella.status, 'na'); assert.equal(by.ltc.status, 'na');
     assert.equal(r.missing, 2);                       // disability, home
     const r2 = E.insuranceCheck({ income: 90000, dependents: false, answers: { home: 'si', disability: 'si', health: 'no' }, seen: ['Seguro médico'] });
     const by2 = Object.fromEntries(r2.items.map(i => [i.key, i]));
-    assert.equal(by2.life.status, 'na'); assert.equal(by2.health.status, 'falta'); assert.equal(by2.home.label, 'Seguro de inquilino');
+    assert.equal(by2.life.status, 'na'); assert.equal(by2.health.status, 'falta'); assert.equal(by2.home.label, "Renter's insurance");
 });
 
 test('college estimator: future cost, projected savings, gap and monthly needed', () => {

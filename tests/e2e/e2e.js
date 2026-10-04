@@ -464,7 +464,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   ok((await page.textContent('#dash-today')).includes('Próximo día de pago') && !(await page.textContent('#dash-today')).includes('Dinos cómo te pagan'), 'dashboard shows the next payday');
   ok(await page.evaluate(() => UI.chartInstance('dash-curve-chart').data.datasets.length) === 3, 'spent-this-month curve vs last month and plan');
   ok(!(await page.isHidden('#dash-members-card')) && (await page.textContent('#dash-members')).includes('Emma'), 'household contributions card');
-  ok((await page.textContent('#dash-top')).length > 0 && (await page.textContent('#dash-cash')).includes('Balance'), 'top expenses and cash flow cards');
+  ok((await page.textContent('#dash-top')).length > 0 && (await page.textContent('#dash-cash')).includes('Saldo'), 'top expenses and cash flow cards');
   await go(page, 'config');
   await page.click(`#cfg-members [data-action="member.delete"][data-id="${emmaId}"]`);
   ok(await page.evaluate(id => !Store.state.transactions.some(t => t.memberId === Number(id)), emmaId), 'removing a person keeps their transactions, without the name');
@@ -621,7 +621,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   ok(!(await page.isHidden('#rep-from-field')), 'custom range shows the dates');
   const [dlRep] = await Promise.all([page.waitForEvent('download'), page.click('[data-action="rep.csv"]')]);
   const repCsv = require('fs').readFileSync(await dlRep.path(), 'utf8');
-  ok(repCsv.startsWith('﻿') && repCsv.includes('Forma de pago,Movimientos,Total'), 'report downloads as CSV');
+  ok(repCsv.startsWith('﻿') && repCsv.includes('Forma de pago,Transacciones,Total'), 'report downloads as CSV');
   const [dlTx] = await Promise.all([page.waitForEvent('download'), page.click('[data-action="rep.txns"]')]);
   const txCsv = require('fs').readFileSync(await dlTx.path(), 'utf8');
   ok(txCsv.includes('Fecha,Tipo,Descripción') && txCsv.split('\r\n').length > 2, 'transactions of the period download as CSV (re-importable)');

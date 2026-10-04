@@ -19,7 +19,7 @@
         if (relink) relink.classList.toggle('invisible', !isOverride);
         const note = document.getElementById(noteId);
         note.className = isOverride ? 'help text-purple-700' : 'linked';
-        note.innerHTML = isOverride ? `✎ Personalizado para este escenario. ${describe}` : `🔗 Enlazado: ${describe}`;
+        note.innerHTML = isOverride ? `✎ Customized for this scenario. ${describe}` : `🔗 Linked: ${describe}`;
     }
 
     // Need vs. have: the income you want (default 80% of what you live on today), minus the
@@ -29,18 +29,18 @@
         const { g, desired, def } = Views.retireGap(ctx);
         const input = document.getElementById('ret-desired');
         if (input && input !== document.activeElement) { input.value = s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? '' : desired; input.placeholder = money0(def); }
-        UI.text('ret-desired-help', s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? `Vacío = 80% de tu ingreso de hoy (${money0(def)}).` : '');
+        UI.text('ret-desired-help', s.retirement.ingresoDeseado === null || s.retirement.ingresoDeseado === undefined ? `Empty = 80% of your income today (${money0(def)}).` : '');
         const pct = Math.round(g.pct * 100);
         const tone = g.pct >= 1 ? 'tone-emerald' : g.pct >= 0.7 ? 'tone-amber' : 'tone-red';
-        const pensionName = s.settings.country === 'US' ? 'Seguro Social' : 'pensión IESS';
+        const pensionName = s.settings.country === 'US' ? 'Seguro Social' : 'IESS pension';
         UI.html('ret-gap', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div class="kpi tone-slate"><span class="kpi-label">Necesitarías</span><span class="kpi-value">${money0(g.need)}</span><span class="kpi-note">${money0(Math.max(0, desired - r.pension))}/mes del ahorro (tu ${pensionName} pone ${money0(r.pension)})</span></div>
-                <div class="kpi tone-slate"><span class="kpi-label">Vas camino a tener</span><span class="kpi-value">${money0(g.have)}</span><span class="kpi-note">a los ${r.edadJubilacion} años</span></div>
-                <div class="kpi ${tone}"><span class="kpi-label">Vas al</span><span class="kpi-value">${pct > 999 ? '999+' : pct}%</span><span class="kpi-note">${g.gap > 0 ? `te faltarían ${money0(g.gap)}` : '¡te alcanza!'}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">You'd need</span><span class="kpi-value">${money0(g.need)}</span><span class="kpi-note">${money0(Math.max(0, desired - r.pension))}/mo from savings (your ${pensionName} covers ${money0(r.pension)})</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">You're on track to have</span><span class="kpi-value">${money0(g.have)}</span><span class="kpi-note">at age ${r.edadJubilacion}</span></div>
+                <div class="kpi ${tone}"><span class="kpi-label">You're at</span><span class="kpi-value">${pct > 999 ? '999+' : pct}%</span><span class="kpi-note">${g.gap > 0 ? `${money0(g.gap)} short` : 'you\'ll have enough!'}</span></div>
             </div>
             <div class="progress-track mt-3"><div class="progress-fill" style="width:${Math.min(100, pct)}%"></div></div>
-            <p class="text-xs mt-3">${g.gap > 0 ? (g.extraMonthly === null ? 'Ya llegaste a tu edad de jubilación: el faltante tendría que salir de trabajar más años o gastar menos.' : `Ahorrando <strong>${money0(g.extraMonthly)} más al mes</strong> (en dinero de hoy) lo cierras. <button type="button" class="link" data-action="ret.tryGap" data-extra="${Math.ceil(g.extraMonthly / 10) * 10}">Probarlo en el simulador</button>`) : 'Con lo que ahorras hoy llegarías a vivir como quieres. Revísalo cada año.'}${g.bridge > 0 ? ` <span class="text-slate-500">Incluye ${money0(g.bridge)} para los ${r.aniosPuente} años antes de que empiece tu ${pensionName}.</span>` : ''}</p>
-            <p class="help mt-1">Regla del ${inp.tasaRetiroSegura}%: por cada $1 al mes que quieras sacar de tus ahorros necesitas ${money0(1200 / Math.max(0.1, inp.tasaRetiroSegura))} ahorrados.</p>`);
+            <p class="text-xs mt-3">${g.gap > 0 ? (g.extraMonthly === null ? 'You\'ve reached your retirement age: the gap would have to come from working longer or spending less.' : `Saving <strong>${money0(g.extraMonthly)} more a month</strong> (in today's dollars) closes it. <button type="button" class="link" data-action="ret.tryGap" data-extra="${Math.ceil(g.extraMonthly / 10) * 10}">Try it in the simulator</button>`) : 'With what you save today you\'d live the way you want. Check it every year.'}${g.bridge > 0 ? ` <span class="text-slate-500">Includes ${money0(g.bridge)} for the ${r.aniosPuente} years before your ${pensionName} starts.</span>` : ''}</p>
+            <p class="help mt-1">The ${inp.tasaRetiroSegura}% rule: for every $1 a month you want to draw from savings you need ${money0(1200 / Math.max(0.1, inp.tasaRetiroSegura))} saved.</p>`);
     }
 
     function update(ctx) {
@@ -48,25 +48,25 @@
         gap(ctx);
         UI.text('ret-ahorro', money(inp.ahorroActual));
         UI.text('ret-aporte', money(inp.aporteMensual));
-        UI.text('ret-aporte-sweep', ctx.baseBudget.sweep > 0 ? `, incluido el barrido de ${money0(ctx.baseBudget.sweep)}` : '');
+        UI.text('ret-aporte-sweep', ctx.baseBudget.sweep > 0 ? `, including the ${money0(ctx.baseBudget.sweep)} sweep` : '');
         linkedField('ret-tasa', 'ret-tasa-note', 'tasaRetorno', ctx.defaultReturn, s.retirement.tasaRetorno, yd.country === 'US'
-            ? `${ctx.defaultReturn}% es el promedio histórico de la bolsa de EE. UU. (acciones, antes de inflación). Algunos años pierde; a 20-30 años suele acercarse a ese promedio.`
-            : `la Tasa DPF de <a href="#" class="link" data-goto="futuro/proyeccion">${s.activeYear}</a> es ${Number(yd.tasa).toFixed(2)}%. Tu retorno en 20-30 años puede ser distinto a la tasa de hoy.`);
+            ? `${ctx.defaultReturn}% is the US stock market's historical average (stocks, before inflation). Some years it loses; over 20-30 years it tends to come close to that average.`
+            : `the savings rate of <a href="#" class="link" data-goto="futuro/proyeccion">${s.activeYear}</a> is ${Number(yd.tasa).toFixed(2)}%. Your return over 20-30 years may differ from today's rate.`);
         linkedField('ret-infl', 'ret-infl-note', 'inflacion', Engine.DEFAULT_INFLATION[yd.country === 'US' ? 'US' : 'EC'], s.retirement.inflacion, yd.country === 'US'
-            ? 'promedio histórico de EE. UU. (~3% al año). Todo se muestra en dólares de hoy.'
-            : 'promedio de Ecuador desde la dolarización (~2.5% al año). Todo se muestra en dólares de hoy.');
+            ? 'US historical average (~3% a year). Everything is shown in today\'s dollars.'
+            : 'Ecuador\'s average since dollarization (~2.5% a year). Everything is shown in today\'s dollars.');
         linkedField('ret-sueldo', 'ret-sueldo-note', 'sueldoPromedio', yd.sueldo, s.retirement.sueldoPromedio,
-            `tu sueldo de <a href="#" class="link" data-goto="presupuesto/ingresos">${s.activeYear}</a> es ${money0(yd.sueldo)}. El IESS usa tu sueldo cerca de la jubilación, que suele ser mayor.`);
+            `your salary from <a href="#" class="link" data-goto="presupuesto/ingresos">${s.activeYear}</a> is ${money0(yd.sueldo)}. The pension uses your salary near retirement, which is usually higher.`);
 
         UI.text('ret-years', r.aniosRestantes);
         UI.text('ret-fv', money0(r.valorFuturoHoy));
-        UI.text('ret-fv-note', `en dólares de hoy · ${money0(r.valorFuturo)} en dólares de ${ctx.today.getFullYear() + r.aniosRestantes}`);
+        UI.text('ret-fv-note', `in today's dollars · ${money0(r.valorFuturo)} in ${ctx.today.getFullYear() + r.aniosRestantes} dollars`);
         UI.text('ret-income-savings', money0(r.ingresoAhorro));
         UI.text('ret-pension', money0(r.pension));
-        UI.text('ret-pension-note', r.pensionDesde === null ? 'Aún no cumples los años mínimos de aportes' : `desde los ${r.pensionDesde} años`);
+        UI.text('ret-pension-note', r.pensionDesde === null ? 'You don\'t have the minimum years of contributions yet' : `from age ${r.pensionDesde}`);
         const bridge = document.getElementById('ret-bridge');
-        if (r.pensionDesde === null) bridge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Con tus años de aportes no alcanzas la pensión del IESS (mínimo 10 años a los 70, 15 a los 65, 30 a los 60 o 40 a cualquier edad). Tu jubilación dependería solo de tu ahorro.`;
-        else if (r.aniosPuente > 0) bridge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Entre los ${r.edadJubilacion} y los ${r.pensionDesde} años no recibirás ${yd.country === 'US' ? 'el Seguro Social' : 'la pensión'}: vivirías solo de tu ahorro (${money0(r.ingresoAhorro)}/mes).`;
+        if (r.pensionDesde === null) bridge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> With your years of contributions you don't qualify for the IESS pension (at least 10 years at 70, 15 at 65, 30 at 60 or 40 at any age). Your retirement would depend on your savings alone.`;
+        else if (r.aniosPuente > 0) bridge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Between ages ${r.edadJubilacion} and ${r.pensionDesde} you won't receive ${yd.country === 'US' ? 'Social Security' : 'the pension'}: you'd live on your savings alone (${money0(r.ingresoAhorro)}/month).`;
         UI.show(bridge, r.pensionDesde === null || r.aniosPuente > 0);
         UI.text('ret-total', money(r.ingresoTotal));
 
@@ -74,10 +74,10 @@
         UI.text('ret-whatif-label', `+${money0(extra)}/mes`);
         const delta = document.getElementById('ret-total-delta');
         if (r.whatIf) {
-            UI.text('ret-whatif-text', `Aportando ${money0(extra)} más al mes tendrías ${money0(r.whatIf.gain)} adicionales al jubilarte (${money0(r.whatIf.valorFuturo)} en vez de ${money0(r.valorFuturo)}), y tu ingreso mensual total subiría a ${money(r.whatIf.ingresoTotal)}.`);
-            delta.textContent = `+${money(r.whatIf.deltaIngreso)}/mes con el simulador`;
+            UI.text('ret-whatif-text', `Contributing ${money0(extra)} more a month you'd have ${money0(r.whatIf.gain)} more at retirement (${money0(r.whatIf.valorFuturo)} instead of ${money0(r.valorFuturo)}), and your total monthly income would rise to ${money(r.whatIf.ingresoTotal)}.`);
+            delta.textContent = `+${money(r.whatIf.deltaIngreso)}/mo with the simulator`;
         } else {
-            UI.text('ret-whatif-text', 'Mueve el control para ver cuánto más tendrías con un aporte mayor.');
+            UI.text('ret-whatif-text', 'Move the slider to see how much more you\'d have with a bigger contribution.');
         }
         UI.show(delta, !!r.whatIf);
 
@@ -90,15 +90,15 @@
         const high = Engine.retirement({ ...inp, tasaRetorno: highRate, whatIfExtra: 0 });
         const labels = r.schedule.map((_, i) => r.edadActual + i);
         const datasets = [
-            { label: `Pesimista (${lowRate}%)`, data: low.schedule, borderColor: 'transparent', backgroundColor: 'transparent', pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0 },
-            { label: `Optimista (${highRate}%)`, data: high.schedule, borderColor: 'transparent', backgroundColor: pal.alpha(pal.blue, 0.14), pointRadius: 0, pointHoverRadius: 0, fill: '-1', tension: 0 },
-            { label: `Esperado (${rate}%)`, data: r.schedule, borderColor: pal.blue, backgroundColor: pal.blue, borderWidth: 2, fill: false, tension: 0, pointRadius: 0, pointHoverRadius: 4 }
+            { label: `Pessimistic (${lowRate}%)`, data: low.schedule, borderColor: 'transparent', backgroundColor: 'transparent', pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0 },
+            { label: `Optimistic (${highRate}%)`, data: high.schedule, borderColor: 'transparent', backgroundColor: pal.alpha(pal.blue, 0.14), pointRadius: 0, pointHoverRadius: 0, fill: '-1', tension: 0 },
+            { label: `Expected (${rate}%)`, data: r.schedule, borderColor: pal.blue, backgroundColor: pal.blue, borderWidth: 2, fill: false, tension: 0, pointRadius: 0, pointHoverRadius: 4 }
         ];
-        if (r.whatIf) datasets.push({ label: `Con +${money0(extra)}/mes`, data: r.whatIf.schedule, borderColor: pal.orange, backgroundColor: pal.orange, borderDash: [6, 4], borderWidth: 2, fill: false, tension: 0, pointRadius: 0, pointHoverRadius: 4 });
+        if (r.whatIf) datasets.push({ label: `With +${money0(extra)}/mo`, data: r.whatIf.schedule, borderColor: pal.orange, backgroundColor: pal.orange, borderDash: [6, 4], borderWidth: 2, fill: false, tension: 0, pointRadius: 0, pointHoverRadius: 4 });
         // Nothing saved or going in yet: keep a sensible axis instead of $0–$1 ticks.
         const empty = !high.schedule.some(v => v > 0.5) && !(r.whatIf && r.whatIf.schedule.some(v => v > 0.5));
         // Legend: the band reads as one entry ("Rango"), not two invisible lines.
-        const bandLabel = `Rango ${lowRate}%–${highRate}%`;
+        const bandLabel = `Range ${lowRate}%–${highRate}%`;
         UI.chart('ret-chart', {
             type: 'line', data: { labels, datasets },
             options: {
@@ -110,8 +110,8 @@
             }
         });
         const tile = (label, value, rateTxt, strong) => `<div class="kpi tone-slate text-center" style="padding:.6rem .35rem"><span class="kpi-label">${label}</span><span class="kpi-value" title="${money0(value)}" style="font-size:${strong ? '1.05rem' : '.95rem'}">${Math.abs(value) >= 1e6 ? `${money(value / 1e6)}M` : money0(value)}</span><span class="kpi-note">${rateTxt}</span></div>`;
-        UI.html('ret-range', tile('Pesimista', low.valorFuturoHoy, `al ${lowRate}% anual`) + tile('Esperado', r.valorFuturoHoy, `al ${rate}% anual`, true) + tile('Optimista', high.valorFuturoHoy, `al ${highRate}% anual`));
-        UI.text('ret-range-note', `A los ${r.edadJubilacion} años, en dólares de hoy. Nadie sabe el retorno de los próximos ${r.aniosRestantes} años: con 2 puntos menos o más al año, tu ahorro terminaría entre ${money0(low.valorFuturoHoy)} y ${money0(high.valorFuturoHoy)}.`);
+        UI.html('ret-range', tile('Pesimista', low.valorFuturoHoy, `at ${lowRate}% a year`) + tile('Esperado', r.valorFuturoHoy, `at ${rate}% a year`, true) + tile('Optimista', high.valorFuturoHoy, `at ${highRate}% a year`));
+        UI.text('ret-range-note', `At age ${r.edadJubilacion}, in today's dollars. Nobody knows the return of the next ${r.aniosRestantes} years: with 2 points less or more a year, your savings would end between ${money0(low.valorFuturoHoy)} and ${money0(high.valorFuturoHoy)}.`);
         UI.html('ret-range-table', labels.map((age, i) => ({ age, i })).filter(({ i }) => i % 5 === 0 || i === labels.length - 1).map(({ age, i }) => `<tr><td>${age}</td><td class="num">${money0(low.schedule[i])}</td><td class="num font-bold">${money0(r.schedule[i])}</td><td class="num">${money0(high.schedule[i])}</td></tr>`).join(''));
     }
 

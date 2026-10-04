@@ -191,17 +191,17 @@
         const key = info.brand || info.name || '';
         const dir = info.direction;
         // 1. Between your accounts: not income or spending.
-        if (dir === 'transfer') return result('Transferencia', '', '', 'high', 'Pago de tarjeta o movimiento entre tus cuentas', key || 'transfer');
+        if (dir === 'transfer') return result('Transferencia', '', '', 'high', 'Card payment or a move between your accounts', key || 'transfer');
         const incoming = sign > 0 || (sign === 0 && dir === 'in');
         // 2. Strong words.
         for (const [re, type, cat, sub, conf] of STRONG) {
             if (!re.test(t)) continue;
             if ((type === 'Ingreso') !== incoming) continue;     // "tax refund" as an expense makes no sense
-            return result(type, cat, sub, conf, 'Por las palabras del banco', key);
+            return result(type, cat, sub, conf, 'From the bank\'s wording', key);
         }
         // Money coming back from an investment account or another account of yours.
-        if (incoming && /transfer from|deposit transfer/.test(t)) return result('Transferencia', '', '', 'medium', 'Dinero que llega de otra cuenta tuya', key || 'transfer');
-        if (!incoming && /withdrawal transfer|transfer to/.test(t)) return result('Transferencia', '', '', 'medium', 'Dinero que pasas a otra cuenta', key || 'transfer');
+        if (incoming && /transfer from|deposit transfer/.test(t)) return result('Transferencia', '', '', 'medium', 'Money coming from another account of yours', key || 'transfer');
+        if (!incoming && /withdrawal transfer|transfer to/.test(t)) return result('Transferencia', '', '', 'medium', 'Money you move to another account', key || 'transfer');
         // 3. The card's merchant category code.
         const everything = /amazon|amzn|target\b|ebay|etsy|dollar (?:tree|general)|five below|temu|shein|aliexpress/.test(t);
         if (!incoming && info.mcc) {
@@ -210,20 +210,20 @@
             // a store that sells everything is asked about, and a known store name wins.
             const broad = [5942, 5999, 5311, 5310, 5331, 5399, 5964, 5969, 9399, 9222, 9402, 7399, 8999].includes(info.mcc);
             const store = STORES.find(([re]) => re.test(t));
-            if (everything && broad) return Object.assign(result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Tienda de todo: elige qué compraste', key), { ask: true });
-            if (store && broad) return result('Gasto', store[1], store[2], 'medium', 'Por el nombre del comercio', key);
-            if (m) return result('Gasto', m[0], m[1], 'high', `Por el tipo de comercio (código ${info.mcc})`, key);
+            if (everything && broad) return Object.assign(result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Store that sells everything: pick what you bought', key), { ask: true });
+            if (store && broad) return result('Gasto', store[1], store[2], 'medium', 'From the store\'s name', key);
+            if (m) return result('Gasto', m[0], m[1], 'high', `From the kind of business (code ${info.mcc})`, key);
         }
         // 4. Store names.
         if (!incoming) {
             const s = STORES.find(([re]) => re.test(t));
-            if (s) return result('Gasto', s[1], s[2], 'medium', 'Por el nombre del comercio', key);
+            if (s) return result('Gasto', s[1], s[2], 'medium', 'From the store\'s name', key);
         }
         // 5. Only the direction is known.
-        if (!incoming && info.check) return result('Gasto', 'Otros', 'Otros Gastos', 'low', `Cheque n.º ${info.check}: ¿para qué fue?`, '');
-        if (!incoming && (info.cash || (/^(?:withdrawal|atm|retiro)\b/.test(norm(info.lines[0] || '')) && !info.name))) return result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Retiro de efectivo: ¿en qué se usó?', '');
-        if (incoming) return result('Ingreso', 'Otros Ingresos', '', 'low', /check/.test(t) ? 'Depósito de un cheque: ¿de qué es?' : 'Entrada de dinero: ¿de qué es?', key);
-        if (everything) return Object.assign(result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Tienda de todo: elige qué compraste', key), { ask: true });
+        if (!incoming && info.check) return result('Gasto', 'Otros', 'Otros Gastos', 'low', `Check #${info.check}: what was it for?`, '');
+        if (!incoming && (info.cash || (/^(?:withdrawal|atm|retiro)\b/.test(norm(info.lines[0] || '')) && !info.name))) return result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Cash withdrawal: what was it used for?', '');
+        if (incoming) return result('Ingreso', 'Otros Ingresos', '', 'low', /check/.test(t) ? 'Check deposit: what is it from?' : 'Money in: what is it from?', key);
+        if (everything) return Object.assign(result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Store that sells everything: pick what you bought', key), { ask: true });
         return result('Gasto', 'Otros', 'Otros Gastos', 'low', '', key);
     }
 
@@ -260,8 +260,8 @@
             ix.forEach(i => {
                 const g = guesses[i];
                 if (g.confidence !== 'low' || g.ask) return;
-                if (best && best.type === g.type) Object.assign(g, { category: best.category, sub: best.sub, confidence: 'medium', why: `Como los otros movimientos de ${g.key}` });
-                else if (!best && g.type === 'Ingreso' && ix.length >= 3) Object.assign(g, { category: 'Ingresos Laborales', sub: 'Sueldo/Salario', confidence: 'medium', why: 'Depósitos regulares de la misma empresa: parece un sueldo' });
+                if (best && best.type === g.type) Object.assign(g, { category: best.category, sub: best.sub, confidence: 'medium', why: `Like the other transactions from ${g.key}` });
+                else if (!best && g.type === 'Ingreso' && ix.length >= 3) Object.assign(g, { category: 'Ingresos Laborales', sub: 'Sueldo/Salario', confidence: 'medium', why: 'Regular deposits from the same company: looks like a paycheck' });
             });
         });
         return guesses;

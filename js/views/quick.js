@@ -25,20 +25,20 @@
         const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
         return `
             <div class="segmented mb-3" role="tablist">
-                <button type="button" data-action="quick.type" data-type="Gasto" class="${state.type === 'Gasto' ? 'active' : ''}">− Gasto</button>
-                <button type="button" data-action="quick.type" data-type="Ingreso" class="${state.type === 'Ingreso' ? 'active' : ''}">+ Ingreso</button>
+                <button type="button" data-action="quick.type" data-type="Gasto" class="${state.type === 'Gasto' ? 'active' : ''}">− Expense</button>
+                <button type="button" data-action="quick.type" data-type="Ingreso" class="${state.type === 'Ingreso' ? 'active' : ''}">+ Income</button>
             </div>
-            <label class="quick-amount ${state.type === 'Ingreso' ? 'inc' : ''}"><span class="cur">${esc(Fmt.currency().symbol)}</span><input id="quick-amount" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(state.amount)}" data-input="quick.amount" aria-label="Monto"></label>
+            <label class="quick-amount ${state.type === 'Ingreso' ? 'inc' : ''}"><span class="cur">${esc(Fmt.currency().symbol)}</span><input id="quick-amount" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(state.amount)}" data-input="quick.amount" aria-label="Amount"></label>
             <div class="quick-keys">${keys.map(k => `<button type="button" data-action="quick.key" data-k="${k}">${k}</button>`).join('')}</div>
             <div class="quick-chips">${cats.map(c => `<button type="button" class="quick-chip ${c === state.category ? 'on' : ''}" data-action="quick.cat" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
-            ${state.type === 'Gasto' ? `<div class="quick-chips quick-pay mt-3" role="radiogroup" aria-label="Forma de pago">${PAYMENTS.map(([v, icon, label]) => `<button type="button" class="quick-chip ${v === state.payment ? 'on' : ''}" data-action="quick.pay" data-pay="${esc(v)}" role="radio" aria-checked="${v === state.payment}"><i class="fa-solid ${icon}"></i> ${label}</button>`).join('')}</div>` : ''}
+            ${state.type === 'Gasto' ? `<div class="quick-chips quick-pay mt-3" role="radiogroup" aria-label="Payment method">${PAYMENTS.map(([v, icon, label]) => `<button type="button" class="quick-chip ${v === state.payment ? 'on' : ''}" data-action="quick.pay" data-pay="${esc(v)}" role="radio" aria-checked="${v === state.payment}"><i class="fa-solid ${icon}"></i> ${label}</button>`).join('')}</div>` : ''}
             <div class="grid grid-cols-1 sm:grid-cols-${members.length ? 3 : 2} gap-2 mt-3">
-                <input id="quick-note" class="input" placeholder="Nota (opcional): Supermaxi, taxi…" autocomplete="off">
+                <input id="quick-note" class="input" placeholder="Note (optional): Walmart, taxi…" autocomplete="off">
                 <input id="quick-date" type="date" class="input" value="${Engine.isoDate(new Date())}">
-                ${members.length ? `<select id="quick-member" class="input"><option value="">¿Quién? —</option>${members.map(p => `<option value="${p.id}" ${String(p.id) === String(Store.ui.lastMember || '') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>` : ''}
+                ${members.length ? `<select id="quick-member" class="input"><option value="">Who? —</option>${members.map(p => `<option value="${p.id}" ${String(p.id) === String(Store.ui.lastMember || '') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>` : ''}
             </div>
-            <button type="button" class="btn btn-primary w-full mt-3 justify-center" data-action="quick.save" id="quick-save"><i class="fa-solid fa-check"></i> Guardar</button>
-            <p class="help mt-2 text-center">¿Más detalles (subcategoría, rubro, repetir)? <a href="#" class="link" data-action="quick.full">Abrir el formulario completo</a></p>`;
+            <button type="button" class="btn btn-primary w-full mt-3 justify-center" data-action="quick.save" id="quick-save"><i class="fa-solid fa-check"></i> Save</button>
+            <p class="help mt-2 text-center">More details (subcategory, line, repeat)? <a href="#" class="link" data-action="quick.full">Open the full form</a></p>`;
     }
 
     // How it was paid matters: a credit-card purchase doesn't leave checking until the card is
@@ -47,7 +47,7 @@
 
     function open() {
         state = { type: (state && state.type) || 'Gasto', amount: '', category: null, payment: Store.ui.lastPayment || 'Tarjeta de Débito' };
-        state.sheet = UI.sheet({ title: 'Registro rápido', icon: 'fa-bolt', html: body(), onClose: () => { state.sheet = null; } });
+        state.sheet = UI.sheet({ title: 'Quick entry', icon: 'fa-bolt', html: body(), onClose: () => { state.sheet = null; } });
         // On a phone the app's own keypad is the keyboard: focusing would open the system one on top.
         if (window.matchMedia && matchMedia('(pointer: fine)').matches) setTimeout(() => { const a = document.getElementById('quick-amount'); if (a) a.focus(); }, 30);
     }
@@ -82,7 +82,7 @@
         },
         'quick.save': () => {
             const amount = Math.round((Number(state.amount) || 0) * 100) / 100;
-            if (!(amount > 0)) { UI.toast('Escribe un monto mayor a 0.', 'error'); document.getElementById('quick-amount').focus(); return; }
+            if (!(amount > 0)) { UI.toast('Type an amount greater than 0.', 'error'); document.getElementById('quick-amount').focus(); return; }
             const s = Store.state;
             const note = document.getElementById('quick-note').value.trim();
             const date = document.getElementById('quick-date').value || Engine.isoDate(new Date());
@@ -99,7 +99,7 @@
             s.transactions.push(t);
             state.sheet.close();
             App.changed({ structural: true, step: true });
-            if (!TxnForm.warnIfImported(t)) UI.toast(`${state.type === 'Ingreso' ? '+' : '−'}${money(amount)} en ${cat} registrado.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            if (!TxnForm.warnIfImported(t)) UI.toast(`${state.type === 'Ingreso' ? '+' : '−'}${money(amount)} in ${cat} logged.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         }
     });
 

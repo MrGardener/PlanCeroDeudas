@@ -132,10 +132,10 @@
         const charityFloor = inc * pick(t.charityFloorPct, 0.5) / 100;
         const medFloor = inc * pick(t.medicalFloorPct, 7.5) / 100;
         const items = [
-            { key: 'mortgage', label: 'Intereses de la hipoteca', amount: cents(num(mortgageInterest)), raw: cents(num(mortgageInterest)) },
-            { key: 'salt', label: 'Impuestos estatales, locales y a la propiedad', amount: cents(Math.min(saltRaw, saltCap)), raw: cents(saltRaw), limit: cents(saltCap) },
+            { key: 'mortgage', label: 'Mortgage interest', amount: cents(num(mortgageInterest)), raw: cents(num(mortgageInterest)) },
+            { key: 'salt', label: 'State, local and property taxes', amount: cents(Math.min(saltRaw, saltCap)), raw: cents(saltRaw), limit: cents(saltCap) },
             { key: 'charity', label: 'Donaciones', amount: cents(Math.max(0, num(charity) - charityFloor)), raw: cents(num(charity)), floor: cents(charityFloor) },
-            { key: 'medical', label: 'Gastos médicos', amount: cents(Math.max(0, num(medical) - medFloor)), raw: cents(num(medical)), floor: cents(medFloor) }
+            { key: 'medical', label: 'Medical costs', amount: cents(Math.max(0, num(medical) - medFloor)), raw: cents(num(medical)), floor: cents(medFloor) }
         ];
         const itemized = cents(sum(items, i => i.amount));
         const std = num((t.stdDeduction || {})[status]);
@@ -155,7 +155,7 @@
     const SRI_PERSONAL = [
         { key: 'vivienda', label: 'Vivienda', cats: { 'Vivienda': ['Arriendo', 'Alícuotas/Condominio', 'Impuesto Predial'], 'Servicios Básicos y Comunicación': ['Agua', 'Energía Eléctrica', 'Gas'] } },
         { key: 'salud', label: 'Salud', cats: { 'Salud': null } },
-        { key: 'educacion', label: 'Educación, arte y cultura', cats: { 'Educación': null } },
+        { key: 'educacion', label: 'Education, arts and culture', cats: { 'Educación': null } },
         { key: 'alimentacion', label: 'Alimentación', cats: { 'Alimentación': ['Mercado/Supermercado', 'Mercado Municipal/Ferias', 'Panadería'] } },
         { key: 'vestimenta', label: 'Vestimenta', cats: { 'Vestimenta': ['Ropa y Calzado', 'Ropa de Trabajo'] } },
         { key: 'turismo', label: 'Turismo', cats: { 'Viajes y Vacaciones': ['Hospedaje', 'Vuelos', 'Alquiler de Auto de Viaje'] } }
@@ -661,10 +661,10 @@
     const BUCKETS = [
         { key: 'dar', label: 'Dar' },
         { key: 'ahorro', label: 'Ahorro' },
-        { key: 'vivienda', label: 'Vivienda y servicios' },
+        { key: 'vivienda', label: 'Housing and utilities' },
         { key: 'comida', label: 'Comida' },
         { key: 'transporte', label: 'Transporte' },
-        { key: 'otros', label: 'Otros gastos' },
+        { key: 'otros', label: 'Other spending' },
         { key: 'deudas', label: 'Deudas' }
     ];
     function bucketOf(item) {
@@ -1157,7 +1157,7 @@
         { id: 'vehicular', label: 'Préstamo Vehicular', netWorthField: 'autoLoans' },
         { id: 'personal', label: 'Préstamo Personal', netWorthField: 'personalLoans' },
         { id: 'estudiantil', label: 'Préstamo Estudiantil', netWorthField: 'studentLoans' },
-        { id: 'otra', label: 'Otra Deuda', netWorthField: 'otherDebts' }
+        { id: 'otra', label: 'Other Debt', netWorthField: 'otherDebts' }
     ];
 
     function guessDebtKind(name) {
@@ -1187,20 +1187,20 @@
     function milestones({ netWorth = 0, liquid = 0, monthsCovered = 0, debts = [], money = (v) => '$' + Math.round(v).toLocaleString('en-US') }) {
         const clamp = (v) => Math.max(0, Math.min(1, v));
         const out = [
-            { key: 'ef1000', group: 'ahorro', label: `Fondo de emergencia inicial: ${money(1000)}`, done: liquid >= 1000, progress: clamp(liquid / 1000) },
-            { key: 'ef3', group: 'ahorro', label: '3 meses de gastos ahorrados', done: monthsCovered >= 3, progress: clamp(monthsCovered / 3) },
-            { key: 'ef6', group: 'ahorro', label: '6 meses de gastos ahorrados', done: monthsCovered >= 6, progress: clamp(monthsCovered / 6) }
+            { key: 'ef1000', group: 'ahorro', label: `Starter emergency fund: ${money(1000)}`, done: liquid >= 1000, progress: clamp(liquid / 1000) },
+            { key: 'ef3', group: 'ahorro', label: '3 months of expenses saved', done: monthsCovered >= 3, progress: clamp(monthsCovered / 3) },
+            { key: 'ef6', group: 'ahorro', label: '6 months of expenses saved', done: monthsCovered >= 6, progress: clamp(monthsCovered / 6) }
         ];
         const consumer = (debts || []).filter(d => num(d.originalBalance) > 0 || num(d.balance) > 0);
         consumer.forEach(d => {
             const orig = Math.max(num(d.originalBalance), num(d.balance));
-            out.push({ key: 'debt-' + d.id, group: 'deudas', label: `«${d.name}» pagada`, done: num(d.balance) <= 0.005, progress: clamp(orig > 0 ? 1 - num(d.balance) / orig : 1) });
+            out.push({ key: 'debt-' + d.id, group: 'deudas', label: `«${d.name}» paid off`, done: num(d.balance) <= 0.005, progress: clamp(orig > 0 ? 1 - num(d.balance) / orig : 1) });
         });
         if (consumer.length > 1) {
             const owed = sum(consumer, d => Math.max(0, num(d.balance))), orig = sum(consumer, d => Math.max(num(d.originalBalance), num(d.balance)));
-            out.push({ key: 'debtfree', group: 'deudas', label: 'Libre de deudas (menos la casa)', done: owed <= 0.005, progress: clamp(orig > 0 ? 1 - owed / orig : 1) });
+            out.push({ key: 'debtfree', group: 'deudas', label: 'Debt-free (except the house)', done: owed <= 0.005, progress: clamp(orig > 0 ? 1 - owed / orig : 1) });
         }
-        NW_STEPS.forEach(v => out.push({ key: 'nw' + v, group: 'patrimonio', label: v === 0 ? 'Patrimonio neto en positivo' : `Patrimonio neto de ${money(v)}`, done: v === 0 ? netWorth > 0 : netWorth >= v, progress: v === 0 ? (netWorth > 0 ? 1 : 0) : clamp(netWorth / v) }));
+        NW_STEPS.forEach(v => out.push({ key: 'nw' + v, group: 'patrimonio', label: v === 0 ? 'Positive net worth' : `Net worth of ${money(v)}`, done: v === 0 ? netWorth > 0 : netWorth >= v, progress: v === 0 ? (netWorth > 0 ? 1 : 0) : clamp(netWorth / v) }));
         return out;
     }
 
@@ -1257,16 +1257,16 @@
         const guessed = (k) => !(answers[k] === 'si' || answers[k] === 'no') && INSURANCE_SEEN[k].test(text);
         const item = (key, label, needed, why, extra = {}) => Object.assign({ key, label, needed, has: has(key), guessed: guessed(key), why, status: !needed ? 'na' : has(key) ? 'ok' : 'falta' }, extra);
         const lifeNeed = dependents ? Math.round(num(income) * 10) : 0;
-        const life = item('life', 'Seguro de vida a término', dependents && num(income) > 0, dependents ? `Unas 10 veces tu ingreso anual (${money(lifeNeed)}), a 15–20 años. A término, no "de vida entera".` : 'Si nadie depende de tu ingreso, no lo necesitas todavía.', { need: lifeNeed, coverage: num(lifeCoverage) });
+        const life = item('life', 'Term life insurance', dependents && num(income) > 0, dependents ? `About 10 times your yearly income (${money(lifeNeed)}), for 15–20 years. Term, not "whole life".` : 'If no one depends on your income, you don\'t need it yet.', { need: lifeNeed, coverage: num(lifeCoverage) });
         if (life.status === 'ok' && life.coverage > 0 && life.coverage < lifeNeed * 0.9) life.status = 'revisar';
         const out = [
             life,
-            item('health', 'Seguro de salud', true, 'Un problema de salud es la causa más común de quiebra familiar.'),
-            item('disability', 'Seguro por incapacidad', num(income) > 0, 'Reemplaza ~60% de tu ingreso si no puedes trabajar por enfermedad o accidente.'),
-            item('home', ownsHome ? 'Seguro de hogar' : 'Seguro de inquilino', true, ownsHome ? 'Protege tu casa (lo exige el banco si tienes hipoteca).' : 'Barato y cubre tus cosas y tu responsabilidad si algo pasa en tu vivienda.'),
-            item('auto', 'Seguro del carro', !!hasCar, 'Responsabilidad civil suficiente; con un fondo de emergencia, puedes subir el deducible y pagar menos.'),
-            item('umbrella', 'Seguro de responsabilidad civil (umbrella)', num(netWorth) >= 500000, `Desde ${money(500000)} de patrimonio, protege lo que construiste de una demanda.`),
-            item('ltc', 'Seguro de cuidado a largo plazo', num(age) >= 60, 'Desde los 60: un asilo o cuidado en casa puede acabar con tus ahorros.')
+            item('health', 'Health insurance', true, 'A health problem is the most common cause of family bankruptcy.'),
+            item('disability', 'Disability insurance', num(income) > 0, 'Replaces ~60% of your income if illness or injury keeps you from working.'),
+            item('home', ownsHome ? 'Homeowner\'s insurance' : 'Renter\'s insurance', true, ownsHome ? 'Protects your home (your lender requires it with a mortgage).' : 'Cheap, and it covers your things and your liability if something happens at home.'),
+            item('auto', 'Seguro del carro', !!hasCar, 'Enough liability coverage; with an emergency fund you can raise the deductible and pay less.'),
+            item('umbrella', 'Umbrella liability insurance', num(netWorth) >= 500000, `From ${money(500000)} of net worth, it protects what you've built from a lawsuit.`),
+            item('ltc', 'Long-term care insurance', num(age) >= 60, 'From age 60: a nursing home or in-home care can wipe out your savings.')
         ];
         const needed = out.filter(i => i.needed);
         return { items: out, missing: needed.filter(i => i.status === 'falta').length, review: needed.filter(i => i.status === 'revisar').length, lifeNeed, lifeGap: Math.max(0, lifeNeed - num(lifeCoverage)) };
@@ -1320,20 +1320,20 @@
         const has = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
         const pillars = [
             { key: 'spend', label: 'Gastar', items: [
-                has(f.spendRatio) ? ind('spendLess', 'Gastas menos de lo que ganas', lin(-f.spendRatio, -1.1, -0.9), 'Últimos 3 meses: gasto ÷ ingreso.') : null,
-                has(f.overdue) ? ind('onTime', 'Pagas tus cuentas a tiempo', f.overdue <= 0 ? 100 : f.overdue === 1 ? 50 : 0, 'Pagos vencidos este mes.') : null
+                has(f.spendRatio) ? ind('spendLess', 'You spend less than you earn', lin(-f.spendRatio, -1.1, -0.9), 'Last 3 months: spending ÷ income.') : null,
+                has(f.overdue) ? ind('onTime', 'You pay your bills on time', f.overdue <= 0 ? 100 : f.overdue === 1 ? 50 : 0, 'Overdue payments this month.') : null
             ] },
             { key: 'save', label: 'Ahorrar', items: [
-                has(f.monthsCovered) ? ind('cushion', 'Tienes un colchón para imprevistos', lin(f.monthsCovered, 0, 3), 'Meses de gastos esenciales ahorrados (3 o más = 100).') : null,
-                has(f.savingsRate) ? ind('longTerm', 'Ahorras para el largo plazo', lin(f.savingsRate, 0, 0.15), 'Parte de tu sueldo que va a jubilación (15% = 100).') : null
+                has(f.monthsCovered) ? ind('cushion', 'You have a cushion for surprises', lin(f.monthsCovered, 0, 3), 'Months of essential expenses saved (3 or more = 100).') : null,
+                has(f.savingsRate) ? ind('longTerm', 'You save for the long term', lin(f.savingsRate, 0, 0.15), 'Share of your pay going to retirement (15% = 100).') : null
             ] },
             { key: 'borrow', label: 'Deber', items: [
-                has(f.debtToIncome) ? ind('dti', 'Tus deudas no ahogan tu ingreso', lin(-f.debtToIncome, -0.36, -0.10), 'Pagos de deudas de consumo ÷ ingreso (10% o menos = 100).') : null,
-                has(f.costlyDebtRatio) ? ind('costly', 'Sin deudas caras', lin(-f.costlyDebtRatio, -0.15, 0), 'Deudas al 10% o más, frente a tu ingreso del año.') : null
+                has(f.debtToIncome) ? ind('dti', 'Your debts don\'t swamp your income', lin(-f.debtToIncome, -0.36, -0.10), 'Consumer debt payments ÷ income (10% or less = 100).') : null,
+                has(f.costlyDebtRatio) ? ind('costly', 'No expensive debt', lin(-f.costlyDebtRatio, -0.15, 0), 'Debts at 10% or more, against your yearly income.') : null
             ] },
             { key: 'plan', label: 'Planear', items: [
-                has(f.unassignedRatio) ? ind('budget', 'Cada dólar tiene un trabajo', Math.abs(f.unassignedRatio) <= 0.01 ? 100 : Math.abs(f.unassignedRatio) <= 0.05 ? 60 : 20, 'Tu presupuesto asigna todo tu ingreso, ni más ni menos.') : null,
-                has(f.retirePct) ? ind('retire', 'Vas bien para tu jubilación', lin(f.retirePct, 0, 1), 'Lo que vas camino a tener ÷ lo que necesitarías.') : null
+                has(f.unassignedRatio) ? ind('budget', 'Every dollar has a job', Math.abs(f.unassignedRatio) <= 0.01 ? 100 : Math.abs(f.unassignedRatio) <= 0.05 ? 60 : 20, 'Your budget assigns all your income, no more, no less.') : null,
+                has(f.retirePct) ? ind('retire', 'On track for retirement', lin(f.retirePct, 0, 1), 'What you\'re on track to have ÷ what you\'d need.') : null
             ] }
         ].map(p => { const items = p.items.filter(Boolean); return Object.assign(p, { items, score: items.length ? Math.round(sum(items, i => i.score) / items.length) : null }); });
         const all = pillars.flatMap(p => p.items);
@@ -1349,27 +1349,27 @@
         const t = isoDate(new Date(today));
         const out = [];
         const add = (score, key, icon, title, text, go = {}) => out.push(Object.assign({ score, key, icon, title, text }, go));
-        if (!f.hasIncome) add(100, 'setup', 'fa-flag-checkered', 'Arma tu presupuesto', 'Empieza por tu sueldo y luego asigna cada dólar a un rubro: todo lo demás sale de ahí.', { goto: 'presupuesto/ingresos' });
-        if ((f.overdueBills || []).length) add(96, 'overdue', 'fa-calendar-xmark', 'Paga lo vencido', `${f.overdueBills.slice(0, 3).join(', ')} ya pasó su fecha. Págalo o márcalo para evitar recargos.`, { goto: 'resumen', focus: 'dash-bills-card' });
-        if (f.unassigned < -1) add(92, 'overbudget', 'fa-scale-unbalanced', 'Cuadra tu presupuesto', `Tu plan gasta ${money(-f.unassigned)} al mes más de lo que ganas. Recorta rubros hasta que quede en $0.`, { goto: 'presupuesto/plan' });
-        if (f.step === 1 && f.hasIncome) add(88, 'ef1000', 'fa-shield-heart', `Junta ${money(Math.max(0, 1000 - f.liquid))} para tu fondo inicial`, `Con $1,000 a la mano, un imprevisto no se vuelve deuda. Hoy tienes ${money(f.liquid)}.`, { goto: 'futuro/metas', focus: 'metas-ef' });
+        if (!f.hasIncome) add(100, 'setup', 'fa-flag-checkered', 'Build your budget', 'Start with your pay, then give every dollar a line: everything else comes from there.', { goto: 'presupuesto/ingresos' });
+        if ((f.overdueBills || []).length) add(96, 'overdue', 'fa-calendar-xmark', 'Pay what\'s overdue', `${f.overdueBills.slice(0, 3).join(', ')} is past due. Pay it or mark it to avoid late fees.`, { goto: 'resumen', focus: 'dash-bills-card' });
+        if (f.unassigned < -1) add(92, 'overbudget', 'fa-scale-unbalanced', 'Balance your budget', `Your plan spends ${money(-f.unassigned)} a month more than you earn. Trim lines until it's at $0.`, { goto: 'presupuesto/plan' });
+        if (f.step === 1 && f.hasIncome) add(88, 'ef1000', 'fa-shield-heart', `Save ${money(Math.max(0, 1000 - f.liquid))} for your starter fund`, `With $1,000 on hand, a surprise doesn't become debt. Today you have ${money(f.liquid)}.`, { goto: 'futuro/metas', focus: 'metas-ef' });
         if (f.unassigned > 1) {
-            const where = f.step === 2 ? 'a la bola de nieve' : f.step === 1 || f.step === 3 ? 'a tu fondo de emergencia' : 'a tu jubilación o tus metas';
-            add(84, 'unassigned', 'fa-coins', `Dale un trabajo a ${money(f.unassigned)}`, `Están sin asignar en tu presupuesto. Mándalos ${where} antes de que se gasten solos.`, { goto: 'presupuesto/plan' });
+            const where = f.step === 2 ? 'to the snowball' : f.step === 1 || f.step === 3 ? 'to your emergency fund' : 'to retirement or your goals';
+            add(84, 'unassigned', 'fa-coins', `Give ${money(f.unassigned)} a job`, `It's unassigned in your budget. Send it ${where} before it gets spent on its own.`, { goto: 'presupuesto/plan' });
         }
-        if (f.step === 2 && f.target) add(80, 'snowball', 'fa-snowflake', `Ataca «${f.target.name}»`, `Es la siguiente en tu bola de nieve: ${money(f.target.balance)} al ${f.target.rate}%. Todo lo extra va ahí; las demás, solo el mínimo.`, { goto: 'futuro/metas', focus: 'metas-debts' });
-        if (f.monthToClose) add(72, 'close', 'fa-calendar-check', `Cierra ${f.monthToClose.label}`, 'Mira en qué te pasaste y dale un trabajo a lo que sobró.', { action: 'close.open', data: { y: f.monthToClose.y, m: f.monthToClose.m } });
-        if (f.uncategorized >= 3) add(62, 'uncategorized', 'fa-tags', `Asigna ${f.uncategorized} gastos sin rubro`, 'Mientras no tengan rubro, tu presupuesto no sabe que ya los gastaste.', { goto: 'transacciones/lista' });
-        if (f.annualShort) add(60, 'annual', 'fa-calendar-days', 'Aparta para tus gastos anuales', f.annualShort.noFund
-            ? `Aún no apartas para ellos: son ${money(f.annualShort.yearly)} al año, ${money(f.annualShort.monthly)} al mes.`
-            : `En ${f.annualShort.label} te faltarían ${money(f.annualShort.needed)}. Deposita la diferencia o sube el apartado.`, { goto: 'presupuesto/plan', focus: 'bud-annual-card' });
-        if ((f.maturing || []).length) add(58, 'maturing', 'fa-file-contract', 'Decide qué hacer con tu póliza', `${f.maturing.join(', ')} vence pronto: renuévala o muévela según tu paso actual.`, { goto: 'futuro/polizas' });
-        if (f.step === 3) add(56, 'ef6', 'fa-shield-heart', 'Completa tu fondo de emergencia', `Llevas ${f.monthsCovered.toFixed(1)} meses; la meta son 3 a 6 (${money(f.essential * 3)}–${money(f.essential * 6)}).`, { goto: 'futuro/metas', focus: 'metas-ef' });
-        if (f.step >= 4 && f.savingsRate < 0.15 && f.income > 0) add(52, 'retire15', 'fa-person-cane', 'Invierte el 15% para tu jubilación', `Hoy ahorras el ${Math.round(f.savingsRate * 100)}%. Llegar al 15% son ${money((0.15 - f.savingsRate) * f.income)} más al mes.`, { goto: 'futuro/jubilacion' });
-        if (f.needsWill) add(50, 'will', 'fa-file-signature', 'Haz tu testamento', 'Tienes hijos que dependen de ti: nombra a su tutor y decide quién hereda. Es de lo más importante y de lo que más se posterga.', { goto: 'patrimonio', focus: 'nw-checklists' });
-        if (f.reviewDue) add(44, 'review', 'fa-calendar-check', 'Haz tu revisión anual', 'Un año nuevo: seguros, jubilación, crédito, impuestos y tu fondo de emergencia, en una lista.', { goto: 'patrimonio', focus: 'nw-checklists' });
-        if (f.subsYearly >= 100) add(46, 'subs', 'fa-magnifying-glass-dollar', 'Revisa tus suscripciones', `Encontramos cargos que se repiten por ${money(f.subsYearly)} al año. ¿Todavía los usas?`, { goto: 'transacciones/lista' });
-        if (f.hasData && (f.backupDays === null || f.backupDays > 30)) add(40, 'backup', 'fa-download', 'Guarda una copia de respaldo', f.backupDays === null ? 'Nunca has guardado una. Si se borran los datos del navegador, pierdes tu plan.' : `La última fue hace ${f.backupDays} días.`, { goto: 'config', focus: 'cfg-data' });
+        if (f.step === 2 && f.target) add(80, 'snowball', 'fa-snowflake', `Attack «${f.target.name}»`, `It's next in your snowball: ${money(f.target.balance)} at ${f.target.rate}%. Every extra dollar goes there; the others get just the minimum.`, { goto: 'futuro/metas', focus: 'metas-debts' });
+        if (f.monthToClose) add(72, 'close', 'fa-calendar-check', `Close out ${f.monthToClose.label}`, 'See where you went over and give what\'s left a job.', { action: 'close.open', data: { y: f.monthToClose.y, m: f.monthToClose.m } });
+        if (f.uncategorized >= 3) add(62, 'uncategorized', 'fa-tags', `Assign ${f.uncategorized} expenses with no line`, 'Until they have a line, your budget doesn\'t know you spent them.', { goto: 'transacciones/lista' });
+        if (f.annualShort) add(60, 'annual', 'fa-calendar-days', 'Set aside for your annual bills', f.annualShort.noFund
+            ? `You're not setting money aside for them yet: ${money(f.annualShort.yearly)} a year, ${money(f.annualShort.monthly)} a month.`
+            : `In ${f.annualShort.label} you'd be ${money(f.annualShort.needed)} short. Deposit the difference or raise the set-aside.`, { goto: 'presupuesto/plan', focus: 'bud-annual-card' });
+        if ((f.maturing || []).length) add(58, 'maturing', 'fa-file-contract', 'Decide what to do with your CD', `${f.maturing.join(', ')} matures soon: renew it or move it according to your current step.`, { goto: 'futuro/polizas' });
+        if (f.step === 3) add(56, 'ef6', 'fa-shield-heart', 'Finish your emergency fund', `You have ${f.monthsCovered.toFixed(1)} months; the goal is 3 to 6 (${money(f.essential * 3)}–${money(f.essential * 6)}).`, { goto: 'futuro/metas', focus: 'metas-ef' });
+        if (f.step >= 4 && f.savingsRate < 0.15 && f.income > 0) add(52, 'retire15', 'fa-person-cane', 'Invest 15% for retirement', `Today you save ${Math.round(f.savingsRate * 100)}%. Reaching 15% is ${money((0.15 - f.savingsRate) * f.income)} more a month.`, { goto: 'futuro/jubilacion' });
+        if (f.needsWill) add(50, 'will', 'fa-file-signature', 'Make your will', 'You have children who depend on you: name their guardian and decide who inherits. It\'s among the most important things, and the most put off.', { goto: 'patrimonio', focus: 'nw-checklists' });
+        if (f.reviewDue) add(44, 'review', 'fa-calendar-check', 'Do your yearly review', 'A new year: insurance, retirement, credit, taxes and your emergency fund, in one list.', { goto: 'patrimonio', focus: 'nw-checklists' });
+        if (f.subsYearly >= 100) add(46, 'subs', 'fa-magnifying-glass-dollar', 'Review your subscriptions', `We found repeating charges worth ${money(f.subsYearly)} a year. Do you still use them?`, { goto: 'transacciones/lista' });
+        if (f.hasData && (f.backupDays === null || f.backupDays > 30)) add(40, 'backup', 'fa-download', 'Guarda una copia de respaldo', f.backupDays === null ? 'You\'ve never saved one. If the browser data is cleared, you lose your plan.' : `The last one was ${f.backupDays} days ago.`, { goto: 'config', focus: 'cfg-data' });
         return out.filter(m => !(snoozed[m.key] && snoozed[m.key] > t)).sort((a, b) => b.score - a.score).slice(0, limit);
     }
 
@@ -1733,10 +1733,10 @@
     function chartAxis(scheduleLength) {
         if (scheduleLength > 24) {
             const marks = yearMarks(scheduleLength);
-            return { yearly: true, marks, labels: marks.map(m => m % 12 === 0 ? `Año ${m / 12}` : `Año ${Math.floor(m / 12)}+${m % 12}m`), title: 'Años del Préstamo' };
+            return { yearly: true, marks, labels: marks.map(m => m % 12 === 0 ? `Year ${m / 12}` : `Year ${Math.floor(m / 12)}+${m % 12}m`), title: 'Loan Term (years)' };
         }
         const marks = Array.from({ length: scheduleLength }, (_, k) => k + 1);
-        return { yearly: false, marks, labels: marks.map(m => `Mes ${m}`), title: 'Meses del Préstamo' };
+        return { yearly: false, marks, labels: marks.map(m => `Mes ${m}`), title: 'Loan Term (months)' };
     }
 
     // Value of `field` at each axis mark; undefined past the end of a shorter schedule.
@@ -2010,14 +2010,14 @@
 
     function babySteps({ liquid, consumerDebt, monthsCovered, savingsRate, mortgageBalance, ownsHome = mortgageBalance > 0.01, money = (v) => '$' + Math.round(v).toLocaleString('en-US') }) {
         const steps = [
-            { n: 1, title: 'Fondo de Emergencia Inicial', done: liquid >= 1000, detail: `${Math.min(100, liquid / 10).toFixed(0)}% de ${money(1000)}` },
-            { n: 2, title: 'Pagar Deudas de Consumo', done: consumerDebt <= 0.01, detail: consumerDebt > 0.01 ? `Quedan ${money(consumerDebt)}` : 'Sin deudas' },
-            { n: 3, title: 'Fondo de Emergencia Pleno', done: monthsCovered >= 3, detail: `${monthsCovered.toFixed(1)} de 3-6 meses` },
-            { n: 4, title: 'Invertir 15% para el Retiro', done: savingsRate >= 0.15, detail: `Ahorras ${(savingsRate * 100).toFixed(0)}% de tu sueldo` },
-            { n: 5, title: 'Educación de los Hijos', done: null, detail: 'Opcional — usa una Meta de ahorro' },
+            { n: 1, title: 'Starter Emergency Fund', done: liquid >= 1000, detail: `${Math.min(100, liquid / 10).toFixed(0)}% de ${money(1000)}` },
+            { n: 2, title: 'Pay Off Consumer Debt', done: consumerDebt <= 0.01, detail: consumerDebt > 0.01 ? `${money(consumerDebt)} left` : 'No debt' },
+            { n: 3, title: 'Full Emergency Fund', done: monthsCovered >= 3, detail: `${monthsCovered.toFixed(1)} of 3-6 months` },
+            { n: 4, title: 'Invest 15% for Retirement', done: savingsRate >= 0.15, detail: `You save ${(savingsRate * 100).toFixed(0)}% of your salary` },
+            { n: 5, title: 'Kids\' Education', done: null, detail: 'Optional — use a savings Goal' },
             // A renter hasn't "paid off the home": the step is about saving for one (or not wanting one).
-            { n: 6, title: 'Pagar la Hipoteca', done: ownsHome ? mortgageBalance <= 0.01 : null, detail: mortgageBalance > 0.01 ? `Saldo ${money(mortgageBalance)}` : (ownsHome ? 'Casa pagada' : 'Sin casa propia — ahorra la entrada con una Meta') },
-            { n: 7, title: 'Construir Riqueza y Dar', done: null, detail: 'Libertad financiera' }
+            { n: 6, title: 'Pay Off the Home', done: ownsHome ? mortgageBalance <= 0.01 : null, detail: mortgageBalance > 0.01 ? `Balance ${money(mortgageBalance)}` : (ownsHome ? 'Home paid off' : 'No home of your own — save the down payment with a Goal') },
+            { n: 7, title: 'Build Wealth and Give', done: null, detail: 'Financial freedom' }
         ];
         let current;
         if (!steps[0].done) current = 1;
@@ -2182,12 +2182,12 @@
             const t = Math.min(need, Math.max(0, available));
             if (t > 0.004) { takes.push({ id, name, kind, available, take: t }); need -= t; }
         };
-        take('free', 'Dinero sin asignar', 'free', num(free));
+        take('free', 'Unassigned money', 'free', num(free));
         const own = (items || []).find(i => String(i.id) === String(lineId));
         if (own && !isSavingsItem(own)) take(String(own.id), own.name, 'own', left(own));
         (items || []).filter(i => i.type === 'Gasto Variable' && i !== own).sort((a, b) => left(b) - left(a))
             .forEach(i => take(String(i.id), i.name, 'variable', left(i)));
-        take('sweep', 'Sobrante del mes (ahorro)', 'savings', num(sweep));
+        take('sweep', 'Monthly leftover (savings)', 'savings', num(sweep));
         (items || []).filter(i => isSavingsItem(i)).sort((a, b) => left(b) - left(a))
             .forEach(i => take(String(i.id), i.name, i.link === 'goal' ? 'goal' : 'savings', left(i)));
         return { takes, short: need > 0.004 ? need : 0 };
