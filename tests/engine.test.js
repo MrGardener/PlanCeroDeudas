@@ -695,6 +695,46 @@ test('US paycheck: pre-tax 401(k) lowers income tax only; health lowers FICA too
     near(p.otrosDescuentosM, 450, 'only the 401(k) and medical come off as deductions');
 });
 
+test('US pay: a plain salary (or old saved data with no pay type) gives the same numbers as before', () => {
+    const old = usYear({}); delete old.payType; delete old.hourly; delete old.bonuses;
+    near(E.payroll(old).netoM, 4007.56, 'no payType = salary');
+    const g = E.usGrossPay(usYear({}));
+    assert.deepEqual([g.payType, g.baseM, g.overtimeM, g.budgetM, g.annual], ['salary', 5000, 0, 5000, 60000]);
+    near(E.payroll(usYear({})).budgetShare, 1, 'the budget carries all the taxes');
+});
+
+test('US pay: hourly with overtime — taxes on the year, the budget on base pay unless overtime is counted', () => {
+    const hourly = (otInBudget) => usYear({ payType: 'hourly', hourly: { rate: 25, hours: 40, otHours: 5, otRate: 1.5, otInBudget } });
+    const g = E.usGrossPay(hourly(false));
+    near(g.baseM, 25 * 40 * 52 / 12, 'base: 40 h a week, 52 weeks');
+    near(g.overtimeM, 25 * 1.5 * 5 * 52 / 12, 'overtime at 1.5×');
+    near(g.annual, 61750, 'the year: base + overtime');
+    near(g.budgetM, g.baseM, 'overtime not in the budget');
+    // Overtime counted: same as a salary of the same monthly gross.
+    near(E.payroll(hourly(true)).netoM, E.payroll(usYear({ sueldo: 61750 / 12 })).netoM, 'overtime in the budget = salary');
+    // Not counted: the budget gets its share of the year's take-home pay.
+    near(E.payroll(hourly(false)).netoM, E.payroll(hourly(true)).netoM * 52000 / 61750, 'base share of the take-home');
+    near(E.usGrossPay(usYear({ payType: 'hourly', hourly: { rate: 20, hours: 30, otHours: 4 } })).overtimeM, 20 * 1.5 * 4 * 52 / 12, 'overtime rate defaults to 1.5×');
+});
+
+test('US pay: bonuses are taxed with the year; a planned one counts in its month, after taxes', () => {
+    const yd = usYear({ bonuses: [{ id: 1, name: 'Year-end bonus', amount: 6000, month: '12', inBudget: true }] });
+    const p = E.payroll(yd);
+    near(p.sueldoAnual, 66000, 'salary + bonus');
+    const bonus = E.bonusForMonth(yd, '12', p);
+    near(bonus, 6000 * (1 - p.avgTaxRate), 'net at the average rate');
+    assert.equal(E.bonusForMonth(yd, '11', p), 0);
+    assert.equal(E.bonusForMonth(yd, 'base', p), 0);
+    near(p.netoM * 12 + bonus, 66000 * (1 - p.avgTaxRate), 'twelve paychecks + the bonus = the year after taxes');
+    near(E.monthBudget(yd, '12', p).salary - E.monthBudget(yd, '11', p).salary, bonus, "December's budget has the bonus");
+    // Not planned: still taxed (the paycheck's share is lower), but no month counts it.
+    const unplanned = usYear({ bonuses: [{ id: 1, name: 'Bonus', amount: 6000, month: '12', inBudget: false }] });
+    assert.equal(E.bonusForMonth(unplanned, '12'), 0);
+    // The bonus raises the year's average tax rate, so each paycheck's share of the tax goes up.
+    assert.ok(E.payroll(unplanned).avgTaxRate > E.payroll(usYear({})).avgTaxRate);
+    assert.ok(E.payroll(unplanned).netoM < E.payroll(usYear({})).netoM);
+});
+
 test('US paycheck: married with two kids; Social Security stops at the wage base', () => {
     near(E.payroll(usYear({ sueldo: 10000, filingStatus: 'mfj', dependents: 2 })).fedM * 12, 5640, 'MFJ with child credits');
     const high = E.payroll(usYear({ sueldo: 20000 }));

@@ -8706,7 +8706,10 @@ I18n.override('EC', 'es', {
         const y = EC.newYear();
         return Object.assign(y, {
             country: 'US',
-            sueldo: 5000,               // gross pay per month
+            sueldo: 5000,               // gross pay per month (with hourly pay: the base pay, kept in sync)
+            payType: 'salary',          // 'salary' | 'hourly'
+            hourly: { rate: 0, hours: 40, otHours: 0, otRate: 1.5, otInBudget: false },   // hours per week
+            bonuses: [],                // [{ id, name, amount, month: '1'…'12', inBudget }] gross, this year
             tasa: 4.0,                  // savings / CD rate (APY %)
             d3: false, d4: false, iessRate: 0, sbu: 0, canasta: 0, sriCapMultiplier: 0, sriBrackets: [],
             cosede: 250000,             // FDIC / NCUA coverage per depositor, per bank, per ownership category
@@ -10149,11 +10152,30 @@ I18n.override('EC', 'es', {
             penaltyRisk: diff < -1000 && withheld < f.tax * 0.9 });
     }
 
+    // US gross pay: a monthly salary, or an hourly rate (hours a week, 52 weeks a year) with its
+    // usual overtime, plus the bonuses expected this year. Taxes are on the whole year; the monthly
+    // budget counts only the pay you can count on (Ramsey): base pay, plus overtime only when the
+    // person says so. Bonuses count in their month only when marked to plan them (bonusForMonth).
+    const WEEKS_PER_MONTH = 52 / 12;
+    function usGrossPay(yd) {
+        const bonusesY = sum((yd.bonuses || []).filter(b => num(b.amount) > 0), b => num(b.amount));
+        if (yd.payType !== 'hourly') {
+            const base = Math.max(0, num(yd.sueldo));
+            return { payType: 'salary', baseM: base, overtimeM: 0, budgetM: base, bonusesY, annual: base * 12 + bonusesY };
+        }
+        const h = yd.hourly || {};
+        const rate = Math.max(0, num(h.rate));
+        const baseM = rate * Math.max(0, num(h.hours)) * WEEKS_PER_MONTH;
+        const overtimeM = rate * (num(h.otRate) || 1.5) * Math.max(0, num(h.otHours)) * WEEKS_PER_MONTH;
+        return { payType: 'hourly', baseM, overtimeM, budgetM: baseM + (h.otInBudget ? overtimeM : 0), bonusesY, annual: (baseM + overtimeM) * 12 + bonusesY };
+    }
+
     function payrollUS(yd, states) {
         const t = yd.usTax || {};
         const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
-        const sueldo = Math.max(0, num(yd.sueldo));
-        const gross = sueldo * 12;
+        const pay = usGrossPay(yd);
+        const sueldo = pay.budgetM;
+        const gross = pay.annual;
         const ded = (yd.payDeductions || []).filter(d => d.pretax && d.group !== 'employer');
         const pretaxRetire = sum(ded.filter(d => d.group === 'retirement' && d.kind !== 'hsa'), d => num(d.monthly)) * 12;
         const pretax125 = sum(ded.filter(d => !(d.group === 'retirement' && d.kind !== 'hsa')), d => num(d.monthly)) * 12;
@@ -10179,16 +10201,21 @@ I18n.override('EC', 'es', {
         const local = localTax(yd, people);
         const localAnnual = Math.max(0, ficaWages - local.exemption * people) * local.rate / 100;
         const incomeTaxAnnual = fedAnnual + stateAnnual + localAnnual;
-        const ficaM = (ssAnnual + medAnnual) / 12;
-        const netoAntesM = Math.max(0, sueldo - ficaM - incomeTaxAnnual / 12);
+        // Taxes are on the whole year; the budget's paycheck carries its share of them (all of
+        // them for a plain salary). Overtime and bonuses outside the budget keep the rest.
+        const share = gross > 0 ? Math.min(1, sueldo * 12 / gross) : 1;
+        const ficaM = (ssAnnual + medAnnual) / 12 * share;
+        const netoAntesM = Math.max(0, sueldo - ficaM - incomeTaxAnnual / 12 * share);
         const otros = payDeductionsSummary(yd).taken;
         return {
-            country: 'US', sueldo, sueldoAnual: gross, status,
-            iessM: ficaM, iessAnual: ssAnnual + medAnnual, ssM: ssAnnual / 12, medM: medAnnual / 12,
-            fedM: fedAnnual / 12, stateM: stateAnnual / 12, localM: localAnnual / 12, localRate: local.rate, localResident: local.resident, stateRate, stateType: st.type,
+            country: 'US', sueldo, sueldoAnual: gross, status, gross: pay, budgetShare: share,
+            // Average tax on every extra dollar of pay (FICA + income tax), for bonuses and overtime.
+            avgTaxRate: gross > 0 ? (ssAnnual + medAnnual + incomeTaxAnnual) / gross : 0,
+            iessM: ficaM, iessAnual: ssAnnual + medAnnual, ssM: ssAnnual / 12 * share, medM: medAnnual / 12 * share,
+            fedM: fedAnnual / 12 * share, stateM: stateAnnual / 12 * share, localM: localAnnual / 12 * share, localRate: local.rate, localResident: local.resident, stateRate, stateType: st.type,
             pretaxM: (pretaxRetire + pretax125) / 12, stdDeduction: std, credits, incomeWages,
             sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied, baseImponible: taxable,
-            isrAnual: incomeTaxAnnual, isrM: incomeTaxAnnual / 12,
+            isrAnual: incomeTaxAnnual, isrM: incomeTaxAnnual / 12 * share,
             netoAntesM, otrosDescuentosM: otros, netoM: Math.max(0, netoAntesM - otros)
         };
     }
@@ -10262,8 +10289,15 @@ I18n.override('EC', 'es', {
 
     // Décimo Tercero (December, one full salary) and Décimo Cuarto (March on the Coast,
     // August in the Sierra, one SBU) — paid on top of the regular net salary.
-    function bonusForMonth(yd, month) {
+    // US: bonuses marked to plan them, in their month, after taxes (the year's average rate).
+    function bonusForMonth(yd, month, pay) {
         if (month === 'base') return 0;
+        if (yd.country === 'US') {
+            const planned = (yd.bonuses || []).filter(b => b.inBudget && String(b.month) === String(month) && num(b.amount) > 0);
+            if (!planned.length) return 0;
+            const rate = (pay && pay.avgTaxRate !== undefined ? pay : payroll(yd)).avgTaxRate;
+            return sum(planned, b => num(b.amount)) * (1 - rate);
+        }
         let bonus = 0;
         if (month === '12' && yd.d3) bonus += Math.max(0, num(yd.sueldo));
         if (month === d4Month(yd) && yd.d4) bonus += num(yd.sbu);
@@ -10323,7 +10357,7 @@ I18n.override('EC', 'es', {
     function monthBudget(yd, month, pay) {
         pay = pay || payroll(yd);
         const items = monthItems(yd, month);
-        const salary = pay.netoM + bonusForMonth(yd, month);
+        const salary = pay.netoM + bonusForMonth(yd, month, pay);
         const other = otherIncome(yd, month);
         const income = salary + other.total;
         const expPrep = sum(items, i => num(i.prep));
@@ -12173,7 +12207,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
