@@ -13,7 +13,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
 1. ✅ **Keyboard hides the field you're typing in** — on Android the page jumps and the field ends up
    off-screen. Let the app shrink when the keyboard opens (Android `adjustResize`), and scroll the focused
    field to the middle of what's visible (`visualViewport`), in pages and in sheets/dialogs.
-2. **Chart values cover the chart** — the tooltip box goes away. A readout line under each chart shows
+2. ✅ **Chart values cover the chart** — the tooltip box goes away. A readout line under each chart shows
    the values of the tapped point; a thin vertical marker on the chart shows where it is.
 3. **Edit a rule** — rules can only be deleted. Tap a rule to edit everything it does (text, name,
    type, category, subcategory, person, income link) with the same form used to create it.

@@ -168,6 +168,7 @@
             const canvas = document.getElementById(canvasId);
             if (!canvas || typeof Chart === 'undefined') return null;
             registerTodayLine();
+            registerActiveLine();
             // Chart text lives in the canvas, outside the page: translate it here.
             if (root.I18n) {
                 const tr = (v) => (typeof v === 'string' ? I18n.t(v) : v);
@@ -186,7 +187,8 @@
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { labels: { font: { family: "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", size: 11 }, boxWidth: 12 } },
-                    tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${Fmt.money(c.parsed.y)}` } }
+                    // Values go in a line under the chart (chartReadout), not in a box over the lines.
+                    tooltip: { enabled: false, external: chartReadout, callbacks: { label: (c) => `${c.dataset.label}: ${Fmt.money(c.parsed.y)}` } }
                 },
                 scales: {
                     x: { ticks: { font: { size: 10 }, maxTicksLimit: 14 }, grid: { display: false } },
@@ -203,6 +205,7 @@
             }
             if (existing) existing.destroy();
             charts[canvasId] = new Chart(canvas.getContext('2d'), { type: config.type, data: config.data, options });
+            if (options.plugins.tooltip.external === chartReadout) readoutFor(canvas);
             return charts[canvasId];
         },
 
@@ -294,6 +297,58 @@
             : `<circle cx="${last[0]}" cy="${last[1]}" r="2.25" fill="${color}"/>`;
         return out + '</svg>';
     };
+
+    // ------------------------------------------------------------- chart readout
+    // Tapping or hovering a chart shows the values of that point in a line under the chart (a box
+    // on top would hide the chart, worst on a phone); a thin vertical line marks the point. The last
+    // values stay until another point is chosen.
+    const escHTML = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    function readoutFor(canvas) {
+        const box = canvas.parentNode;
+        if (!box || !box.parentNode) return null;
+        let out = box.nextElementSibling;
+        if (!out || !out.classList.contains('chart-readout')) {
+            out = document.createElement('div');
+            out.className = 'chart-readout';
+            out.setAttribute('aria-live', 'polite');
+            out.innerHTML = '<span class="chart-readout-hint">Tap the chart to see its values here.</span>';
+            box.parentNode.insertBefore(out, box.nextSibling);
+        }
+        return out;
+    }
+    function chartReadout({ chart, tooltip }) {
+        const out = readoutFor(chart.canvas);
+        if (!out) return;
+        if (!tooltip || tooltip.opacity === 0 || !tooltip.dataPoints || !tooltip.dataPoints.length) return;
+        const title = (tooltip.title || []).join(' ');
+        const lines = (tooltip.body || []).map((b, i) => {
+            const c = (tooltip.labelColors || [])[i] || {};
+            const color = typeof c.backgroundColor === 'string' && c.backgroundColor !== 'transparent' ? c.backgroundColor : c.borderColor;
+            return `<span class="chart-readout-item"><i style="background:${escHTML(color || '#94a3b8')}"></i>${escHTML((b.lines || []).join(' '))}</span>`;
+        }).join('');
+        out.innerHTML = `<span data-i18n-skip class="contents">${title ? `<strong>${escHTML(title)}</strong>` : ''}${lines}</span>`;
+    }
+    UI.chartReadout = chartReadout;
+
+    let activeLineReady = false;
+    function registerActiveLine() {
+        if (activeLineReady || typeof Chart === 'undefined') return;
+        activeLineReady = true;
+        Chart.register({
+            id: 'activeLine',
+            afterDatasetsDraw(chart) {
+                const act = chart.tooltip && chart.tooltip.getActiveElements ? chart.tooltip.getActiveElements() : [];
+                if (!act.length || !chart.scales.x || !chart.chartArea) return;
+                const x = act[0].element.x, { top, bottom } = chart.chartArea, c = chart.ctx;
+                c.save();
+                c.strokeStyle = UI.palette().text2;
+                c.globalAlpha = 0.55;
+                c.lineWidth = 1;
+                c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
+                c.restore();
+            }
+        });
+    }
 
     // A dashed vertical "Hoy" line at a category index: options.plugins.todayLine = { index, label }.
     let todayLineReady = false;
