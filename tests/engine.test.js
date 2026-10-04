@@ -735,6 +735,28 @@ test('US pay: bonuses are taxed with the year; a planned one counts in its month
     assert.ok(E.payroll(unplanned).netoM < E.payroll(usYear({})).netoM);
 });
 
+test('extra paychecks: every 2 weeks gives two months with a 3rd; weekly, four with a 5th', () => {
+    const bi = { freq: 'weekly', weekday: 5, interval: 2, anchor: '2026-01-02' };
+    const p = E.extraPaycheckMonths(bi, 2026);
+    assert.deepEqual([p.usual, p.perYear, p.months.map(m => m.month)], [2, 26, [1, 7]]);
+    assert.deepEqual(p.months[1].dates, ['2026-07-03', '2026-07-17', '2026-07-31']);
+    assert.deepEqual(E.extraPaycheckMonths({ freq: 'weekly', weekday: 5 }, 2026).months.map(m => [m.month, m.count]), [[1, 5], [5, 5], [7, 5], [10, 5]]);
+    assert.equal(E.extraPaycheckMonths({ freq: 'monthly', days: [15, 30] }, 2026), null);   // twice a month: never an extra one
+});
+
+test('budgeting on paychecks: two a month, the 3rd is extra income in its month; the year adds up', () => {
+    const yd = usYear({ budgetOnPaychecks: true, paySchedule: { freq: 'weekly', weekday: 5, interval: 2, anchor: '2026-01-02' }, calYear: 2026 });
+    const pay = E.payroll(yd), each = pay.netoM * 12 / 26;
+    near(E.paycheckSalary(yd, 'base', pay), each * 2, 'the plan: 2 paychecks');
+    near(E.paycheckSalary(yd, '3', pay), each * 2, 'March: 2');
+    near(E.paycheckSalary(yd, '7', pay), each * 3, 'July: 3');
+    let year = 0; for (let m = 1; m <= 12; m++) year += E.monthBudget(yd, String(m), pay).salary;
+    near(year, pay.netoM * 12, 'twelve months = the year');
+    near(E.paycheckSalary(Object.assign({}, yd, { budgetOnPaychecks: false }), '7', pay), pay.netoM, 'off: the year spread evenly');
+    const mv = E.nextMoves({ hasIncome: true, step: 2, extraPaycheck: { label: 'July', amount: 1850, onChecks: true } }, { limit: 5 });
+    assert.ok(mv.some(m => m.key === 'extraPay' && /July brings an extra paycheck/.test(m.title) && /snowball/.test(m.text)));
+});
+
 test('US paycheck: married with two kids; Social Security stops at the wage base', () => {
     near(E.payroll(usYear({ sueldo: 10000, filingStatus: 'mfj', dependents: 2 })).fedM * 12, 5640, 'MFJ with child credits');
     const high = E.payroll(usYear({ sueldo: 20000 }));

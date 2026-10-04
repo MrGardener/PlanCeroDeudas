@@ -179,6 +179,15 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(150);
   ok(await page.evaluate(() => Store.active().payType === 'salary' && !document.getElementById('inc-sueldo').readOnly), 'back to salary: the monthly field is typed again');
   ok(net0 > 0, 'baseline take-home', net0);
+  // Extra paychecks (phase 3): every 2 weeks from the year's first Friday.
+  await page.evaluate(() => { const y = Store.state.activeYear, d = new Date(y, 0, 1); d.setDate(1 + (5 - d.getDay() + 7) % 7); Store.state.settings.paySchedule = { freq: 'weekly', weekday: 5, interval: 2, anchor: Engine.isoDate(d) }; App.changed({ structural: true }); });
+  await page.waitForTimeout(200);
+  const xp = await page.evaluate(() => ({ txt: document.getElementById('pay-extra').textContent.replace(/\s+/g, ' '), months: Engine.extraPaycheckMonths(Store.state.settings.paySchedule, Store.state.activeYear).months.map(m => Fmt.MONTH_NAMES[m.month - 1]) }));
+  ok(xp.months.length >= 2 && /3rd paycheck in/.test(xp.txt) && xp.months.every(m => xp.txt.includes(m)) && /Budget on 2 paychecks a month/.test(xp.txt), 'every 2 weeks: the months with a 3rd paycheck are named', xp);
+  await page.check('#pay-extra input[data-change="pay.onChecks"]');
+  await page.waitForTimeout(200);
+  const oc = await page.evaluate(() => { const yd = Store.effective(Store.state.activeYear), p = Engine.payroll(yd), m = Engine.extraPaycheckMonths(yd.paySchedule, yd.calYear).months[0].month; return { on: Store.active().budgetOnPaychecks, base: Engine.monthBudget(yd, 'base', p).salary, extra: Engine.monthBudget(yd, String(m), p).salary, each: p.netoM * 12 / 26, toast: [...document.querySelectorAll('.toast')].map(t => t.textContent).join('|') }; });
+  ok(oc.on && Math.abs(oc.base - oc.each * 2) < 0.01 && Math.abs(oc.extra - oc.each * 3) < 0.01 && /Budgeting on your paychecks/.test(oc.toast), 'budget on 2 paychecks: the plan has 2, the extra month 3', oc);
   // Refund or owe (example family): a refund now; less withholding → owe, with the W-4 fix.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
   await page.waitForTimeout(200);

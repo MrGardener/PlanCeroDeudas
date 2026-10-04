@@ -207,7 +207,10 @@
                 country: (this.state.settings && this.state.settings.country) || COUNTRY,
                 budgetBase: (yd.budgetBase || []).concat(rows),
                 monthOverrides: overrides,
-                receivedIncome: Engine.receivedIncome(this.state.transactions, y)
+                receivedIncome: Engine.receivedIncome(this.state.transactions, y),
+                // For paycheck-based budgets (Engine.paycheckSalary): how and when you're paid.
+                paySchedule: (this.state.settings && this.state.settings.paySchedule) || null,
+                calYear: y
             });
         },
 
