@@ -2,9 +2,15 @@
   "name": "plan-cero-deudas",
   "version": "2.0.0",
   "private": true,
-  "description": "Plan Financiero Ecuador: presupuesto base cero, deudas, DPF, jubilación y patrimonio.",
+  "description": "Plan Financiero Ecuador: presupuesto base cero, deudas, DPF, jubilaci\u00f3n y patrimonio.",
   "scripts": {
-    "test": "node --test",
-    "build": "node scripts/build.js"
+    "test": "node --test tests/*.test.js",
+    "build": "node scripts/build.js",
+    "build:mobile": "cd mobile && node build-www.js",
+    "e2e": "node tests/e2e/run.js",
+    "check": "npm run build && npm test && npm run build:mobile && npm run e2e"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
   }
 }

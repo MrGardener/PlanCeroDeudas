@@ -21,17 +21,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm test
-
+  # Tests run in tests.yml; the phone builds don't wait for them.
   android:
-    needs: tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -62,7 +53,6 @@ jobs:
           retention-days: 30
 
   ios:
-    needs: tests
     runs-on: macos-latest
     defaults:
       run:

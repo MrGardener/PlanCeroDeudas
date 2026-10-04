@@ -1,0 +1,44 @@
+# Every push and pull request: unit tests, the built files are current, and the browser suites
+# (both editions in a real Chromium, the phone build, and the leftover-Spanish scans).
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: mobile
+      - name: Unit tests (and dist/ is up to date)
+        run: npm test
+      - name: Phone build
+        run: npm run build:mobile
+      - name: Chromium for the browser suites
+        run: npx playwright install --with-deps chromium
+      - name: Browser suites
+        run: npm run e2e
+      - name: Screenshots and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-output
+          path: tests/e2e/out/
+          retention-days: 7

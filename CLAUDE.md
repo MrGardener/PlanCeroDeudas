@@ -1,0 +1,75 @@
+# PlanCeroDeudas — notes for working on this repo
+
+Dave Ramsey–style budgeting app (Baby Steps, zero-based budget, debt snowball). One codebase,
+two editions:
+- **ZeroDebtPlan (US)** — the main focus. English by default, Spanish switch. All states,
+  Michigan first. Built to `dist/zerodebtplan-usa.html` and the phone app (`mobile/`).
+- **Plan Financiero Ecuador** — Spanish, English switch. Built to `dist/plan-financiero-ecuador.html`.
+  Maintenance mode: bug fixes and Ecuador-only features (SRI, IESS) when asked.
+
+Plain HTML/CSS/JS, no framework, no server. Everything runs in the browser; data stays on the device.
+
+## Layout
+- `index.html` — all markup. `css/app.css` — styles (Tailwind CDN for utility classes).
+- `js/engine.js` — pure calculations (taxes, debts, budgets, forecasts…), unit-tested in Node.
+- `js/categorize.js` — reads bank/card statement lines (clean names, direction, MCC codes, guesses).
+- `js/importers.js` — CSV/OFX/SRI XML parsing, rules, duplicates. `js/store.js` — state, saving, migrations.
+- `js/defaults.js` (Ecuador) / `js/defaults-us.js` (US) — country packs: taxonomy, tax tables, new-state shape.
+- `js/sample.js` — the example families (US: the Millers, Grand Rapids; Ecuador). Deterministic.
+- `js/views/*.js` — one file per screen or card. `js/ui/core.js` — UI helpers. `js/app.js` — routing, undo.
+- `js/i18n.js` + `js/i18n/en.js` (+ `us.js`) — translation (see below).
+- `mobile/` — Capacitor app; `mobile/build-www.js` builds `mobile/www` (offline, US edition).
+- `tests/*.test.js` — unit tests (node:test). `tests/e2e/` — browser suites (Playwright). `tests/fixtures/` — invented test files.
+- `docs/ROADMAP.md` — feature log and plans. `docs/MOBILE.md` — phone app build/install.
+
+## Commands
+```
+npm ci && (cd mobile && npm ci)   # once per machine
+npm run build                     # writes dist/ (tests fail if dist/ is stale)
+npm test                          # unit tests (fast; run often)
+npm run build:mobile              # phone build (must run from mobile/ — the script does that)
+npm run e2e                       # all browser suites (~4 min); `node tests/e2e/run.js us` runs matching ones
+npm run check                     # all of the above, before pushing
+```
+CI (`.github/workflows/tests.yml`) runs the same on every push; `mobile.yml` builds the Android APK.
+While developing, run `npm test` and the one suite you touched; run `npm run check` before pushing.
+
+## Conventions
+- Match the surrounding code: small functions, comments that say *why*, no new dependencies.
+- New UI: `App.defineView`, `UI.register({ 'name.action': (el, e) => … })`, `data-action`/`data-change`/`data-input`.
+- Changes that should be undoable go through `App.undoable(msg, fn)`; then `App.changed({ structural, step })`.
+- New state keys: add them to `newState()` in `js/defaults.js` (the sample test checks the shape).
+- Engine functions are pure and get a unit test in `tests/engine.test.js`.
+- Category / type / payment names in data are **Spanish identifiers** (`'Gasto'`, `'Alimentación'`,
+  `'Sueldo/Salario'`). They are saved in people's data: never rename them; they're shown translated.
+
+## Translation (current state — will change, see "Plan")
+- Spanish is the source text in the code; `js/i18n/en.js` maps Spanish → English at runtime
+  (`I18n.add('en', {...})`). `tests/i18n.test.js` fails when a Spanish text has no English entry.
+- `${…}` in a template becomes `{0}`, `{1}`… in the key. Plurals: `transacci${n===1?'ón':'ones'}` and
+  in English `{1|s}` prints "s" only when that piece is non-empty.
+- Avoid several placeholders side by side (`{2}{3}`): matching becomes ambiguous. Build messages from
+  short sentences and translate each (`parts.map(I18n.t).join(' · ')`).
+- The runtime splits text on " · " and " + "; a `<strong>` inside a sentence splits it into pieces.
+- `data-i18n-skip` leaves an element alone (names people typed). Attributes translated: placeholder,
+  title, aria-label, data-label. `<textarea>` is not translated.
+- Regex literals with `'` confuse the extractor: write `\x27`.
+
+## Privacy rules (always)
+- Files people import (CSV/OFX/XML/photo/PDF) are read in memory and never stored.
+- Never commit real personal or bank data — not in fixtures, tests, comments, docs or screenshots.
+  Test data is invented. Screenshots go to `tests/e2e/out/` (ignored).
+- Pay stubs keep only labels and amounts. `settings.priceKey` is never in backups.
+- Device settings (theme, language, PIN) live apart from the budget: not in backups, not undoable.
+
+## Workflow
+- `main` is releasable. One short branch per feature or batch; open a PR; merge when CI is green.
+- Each finished feature: a row in `docs/ROADMAP.md` (short), then commit and push.
+- Log anything that can't be done now in `docs/ROADMAP.md`.
+
+## Plan (agreed 2026-10-04)
+1. ✅ Tests in the repo + CI, this file, PR #1 merged.
+2. Flip the source language to English: a script inverts `en.js` into `es.js`, English text goes in the
+   code; Spanish identifiers in data stay. One-time; verified by all suites.
+3. Then: new work in English only; Spanish catches up in batches (`npm run i18n:missing` lists what's
+   pending). The Ecuador edition may show some English between batches.
