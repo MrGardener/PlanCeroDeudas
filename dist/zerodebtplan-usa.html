@@ -5366,6 +5366,9 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Edit rule": "Editar regla",
+    "Rule updated": "Regla actualizada",
+    "{0} › {1} (income)": "{0} › {1} (ingreso)",
     "Tap the chart to see its values here.": "Toca el gráfico para ver sus valores aquí.",
     "Bonus": "Bono",
     "Leave it unchecked if overtime comes and goes.": "Déjalo sin marcar si las horas extra van y vienen.",
@@ -13759,7 +13762,10 @@ I18n.override('EC', 'es', {
             out = document.createElement('div');
             out.className = 'chart-readout';
             out.setAttribute('aria-live', 'polite');
-            out.innerHTML = '<span class="chart-readout-hint">Tap the chart to see its values here.</span>';
+            const hint = document.createElement('span');
+            hint.className = 'chart-readout-hint';
+            hint.textContent = 'Tap the chart to see its values here.';
+            out.appendChild(hint);
             box.parentNode.insertBefore(out, box.nextSibling);
         }
         return out;
@@ -19010,7 +19016,7 @@ I18n.override('EC', 'es', {
                 <td>${r.rename ? esc(r.rename) : '<span class="text-slate-400">—</span>'}</td>
                 <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">${esc(((Store.state.members || []).find(p => p.id === r.memberId) || {}).name || '')}'s</div>` : ''}</td>
                 <td class="text-xs">${r.budgetLine ? esc(lineName(r.budgetLine)) : '<span class="text-slate-400">Automatic</span>'}</td>
-                <td class="text-center"><button class="row-del" data-action="rule.delete" data-id="${r.id}" title="Delete rule" aria-label="Delete rule"><i class="fa-solid fa-trash-can"></i></button></td>
+                <td class="text-center whitespace-nowrap"><button class="row-edit" data-action="rule.edit" data-id="${r.id}" title="Edit rule" aria-label="Edit rule"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="rule.delete" data-id="${r.id}" title="Delete rule" aria-label="Delete rule"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`).join('') : '<tr class="empty-row"><td colspan="5">No rules. Example: if it contains “SQ *COZ” → it\'s called “Cozy Coffee”, category Food.</td></tr>');
     }
 
@@ -19346,6 +19352,46 @@ I18n.override('EC', 'es', {
             if (session) recompute();
             App.changed({ structural: true, step: true });
             UI.toast(`Rule created${fixed ? `  and applied to ${fixed} transaction${fixed === 1 ? '' : 's'}` : ''}.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
+        },
+        // Change any part of a rule (a typo in the text, the wrong category, person or line).
+        'rule.edit': async (el) => {
+            const rule = (Store.state.rules || []).find(r => String(r.id) === el.dataset.id);
+            if (!rule) return;
+            const kinds = [['G', expenseTax(), ''], ['I', incomeTax(), ' (income)']];
+            const cats = [{ value: 'T||', label: 'Transfer between accounts' }].concat(...kinds.map(([k, tax, tag]) => Object.keys(tax).flatMap(c => [{ value: `${k}|${c}|`, label: c + tag }].concat((tax[c] || []).map(sub => ({ value: `${k}|${c}|${sub}`, label: `${c} › ${sub}${tag}` }))))));
+            const kind = rule.type === 'Transferencia' ? 'T' : (rule.type === 'Ingreso' || incomeTax()[rule.category]) ? 'I' : 'G';
+            const cur = kind === 'T' ? 'T||' : `${kind}|${rule.category}|${rule.sub || ''}`;
+            const items = Engine.monthItems(Store.effective(Store.state.activeYear), 'base');
+            const members = Store.state.members || [];
+            const r = await UI.form({
+                title: 'Edit rule',
+                fields: [
+                    { name: 'contains', label: 'If the description or place contains…', value: rule.contains },
+                    { name: 'rename', label: 'Rename to (optional)', value: rule.rename || '' },
+                    { name: 'cat', label: 'Category', options: cats, value: cats.some(c => c.value === cur) ? cur : `${kind}|${rule.category}|` },
+                    { name: 'member', label: 'Whose', options: [{ value: '', label: '—' }].concat(members.map(p => ({ value: String(p.id), label: p.name }))), value: rule.memberId ? String(rule.memberId) : '' },
+                    { name: 'line', label: 'And count it in the line (optional)', options: [{ value: '', label: 'Automatic (by category)' }].concat(items.map(i => ({ value: String(i.id), label: i.name }))), value: rule.budgetLine ? String(rule.budgetLine) : '' }
+                ],
+                confirmText: 'Save',
+                validate: v => v.contains.trim().length < 2 ? 'Type at least 2 letters.' : null
+            });
+            if (!r) return;
+            App.undoable('Rule updated', () => {
+                const [k, cat, sub] = r.cat.split('|');
+                rule.contains = r.contains.trim().slice(0, 60);
+                if (r.rename.trim()) rule.rename = r.rename.trim().slice(0, 80); else delete rule.rename;
+                if (k === 'T') { rule.type = 'Transferencia'; rule.category = ''; delete rule.sub; }
+                else {
+                    rule.type = k === 'I' ? 'Ingreso' : 'Gasto';
+                    rule.category = cat;
+                    if (sub) rule.sub = sub; else delete rule.sub;
+                }
+                // Income links only make sense for income.
+                if (k !== 'I') { delete rule.incomeMode; delete rule.incomeId; }
+                if (r.member) rule.memberId = Number(r.member); else delete rule.memberId;
+                if (r.line) rule.budgetLine = r.line; else delete rule.budgetLine;
+            });
+            if (session) recompute();
         },
         'rule.delete': (el) => {
             const id = Number(el.dataset.id);
