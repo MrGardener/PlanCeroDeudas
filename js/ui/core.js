@@ -349,5 +349,30 @@
         return out;
     }
 
+    // Phones: the on-screen keyboard takes half the screen. Keep the field being typed in visible
+    // (scrolled to the middle of what's left, in the page or inside a sheet) and hide the bottom
+    // bar and the + button meanwhile, so they don't sit on top of the form.
+    const typing = (el) => el && (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || (el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'file', 'range', 'color'].includes(el.type)));
+    function keepFocusedVisible() {
+        const el = document.activeElement;
+        if (!typing(el)) return;
+        const vv = root.visualViewport, top = vv ? vv.offsetTop : 0, h = vv ? vv.height : root.innerHeight;
+        const r = el.getBoundingClientRect();
+        if (r.top < top + 12 || r.bottom > top + h - 12) el.scrollIntoView({ block: 'center', inline: 'nearest' });
+    }
+    if (typeof document !== 'undefined') {
+        const touch = () => root.matchMedia && root.matchMedia('(pointer: coarse)').matches;
+        document.addEventListener('focusin', (e) => {
+            if (!typing(e.target)) return;
+            if (touch()) document.documentElement.classList.add('kb-open');
+            // Once the keyboard has opened (and again when it finishes resizing the screen).
+            setTimeout(keepFocusedVisible, 350);
+        });
+        document.addEventListener('focusout', () => setTimeout(() => { if (!typing(document.activeElement)) document.documentElement.classList.remove('kb-open'); }, 100));
+        if (root.visualViewport) root.visualViewport.addEventListener('resize', () => setTimeout(keepFocusedVisible, 50));
+        else root.addEventListener('resize', () => setTimeout(keepFocusedVisible, 50));
+    }
+    UI.keepFocusedVisible = keepFocusedVisible;
+
     root.UI = UI;
 })(this);

@@ -771,3 +771,8 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
     .table-cards-wrap.tall { max-height: none; }
     .table-cards td.c-check { grid-column: 1 / -1; display: flex; justify-content: flex-start; }
 }
+
+/* Phones: while the on-screen keyboard is open (a field has focus), the bottom bar and the + button
+   step aside so they don't cover the form (js/ui/core.js adds .kb-open). */
+html.kb-open .main-nav, html.kb-open .fab { display: none !important; }
+html.kb-open.is-native body { padding-bottom: 0; }
