@@ -5,7 +5,7 @@
 (function () {
     'use strict';
     const { money0, esc } = Fmt;
-    const LABELS = { us: 'Acciones de EE.UU.', intl: 'Acciones internacionales', bonds: 'Bonos', cash: 'Efectivo / mercado monetario', other: 'Otro (cripto, oro…)' };
+    const LABELS = { us: 'Acciones de EE.UU.', intl: 'Acciones internacionales', bonds: 'Bonos (renta fija)', cash: 'Efectivo / mercado monetario', other: 'Otro (cripto, oro…)' };
     const ui = () => (Store.ui.mix || (Store.ui.mix = { newMoney: 500 }));
 
     function presets() {

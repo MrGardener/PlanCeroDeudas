@@ -101,7 +101,7 @@
         el.innerHTML = `
             <form class="lock-box" autocomplete="off">
                 <div class="brand-logo mx-auto mb-3"><i class="fa-solid fa-lock"></i></div>
-                <div class="lock-title">Plan Financiero Ecuador</div>
+                <div class="lock-title" data-i18n-skip>${(root.APP_EDITION && APP_EDITION.appName) || 'Plan Financiero Ecuador'}</div>
                 <p class="lock-sub">Escribe tu PIN para entrar.</p>
                 <input id="lock-pin" class="lock-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" aria-label="PIN" autofocus>
                 <p id="lock-msg" class="lock-msg" role="alert"></p>
@@ -109,11 +109,15 @@
                 <button type="button" class="lock-forgot" id="lock-forgot">Olvidé mi PIN</button>
             </form>`;
         document.body.appendChild(el);
+        // Shown before the app starts translating the page: translate it here, in the device's language.
+        const tr = (node) => { if (root.I18n && I18n.apply) { applyLang(); I18n.apply(node); } };
+        tr(el);
         const input = el.querySelector('#lock-pin'), msg = el.querySelector('#lock-msg');
+        const say = (text) => { msg.textContent = root.I18n ? I18n.t(text) : text; };
         setTimeout(() => input.focus(), 30);
         el.querySelector('form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (Date.now() < waitUntil) { msg.textContent = `Demasiados intentos. Espera ${Math.ceil((waitUntil - Date.now()) / 1000)} segundos.`; return; }
+            if (Date.now() < waitUntil) { say(`Demasiados intentos. Espera ${Math.ceil((waitUntil - Date.now()) / 1000)} segundos.`); return; }
             const lock = read().lock;
             if (lock && await hashPin(input.value, lock.salt) === lock.hash) {
                 tries = 0;
@@ -124,8 +128,8 @@
             }
             tries++;
             input.value = '';
-            if (tries >= MAX_TRIES) { tries = 0; waitUntil = Date.now() + WAIT_MS; msg.textContent = 'PIN incorrecto. Espera 30 segundos para volver a intentar.'; }
-            else msg.textContent = `PIN incorrecto. Te quedan ${MAX_TRIES - tries} intentos.`;
+            if (tries >= MAX_TRIES) { tries = 0; waitUntil = Date.now() + WAIT_MS; say('PIN incorrecto. Espera 30 segundos para volver a intentar.'); }
+            else say(`PIN incorrecto. Te quedan ${MAX_TRIES - tries} intentos.`);
             input.focus();
         });
         el.querySelector('#lock-forgot').addEventListener('click', () => {
@@ -137,6 +141,7 @@
                 <p class="lock-sub">El PIN no se puede recuperar. Para volver a entrar hay que <b>borrar los datos de este navegador</b>. Después puedes cargar tu copia de respaldo (.json) desde Configuración.</p>
                 <button type="button" class="btn btn-danger w-full justify-center mt-3" id="lock-wipe">Borrar los datos y quitar el PIN</button>
                 <button type="button" class="lock-forgot" id="lock-back">Volver</button>`;
+            tr(box);
             box.querySelector('#lock-back').addEventListener('click', () => { el.remove(); showLock(); });
             box.querySelector('#lock-wipe').addEventListener('click', () => {
                 const d = read(); delete d.lock; write(d);

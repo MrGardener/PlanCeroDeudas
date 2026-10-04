@@ -636,6 +636,7 @@
             const tax = taxonomyFor(get('txn-type').value);
             if (!tax[rule.category]) return;
             fillCategorySelects(rule.category);
+            if (rule.sub && (tax[rule.category] || []).includes(rule.sub)) { get('txn-sub').value = rule.sub; payrollHint(); }
             if (rule.budgetLine && get('txn-type').value !== 'Ingreso') fillLineSelect(rule.budgetLine);
             if (rule.rename) get('txn-description').value = rule.rename;
             UI.toast(`Regla «${rule.contains}»: ${rule.rename ? `«${rule.rename}», ` : ''}categoría ${rule.category}.`);

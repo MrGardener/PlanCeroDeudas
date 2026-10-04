@@ -761,3 +761,13 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
     .table-cards tr.empty-row { display: block; padding: 0; border: 0; background: none; }
     .table-cards tr.empty-row td { display: block; }
 }
+
+/* Import review: type, category and subcategory side by side; one row per income stream. */
+.imp-cat-grid { display: grid; grid-template-columns: 7rem minmax(0, 1fr) minmax(0, 1fr); gap: .3rem; }
+.imp-stream { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, .8fr); gap: .5rem; align-items: center; padding: .5rem .6rem; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+@media (max-width: 639px) {
+    .imp-cat-grid { grid-template-columns: 1fr; }
+    .imp-stream { grid-template-columns: 1fr; }
+    .table-cards-wrap.tall { max-height: none; }
+    .table-cards td.c-check { grid-column: 1 / -1; display: flex; justify-content: flex-start; }
+}

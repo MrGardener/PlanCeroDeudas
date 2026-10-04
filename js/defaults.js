@@ -54,7 +54,7 @@
         'Deudas': ['Tarjeta de Crédito', 'Préstamo Personal', 'Préstamo Vehicular', 'Préstamo Estudiantil', 'Préstamos entre Familiares'],
         'Seguros y Protección': ['Seguro de Vida', 'Seguro de Vida de Deudor'],
         'Financiero y Legal': ['Comisiones Bancarias', 'Trámites Legales/Notaría', 'Asesoría Contable/Tributaria', 'Multas y Trámites Municipales'],
-        'Ahorro e Inversión': ['Aporte DPF', 'Fondo de Emergencia', 'Aporte a Metas', 'Aporte Voluntario IESS'],
+        'Ahorro e Inversión': ['Aporte DPF', 'Fondo de Emergencia', 'Aporte a Metas', 'Aporte Voluntario IESS', 'Inversiones (bolsa)'],
         'Viajes y Vacaciones': ['Vuelos', 'Hospedaje', 'Alquiler de Auto de Viaje', 'Seguro de Viaje', 'Pasaportes/Visas', 'Equipaje'],
         'Regalos, Celebraciones y Donaciones': ['Regalos de Cumpleaños', 'Regalos Navideños/Bodas/Baby Showers', 'Diezmo/Donaciones Religiosas', 'Donaciones Benéficas', 'Fiestas/Celebraciones'],
         'Remesas y Ayuda Familiar': ['Remesa Enviada al Exterior', 'Ayuda Económica a Familiares'],

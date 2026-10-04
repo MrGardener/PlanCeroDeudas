@@ -523,12 +523,12 @@
                 <label class="field" id="txn-sub-field"><span class="field-label"><span>Subcategoría</span><button type="button" class="mini-btn" data-action="txn.addSub">+ Nueva</button></span>
                     <select id="txn-sub" class="input" data-change="txn.subChanged"></select>
                     <span id="txn-payroll-hint" class="help text-amber-700 hidden">Tu sueldo ya se cuenta desde "Tu Sueldo", así que esto no se suma a tu presupuesto. Si es un ingreso extra (ventas, trabajos), elige otra categoría.</span></label>
-                <label class="field" id="txn-line-field"><span class="field-label">Rubro del presupuesto</span>
+                <label class="field" id="txn-line-field"><span class="field-label">Rubro del presupuesto (opcional)</span>
                     <select id="txn-line" class="input"></select>
-                    <span class="help">En qué rubro de tu presupuesto cuenta este gasto. "Automático" usa el primer rubro vinculado a su categoría.</span></label>
-                <label class="field hidden" id="txn-income-field"><span class="field-label">¿Es de un ingreso de tu presupuesto?</span>
+                    <span class="help">Déjalo en «Automático»: el gasto cuenta en el rubro de su categoría. Elige otro solo si quieres que cuente en un rubro distinto.</span></label>
+                <label class="field hidden" id="txn-income-field"><span class="field-label">¿Es de un ingreso de tu presupuesto? (opcional)</span>
                     <select id="txn-income" class="input"></select>
-                    <span class="help">Elígelo si este dinero es lo que esperabas de un ingreso mensual (así se marca como recibido). Si no, cuenta como ingreso extra del mes.</span></label>
+                    <span class="help">Solo si este dinero es un ingreso que planeaste cada mes (por ejemplo, el sueldo de tu pareja): así se marca como recibido. Si no, déjalo en «No» y cuenta como ingreso extra. Tu sueldo principal no hace falta: ya cuenta desde «Tu sueldo».</span></label>
                 <label class="field hidden" id="txn-member-field"><span class="field-label">¿Quién?</span>
                     <select id="txn-member" class="input"></select></label>
                 <label class="field" id="txn-payment-field"><span class="field-label">Forma de pago</span>
@@ -692,8 +692,10 @@
                 </div>
             </div>
             <div class="mb-3 hidden" id="imp-ofx-account"></div>
+            <div class="mb-3" id="imp-streams"></div>
+            <div class="mb-3" id="imp-suggest"></div>
             <div class="panel tone-slate mb-3" id="imp-bulk"></div>
-            <div class="table-wrap tall"><table class="table"><thead><tr><th class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggleAll" id="imp-all" checked aria-label="Todas"></th><th>Fecha</th><th>Descripción</th><th>Categoría</th><th class="num">Monto</th><th>Estado</th></tr></thead><tbody id="imp-rows"></tbody></table></div>
+            <div class="table-wrap table-cards-wrap tall"><table class="table table-cards"><thead><tr><th class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggleAll" id="imp-all" checked aria-label="Todas"></th><th>Fecha</th><th>Descripción</th><th style="min-width:13rem">Tipo y categoría</th><th>¿De quién?</th><th class="num">Monto</th><th>Estado</th></tr></thead><tbody id="imp-rows"></tbody></table></div>
         </div>
 
         <div class="card" id="imp-rules-card">
@@ -1613,6 +1615,7 @@
 <script src="js/sample.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/importers.js"></script>
+<script src="js/categorize.js"></script>
 <script src="js/store.js"></script>
 <script src="js/ui/core.js"></script>
 <script src="js/app.js"></script>

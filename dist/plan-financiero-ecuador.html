@@ -782,6 +782,16 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
     .table-cards tr.empty-row { display: block; padding: 0; border: 0; background: none; }
     .table-cards tr.empty-row td { display: block; }
 }
+
+/* Import review: type, category and subcategory side by side; one row per income stream. */
+.imp-cat-grid { display: grid; grid-template-columns: 7rem minmax(0, 1fr) minmax(0, 1fr); gap: .3rem; }
+.imp-stream { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, .8fr); gap: .5rem; align-items: center; padding: .5rem .6rem; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+@media (max-width: 639px) {
+    .imp-cat-grid { grid-template-columns: 1fr; }
+    .imp-stream { grid-template-columns: 1fr; }
+    .table-cards-wrap.tall { max-height: none; }
+    .table-cards td.c-check { grid-column: 1 / -1; display: flex; justify-content: flex-start; }
+}
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -1287,12 +1297,12 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 <label class="field" id="txn-sub-field"><span class="field-label"><span>Subcategoría</span><button type="button" class="mini-btn" data-action="txn.addSub">+ Nueva</button></span>
                     <select id="txn-sub" class="input" data-change="txn.subChanged"></select>
                     <span id="txn-payroll-hint" class="help text-amber-700 hidden">Tu sueldo ya se cuenta desde "Tu Sueldo", así que esto no se suma a tu presupuesto. Si es un ingreso extra (ventas, trabajos), elige otra categoría.</span></label>
-                <label class="field" id="txn-line-field"><span class="field-label">Rubro del presupuesto</span>
+                <label class="field" id="txn-line-field"><span class="field-label">Rubro del presupuesto (opcional)</span>
                     <select id="txn-line" class="input"></select>
-                    <span class="help">En qué rubro de tu presupuesto cuenta este gasto. "Automático" usa el primer rubro vinculado a su categoría.</span></label>
-                <label class="field hidden" id="txn-income-field"><span class="field-label">¿Es de un ingreso de tu presupuesto?</span>
+                    <span class="help">Déjalo en «Automático»: el gasto cuenta en el rubro de su categoría. Elige otro solo si quieres que cuente en un rubro distinto.</span></label>
+                <label class="field hidden" id="txn-income-field"><span class="field-label">¿Es de un ingreso de tu presupuesto? (opcional)</span>
                     <select id="txn-income" class="input"></select>
-                    <span class="help">Elígelo si este dinero es lo que esperabas de un ingreso mensual (así se marca como recibido). Si no, cuenta como ingreso extra del mes.</span></label>
+                    <span class="help">Solo si este dinero es un ingreso que planeaste cada mes (por ejemplo, el sueldo de tu pareja): así se marca como recibido. Si no, déjalo en «No» y cuenta como ingreso extra. Tu sueldo principal no hace falta: ya cuenta desde «Tu sueldo».</span></label>
                 <label class="field hidden" id="txn-member-field"><span class="field-label">¿Quién?</span>
                     <select id="txn-member" class="input"></select></label>
                 <label class="field" id="txn-payment-field"><span class="field-label">Forma de pago</span>
@@ -1456,8 +1466,10 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 </div>
             </div>
             <div class="mb-3 hidden" id="imp-ofx-account"></div>
+            <div class="mb-3" id="imp-streams"></div>
+            <div class="mb-3" id="imp-suggest"></div>
             <div class="panel tone-slate mb-3" id="imp-bulk"></div>
-            <div class="table-wrap tall"><table class="table"><thead><tr><th class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggleAll" id="imp-all" checked aria-label="Todas"></th><th>Fecha</th><th>Descripción</th><th>Categoría</th><th class="num">Monto</th><th>Estado</th></tr></thead><tbody id="imp-rows"></tbody></table></div>
+            <div class="table-wrap table-cards-wrap tall"><table class="table table-cards"><thead><tr><th class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggleAll" id="imp-all" checked aria-label="Todas"></th><th>Fecha</th><th>Descripción</th><th style="min-width:13rem">Tipo y categoría</th><th>¿De quién?</th><th class="num">Monto</th><th>Estado</th></tr></thead><tbody id="imp-rows"></tbody></table></div>
         </div>
 
         <div class="card" id="imp-rules-card">
@@ -3997,7 +4009,6 @@ I18n.add('en', {
 "{0} menos": "{0} less",
 "{0} meses": "{0} months",
 "{0} meses de gastos esenciales cubiertos": "{0} months of essential expenses covered",
-"{0} movimiento{1} importado{2}{3}.{4}{5} Revísalos en Transacciones.": "{0} transaction{1|s} imported{3}.{4}{5} Review them in Transactions.",
 "{0} más": "{0} more",
 "{0} no {1} dinero asignado en tu presupuesto. {2}": "{0} {1} no money assigned in your budget. {2}",
 "tiene": "has", "tienen": "have",
@@ -4198,7 +4209,8 @@ I18n.add('en', {
 "Apariencia": "Appearance", "Aportado acumulado": "Total contributed", "Aporte DPF": "Savings deposit", "Aporte Voluntario IESS": "Voluntary Pension Contribution", "Aporte extra simulado": "Simulated extra contribution",
 "Aporte personal IESS (%)": "IESS personal contribution (%)", "Arriba van": "Above are", "Arriendo": "Rent", "Arriendo / Hipoteca": "Rent / Mortgage", "Auto": "Auto",
 "Avalancha": "Avalanche", "Avalancha:": "Avalanche:", "Ayuda": "Help", "Banco Central": "Central Bank", "Base imponible anual": "Annual taxable income",
-"Baseline creado": "Baseline created", "Baseline eliminado": "Baseline deleted", "Bloquear ahora": "Lock now", "Boliviano (BOB)": "Boliviano (BOB)", "Bonos": "Bonds",
+"Baseline creado": "Baseline created", "Baseline eliminado": "Baseline deleted", "Bloquear ahora": "Lock now", "Boliviano (BOB)": "Boliviano (BOB)", "Bonos": "Bonuses",
+    "Bonos (renta fija)": "Bonds",
 "Borrar": "Erase", "Buscar transacciones": "Search transactions", "Cabe": "Fits", "Cable/TV": "Cable/TV", "Cambiar PIN": "Change PIN",
 "Cambiar nombre": "Rename", "Cambiar tema": "Change theme", "Cambio deshecho": "Change undone", "Cambio rehecho": "Change redone", "Cantidad": "Quantity",
 "Capital (": "Principal (", "Cargar copia": "Load backup", "Casa Principal": "Main Home", "Cerrar": "Close", "Cine": "Movies",
@@ -5168,7 +5180,70 @@ I18n.add('en', {
     "No se pudo borrar todo": "Couldn't erase everything",
     "Algunos datos siguen guardados. Cierra y vuelve a abrir la app, e inténtalo otra vez.": "Some data is still saved. Close and reopen the app, then try again.",
     "Tus datos fueron borrados": "Your data has been erased",
-    "Se borraron de este dispositivo tu presupuesto, transacciones, deudas, metas, pólizas, cuentas, inversiones y activos. Tu idioma, tema y PIN se mantienen. Si fue un error, toca Deshacer arriba antes de cerrar la app.": "Your budget, transactions, debts, goals, CDs, accounts, investments and assets were erased from this device. Your language, theme and PIN stay. If it was a mistake, tap Undo at the top before closing the app."
+    "Se borraron de este dispositivo tu presupuesto, transacciones, deudas, metas, pólizas, cuentas, inversiones y activos. Tu idioma, tema y PIN se mantienen. Si fue un error, toca Deshacer arriba antes de cerrar la app.": "Your budget, transactions, debts, goals, CDs, accounts, investments and assets were erased from this device. Your language, theme and PIN stay. If it was a mistake, tap Undo at the top before closing the app.",
+    "Demasiados intentos. Espera {0} segundos.": "Too many tries. Wait {0} seconds.",
+    "PIN incorrecto. Te quedan {0} intentos.": "Wrong PIN. {0} tries left.",
+    "Propinas": "Tips",
+    "Intereses": "Interest",
+    "401(k) / IRA": "401(k) / IRA",
+    "+ Agregar persona…": "+ Add a person…",
+    "Al importar se guardan las marcadas: la próxima vez esos nombres se categorizan solos. Cambia la categoría en una fila y la regla sigue tu cambio.": "The checked ones are saved when you import: next time those names are categorized on their own. Change the category on a row and the rule follows your change.",
+    "Alguien de tu hogar que recibe o gasta dinero (aparece en Configuración → Tu hogar).": "Someone in your household who earns or spends money (shown in Settings → Your household).",
+    "Cheque n.º {0}: ¿para qué fue?": "Check #{0}: what was it for?",
+    "Como los otros movimientos de {0}": "Like the other transactions from {0}",
+    "De quién": "Whose",
+    "Depósito de un cheque: ¿de qué es?": "Check deposit: what is it from?",
+    "Depósitos regulares de la misma empresa: parece un sueldo": "Regular deposits from the same company: looks like a paycheck",
+    "Dinero que llega de otra cuenta tuya": "Money coming from another account of yours",
+    "Dinero que pasas a otra cuenta": "Money you move to another account",
+    "Elegido por ti": "Chosen by you",
+    "Entrada de dinero: ¿de qué es?": "Money in: what is it from?",
+    "Entre tus cuentas: no es gasto ni ingreso": "Between your accounts: neither spending nor income",
+    "Ingreso del presupuesto: {0}": "Budget income: {0}",
+    "Ingreso extra (no planeado cada mes)": "Extra income (not planned every month)",
+    "Ingreso: {0}": "Income: {0}",
+    "Mi sueldo principal (ya está en «Tu sueldo»)": "My main paycheck (already in «Your salary»)",
+    "Nuevo ingreso del presupuesto: {0}": "New budget income: {0}",
+    "Nuevo ingreso en mi presupuesto: «{0}»": "New income in my budget: «{0}»",
+    "Pago de tarjeta de crédito": "Credit card payment",
+    "Pago de tarjeta o movimiento entre tus cuentas": "Card payment or a move between your accounts",
+    "Por el nombre del comercio": "From the store's name",
+    "Por el tipo de comercio (código {0})": "From the kind of business (code {0})",
+    "Por las palabras del banco": "From the bank's wording",
+    "Qué es": "What it is",
+    "Reglas para la próxima vez": "Rules for next time",
+    "Retiro de efectivo: ¿en qué se usó?": "Cash withdrawal: what was it used for?",
+    "Si en tu hogar entra más de un sueldo, di qué es cada uno y de quién. Tu sueldo principal ya cuenta desde «Tu sueldo»; los demás van como ingresos de tu presupuesto para saber cuándo llegó cada uno.": "If more than one paycheck comes into your household, say what each one is and whose. Your main paycheck already counts from «Your salary»; the others go in as budget income, so you can see when each one arrived.",
+    "Sueldo principal": "Main paycheck",
+    "Tienda de todo: elige qué compraste": "Store that sells everything: pick what you bought",
+    "Tipo y categoría": "Type and category",
+    "Tu sueldo principal (ya cuenta en tu presupuesto)": "Your main paycheck (already counts in your budget)",
+    "Tus ingresos en este archivo ({0})": "Your income in this file ({0})",
+    "{0} depósito{1}": "{0} deposit{1|s}",
+    "{0} ingreso{1} nuevo{2} en tu presupuesto.": "{0} new income line{1|s} in your budget.",
+    "{0} regla{1} guardada{2}.": "{0} rule{1|s} saved.",
+    "¿De quién?": "Whose?",
+    "¿De quién? —": "Whose? —",
+    "Revisa": "Check",
+    "Inversiones (bolsa)": "Investments (brokerage)",
+    "{0} en total": "{0} in total",
+    "— Ninguna —": "— None —",
+    "Detectar (punto)": "Detect (period)",
+    "Detectar (coma)": "Detect (comma)",
+    "Detectar (fila por fila)": "Detect (row by row)",
+    "Detectar (mes primero)": "Detect (month first)",
+    "Traspaso": "Transfer",
+    "Traspaso entre cuentas": "Transfer between accounts",
+    "Aplicar a {0} fila{1} marcada{2}": "Apply to {0} checked row{1|s}",
+    "Revísalos en Transacciones.": "Review them in Transactions.",
+    "{0} ya anotado{1} a mano: no se duplicaron.": "{0} already logged by hand: not duplicated.",
+    "{0} movimiento{1} importado{2}.": "{0} transaction{1|s} imported.",
+    "{0} omitido{1}.": "{0} skipped.",
+    "Retiro de efectivo": "Cash withdrawal",
+    "Rubro del presupuesto (opcional)": "Budget line (optional)",
+    "Déjalo en «Automático»: el gasto cuenta en el rubro de su categoría. Elige otro solo si quieres que cuente en un rubro distinto.": "Leave it on «Automatic»: the expense counts in its category's budget line. Pick another only if you want it to count in a different line.",
+    "¿Es de un ingreso de tu presupuesto? (opcional)": "Is it from an income in your budget? (optional)",
+    "Solo si este dinero es un ingreso que planeaste cada mes (por ejemplo, el sueldo de tu pareja): así se marca como recibido. Si no, déjalo en «No» y cuenta como ingreso extra. Tu sueldo principal no hace falta: ya cuenta desde «Tu sueldo».": "Only if this money is an income you planned every month (for example, your partner's paycheck): it gets marked as received. Otherwise leave it on «No» and it counts as extra income. Not needed for your main paycheck: it already counts from «Your salary»."
 });
 </script>
 <script>/* js/i18n/us.js */
@@ -5340,7 +5415,7 @@ I18n.country('US', {
         el.innerHTML = `
             <form class="lock-box" autocomplete="off">
                 <div class="brand-logo mx-auto mb-3"><i class="fa-solid fa-lock"></i></div>
-                <div class="lock-title">Plan Financiero Ecuador</div>
+                <div class="lock-title" data-i18n-skip>${(root.APP_EDITION && APP_EDITION.appName) || 'Plan Financiero Ecuador'}</div>
                 <p class="lock-sub">Escribe tu PIN para entrar.</p>
                 <input id="lock-pin" class="lock-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" aria-label="PIN" autofocus>
                 <p id="lock-msg" class="lock-msg" role="alert"></p>
@@ -5348,11 +5423,15 @@ I18n.country('US', {
                 <button type="button" class="lock-forgot" id="lock-forgot">Olvidé mi PIN</button>
             </form>`;
         document.body.appendChild(el);
+        // Shown before the app starts translating the page: translate it here, in the device's language.
+        const tr = (node) => { if (root.I18n && I18n.apply) { applyLang(); I18n.apply(node); } };
+        tr(el);
         const input = el.querySelector('#lock-pin'), msg = el.querySelector('#lock-msg');
+        const say = (text) => { msg.textContent = root.I18n ? I18n.t(text) : text; };
         setTimeout(() => input.focus(), 30);
         el.querySelector('form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (Date.now() < waitUntil) { msg.textContent = `Demasiados intentos. Espera ${Math.ceil((waitUntil - Date.now()) / 1000)} segundos.`; return; }
+            if (Date.now() < waitUntil) { say(`Demasiados intentos. Espera ${Math.ceil((waitUntil - Date.now()) / 1000)} segundos.`); return; }
             const lock = read().lock;
             if (lock && await hashPin(input.value, lock.salt) === lock.hash) {
                 tries = 0;
@@ -5363,8 +5442,8 @@ I18n.country('US', {
             }
             tries++;
             input.value = '';
-            if (tries >= MAX_TRIES) { tries = 0; waitUntil = Date.now() + WAIT_MS; msg.textContent = 'PIN incorrecto. Espera 30 segundos para volver a intentar.'; }
-            else msg.textContent = `PIN incorrecto. Te quedan ${MAX_TRIES - tries} intentos.`;
+            if (tries >= MAX_TRIES) { tries = 0; waitUntil = Date.now() + WAIT_MS; say('PIN incorrecto. Espera 30 segundos para volver a intentar.'); }
+            else say(`PIN incorrecto. Te quedan ${MAX_TRIES - tries} intentos.`);
             input.focus();
         });
         el.querySelector('#lock-forgot').addEventListener('click', () => {
@@ -5376,6 +5455,7 @@ I18n.country('US', {
                 <p class="lock-sub">El PIN no se puede recuperar. Para volver a entrar hay que <b>borrar los datos de este navegador</b>. Después puedes cargar tu copia de respaldo (.json) desde Configuración.</p>
                 <button type="button" class="btn btn-danger w-full justify-center mt-3" id="lock-wipe">Borrar los datos y quitar el PIN</button>
                 <button type="button" class="lock-forgot" id="lock-back">Volver</button>`;
+            tr(box);
             box.querySelector('#lock-back').addEventListener('click', () => { el.remove(); showLock(); });
             box.querySelector('#lock-wipe').addEventListener('click', () => {
                 const d = read(); delete d.lock; write(d);
@@ -5638,7 +5718,7 @@ I18n.country('US', {
         'Deudas': ['Tarjeta de Crédito', 'Préstamo Personal', 'Préstamo Vehicular', 'Préstamo Estudiantil', 'Préstamos entre Familiares'],
         'Seguros y Protección': ['Seguro de Vida', 'Seguro de Vida de Deudor'],
         'Financiero y Legal': ['Comisiones Bancarias', 'Trámites Legales/Notaría', 'Asesoría Contable/Tributaria', 'Multas y Trámites Municipales'],
-        'Ahorro e Inversión': ['Aporte DPF', 'Fondo de Emergencia', 'Aporte a Metas', 'Aporte Voluntario IESS'],
+        'Ahorro e Inversión': ['Aporte DPF', 'Fondo de Emergencia', 'Aporte a Metas', 'Aporte Voluntario IESS', 'Inversiones (bolsa)'],
         'Viajes y Vacaciones': ['Vuelos', 'Hospedaje', 'Alquiler de Auto de Viaje', 'Seguro de Viaje', 'Pasaportes/Visas', 'Equipaje'],
         'Regalos, Celebraciones y Donaciones': ['Regalos de Cumpleaños', 'Regalos Navideños/Bodas/Baby Showers', 'Diezmo/Donaciones Religiosas', 'Donaciones Benéficas', 'Fiestas/Celebraciones'],
         'Remesas y Ayuda Familiar': ['Remesa Enviada al Exterior', 'Ayuda Económica a Familiares'],
@@ -5933,7 +6013,7 @@ I18n.country('US', {
         const exp = clone(EC.EXPENSE_TAXONOMY), inc = clone(EC.INCOME_TAXONOMY);
         exp['Vivienda'] = ['Arriendo', 'Hipoteca', 'Alícuotas/Condominio', 'Impuesto Predial', 'Seguro de Hogar', 'Seguro de Inquilino', 'Mantenimiento del Hogar', 'Reparaciones (plomería, eléctrico, techo)', 'Muebles y Electrodomésticos', 'Jardinería/Limpieza del Hogar'];
         exp['Transporte'] = ['Cuota de Vehículo (Préstamo)', 'Gasolina/Diesel', 'Seguro Vehicular', 'Mantenimiento (aceite, llantas, frenos)', 'Matriculación/Revisión Vehicular', 'Transporte Público', 'Taxi/App de Transporte', 'Parqueo', 'Peajes', 'Alquiler de Vehículo'];
-        exp['Ahorro e Inversión'] = ['Fondo de Emergencia', 'Aporte a Metas', 'Certificado de Depósito (CD)', '401(k) / IRA', 'Plan 529 (universidad)', 'Cuenta HSA'];
+        exp['Ahorro e Inversión'] = ['Fondo de Emergencia', 'Aporte a Metas', 'Certificado de Depósito (CD)', '401(k) / IRA', 'Inversiones (bolsa)', 'Plan 529 (universidad)', 'Cuenta HSA'];
         exp['Salud'] = ['Seguro Médico', 'Copagos y Deducibles', 'Consultas Médicas', 'Medicinas', 'Odontología', 'Óptica', 'Terapia/Salud Mental', 'Exámenes de Laboratorio'];
         exp['Financiero y Legal'] = ['Comisiones Bancarias', 'Trámites Legales/Notaría', 'Preparación de Impuestos', 'Multas y Trámites Municipales'];
         delete exp['Remesas y Ayuda Familiar'];
@@ -9629,9 +9709,23 @@ I18n.country('US', {
 
     // Rows of the table (after the header) → candidate transactions, using the mapping:
     // { date, description, store, category?, amount>0, type 'Gasto'|'Ingreso', error? }
+    // Day-first or month-first? Look at the whole column: a first number above 12 means day
+    // first, a second one above 12 means month first; otherwise the country's habit (`fallback`).
+    function detectDateOrder(values, fallback = 'dmy') {
+        let dmy = false, mdy = false;
+        (values || []).forEach(v => {
+            const m = String(v || '').trim().match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+            if (!m) return;
+            if (Number(m[1]) > 12) dmy = true;
+            if (Number(m[2]) > 12) mdy = true;
+        });
+        return dmy && !mdy ? 'dmy' : mdy && !dmy ? 'mdy' : fallback;
+    }
+
     function buildRows(table, mapping) {
-        const { mode = 'single', date, description, amount, debit, credit, category, store, balance,
-            dateFormat = 'auto', expensesAre = 'negative' } = mapping;
+        const { mode = 'single', date, description, amount, debit, credit, category, store, balance, expensesAre = 'negative' } = mapping;
+        let dateFormat = mapping.dateFormat || 'auto';
+        if (dateFormat === 'auto' && date !== undefined && date >= 0) dateFormat = detectDateOrder(table.map(r => r[date]), mapping.dateDefault || 'dmy');
         let decimal = mapping.decimal || 'auto';
         if (decimal === 'auto') {
             const cols = [amount, debit, credit, balance].filter(c => c !== undefined && c !== null && c >= 0);
@@ -9653,6 +9747,7 @@ I18n.country('US', {
             if (!out.date) out.error = 'Fecha no reconocida';
             else if (value === null || value === 0) out.error = 'Sin monto';
             else if (!out.description.trim()) out.description = out.store || '(sin descripción)';
+            out.signed = value;
             out.amount = value === null ? 0 : Math.round(Math.abs(value) * 100) / 100;
             out.type = value !== null && value > 0 ? 'Ingreso' : 'Gasto';
             return out;
@@ -9891,9 +9986,304 @@ I18n.country('US', {
         return null;
     }
 
-    const Importers = { parseOFX, classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    const Importers = { detectDateOrder, parseOFX, classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
     if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
     else root.Importers = Importers;
+})(this);
+</script>
+<script>/* js/categorize.js */
+/*
+ * Categorize: reads a bank or card statement line and makes an educated guess of what it is.
+ *
+ *  - parse(text): bank text often comes in several lines ("DEPOSIT ACME TOOLS INC<br />TYPE:
+ *    PAYROLL  ID: …<br />CO: ACME TOOLS INC"; "Card purchase<br />GROCERY OUTLET #123
+ *    SPRINGFIELD IL<br />Date 03/14/26 *0000*1234567 5411"). It finds the direction (money in /
+ *    out / between your accounts), the company or merchant, the ACH type and the card's merchant
+ *    category code (MCC, the 4 digits at the end of a card line), and a clean name to show.
+ *  - guess(info, { sign, country }): { type, category, sub, confidence, why, key } — first strong
+ *    words (payroll, tax refund, investments, mortgage, utilities, card payments), then the MCC,
+ *    then well-known stores, then the bare direction (DEPOSIT → income, WITHDRAWAL → expense).
+ *    `key` is the word a rule would use next time (the company or store name).
+ *
+ * Categories are the app's own (Spanish keys, shown translated). Nothing here touches the page.
+ */
+(function (root) {
+    'use strict';
+    const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+
+    // ------------------------------------------------------------------ reading the text
+    const LINE_SPLIT = /<br\s*\/?>|\r?\n|\s*%%\s*/i;
+    const DIRECTION = [
+        // Between your own accounts: credit-card payments, transfers between shares/loans.
+        [/credit card pa?yme?nt|payments? transfer|transfer (?:to|from) (?:loan|share|savings|checking|credit card)|\btransfer (?:to|from)\b.*\bshare\b|online transfer|internal transfer|autopay.*card|pago (?:de )?tarjeta|transferencia (?:entre|a) (?:mis|cuentas propias)/, 'transfer'],
+        [/^(?:deposit|dep\b|credit\b|ach credit|direct dep|payroll|refund|deposito|abono|acreditacion|nomina)/, 'in'],
+        [/^(?:withdrawal|withdraw|debit|ach debit|purchase|pos\b|checkcard|check\b|draft|loan advance|payment|bill pay|atm|retiro|debito|compra|pago|cargo)/, 'out']
+    ];
+    // Leading words that say what kind of movement it is, not who it's with.
+    const LEADING = /^(?:(?:withdrawal|deposit)\s+transfer\b|transferencia (?:recibida|enviada)(?: de| a)?|withdrawal|deposit(?: by check)?|ach (?:debit|credit)|debit card purchase|pos purchase|pos|purchase|recurring payment|checkcard(?: \d+)?|loan advance (?:credit card|bill payment(?: #\*?\d+)?)|payments?|online payment|bill pay(?:ment)?|retiro|deposito|compra|pago|debito|credito|transferencia)\b[\s,:-]*/i;
+
+    // Well-known names → how to show them (and what a rule should look for).
+    const BRANDS = [
+        [/amazon|amzn/, 'Amazon'], [/wal-?mart|walmart|\bwm supercenter/, 'Walmart'], [/meijer/, 'Meijer'], [/kroger/, 'Kroger'], [/costco/, 'Costco'],
+        [/sam\x27?s ?club|samsclub/, "Sam's Club"], [/target\b/, 'Target'], [/aldi\b/, 'Aldi'], [/whole ?foods/, 'Whole Foods'], [/trader joe/, "Trader Joe's"],
+        [/lowe\x27?s/, "Lowe's"], [/home ?depot/, 'Home Depot'], [/menards/, 'Menards'], [/\blyft\b/, 'Lyft'], [/\buber ?eats/, 'Uber Eats'], [/\buber\b/, 'Uber'],
+        [/doordash/, 'DoorDash'], [/grubhub/, 'Grubhub'], [/starbucks/, 'Starbucks'], [/mcdonald/, "McDonald's"], [/chick-?fil-?a/, 'Chick-fil-A'],
+        [/netflix/, 'Netflix'], [/spotify/, 'Spotify'], [/hulu/, 'Hulu'], [/disney ?(?:\+|plus)/, 'Disney+'], [/apple\.com|itunes/, 'Apple'], [/google/, 'Google'],
+        [/great clips/, 'Great Clips'], [/vanguard/, 'Vanguard'], [/fidelity/, 'Fidelity'], [/schwab/, 'Charles Schwab'], [/progressive/, 'Progressive'],
+        [/geico/, 'GEICO'], [/state farm/, 'State Farm'], [/dte energy|\bdte\b/, 'DTE Energy'], [/consumers energy/, 'Consumers Energy'],
+        [/irs\s*treas|us treasury 310|tax ref|^irs\b/, 'IRS'], [/state ?of ?michigan/, 'State of Michigan'], [/cvs/, 'CVS'], [/walgreens/, 'Walgreens'], [/shell\b/, 'Shell'], [/speedway/, 'Speedway'],
+        [/supermaxi|megamaxi/, 'Supermaxi'], [/mi comisariato/, 'Mi Comisariato'], [/fybeca/, 'Fybeca']
+    ];
+
+    const title = (s) => s.toLowerCase().replace(/(^|[\s\-/&(])([a-z])/g, (m, a, b) => a + b.toUpperCase()).replace(/\x27S\b/g, "'s");
+
+    // Card merchant line: "GROCERY OUTLET #123 SPRINGFIELD IL" → "GROCERY OUTLET"; "GOLDEN DRAGON 217-5550100 IL" → "GOLDEN DRAGON".
+    function cleanMerchant(s) {
+        let m = String(s || '').trim();
+        for (let k = 0; k < 3 && /^(?:[a-z]{2,6}\s?\*\s?|sp\s+(?=[A-Z]))/i.test(m); k++) m = m.replace(/^(?:[a-z]{2,6}\s?\*\s?|sp\s+(?=[A-Z]))/i, '');
+        m = m.replace(/^\d{3,}\s+/, '');
+        // "LINDBERG'S BLUEBERR Coopersville MI": a mixed-case city after an all-caps name.
+        m = m.replace(/^(.*?[A-Z0-9\x27&.)]{2,})((?:\s+[A-Z][a-z][\w.\x27-]*)+)(\s+[A-Z]{2})?$/, '$1');
+        m = m.replace(/\s+(?:\+?1?[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}-?\d{4}\b.*$/, '');      // phone and what follows
+        m = m.replace(/\s*[#*]\s*[\w-]*\d[\w-]*.*$/, '');                                // store number / order code and what follows
+        m = m.replace(/\s+(?:[a-z0-9.-]+\.(?:com|net|org)\S*).*$/i, '');                  // amzn.com/bill …
+        m = m.replace(/\s+[A-Z]{2}$/, '');                                                // state at the end
+        m = m.replace(/\s+\d{3,}\b.*$/, '');                                             // "TACO PLACE 4410 SPRINGFIELD"
+        // Card networks give the merchant name 23 characters and then the city: cut there.
+        if (m.length > 23) { const cut = m.slice(0, 23); m = /\s/.test(m.charAt(23)) ? cut : cut.replace(/\s+\S*$/, ''); }
+        return m.replace(/[\s,.-]+$/, '').trim();
+    }
+
+    function parse(text) {
+        const raw = String(text || '');
+        const lines = raw.split(LINE_SPLIT).map(l => l.trim()).filter(Boolean);
+        const all = lines.join(' ');
+        // "CO: ACME TOOLS INC", "TYPE: PAYROLL  ID: …": each field, from its own line.
+        const field = (name) => {
+            const re = new RegExp(`(?:^|\\s)${name}:\\s*(.+?)(?=\\s{2,}|\\s+(?:TYPE|ID|DATA|CO|NAME|CONFIRMATION #?):|$)`, 'i');
+            for (const l of lines) { const m = l.match(re); if (m) return m[1].trim(); }
+            return '';
+        };
+        const first = lines[0] || '';
+        const n = norm(first);
+        const lower = norm(all);
+        let direction = null;
+        for (const [re, d] of DIRECTION) { if (re.test(d === 'transfer' ? lower : n)) { direction = d; break; } }
+        const company = field('CO').replace(/\s*,\s*-?[\w.]{0,6}$/, '').replace(/\s+(?:inc|llc|corp|co)\.?$/i, '').trim();
+        const achType = field('TYPE');
+        const data = field('DATA');
+        // Card purchase: the merchant is on the second line, the MCC at the end of the "Date …" line.
+        const isCard = /loan advance|card purchase|checkcard|pos purchase|debit card/i.test(first);
+        const dateLine = lines.find(l => /^date \d/i.test(l)) || '';
+        const mccMatch = dateLine.match(/\s(\d{4})\s*$/);
+        let merchant = '';
+        if (isCard && lines[1]) merchant = cleanMerchant(lines[1]);
+        let rest = first.replace(LEADING, '').replace(/\s*CONFIRMATION #?:.*$/i, '').trim();
+        const check = (first + ' ' + (lines[1] || '')).match(/(?:draft|check|cheque)(?: number| #|\s+no\.?)?\s*(\d{2,})/i);
+        // The best name to show: the company (ACH), the card merchant, or what is left of the first line.
+        // A memo the person typed on a transfer ("new couch", "Rent share").
+        const last = lines[lines.length - 1] || '';
+        const memo = lines.length > 1 && !/^(?:type|data|co|name|id|confirmation|date|ach|withdrawal|deposit)\b/i.test(last) && !/^(?:to|from)\s/i.test(last) && last !== first ? last : '';
+        let name = company || merchant || cleanMerchant(rest);
+        if (!name || /^(?:withdrawal|deposit|transfer|by check|(?:to|from) (?:loan|share)\b.*)$/i.test(name)) name = '';
+        const cash = /(?:^|\s)(?:atm|cajero)\b|cash withdrawal|retiro (?:en|de) efectivo/i.test(all);
+        if (cash) name = 'Retiro de efectivo';
+        if (direction === 'transfer' || /^(?:withdrawal|deposit) transfer\b|^transfer\b/i.test(first)) name = memo && !/^transfer$/i.test(memo) ? memo : /credit card/i.test(all) ? 'Pago de tarjeta de crédito' : 'Transferencia';
+        const brandText = norm(`${name} ${isCard ? lines[1] || '' : first}`);
+        const brand = direction === 'transfer' ? null : BRANDS.find(([re]) => re.test(brandText));
+        const display = brand ? brand[1] : name ? (name === name.toUpperCase() ? title(name) : name) : '';
+        return { raw, lines, direction, cash, company, merchant, achType, data, mcc: mccMatch ? Number(mccMatch[1]) : null, isCard, check: check ? check[1] : null, name: display, brand: brand ? brand[1] : null, memo, text: lower };
+    }
+
+    // ------------------------------------------------------------------ merchant category codes
+    // ISO 18245 codes card networks attach to every purchase → [category, subcategory].
+    const MCC = [
+        [[5411, 5422, 5441, 5451, 5499, 5300], 'Alimentación', 'Mercado/Supermercado'], [[5462], 'Alimentación', 'Panadería'],
+        [[5812], 'Alimentación', 'Restaurantes'], [[5814], 'Alimentación', 'Comida Rápida'], [[5813], 'Entretenimiento y Ocio', 'Salidas y Paseos'],
+        [[5541, 5542, 5983], 'Transporte', 'Gasolina/Diesel'], [[4121], 'Transporte', 'Taxi/App de Transporte'], [[4111, 4112, 4131], 'Transporte', 'Transporte Público'],
+        [[7523], 'Transporte', 'Parqueo'], [[4784], 'Transporte', 'Peajes'], [[3351, 7512, 7513, 7519, 3366, 3357, 3389, 3393, 3395, 3405], 'Transporte', 'Alquiler de Vehículo'],
+        [[5531, 5532, 5533, 7531, 7534, 7535, 7538, 7542, 7549], 'Transporte', 'Mantenimiento (aceite, llantas, frenos)'],
+        [[4511, 3000, 3001, 3005, 3007, 3008, 3009, 3010, 3058, 3256], 'Viajes y Vacaciones', 'Vuelos'], [[7011, 3501, 3502, 3503, 3504, 3509, 3512, 3530, 3533, 3543, 3604, 3615, 3640, 3665, 3690, 3692, 3700, 3703, 3710, 3750], 'Viajes y Vacaciones', 'Hospedaje'],
+        [[4722, 4723], 'Viajes y Vacaciones', 'Hospedaje'],
+        [[4900], 'Servicios Básicos y Comunicación', 'Energía Eléctrica'], [[4812, 4814, 4813], 'Servicios Básicos y Comunicación', 'Plan Celular'], [[4816], 'Servicios Básicos y Comunicación', 'Internet'], [[4899], 'Servicios Básicos y Comunicación', 'Cable/TV'],
+        [[5912], 'Salud', 'Medicinas'], [[8011, 8031, 8041, 8042, 8049, 8050, 8062, 8099], 'Salud', 'Consultas Médicas'], [[8021], 'Salud', 'Odontología'], [[8043, 8044], 'Salud', 'Óptica'], [[8071], 'Salud', 'Exámenes de Laboratorio'],
+        [[5200, 5211, 5231, 5251, 5261, 5198], 'Vivienda', 'Mantenimiento del Hogar'], [[5712, 5713, 5714, 5718, 5719, 5722, 5732], 'Vivienda', 'Muebles y Electrodomésticos'],
+        [[1520, 1711, 1731, 1740, 1750, 1761, 1771, 1799, 7349], 'Vivienda', 'Reparaciones (plomería, eléctrico, techo)'],
+        [[5611, 5621, 5631, 5641, 5651, 5655, 5661, 5681, 5691, 5697, 5698, 5699, 5137, 5139], 'Vestimenta', 'Ropa y Calzado'], [[7210, 7211, 7216, 7251], 'Vestimenta', 'Lavandería/Tintorería'],
+        [[7230], 'Cuidado Personal', 'Peluquería/Barbería'], [[7298, 7297], 'Cuidado Personal', 'Spa/Masajes'], [[5977], 'Cuidado Personal', 'Cosméticos y Perfumería'],
+        [[7832, 7841], 'Entretenimiento y Ocio', 'Cine'], [[7922, 7929], 'Entretenimiento y Ocio', 'Conciertos/Eventos'], [[7991, 7996, 7998, 7999, 7932, 7933], 'Entretenimiento y Ocio', 'Salidas y Paseos'],
+        [[7941, 7992, 7997, 5940, 5941, 5945, 5946, 5949, 5970], 'Entretenimiento y Ocio', 'Hobbies'], [[5942, 5994, 2741], 'Entretenimiento y Ocio', 'Libros'],
+        [[5815, 5818], 'Suscripciones y Entretenimiento Digital', 'Streaming de Video'], [[5816], 'Suscripciones y Entretenimiento Digital', 'Videojuegos'], [[5817, 5734, 5372], 'Suscripciones y Entretenimiento Digital', 'Software/Herramientas'],
+        [[8211, 8220, 8241, 8244, 8249, 8299], 'Educación', 'Cursos/Capacitación'], [[8351], 'Familia e Hijos', 'Guardería/Niñera'], [[5641], 'Vestimenta', 'Ropa y Calzado'],
+        [[742, 5995], 'Mascotas', 'Veterinario'], [[8398, 8661], 'Regalos, Celebraciones y Donaciones', 'Donaciones Benéficas'], [[5992, 5947, 5193], 'Regalos, Celebraciones y Donaciones', 'Fiestas/Celebraciones'],
+        [[6300, 5960], 'Seguros y Protección', 'Seguro de Vida'], [[9311], 'Financiero y Legal', 'Preparación de Impuestos'], [[9222, 9399, 9402, 9211], 'Financiero y Legal', 'Multas y Trámites Municipales'],
+        [[6012, 6051, 6211], 'Financiero y Legal', 'Comisiones Bancarias']
+    ];
+    const MCC_INDEX = {};
+    MCC.forEach(([codes, c, s]) => codes.forEach(k => { if (!MCC_INDEX[k]) MCC_INDEX[k] = [c, s]; }));
+    // Airlines (3000–3299), car rental (3351–3441) and hotels (3501–3999) have a code per company.
+    const mccFor = (k) => MCC_INDEX[k] || (k >= 3000 && k <= 3299 ? ['Viajes y Vacaciones', 'Vuelos'] : k >= 3351 && k <= 3441 ? ['Transporte', 'Alquiler de Vehículo'] : k >= 3501 && k <= 3999 ? ['Viajes y Vacaciones', 'Hospedaje'] : null);
+
+    // ------------------------------------------------------------------ words
+    // [pattern, type, category, subcategory, confidence]. Checked against the whole text.
+    const STRONG = [
+        // Income
+        [/payroll|reg\.? ?salary|\bsalary\b|direct dep|dir dep|paycheck|\bnomina\b|rol de pagos|sueldo/, 'Ingreso', 'Ingresos Laborales', 'Sueldo/Salario', 'high', 'payroll'],
+        [/irs\s*treas|us treasury 310|tax ref|tax refund/, 'Ingreso', 'Gobierno y Beneficios', 'Reembolso de Impuestos (IRS)', 'high'],
+        [/(?:state ?of ?\w+|dept of (?:revenue|treasury)|treasury).*(?:income tax|inctax|tax)|income tax.*refund|stateof\w+/, 'Ingreso', 'Gobierno y Beneficios', 'Reembolso de Impuestos (IRS)', 'medium'],
+        [/ssa treas|soc sec|social security/, 'Ingreso', 'Gobierno y Beneficios', 'Seguro Social', 'high'],
+        [/unemploy|\buia\b|ui benefit/, 'Ingreso', 'Gobierno y Beneficios', 'Beneficios de Desempleo', 'high'],
+        [/apy earned|\bdividend\b.*\brate\b|interest (?:paid|earned|payment)|\bint(?:erest)? pd\b|intereses ganados/, 'Ingreso', 'Ingresos Financieros', 'Intereses', 'high'],
+        [/\bdividend/, 'Ingreso', 'Ingresos Financieros', 'Dividendos', 'medium'],
+        // Investing (money that leaves to a brokerage or retirement account is saving, not spending)
+        [/\b(?:roth|ira|401k|401\(k\)|403b)\b/, 'Gasto', 'Ahorro e Inversión', '401(k) / IRA', 'high'],
+        [/vanguard|fidelity|schwab|e\*?trade|robinhood|betterment|wealthfront|acorns|\bstash\b|m1 finance|merrill|ameritrade|webull|\binvestment\b|individual buy/, 'Gasto', 'Ahorro e Inversión', 'Inversiones (bolsa)', 'high'],
+        [/\b529\b|mesp|education savings/, 'Gasto', 'Ahorro e Inversión', 'Plan 529 (universidad)', 'high'],
+        // Housing and bills
+        [/mortgage|mtg pymt|home loan|rocket mortgage|mr\.? cooper|quicken loans|hipoteca|biess/, 'Gasto', 'Vivienda', 'Hipoteca', 'high'],
+        [/\brent\b|apartments?\b|property mgmt|realpage|appfolio|arriendo/, 'Gasto', 'Vivienda', 'Arriendo', 'medium'],
+        [/water|sewer|agua potable|epmaps|interagua/, 'Gasto', 'Servicios Básicos y Comunicación', 'Agua', 'high'],
+        [/natural gas|\bsemco\b|nicor|gas co\b|gas company/, 'Gasto', 'Servicios Básicos y Comunicación', 'Gas', 'high'],
+        [/energy|electric|edison|\bpower\b|\bdte\b|duke energy|pg&e|xcel|empresa electrica|cnel|\beeq\b/, 'Gasto', 'Servicios Básicos y Comunicación', 'Energía Eléctrica', 'high'],
+        [/comcast|xfinity|spectrum(?! health)|frontier comm|starlink|att internet|netlife|puntonet|\binternet\b/, 'Gasto', 'Servicios Básicos y Comunicación', 'Internet', 'high'],
+        [/t-?mobile|verizon|mint mobile|cricket|metro by|visible|at&t|att\*|claro|movistar|tuenti|\bcnt\b/, 'Gasto', 'Servicios Básicos y Comunicación', 'Plan Celular', 'high'],
+        [/progressive|geico|state farm|allstate|liberty mutual|farmers ins|usaa|nationwide|esurance|auto insur/, 'Gasto', 'Transporte', 'Seguro Vehicular', 'high'],
+        [/life insur|northwestern mutual|primerica|seguro de vida/, 'Gasto', 'Seguros y Protección', 'Seguro de Vida', 'high'],
+        [/univ|university|college|tuition|universidad/, 'Gasto', 'Educación', 'Matrícula Universitaria', 'high'],
+        [/daycare|child ?care|kindercare|learning center|guarderia/, 'Gasto', 'Familia e Hijos', 'Guardería/Niñera', 'high'],
+        [/church|ministr|tithe|diezmo|iglesia/, 'Gasto', 'Regalos, Celebraciones y Donaciones', 'Diezmo/Donaciones Religiosas', 'high'],
+        [/overdraft|nsf fee|service charge|monthly fee|maintenance fee|international service assess|foreign transaction|intl (?:service|transaction) fee|comision/, 'Gasto', 'Financiero y Legal', 'Comisiones Bancarias', 'high']
+    ];
+    const STORES = [
+        [/kroger|meijer(?! express)|wal-?mart|walmart|aldi|costco(?! gas)|sam\x27?s ?club|samsclub|whole ?foods|trader joe|publix|safeway|\bheb\b|spartan|family fare|save a lot|gordon food|supermaxi|megamaxi|mi comisariato|\btia\b|santa maria|\baki\b|tuti/, 'Alimentación', 'Mercado/Supermercado'],
+        [/doordash|uber ?eats|grubhub|instacart|rappi|pedidos ya/, 'Alimentación', 'Delivery a Domicilio'],
+        [/starbucks|dunkin|coffee|cafe\b|tim hortons|wandering cup|sweet ?& ?coffee|juan valdez/, 'Alimentación', 'Cafetería'],
+        [/mcdonald|burger|wendy|taco bell|chick-?fil|subway|kfc|popeyes|arby|sonic|culver|five guys|chipotle|panera|donut|ice cream/, 'Alimentación', 'Comida Rápida'],
+        [/pizza|grill|restaurant|bistro|kitchen|diner|sushi|\bwok\b|tavern|brewing|steakhouse|restaurante/, 'Alimentación', 'Restaurantes'],
+        [/shell|\bbp\b|marathon|speedway|mobil|exxon|sunoco|citgo|chevron|circle k|wawa|sheetz|meijer express|costco gas|primax|terpel|petroecuador/, 'Transporte', 'Gasolina/Diesel'],
+        [/\blyft\b|\buber\b|taxi|cabify|indriver/, 'Transporte', 'Taxi/App de Transporte'],
+        [/parking|park ?mobile|parqueadero/, 'Transporte', 'Parqueo'],
+        [/budget rent|enterprise rent|hertz|avis|alamo|national car/, 'Transporte', 'Alquiler de Vehículo'],
+        [/netflix|hulu|disney|hbo|\bmax\b|peacock|paramount|youtube|prime video/, 'Suscripciones y Entretenimiento Digital', 'Streaming de Video'],
+        [/spotify|apple music|pandora|sirius/, 'Suscripciones y Entretenimiento Digital', 'Streaming de Música'],
+        [/apple\.com|icloud|google (?:one|storage)|dropbox/, 'Suscripciones y Entretenimiento Digital', 'Almacenamiento en la Nube'],
+        [/cvs|walgreens|rite aid|pharmacy|farmacia|fybeca|sana sana|cruz azul/, 'Salud', 'Medicinas'],
+        [/clinic|hospital|medical|urgent care|pediatric|spectrum health|corewell|health ?care|clinica|laboratorio/, 'Salud', 'Consultas Médicas'],
+        [/dental|orthodont|dentist/, 'Salud', 'Odontología'],
+        [/lowe\x27?s|home depot|menards|ace hardware|true value|harbor freight|tractor.?supply/, 'Vivienda', 'Mantenimiento del Hogar'],
+        [/old navy|kohl\x27?s|tj ?maxx|marshalls|\bross\b|nordstrom|wearhouse|\bgap\b|h&m|nike|carter\x27?s|burlington|de prati|etafashion|marathon sports/, 'Vestimenta', 'Ropa y Calzado'],
+        [/great clips|sport clips|supercuts|salon|barber|peluqueria/, 'Cuidado Personal', 'Peluquería/Barbería'],
+        [/petsmart|petco|chewy|animal hosp|veterinar/, 'Mascotas', 'Alimento para Mascotas'],
+        [/red cross|salvation army|donation|charity|unicef/, 'Regalos, Celebraciones y Donaciones', 'Donaciones Benéficas'],
+        [/cinema|theater|theatre|amc |regal |cinemark|supercines|multicines/, 'Entretenimiento y Ocio', 'Cine']
+    ];
+
+    const result = (type, category, sub, confidence, why, key) => ({ type, category, sub, confidence, why, key });
+
+    function guess(info, { sign = 0, country = 'US' } = {}) {
+        const t = info.text || '';
+        const key = info.brand || info.name || '';
+        const dir = info.direction;
+        // 1. Between your accounts: not income or spending.
+        if (dir === 'transfer') return result('Transferencia', '', '', 'high', 'Pago de tarjeta o movimiento entre tus cuentas', key || 'transfer');
+        const incoming = sign > 0 || (sign === 0 && dir === 'in');
+        // 2. Strong words.
+        for (const [re, type, cat, sub, conf] of STRONG) {
+            if (!re.test(t)) continue;
+            if ((type === 'Ingreso') !== incoming) continue;     // "tax refund" as an expense makes no sense
+            return result(type, cat, sub, conf, 'Por las palabras del banco', key);
+        }
+        // Money coming back from an investment account or another account of yours.
+        if (incoming && /transfer from|deposit transfer/.test(t)) return result('Transferencia', '', '', 'medium', 'Dinero que llega de otra cuenta tuya', key || 'transfer');
+        if (!incoming && /withdrawal transfer|transfer to/.test(t)) return result('Transferencia', '', '', 'medium', 'Dinero que pasas a otra cuenta', key || 'transfer');
+        // 3. The card's merchant category code.
+        const everything = /amazon|amzn|target\b|ebay|etsy|dollar (?:tree|general)|five below|temu|shein|aliexpress/.test(t);
+        if (!incoming && info.mcc) {
+            const m = mccFor(info.mcc);
+            // Some codes are too broad (Amazon uses 5942 "books", city parking 9399 "government"):
+            // a store that sells everything is asked about, and a known store name wins.
+            const broad = [5942, 5999, 5311, 5310, 5331, 5399, 5964, 5969, 9399, 9222, 9402, 7399, 8999].includes(info.mcc);
+            const store = STORES.find(([re]) => re.test(t));
+            if (everything && broad) return Object.assign(result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Tienda de todo: elige qué compraste', key), { ask: true });
+            if (store && broad) return result('Gasto', store[1], store[2], 'medium', 'Por el nombre del comercio', key);
+            if (m) return result('Gasto', m[0], m[1], 'high', `Por el tipo de comercio (código ${info.mcc})`, key);
+        }
+        // 4. Store names.
+        if (!incoming) {
+            const s = STORES.find(([re]) => re.test(t));
+            if (s) return result('Gasto', s[1], s[2], 'medium', 'Por el nombre del comercio', key);
+        }
+        // 5. Only the direction is known.
+        if (!incoming && info.check) return result('Gasto', 'Otros', 'Otros Gastos', 'low', `Cheque n.º ${info.check}: ¿para qué fue?`, '');
+        if (!incoming && (info.cash || (/^(?:withdrawal|atm|retiro)\b/.test(norm(info.lines[0] || '')) && !info.name))) return result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Retiro de efectivo: ¿en qué se usó?', '');
+        if (incoming) return result('Ingreso', 'Otros Ingresos', '', 'low', /check/.test(t) ? 'Depósito de un cheque: ¿de qué es?' : 'Entrada de dinero: ¿de qué es?', key);
+        if (everything) return Object.assign(result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Tienda de todo: elige qué compraste', key), { ask: true });
+        return result('Gasto', 'Otros', 'Otros Gastos', 'low', '', key);
+    }
+
+    // Card lines end with the city, and a short name keeps it ("TACO PLACE SPRINGFIELD"). A last word
+    // (or two) that ends the names of 3+ different merchants in the same file is a city: drop it.
+    function tidyNames(infos) {
+        const ends = {};
+        const seen = new Set();
+        infos.forEach(i => {
+            if (!i || !i.isCard || !i.name || i.brand) return;
+            const w = i.name.split(/\s+/);
+            if (w.length < 2 || seen.has(i.name)) return;
+            seen.add(i.name);
+            [1, 2].forEach(n => { if (w.length > n) { const e = w.slice(-n).join(' ').toLowerCase(); (ends[e] || (ends[e] = new Set())).add(w.slice(0, -n).join(' ')); } });
+        });
+        const NOT_CITY = /^(?:cafe|coffee|inc|llc|co|corp|company|store|stores|market|grill|bar|pizza|restaurant|kitchen|center|centre|shop|services?|visa|international|express|online|club|house|bakery|deli|foods?|supply|outlet|pharmacy|clinic|the|and|of)$/;
+        const cities = Object.keys(ends).filter(e => ends[e].size >= 3 && e.length >= 4 && !e.split(' ').some(w => NOT_CITY.test(w))).sort((a, b) => b.length - a.length);
+        infos.forEach(i => {
+            if (!i || !i.isCard || !i.name || i.brand) return;
+            const c = cities.find(e => i.name.toLowerCase().endsWith(' ' + e));
+            if (c) i.name = i.name.slice(0, -(c.length + 1)).trim();
+        });
+        return cities;
+    }
+
+    // Rows from the same payer or store should agree: a guess backed by the bank's words (one
+    // paycheck says PAYROLL) is shared with that payer's rows that had only a weak guess, and
+    // regular deposits from the same company (3 or more) are most likely a paycheck.
+    function harmonize(guesses) {
+        const groups = {};
+        guesses.forEach((g, i) => { if (g && g.key && g.type !== 'Transferencia') (groups[norm(g.key)] || (groups[norm(g.key)] = [])).push(i); });
+        Object.values(groups).forEach(ix => {
+            const best = ix.map(i => guesses[i]).filter(g => g.confidence !== 'low').sort((a, b) => (a.confidence === 'high' ? -1 : 1) - (b.confidence === 'high' ? -1 : 1))[0];
+            ix.forEach(i => {
+                const g = guesses[i];
+                if (g.confidence !== 'low' || g.ask) return;
+                if (best && best.type === g.type) Object.assign(g, { category: best.category, sub: best.sub, confidence: 'medium', why: `Como los otros movimientos de ${g.key}` });
+                else if (!best && g.type === 'Ingreso' && ix.length >= 3) Object.assign(g, { category: 'Ingresos Laborales', sub: 'Sueldo/Salario', confidence: 'medium', why: 'Depósitos regulares de la misma empresa: parece un sueldo' });
+            });
+        });
+        return guesses;
+    }
+
+    // The rows whose guess is worth remembering: same key, same category, more than once (or
+    // changed by you). → [{ key, type, category, sub, count, rows }]
+    function suggestRules(rows, existing = []) {
+        const groups = {};
+        rows.forEach((r, i) => {
+            if (!r.key || r.key.length < 3 || r.error) return;
+            const k = norm(r.key);
+            if ((existing || []).some(x => x.contains && k.includes(norm(x.contains)))) return;
+            const g = groups[k] || (groups[k] = { key: r.key, rows: [], combos: {} });
+            g.rows.push(i);
+            const c = `${r.type}|${r.category}|${r.sub || ''}`;
+            g.combos[c] = (g.combos[c] || 0) + 1;
+        });
+        return Object.values(groups).filter(g => g.rows.length >= 2).map(g => {
+            const [best] = Object.entries(g.combos).sort((a, b) => b[1] - a[1]);
+            const [type, category, sub] = best[0].split('|');
+            return { key: g.key, type, category, sub, count: g.rows.length, rows: g.rows };
+        }).sort((a, b) => b.count - a.count);
+    }
+
+    const Categorize = { parse, guess, harmonize, tidyNames, suggestRules, cleanMerchant, mccFor, norm };
+    if (typeof module !== 'undefined' && module.exports) module.exports = Categorize;
+    else root.Categorize = Categorize;
 })(this);
 </script>
 <script>/* js/store.js */
@@ -13049,8 +13439,26 @@ I18n.country('US', {
     const list = (xs) => xs.length > 1 ? `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}` : xs.join('');
     const dayLabel = (iso) => { const d = new Date(iso + 'T12:00'); return Fmt.lang === 'en' ? `${WD[d.getDay()].slice(0, 3)} ${Fmt.MONTH_SHORT[d.getMonth()]} ${d.getDate()}` : `${WD[d.getDay()].slice(0, 3)} ${d.getDate()} ${Fmt.MONTH_SHORT[d.getMonth()].toLowerCase()}`; };
 
+    // English sentence for the pay schedule (put together directly: the Spanish one is built from
+    // pieces the translator can't recombine).
+    function describeEn(sch) {
+        const W = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const listEn = (xs) => xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs.join('');
+        const nth = (d) => d === 31 ? 'last day' : `${d}${[11, 12, 13].includes(d % 100) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[d % 10] || 'th')}`;
+        if (sch.freq === 'monthly') {
+            const every = { 1: 'every month', 2: 'every 2 months', 3: 'every 3 months (quarterly)', 6: 'every 6 months', 12: 'once a year' }[sch.interval] || `every ${sch.interval} months`;
+            const wk = sch.weekend === 'before' ? ' (on a weekend, the Friday before)' : sch.weekend === 'after' ? ' (on a weekend, the Monday after)' : '';
+            return `On the ${listEn(sch.days.map(nth))}, ${every}${wk}`;
+        }
+        if (sch.freq === 'weekly') return sch.interval === 2 ? `Every 2 weeks, on ${W[sch.weekday]}s` : `Every ${W[sch.weekday]}`;
+        if (sch.freq === 'nth') return `The ${listEn(sch.nths.map(n => (n === -1 ? 'last' : nth(n))))} ${W[sch.weekday]} of each month`;
+        if (sch.freq === 'daily') return sch.businessDays ? 'Every business day (Monday to Friday)' : 'Every day';
+        return '';
+    }
+
     function describe(sch) {
         if (!sch) return 'Sin configurar';
+        if (window.I18n && I18n.lang === 'en') return describeEn(sch);
         if (sch.freq === 'monthly') {
             const wk = sch.weekend === 'before' ? ' (si cae en fin de semana, el viernes antes)' : sch.weekend === 'after' ? ' (si cae en fin de semana, el lunes después)' : '';
             const days = sch.days.length === 1
@@ -13067,7 +13475,7 @@ I18n.country('US', {
     function renderSummary() {
         const sch = Cash.paySchedule();
         const next = sch ? Engine.nextPayday(sch, new Date()) : null;
-        UI.html('pay-summary', sch ? `${esc(describe(sch))}${next ? `<div class="text-xs font-normal text-slate-600"><span>Próximo:</span> <span>${esc(dayLabel(Engine.isoDate(next.date)))}</span> <span>${next.days === 0 ? '(hoy)' : `(en ${next.days} día${next.days === 1 ? '' : 's'})`}</span></div>` : ''}` : '<span class="text-slate-500 font-normal">Sin configurar</span>');
+        UI.html('pay-summary', sch ? `<span data-i18n-skip>${esc(describe(sch))}</span>${next ? `<div class="text-xs font-normal text-slate-600"><span>Próximo:</span> <span>${esc(dayLabel(Engine.isoDate(next.date)))}</span> <span>${next.days === 0 ? '(hoy)' : `(en ${next.days} día${next.days === 1 ? '' : 's'})`}</span></div>` : ''}` : '<span class="text-slate-500 font-normal">Sin configurar</span>');
     }
 
     // The editor works on a draft; nothing changes until "Guardar".
@@ -13143,7 +13551,7 @@ I18n.country('US', {
                 ${extra}
                 <label class="field"><span class="field-label"><span>Monto de cada pago (<span class="cur">${esc(Fmt.currency().symbol)}</span>)</span></span><input class="input" id="ps-amount" data-change="pay.field" inputmode="decimal" value="${esc(String(d.amount || ''))}" placeholder="Automático: tu sueldo neto repartido"><span class="help">Déjalo vacío si cobras tu sueldo de esta pestaña.</span></label>
             </div>
-            <div class="bs-banner ok mt-3" id="pay-describe"><i class="fa-regular fa-calendar-check"></i> ${esc(describe(sch))}</div>
+            <div class="bs-banner ok mt-3" id="pay-describe"><i class="fa-regular fa-calendar-check"></i> <span data-i18n-skip>${esc(describe(sch))}</span></div>
             <div class="mt-3">${previewHTML(sch)}</div>
             <div class="flex flex-wrap justify-between gap-2 mt-4">
                 <button type="button" class="btn btn-ghost btn-sm" data-action="pay.clear">Quitar</button>
@@ -13321,7 +13729,7 @@ I18n.country('US', {
             st.paydays = sch.freq === 'monthly' && sch.interval === 1 ? sch.days : [];
             sheet.close();
             App.changed({ structural: true, step: true });
-            UI.toast(`Guardado: ${describe(sch).toLowerCase()}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`${window.I18n ? I18n.t('Guardado') : 'Guardado'}: ${describe(sch)}`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         },
         'pay.clear': () => {
             const st = Store.state.settings;
@@ -13500,7 +13908,7 @@ I18n.country('US', {
 (function () {
     'use strict';
     const { money0, esc } = Fmt;
-    const LABELS = { us: 'Acciones de EE.UU.', intl: 'Acciones internacionales', bonds: 'Bonos', cash: 'Efectivo / mercado monetario', other: 'Otro (cripto, oro…)' };
+    const LABELS = { us: 'Acciones de EE.UU.', intl: 'Acciones internacionales', bonds: 'Bonos (renta fija)', cash: 'Efectivo / mercado monetario', other: 'Otro (cripto, oro…)' };
     const ui = () => (Store.ui.mix || (Store.ui.mix = { newMoney: 500 }));
 
     function presets() {
@@ -14637,6 +15045,7 @@ I18n.country('US', {
             const tax = taxonomyFor(get('txn-type').value);
             if (!tax[rule.category]) return;
             fillCategorySelects(rule.category);
+            if (rule.sub && (tax[rule.category] || []).includes(rule.sub)) { get('txn-sub').value = rule.sub; payrollHint(); }
             if (rule.budgetLine && get('txn-type').value !== 'Ingreso') fillLineSelect(rule.budgetLine);
             if (rule.rename) get('txn-description').value = rule.rename;
             UI.toast(`Regla «${rule.contains}»: ${rule.rename ? `«${rule.rename}», ` : ''}categoría ${rule.category}.`);
@@ -15132,38 +15541,39 @@ I18n.country('US', {
     // The file being imported lives only here, in memory, until import or cancel.
     let session = null;
 
-    // Common Ecuadorian merchants → category, when no rule or mapping says otherwise.
-    const KEYWORDS = [
-        [/supermaxi|megamaxi|mi comisariato|\btia\b|santa maria|coral|\baki\b|gran aki|tuti|mercado|panaderia/, 'Alimentación'],
-        [/farmacia|fybeca|sana sana|cruz azul|pharmacy|medicit|clinica|hospital|laboratorio/, 'Salud'],
-        [/gasolinera|primax|petroecuador|terpel|mobil|shell|uber|cabify|indriver|peaje|taxi|metro de quito/, 'Transporte'],
-        [/netflix|spotify|disney|hbo|max\b|prime video|youtube|apple\.com|google play/, 'Suscripciones y Entretenimiento Digital'],
-        [/\bcnt\b|claro|movistar|tuenti|netlife|puntonet|empresa electrica|\beeq\b|cnel|epmaps|agua potable|interagua/, 'Servicios Básicos y Comunicación'],
-        [/kfc|mcdonald|burger|pizza|restaurante|cafe|starbucks|sweet ?& ?coffee|juan valdez/, 'Entretenimiento y Ocio'],
-        [/de prati|etafashion|rm\b|pycca|marathon|zara|h&m/, 'Vestimenta'],
-        [/arriendo|alquiler|condominio|alicuota/, 'Vivienda']
-    ];
-
     const expenseTax = () => Store.state.taxonomy.expense;
     const incomeTax = () => Store.state.taxonomy.income;
+    const taxFor = (type) => (type === 'Ingreso' ? incomeTax() : expenseTax());
     const firstSub = (tax, cat) => (tax[cat] || [])[0] || '';
+    const TYPES = [{ value: 'Gasto', label: 'Gasto' }, { value: 'Ingreso', label: 'Ingreso' }, { value: 'Transferencia', label: 'Traspaso' }];
+    const PAYROLL = 'Sueldo/Salario';
+    const fallbackCat = (type) => { const tax = taxFor(type); return type === 'Ingreso' ? (tax['Otros Ingresos'] ? 'Otros Ingresos' : Object.keys(tax)[0]) : (tax.Otros ? 'Otros' : Object.keys(tax)[0]); };
+    // A subcategory the engine suggests may not be in this person's list yet (it's added on import).
+    const subOk = (type, cat, sub) => !!sub && ((taxFor(type)[cat] || []).includes(sub) || !!taxFor(type)[cat]);
 
-    // Category (and optional budget line) for an imported row: rule → file's category mapped
-    // by the person → merchant keywords → "Otros".
-    function resolve(row, catMap) {
-        const tax = row.type === 'Ingreso' ? incomeTax() : expenseTax();
-        const rule = Importers.applyRules(Store.state.rules, `${row.description} ${row.store}`);
-        if (rule && tax[rule.category]) return { category: rule.category, sub: rule.sub && (tax[rule.category] || []).includes(rule.sub) ? rule.sub : firstSub(tax, rule.category), budgetLine: rule.budgetLine || '', rename: rule.rename || '', why: `Por la regla «${rule.contains}»` };
-        const mapped = row.category && catMap ? catMap[row.category] : null;
-        if (mapped && tax[mapped]) return { category: mapped, sub: firstSub(tax, mapped), why: 'Por la categoría del archivo' };
-        if (row.category && tax[row.category]) return { category: row.category, sub: firstSub(tax, row.category), why: 'Por la categoría del archivo' };
-        if (row.type !== 'Ingreso') {
-            const hay = Importers.norm(`${row.description} ${row.store}`);
-            const k = KEYWORDS.find(([re, cat]) => re.test(hay) && tax[cat]);
-            if (k) return { category: k[1], sub: firstSub(tax, k[1]), why: 'Por el comercio' };
+    // Type, category and the rest for an imported row: your rule → the file's own category
+    // (mapped by you) → the engine's guess (Categorize: bank words, card category codes, stores)
+    // → "Otros".
+    function resolve(row, catMap, g) {
+        const text = `${row.description} ${row.store} ${row.cleanName || ''}`;
+        const rule = Importers.applyRules(Store.state.rules, text);
+        if (rule) {
+            const type = rule.type || (row.type !== 'Transferencia' && taxFor(row.type)[rule.category] ? row.type : incomeTax()[rule.category] ? 'Ingreso' : expenseTax()[rule.category] ? 'Gasto' : row.type);
+            if (type === 'Transferencia') return { type, category: '', sub: '', rename: rule.rename || '', why: `Por la regla «${rule.contains}»`, rule, conf: 'rule' };
+            const tax = taxFor(type);
+            if (tax[rule.category]) return { type, category: rule.category, sub: rule.sub && subOk(type, rule.category, rule.sub) ? rule.sub : firstSub(tax, rule.category), budgetLine: rule.budgetLine || '', rename: rule.rename || '', memberId: rule.memberId, why: `Por la regla «${rule.contains}»`, rule, conf: 'rule' };
         }
-        const fallback = row.type === 'Ingreso' ? (tax['Otros Ingresos'] ? 'Otros Ingresos' : Object.keys(tax)[0]) : (tax.Otros ? 'Otros' : Object.keys(tax)[0]);
-        return { category: fallback, sub: firstSub(tax, fallback), why: '' };
+        const tax = taxFor(row.type);
+        const mapped = row.category && catMap ? catMap[row.category] : null;
+        if (mapped && tax[mapped]) return { type: row.type, category: mapped, sub: firstSub(tax, mapped), why: 'Por la categoría del archivo', conf: 'high' };
+        if (row.category && tax[row.category]) return { type: row.type, category: row.category, sub: firstSub(tax, row.category), why: 'Por la categoría del archivo', conf: 'high' };
+        if (g) {
+            if (g.type === 'Transferencia') return { type: 'Transferencia', category: '', sub: '', why: g.why, conf: g.confidence };
+            const gt = taxFor(g.type);
+            if (gt[g.category]) return { type: g.type, category: g.category, sub: g.sub || firstSub(gt, g.category), why: g.why, conf: g.confidence, ask: g.ask };
+        }
+        const fb = fallbackCat(row.type);
+        return { type: row.type, category: fb, sub: firstSub(tax, fb), why: '', conf: 'low' };
     }
 
     const NO_DESC = '(sin descripción)';
@@ -15235,23 +15645,54 @@ I18n.country('US', {
     function recompute() {
         const s = session;
         let rows;
-        if (s.source === 'csv') rows = Importers.buildRows(s.table, s.mapping);
+        if (s.source === 'csv') rows = Importers.buildRows(s.table, Object.assign({ dateDefault: Store.COUNTRY === 'US' ? 'mdy' : 'dmy' }, s.mapping));
         else rows = s.base || s.rows;
+        // The engine reads each line once: what it is, a clean name, and a guess. Files with no
+        // signs at all (every amount positive) get the direction from the words (DEPOSIT, WITHDRAWAL…).
+        const useEngine = s.source !== 'sri';
+        const infos = rows.map(r => (useEngine && !r.error ? Categorize.parse(`${r.description}${r.store ? '\n' + r.store : ''}`) : null));
+        Categorize.tidyNames(infos);
+        const noSigns = s.source === 'csv' && s.mapping.mode !== 'split' && rows.some(r => !r.error) && rows.every(r => r.error || !(r.signed < 0));
+        s.noSigns = noSigns;
+        const guesses = Categorize.harmonize(rows.map((r, i) => {
+            if (!infos[i]) return null;
+            const sign = noSigns ? 0 : r.signed !== undefined && r.signed !== null ? Math.sign(r.signed) : r.type === 'Ingreso' ? 1 : -1;
+            const g = Categorize.guess(infos[i], { sign, country: Store.COUNTRY });
+            if (noSigns && g.type !== 'Transferencia' && infos[i].direction !== 'in' && g.type === 'Ingreso') g.type = 'Gasto';
+            return g;
+        }));
         // Transactions typed by hand (not from a file) can be the same money as a bank row.
         const manual = Store.state.transactions.filter(t => !t.importRef && !t.invoice && t.source !== 'csv');
         const used = new Set();
+        const members = Store.state.members || [];
         s.rows = rows.map((r, i) => {
-            const out = Object.assign({}, r, r.error ? { category: '', sub: '' } : resolve(r, s.catMap));
+            const info = infos[i], g = guesses[i];
+            const base = Object.assign({}, r, { type: g ? g.type : r.type, cleanName: info && info.name ? info.name : '' });
+            const out = Object.assign(base, r.error ? { category: '', sub: '' } : resolve(base, s.catMap, g));
+            out.key = out.rule ? out.rule.contains : g ? g.key || '' : out.cleanName || '';
             // Your changes: the ones for every row (saved for this kind of file) and then this row's own.
-            const e = Object.assign({}, s.defaults || {}, s.edits[i] || {});
-            const tax = r.type === 'Ingreso' ? incomeTax() : expenseTax();
+            const own = s.edits[i] || {};
+            const e = Object.assign({}, s.defaults || {}, own);
             out.original = r.description;
+            out.edited = Object.keys(own).some(k => ['type', 'category', 'sub', 'memberId'].includes(k));
             if (!r.error) {
                 if (out.rename) out.description = out.rename;
-                if (e.category && tax[e.category]) Object.assign(out, { category: e.category, sub: firstSub(tax, e.category), why: 'Elegida por ti' });
-                if (e.sub && (tax[out.category] || []).includes(e.sub)) out.sub = e.sub;
+                else if (out.cleanName) out.description = out.cleanName;
+                else out.description = firstLine(r.description) || r.description;
+                if (e.type && e.type !== out.type) {
+                    out.type = e.type;
+                    const fb = out.type === 'Transferencia' ? '' : fallbackCat(out.type);
+                    Object.assign(out, { category: fb, sub: fb ? firstSub(taxFor(out.type), fb) : '', why: 'Elegido por ti' });
+                }
+                if (out.type === 'Transferencia') Object.assign(out, { category: '', sub: '' });
+                const tax = taxFor(out.type);
+                if (out.type !== 'Transferencia') {
+                    if (e.category && tax[e.category]) Object.assign(out, { category: e.category, sub: firstSub(tax, e.category), why: 'Elegida por ti' });
+                    if (e.sub && (tax[out.category] || []).includes(e.sub)) out.sub = e.sub;
+                }
                 if (e.description) out.description = e.description;
-                if (e.budgetLine !== undefined && r.type !== 'Ingreso') out.budgetLine = e.budgetLine;
+                if (e.budgetLine !== undefined && out.type === 'Gasto') out.budgetLine = e.budgetLine;
+                if (e.memberId !== undefined) out.memberId = e.memberId || undefined;
             }
             out.ref = r.error ? '' : r.fitid ? 'ofx:' + r.fitid : Importers.importRef(r);
             const dup = !r.error && (!!r.dupKey || Importers.isDuplicate(out, Store.state.transactions) || Importers.isDuplicate(r, Store.state.transactions) || Store.state.transactions.some(t => t.importRef === out.ref));
@@ -15261,9 +15702,70 @@ I18n.country('US', {
                 if (m) { used.add(m.txn.id); match = { id: m.txn.id, description: m.txn.description, date: m.txn.date, days: m.days }; }
             }
             const include = s.include[i] !== undefined ? s.include[i] : !r.error && !dup && !match;
-            return Object.assign(out, { dup, match, include: !r.error && include });
+            return Object.assign(out, { dup, match, include: !r.error && include, isCard: !!(info && info.isCard) });
         });
+        applyStreams(s, members);
+        s.suggest = suggestions(s);
         renderPreview();
+    }
+
+    // ------------------------------------------------------------------ income streams
+    // Each payer in the file (two employers, a side job…) is one stream of income. You say what it is —
+    // your main paycheck (already counted from "Your salary"), an income line of your budget, a new
+    // line, or extra money — and whose it is. Every deposit from that payer follows.
+    const streamKey = (r) => Categorize.norm(r.key);
+    function applyStreams(s, members) {
+        const groups = {};
+        s.rows.forEach((r, i) => { if (!r.error && r.type === 'Ingreso' && r.key) (groups[streamKey(r)] || (groups[streamKey(r)] = [])).push(i); });
+        s.streams = s.streams || {};
+        const lines = Store.active().otherIncomes || [];
+        const list = Object.entries(groups).map(([k, ix]) => {
+            const rs = ix.map(i => s.rows[i]);
+            const total = rs.reduce((a, r) => a + r.amount, 0);
+            const payroll = rs.some(r => r.sub === PAYROLL);
+            return { k, ix, name: rs[0].key, count: rs.length, total, payroll, rule: rs[0].rule };
+        }).filter(st => st.payroll || (st.rule && st.rule.incomeMode) || (s.streams[st.k] && s.streams[st.k].mode !== 'extra')).sort((a, b) => b.total - a.total);
+        let mainTaken = Object.values(s.streams).some(x => x.mode === 'main');
+        list.forEach(st => {
+            if (!s.streams[st.k]) {
+                const r = st.rule;
+                let mode = r && r.incomeMode ? r.incomeMode : 'extra';
+                if (mode === 'line' && !(lines.some(l => l.id === r.incomeId))) mode = 'new';
+                if (!r && st.payroll) mode = !mainTaken ? 'main' : st.count >= 3 ? 'new' : 'extra';
+                if (mode === 'main') mainTaken = true;
+                s.streams[st.k] = { mode, lineId: mode === 'line' ? r.incomeId : null, memberId: r && r.memberId ? r.memberId : undefined };
+            }
+            const cfg = s.streams[st.k];
+            st.cfg = cfg;
+            st.ix.forEach(i => {
+                const row = s.rows[i];
+                if (!(s.edits[i] && s.edits[i].memberId !== undefined) && cfg.memberId) row.memberId = cfg.memberId;
+                if (s.edits[i] && (s.edits[i].category || s.edits[i].type)) return;
+                delete row.incomeId; delete row.newLine; row.countAsExtra = false;
+                if (cfg.mode === 'main') Object.assign(row, { category: 'Ingresos Laborales', sub: PAYROLL });
+                else if (cfg.mode === 'line' || cfg.mode === 'new') {
+                    const line = cfg.mode === 'line' ? lines.find(l => l.id === cfg.lineId) : null;
+                    const cat = line && incomeTax()[line.category] ? line.category : 'Ingresos Laborales';
+                    Object.assign(row, { category: cat, sub: (incomeTax()[cat] || []).includes(row.sub) ? row.sub : cat === 'Ingresos Laborales' ? PAYROLL : firstSub(incomeTax(), cat), countAsExtra: true });
+                    if (line) row.incomeId = line.id; else row.newLine = st.name;
+                } else row.countAsExtra = row.sub === PAYROLL;
+            });
+        });
+        s.streamList = list;
+    }
+
+    // Rules worth keeping: the same name more than once, when the guess wasn't a sure one or you
+    // changed it (sure guesses come out the same next time anyway), and every income stream.
+    function suggestions(s) {
+        const usable = s.rows.map(r => (r.error || !r.include || r.conf === 'rule' ? Object.assign({}, r, { key: '' }) : r));
+        return Categorize.suggestRules(usable, Store.state.rules).filter(g => {
+            const rs = g.rows.map(i => s.rows[i]);
+            return rs.some(r => r.edited || r.conf !== 'high' || (r.type === 'Ingreso' && s.streams[streamKey(r)])) && !rs.some(r => r.ask && !r.edited);
+        }).map(g => {
+            const r = s.rows[g.rows[0]];
+            const st = r.type === 'Ingreso' ? s.streams[streamKey(r)] : null;
+            return Object.assign(g, { on: !(s.ruleOff || {})[Categorize.norm(g.key)], memberId: st ? st.memberId : r.memberId, incomeMode: st ? st.mode : undefined, incomeId: st && st.mode === 'line' ? st.lineId : undefined });
+        });
     }
 
     function renderSetup() {
@@ -15273,19 +15775,20 @@ I18n.country('US', {
         UI.html('imp-profile-note', s.fromProfile ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> Usamos la configuración que guardaste para archivos como este${s.defaults ? ` (y a todas las filas: ${esc(bulkLabel(s.defaults))})` : ''}. Puedes cambiarla.` : 'Revisamos los títulos y adivinamos lo que pudimos. Corrige lo que haga falta: la vista previa se actualiza sola.');
         const colOpts = (sel) => `<option value="-1">— Ninguna —</option>` + s.headers.map((h, i) => `<option value="${i}" ${Number(sel) === i ? 'selected' : ''}>${esc(h)}</option>`).join('');
         const m = s.mapping;
-        const field = (f) => (f.mode && f.mode !== m.mode) ? '' : `<label class="field"><span class="field-label">${f.label}${f.required ? ' *' : ''}</span><select class="input" data-change="imp.map" data-key="${f.key}">${colOpts(m[f.key])}</select></label>`;
+        const field = (f) => (f.mode && f.mode !== m.mode) ? '' : `<label class="field"><span class="field-label"><span>${f.label}</span>${f.required ? ' *' : ''}</span><select class="input" data-change="imp.map" data-key="${f.key}">${colOpts(m[f.key])}</select></label>`;
+        const order = m.date >= 0 ? Importers.detectDateOrder(s.table.map(r => r[m.date]), Store.COUNTRY === 'US' ? 'mdy' : 'dmy') : 'dmy';
         const sel = (key, label, opts) => `<label class="field"><span class="field-label">${label}</span><select class="input" data-change="imp.map" data-key="${key}">${opts.map(([v, l]) => `<option value="${v}" ${String(m[key]) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
         UI.html('imp-map', [
             `<label class="field"><span class="field-label">Fila de los títulos</span><input type="number" class="input" min="1" max="${s.all.length}" value="${s.headerRow + 1}" data-change="imp.headerRow"></label>`,
             sel('mode', 'Los montos vienen en…', [['single', 'Una columna (gastos con signo)'], ['split', 'Dos columnas: débito y crédito']]),
             ...FIELDS.map(field),
             m.mode === 'single' ? sel('expensesAre', 'En esa columna los gastos son…', [['negative', 'Negativos (−45.50)'], ['positive', 'Positivos (todo es gasto)']]) : '',
-            sel('dateFormat', 'Formato de fecha', [['auto', 'Detectar (día primero)'], ['dmy', 'Día/Mes/Año'], ['mdy', 'Mes/Día/Año'], ['ymd', 'Año-Mes-Día']]),
+            sel('dateFormat', 'Formato de fecha', [['auto', order === 'mdy' ? 'Detectar (mes primero)' : 'Detectar (día primero)'], ['dmy', 'Día/Mes/Año'], ['mdy', 'Mes/Día/Año'], ['ymd', 'Año-Mes-Día']]),
             sel('decimal', 'Separador decimal', [['auto', `Detectar (${{ '.': 'punto', ',': 'coma' }[detectedDecimal(s)] || 'fila por fila'})`], ['.', 'Punto (1,234.50)'], [',', 'Coma (1.234,50)']]),
             m.balance >= 0 ? `<label class="field"><span class="field-label">Actualizar el saldo de</span><select class="input" data-change="imp.account">${[['', 'No actualizar ninguna cuenta'], ['new', 'Una cuenta nueva']].concat((Store.state.accounts || []).map(a => [String(a.id), a.name])).map(([v, l]) => `<option value="${v}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>` : ''
         ].join(''));
         // First rows as they are in the file, so the columns are easy to recognize.
-        UI.html('imp-raw', `<thead><tr>${s.headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${s.table.slice(0, 4).map(r => `<tr>${s.headers.map((_, i) => `<td class="text-xs">${esc(r[i] || '')}</td>`).join('')}</tr>`).join('')}</tbody>`);
+        UI.html('imp-raw', `<thead><tr>${s.headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${s.table.slice(0, 4).map(r => `<tr>${s.headers.map((_, i) => `<td class="text-xs" data-i18n-skip>${esc(r[i] || '').replace(/&lt;br\s*\/?&gt;/gi, '<br>')}</td>`).join('')}</tr>`).join('')}</tbody>`);
         // The file's own categories → ours.
         const values = m.category >= 0 ? [...new Set(s.table.map(r => r[m.category]).filter(Boolean))].slice(0, 60) : [];
         UI.show('imp-cats-panel', values.length > 0);
@@ -15316,15 +15819,62 @@ I18n.country('US', {
             ab.classList.toggle('hidden', !(s.source === 'ofx' && s.ofxBalance));
             if (s.source === 'ofx' && s.ofxBalance) ab.innerHTML = `<label class="field max-w-md"><span class="field-label">Actualizar el saldo de (${money(s.ofxBalance.balance)} al ${esc(s.ofxBalance.date || '')})</span><select class="input" data-change="imp.account">${[['', 'No actualizar ninguna cuenta'], ['new', 'Una cuenta nueva']].concat((Store.state.accounts || []).map(a => [String(a.id), a.name])).map(([v, l]) => `<option value="${v}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
         }
-        const catOptions = (r) => Object.keys(r.type === 'Ingreso' ? incomeTax() : expenseTax()).map(c => `<option ${c === r.category ? 'selected' : ''}>${esc(c)}</option>`).join('');
+        renderStreams();
+        renderSuggest();
+        const opt = (list, sel) => list.map(x => { const v = typeof x === 'string' ? x : x.value, l = typeof x === 'string' ? x : x.label; return `<option value="${esc(v)}" ${v === sel ? 'selected' : ''}>${esc(l)}</option>`; }).join('');
+        const catOptions = (r) => opt(Object.keys(taxFor(r.type)), r.category);
+        const subOptions = (r) => { const subs = (taxFor(r.type)[r.category] || []).slice(); if (r.sub && !subs.includes(r.sub)) subs.push(r.sub); return opt(subs, r.sub); };
+        const whoOptions = (r) => `<option value="">—</option>${members.map(p => `<option value="${p.id}" ${String(p.id) === String(r.memberId || '') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}<option value="new">+ Agregar persona…</option>`;
+        const conf = (r) => r.conf === 'low' ? '<span class="badge badge-warn">Revisa</span> ' : '';
+        const incomeNote = (r) => r.type !== 'Ingreso' ? '' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Ingreso del presupuesto: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : r.newLine ? `<div class="text-[11px] text-emerald-700">Nuevo ingreso del presupuesto: ${esc(r.newLine)}</div>` : r.sub === PAYROLL && !r.countAsExtra ? '<div class="text-[11px] text-slate-500">Tu sueldo principal (ya cuenta en tu presupuesto)</div>' : '';
         UI.html('imp-rows', s.rows.slice(0, 500).map((r, i) => `<tr class="${r.error ? 'opacity-60' : ''}">
-                <td class="text-center"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggle" data-i="${i}" ${r.include ? 'checked' : ''} ${r.error ? 'disabled' : ''}></td>
-                <td class="whitespace-nowrap text-xs">${esc(r.date || '—')}</td>
-                <td>${r.error ? `<div class="font-semibold text-xs">${esc(r.description)}</div>` : `<input class="cell-input text-xs font-semibold imp-desc" value="${r.description === NO_DESC ? '' : esc(r.description)}" placeholder="Sin descripción: escribe una" data-change="imp.desc" data-i="${i}" aria-label="Descripción">${r.original && r.original !== NO_DESC && r.original !== r.description ? `<div class="text-[11px] text-slate-500">En el archivo: ${esc(r.original)}</div>` : ''}${r.original && r.original !== NO_DESC && !r.rename ? `<button type="button" class="link text-[11px]" data-action="rule.add" data-contains="${esc(r.original.slice(0, 40))}" data-rename="${r.description !== r.original ? esc(r.description) : ''}" data-cat="${r.type === 'Ingreso' ? 'I' : 'G'}|${esc(r.category)}" title="Que la próxima vez se nombre y categorice solo">+ regla</button>` : ''}`}${r.store ? `<div class="text-[11px] text-slate-500">${esc(r.store)}</div>` : ''}${r.items && r.items.length ? `<div class="text-[11px] text-slate-500">${r.items.length} producto${r.items.length === 1 ? '' : 's'}${r.iva ? ` · IVA ${money(r.iva)}` : ''}</div>` : ''}</td>
-                <td>${r.error ? '—' : `<select class="cell-input text-xs" data-change="imp.cat" data-i="${i}">${catOptions(r)}</select>${r.why ? `<div class="text-[11px] text-slate-400">${esc(r.why)}</div>` : ''}${r.budgetLine && r.type !== 'Ingreso' ? `<div class="text-[11px] text-blue-600">Rubro: ${esc(lineName(r.budgetLine))}</div>` : ''}`}</td>
-                <td class="num font-bold ${r.type === 'Ingreso' ? 'text-emerald-700' : ''}">${r.error ? '' : (r.type === 'Ingreso' ? '+' : '−') + money(r.amount)}</td>
-                <td class="text-xs">${r.error ? `<span class="badge badge-bad">${esc(r.error)}</span>` : r.dup ? '<span class="badge badge-warn">Ya existe</span>' : r.match ? matchCell(r, i) : '<span class="badge badge-ok">Nueva</span>'}</td>
-            </tr>`).join('') + (s.rows.length > 500 ? `<tr><td colspan="6" class="text-xs text-slate-500">Mostrando 500 de ${s.rows.length}; se importan todas las marcadas.</td></tr>` : ''));
+                <td class="text-center c-check"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggle" data-i="${i}" ${r.include ? 'checked' : ''} ${r.error ? 'disabled' : ''} aria-label="Importar"></td>
+                <td class="whitespace-nowrap text-xs" data-label="Fecha">${esc(r.date || '—')}</td>
+                <td class="c-wide" data-label="Descripción">${r.error ? `<div class="font-semibold text-xs">${esc(firstLine(r.description))}</div>` : `<input class="cell-input text-xs font-semibold imp-desc" value="${r.description === NO_DESC ? '' : esc(r.description)}" placeholder="Sin descripción: escribe una" data-change="imp.desc" data-i="${i}" aria-label="Descripción">${r.original && r.original !== NO_DESC && firstLine(r.original) !== r.description ? `<div class="text-[11px] text-slate-500">En el archivo: ${esc(firstLine(r.original).slice(0, 90))}</div>` : ''}${r.original && r.original !== NO_DESC && r.conf !== 'rule' && r.type !== 'Transferencia' ? `<button type="button" class="link text-[11px]" data-action="rule.add" data-contains="${esc((r.key || firstLine(r.original)).slice(0, 40))}" data-rename="${r.description !== firstLine(r.original) ? esc(r.description) : ''}" data-cat="${r.type === 'Ingreso' ? 'I' : 'G'}|${esc(r.category)}" title="Que la próxima vez se nombre y categorice solo">+ regla</button>` : ''}`}${r.store ? `<div class="text-[11px] text-slate-500">${esc(r.store)}</div>` : ''}${r.items && r.items.length ? `<div class="text-[11px] text-slate-500">${r.items.length} producto${r.items.length === 1 ? '' : 's'}${r.iva ? ` · IVA ${money(r.iva)}` : ''}</div>` : ''}</td>
+                <td class="c-wide" data-label="Tipo y categoría">${r.error ? '—' : `<div class="imp-cat-grid">
+                    <select class="cell-input text-xs" data-change="imp.type" data-i="${i}" aria-label="Tipo">${opt(TYPES, r.type)}</select>
+                    ${r.type === 'Transferencia' ? '<span class="text-[11px] text-slate-500 self-center">Entre tus cuentas: no es gasto ni ingreso</span>' : `<select class="cell-input text-xs" data-change="imp.cat" data-i="${i}" aria-label="Categoría">${catOptions(r)}</select>
+                    <select class="cell-input text-xs" data-change="imp.sub" data-i="${i}" aria-label="Subcategoría">${subOptions(r)}</select>`}
+                </div>${r.why ? `<div class="text-[11px] text-slate-400">${conf(r)}${esc(r.why)}</div>` : conf(r) ? `<div class="text-[11px]">${conf(r)}</div>` : ''}${incomeNote(r)}${r.budgetLine && r.type === 'Gasto' ? `<div class="text-[11px] text-blue-600">Rubro: ${esc(lineName(r.budgetLine))}</div>` : ''}`}</td>
+                <td data-label="¿De quién?">${r.error ? '' : `<select class="cell-input text-xs" data-change="imp.who" data-i="${i}" aria-label="De quién">${whoOptions(r)}</select>`}</td>
+                <td class="num font-bold ${r.type === 'Ingreso' ? 'text-emerald-700' : ''}" data-label="Monto">${r.error ? '' : (r.type === 'Ingreso' ? '+' : r.type === 'Transferencia' ? '' : '−') + money(r.amount)}</td>
+                <td class="text-xs" data-label="Estado">${r.error ? `<span class="badge badge-bad">${esc(r.error)}</span>` : r.dup ? '<span class="badge badge-warn">Ya existe</span>' : r.match ? matchCell(r, i) : '<span class="badge badge-ok">Nueva</span>'}</td>
+            </tr>`).join('') + (s.rows.length > 500 ? `<tr><td colspan="7" class="text-xs text-slate-500">Mostrando 500 de ${s.rows.length}; se importan todas las marcadas.</td></tr>` : ''));
+    }
+
+    const firstLine = (t) => String(t || '').split(/<br\s*\/?>|\r?\n/i)[0].trim();
+
+    function renderStreams() {
+        const s = session, list = s.streamList || [];
+        if (!list.length) { UI.html('imp-streams', ''); return; }
+        const lines = Store.active().otherIncomes || [];
+        const members = Store.state.members || [];
+        const modes = (st) => [{ value: 'main', label: 'Mi sueldo principal (ya está en «Tu sueldo»)' }]
+            .concat(lines.map(l => ({ value: 'line:' + l.id, label: `Ingreso del presupuesto: ${l.name}` })))
+            .concat([{ value: 'new', label: `Nuevo ingreso en mi presupuesto: «${st.name}»` }, { value: 'extra', label: 'Ingreso extra (no planeado cada mes)' }]);
+        const cur = (st) => st.cfg.mode === 'line' ? 'line:' + st.cfg.lineId : st.cfg.mode;
+        UI.html('imp-streams', `<div class="panel tone-blue">
+            <div class="section-label"><i class="fa-solid fa-sack-dollar text-emerald-600"></i> Tus ingresos en este archivo (${list.length})</div>
+            <p class="help mb-2">Si en tu hogar entra más de un sueldo, di qué es cada uno y de quién. Tu sueldo principal ya cuenta desde «Tu sueldo»; los demás van como ingresos de tu presupuesto para saber cuándo llegó cada uno.</p>
+            <div class="space-y-2">${list.map(st => `<div class="imp-stream">
+                <div class="min-w-0"><div class="font-bold text-sm truncate" data-i18n-skip>${esc(st.name)}</div><div class="text-[11px] text-slate-500"><span>${st.count} depósito${st.count === 1 ? '' : 's'}</span> · <span>${money(st.total)} en total</span></div></div>
+                <select class="cell-input text-xs" data-change="imp.streamMode" data-k="${esc(st.k)}" aria-label="Qué es">${modes(st).map(m => `<option value="${esc(m.value)}" ${m.value === cur(st) ? 'selected' : ''}>${esc(m.label)}</option>`).join('')}</select>
+                <select class="cell-input text-xs" data-change="imp.streamWho" data-k="${esc(st.k)}" aria-label="De quién"><option value="">¿De quién? —</option>${members.map(p => `<option value="${p.id}" ${String(p.id) === String(st.cfg.memberId || '') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}<option value="new">+ Agregar persona…</option></select>
+            </div>`).join('')}</div></div>`);
+    }
+
+    function renderSuggest() {
+        const s = session, list = s.suggest || [];
+        if (!list.length) { UI.html('imp-suggest', ''); return; }
+        const label = (g) => g.type === 'Transferencia' ? 'Traspaso entre cuentas' : `${g.category}${g.sub ? ' › ' + g.sub : ''}`;
+        const on = list.filter(g => g.on).length;
+        const was = document.querySelector('#imp-suggest details');
+        UI.html('imp-suggest', `<details class="panel tone-slate" ${was && was.open ? 'open' : ''}>
+            <summary class="cursor-pointer text-sm font-bold"><i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i> <span>Reglas para la próxima vez</span> <span class="badge badge-info">${on} de ${list.length}</span></summary>
+            <p class="help mt-2 mb-2">Al importar se guardan las marcadas: la próxima vez esos nombres se categorizan solos. Cambia la categoría en una fila y la regla sigue tu cambio.</p>
+            <div class="space-y-1">${list.map(g => `<label class="flex items-center gap-2 text-xs"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.ruleToggle" data-k="${esc(Categorize.norm(g.key))}" ${g.on ? 'checked' : ''}>
+                <span class="font-semibold" data-i18n-skip>«${esc(g.key)}»</span><i class="fa-solid fa-arrow-right text-slate-400"></i><span>${esc(label(g))}</span><span class="text-slate-400">(${g.count})</span></label>`).join('')}</div>
+        </details>`);
     }
 
     // A bank row that looks like something typed by hand: unchecked (it's the same money) until
@@ -15379,7 +15929,7 @@ I18n.country('US', {
         UI.html('rule-body', rules.length ? rules.map(r => `<tr>
                 <td class="font-semibold">“${esc(r.contains)}”</td>
                 <td>${r.rename ? esc(r.rename) : '<span class="text-slate-400">—</span>'}</td>
-                <td>${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}</td>
+                <td>${r.type === 'Transferencia' ? 'Traspaso entre cuentas' : `${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Sueldo principal</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Ingreso: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">De ${esc(((Store.state.members || []).find(p => p.id === r.memberId) || {}).name || '')}</div>` : ''}</td>
                 <td class="text-xs">${r.budgetLine ? esc(lineName(r.budgetLine)) : '<span class="text-slate-400">Automático</span>'}</td>
                 <td class="text-center"><button class="row-del" data-action="rule.delete" data-id="${r.id}" title="Eliminar regla" aria-label="Eliminar regla"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`).join('') : '<tr class="empty-row"><td colspan="5">Sin reglas. Ejemplo: si contiene “SQ *COZ” → se llama “Cozy Coffee”, categoría Alimentación.</td></tr>');
@@ -15406,6 +15956,21 @@ I18n.country('US', {
             sc.onerror = () => reject(new Error('sin conexión'));
             document.head.appendChild(sc);
         });
+    }
+
+    // A new person of the household, from the import screen (same as Settings → Household).
+    const MEMBER_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+    async function addMember() {
+        const r = await UI.form({ title: 'Agregar persona', message: 'Alguien de tu hogar que recibe o gasta dinero (aparece en Configuración → Tu hogar).', fields: [{ name: 'name', label: 'Nombre', placeholder: 'Ej: Ana' }], confirmText: 'Agregar', validate: v => v.name.trim() ? null : 'Escribe un nombre.' });
+        if (!r) return null;
+        const list = Store.state.members || (Store.state.members = []);
+        const used = new Set(list.map(p => p.color));
+        const p = { id: Store.nextId(list), name: r.name.trim().slice(0, 30), color: MEMBER_COLORS.find(c => !used.has(c)) || MEMBER_COLORS[list.length % MEMBER_COLORS.length] };
+        list.push(p);
+        Store.scheduleSave();
+        const ms = document.getElementById('imp-member');
+        if (ms) ms.innerHTML = '';
+        return p.id;
     }
 
     UI.register({
@@ -15448,11 +16013,39 @@ I18n.country('US', {
         },
         'imp.account': (el) => { if (session) session.account = el.value; },
         'imp.cat': (el) => { if (!session) return; editRow(Number(el.dataset.i), { category: el.value, sub: undefined }); recompute(); },
+        'imp.sub': (el) => { if (!session) return; const i = Number(el.dataset.i); editRow(i, { category: session.rows[i].category, sub: el.value }); recompute(); },
+        'imp.type': (el) => { if (!session) return; editRow(Number(el.dataset.i), { type: el.value, category: undefined, sub: undefined }); recompute(); },
+        'imp.who': async (el) => {
+            if (!session) return;
+            const id = el.value === 'new' ? await addMember() : el.value ? Number(el.value) : 0;
+            if (id === null) { renderPreview(); return; }
+            editRow(Number(el.dataset.i), { memberId: id });
+            recompute();
+        },
+        'imp.streamMode': (el) => {
+            if (!session) return;
+            const st = session.streams[el.dataset.k];
+            if (!st) return;
+            const [mode, id] = el.value.split(':');
+            if (mode === 'main') Object.values(session.streams).forEach(x => { if (x !== st && x.mode === 'main') x.mode = 'new'; });
+            Object.assign(st, { mode, lineId: mode === 'line' ? Number(id) : null });
+            recompute();
+        },
+        'imp.streamWho': async (el) => {
+            if (!session) return;
+            const st = session.streams[el.dataset.k];
+            if (!st) return;
+            const id = el.value === 'new' ? await addMember() : el.value ? Number(el.value) : undefined;
+            if (id === null) { renderStreams(); return; }
+            st.memberId = id || undefined;
+            recompute();
+        },
+        'imp.ruleToggle': (el) => { if (!session) return; (session.ruleOff || (session.ruleOff = {}))[el.dataset.k] = !el.checked; session.suggest.forEach(g => { if (Categorize.norm(g.key) === el.dataset.k) g.on = el.checked; }); renderSuggest(); },
         'imp.desc': (el) => { if (!session) return; editRow(Number(el.dataset.i), { description: el.value.trim().slice(0, 120) }); recompute(); },
         'imp.bulkCat': (el) => {
             const sub = document.getElementById('imp-bulk-sub');
             const cat = el.value.slice(2), tax = el.value.startsWith('I|') ? incomeTax() : expenseTax();
-            sub.innerHTML = `<option value="">${cat ? 'La primera' : '— Elige categoría —'}</option>` + (tax[cat] || []).map(c => `<option>${esc(c)}</option>`).join('');
+            sub.innerHTML = cat ? (tax[cat] || []).map(c => `<option>${esc(c)}</option>`).join('') : '<option value="">— Elige categoría —</option>';
             sub.disabled = !cat;
         },
         'imp.bulkApply': () => {
@@ -15494,14 +16087,64 @@ I18n.country('US', {
             const txns = Store.state.transactions;
             let id = Store.nextId(txns);
             const memberId = Number(document.getElementById('imp-member').value) || undefined;
+            // Income streams you marked as a new budget income: one line each (this year's budget),
+            // planned at what arrived per month on average.
+            const yd = Store.active();
+            const lines = yd.otherIncomes || (yd.otherIncomes = []);
+            const newLines = {};
+            let newLineCount = 0;
+            rows.filter(r => r.type === 'Ingreso' && r.newLine).forEach(r => {
+                const k = Categorize.norm(r.newLine);
+                if (!newLines[k]) newLines[k] = { name: r.newLine, rows: [] };
+                newLines[k].rows.push(r);
+            });
+            Object.values(newLines).forEach(n => {
+                const months = new Set(n.rows.map(r => r.date.slice(0, 7))).size || 1;
+                const line = { id: Store.nextId(lines), name: n.name.slice(0, 60), amount: Math.round(n.rows.reduce((a, r) => a + r.amount, 0) / months * 100) / 100, category: 'Ingresos Laborales' };
+                lines.push(line);
+                n.id = line.id;
+                newLineCount++;
+                // Next time, deposits from this payer go to this line (the rule saved below says so).
+                const st = (s.streams || {})[Categorize.norm(n.name)];
+                if (st && st.mode === 'new') Object.assign(st, { mode: 'line', lineId: line.id });
+            });
+            const year = String(Store.state.activeYear);
             rows.forEach(r => {
-                const desc = r.description && r.description !== NO_DESC ? r.description : (r.store || r.category);
-                const t = { id: id++, type: r.type, description: desc.slice(0, 120), store: (r.store || '').slice(0, 80), parentCategory: r.category, category: r.sub || '', amount: r.amount, date: r.date, paymentType: r.payment || 'Transferencia', source: s.source };
-                if (r.budgetLine && r.type !== 'Ingreso') t.budgetLine = String(r.budgetLine);
+                const desc = r.description && r.description !== NO_DESC ? r.description : (r.store || r.category || r.type);
+                const tr = r.type === 'Transferencia';
+                const t = { id: id++, type: r.type, description: firstLine(desc).slice(0, 120), store: (r.store || '').slice(0, 80), parentCategory: tr ? 'Transferencia' : r.category, category: tr ? '' : r.sub || '', amount: r.amount, date: r.date,
+                    paymentType: tr ? 'Transferencia' : r.payment || (r.isCard ? 'Tarjeta de Crédito' : 'Transferencia'), source: s.source };
+                if (r.budgetLine && r.type === 'Gasto') t.budgetLine = String(r.budgetLine);
                 if (r.invoice) t.invoice = r.invoice;
                 if (r.ref) t.importRef = r.ref;
-                if (memberId) t.memberId = memberId;
+                if (r.type === 'Ingreso') {
+                    const lineId = r.incomeId || (r.newLine && (newLines[Categorize.norm(r.newLine)] || {}).id);
+                    // A line of this year's budget only receives this year's deposits.
+                    if (lineId && r.date.slice(0, 4) === year) t.incomeId = lineId;
+                    if (r.countAsExtra) t.countAsExtra = true;
+                }
+                const who = r.memberId || memberId;
+                if (who) t.memberId = who;
+                // A subcategory the engine suggested that isn't in your list yet ("Inversiones (bolsa)").
+                if (!tr && t.category) { const tax = taxFor(r.type); if (tax[t.parentCategory] && !tax[t.parentCategory].includes(t.category)) tax[t.parentCategory].push(t.category); }
                 txns.push(t);
+            });
+            // The rules you kept checked: next time these names sort themselves.
+            const rules = Store.state.rules || (Store.state.rules = []);
+            let ruleCount = 0;
+            (s.suggest || []).filter(g => g.on).forEach(g => {
+                if (rules.some(x => Categorize.norm(x.contains) === Categorize.norm(g.key))) return;
+                const rule = { id: Store.nextId(rules), contains: g.key.slice(0, 60), category: g.type === 'Transferencia' ? '' : g.category, type: g.type };
+                if (g.sub) rule.sub = g.sub;
+                if (g.memberId) rule.memberId = g.memberId;
+                if (g.type === 'Ingreso' && g.incomeMode) {
+                    const st = Object.entries(s.streams || {}).find(([k]) => k === Categorize.norm(g.key));
+                    const cfg = st ? st[1] : null;
+                    rule.incomeMode = cfg ? cfg.mode : g.incomeMode;
+                    if (cfg && cfg.mode === 'line') rule.incomeId = cfg.lineId;
+                }
+                rules.push(rule);
+                ruleCount++;
             });
             // Remember how this kind of file maps (not the file): next time it's automatic.
             if (s.source === 'csv') {
@@ -15534,7 +16177,16 @@ I18n.country('US', {
             const skipped = s.rows.length - rows.length - linked;
             endSession();
             App.changed({ structural: true, step: true });
-            UI.toast(`${rows.length} movimiento${rows.length === 1 ? '' : 's'} importado${rows.length === 1 ? '' : 's'}${skipped ? ` (${skipped} omitido${skipped === 1 ? '' : 's'})` : ''}.${linked ? ` ${linked} ya estaba${linked === 1 ? '' : 'n'} anotado${linked === 1 ? '' : 's'} a mano: no se duplicaron.` : ''}${balanceNote} Revísalos en Transacciones.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            // Short sentences, one per fact (each one is translated on its own).
+            const pl = (n) => (n === 1 ? '' : 's');
+            const parts = [`${rows.length} movimiento${pl(rows.length)} importado${pl(rows.length)}.`];
+            if (skipped) parts.push(`${skipped} omitido${pl(skipped)}.`);
+            if (linked) parts.push(`${linked} ya anotado${pl(linked)} a mano: no se duplicaron.`);
+            if (ruleCount) parts.push(`${ruleCount} regla${pl(ruleCount)} guardada${pl(ruleCount)}.`);
+            if (newLineCount) parts.push(`${newLineCount} ingreso${pl(newLineCount)} nuevo${pl(newLineCount)} en tu presupuesto.`);
+            if (balanceNote) parts.push(balanceNote.trim());
+            parts.push('Revísalos en Transacciones.');
+            UI.toast(parts.map(x => (window.I18n ? I18n.t(x) : x)).join(' · '), 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         },
         'imp.xml': async (el) => {
             const files = Array.from(el.files || []);
@@ -15570,7 +16222,7 @@ I18n.country('US', {
                 const { data } = await worker.recognize(file);
                 await worker.terminate();
                 const r = Importers.parseReceiptText(data.text);
-                const res = resolve({ type: 'Gasto', description: r.merchant, store: '' }, {});
+                const res = resolve({ type: 'Gasto', description: r.merchant, store: '' }, {}, r.merchant ? Categorize.guess(Categorize.parse(r.merchant), { sign: -1, country: Store.COUNTRY }) : null);
                 status(r.total ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> Leímos ${r.merchant ? `<strong>${esc(r.merchant)}</strong>, ` : ''}total <strong>${money(r.total)}</strong>${r.date ? `, fecha ${esc(r.date)}` : ''}. Revisa y guarda.` : '<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> No encontramos el total en la foto. Completa los datos a mano.');
                 TxnForm.prefill({ type: 'Gasto', description: r.merchant || 'Factura', amount: r.total || '', date: r.date || '', parent: res.category, sub: res.sub });
             } catch (e) {
@@ -16305,7 +16957,7 @@ I18n.country('US', {
             let line;
             const rule = note ? Importers.applyRules(s.rules, note) : null;
             if (rule && tax[rule.category]) { cat = rule.category; line = rule.budgetLine; }
-            const t = { id: Store.nextId(s.transactions), type: state.type, description: (rule && rule.rename) || note || cat, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date, paymentType: state.type === 'Ingreso' ? 'Transferencia' : state.payment, createdAt: new Date().toISOString() };
+            const t = { id: Store.nextId(s.transactions), type: state.type, description: (rule && rule.rename) || note || cat, store: '', parentCategory: cat, category: rule && rule.sub && rule.category === cat && (tax[cat] || []).includes(rule.sub) ? rule.sub : (tax[cat] || [])[0] || '', amount, date, paymentType: state.type === 'Ingreso' ? 'Transferencia' : state.payment, createdAt: new Date().toISOString() };
             if (state.type !== 'Ingreso') Store.ui.lastPayment = state.payment;
             if (line && state.type !== 'Ingreso') t.budgetLine = String(line);
             if (memberSel && memberSel.value) { t.memberId = Number(memberSel.value); Store.ui.lastMember = t.memberId; }

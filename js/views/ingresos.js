@@ -11,8 +11,26 @@
     const list = (xs) => xs.length > 1 ? `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}` : xs.join('');
     const dayLabel = (iso) => { const d = new Date(iso + 'T12:00'); return Fmt.lang === 'en' ? `${WD[d.getDay()].slice(0, 3)} ${Fmt.MONTH_SHORT[d.getMonth()]} ${d.getDate()}` : `${WD[d.getDay()].slice(0, 3)} ${d.getDate()} ${Fmt.MONTH_SHORT[d.getMonth()].toLowerCase()}`; };
 
+    // English sentence for the pay schedule (put together directly: the Spanish one is built from
+    // pieces the translator can't recombine).
+    function describeEn(sch) {
+        const W = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const listEn = (xs) => xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs.join('');
+        const nth = (d) => d === 31 ? 'last day' : `${d}${[11, 12, 13].includes(d % 100) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[d % 10] || 'th')}`;
+        if (sch.freq === 'monthly') {
+            const every = { 1: 'every month', 2: 'every 2 months', 3: 'every 3 months (quarterly)', 6: 'every 6 months', 12: 'once a year' }[sch.interval] || `every ${sch.interval} months`;
+            const wk = sch.weekend === 'before' ? ' (on a weekend, the Friday before)' : sch.weekend === 'after' ? ' (on a weekend, the Monday after)' : '';
+            return `On the ${listEn(sch.days.map(nth))}, ${every}${wk}`;
+        }
+        if (sch.freq === 'weekly') return sch.interval === 2 ? `Every 2 weeks, on ${W[sch.weekday]}s` : `Every ${W[sch.weekday]}`;
+        if (sch.freq === 'nth') return `The ${listEn(sch.nths.map(n => (n === -1 ? 'last' : nth(n))))} ${W[sch.weekday]} of each month`;
+        if (sch.freq === 'daily') return sch.businessDays ? 'Every business day (Monday to Friday)' : 'Every day';
+        return '';
+    }
+
     function describe(sch) {
         if (!sch) return 'Sin configurar';
+        if (window.I18n && I18n.lang === 'en') return describeEn(sch);
         if (sch.freq === 'monthly') {
             const wk = sch.weekend === 'before' ? ' (si cae en fin de semana, el viernes antes)' : sch.weekend === 'after' ? ' (si cae en fin de semana, el lunes después)' : '';
             const days = sch.days.length === 1
@@ -29,7 +47,7 @@
     function renderSummary() {
         const sch = Cash.paySchedule();
         const next = sch ? Engine.nextPayday(sch, new Date()) : null;
-        UI.html('pay-summary', sch ? `${esc(describe(sch))}${next ? `<div class="text-xs font-normal text-slate-600"><span>Próximo:</span> <span>${esc(dayLabel(Engine.isoDate(next.date)))}</span> <span>${next.days === 0 ? '(hoy)' : `(en ${next.days} día${next.days === 1 ? '' : 's'})`}</span></div>` : ''}` : '<span class="text-slate-500 font-normal">Sin configurar</span>');
+        UI.html('pay-summary', sch ? `<span data-i18n-skip>${esc(describe(sch))}</span>${next ? `<div class="text-xs font-normal text-slate-600"><span>Próximo:</span> <span>${esc(dayLabel(Engine.isoDate(next.date)))}</span> <span>${next.days === 0 ? '(hoy)' : `(en ${next.days} día${next.days === 1 ? '' : 's'})`}</span></div>` : ''}` : '<span class="text-slate-500 font-normal">Sin configurar</span>');
     }
 
     // The editor works on a draft; nothing changes until "Guardar".
@@ -105,7 +123,7 @@
                 ${extra}
                 <label class="field"><span class="field-label"><span>Monto de cada pago (<span class="cur">${esc(Fmt.currency().symbol)}</span>)</span></span><input class="input" id="ps-amount" data-change="pay.field" inputmode="decimal" value="${esc(String(d.amount || ''))}" placeholder="Automático: tu sueldo neto repartido"><span class="help">Déjalo vacío si cobras tu sueldo de esta pestaña.</span></label>
             </div>
-            <div class="bs-banner ok mt-3" id="pay-describe"><i class="fa-regular fa-calendar-check"></i> ${esc(describe(sch))}</div>
+            <div class="bs-banner ok mt-3" id="pay-describe"><i class="fa-regular fa-calendar-check"></i> <span data-i18n-skip>${esc(describe(sch))}</span></div>
             <div class="mt-3">${previewHTML(sch)}</div>
             <div class="flex flex-wrap justify-between gap-2 mt-4">
                 <button type="button" class="btn btn-ghost btn-sm" data-action="pay.clear">Quitar</button>
@@ -283,7 +301,7 @@
             st.paydays = sch.freq === 'monthly' && sch.interval === 1 ? sch.days : [];
             sheet.close();
             App.changed({ structural: true, step: true });
-            UI.toast(`Guardado: ${describe(sch).toLowerCase()}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`${window.I18n ? I18n.t('Guardado') : 'Guardado'}: ${describe(sch)}`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         },
         'pay.clear': () => {
             const st = Store.state.settings;

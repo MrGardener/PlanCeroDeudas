@@ -188,9 +188,23 @@
 
     // Rows of the table (after the header) → candidate transactions, using the mapping:
     // { date, description, store, category?, amount>0, type 'Gasto'|'Ingreso', error? }
+    // Day-first or month-first? Look at the whole column: a first number above 12 means day
+    // first, a second one above 12 means month first; otherwise the country's habit (`fallback`).
+    function detectDateOrder(values, fallback = 'dmy') {
+        let dmy = false, mdy = false;
+        (values || []).forEach(v => {
+            const m = String(v || '').trim().match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+            if (!m) return;
+            if (Number(m[1]) > 12) dmy = true;
+            if (Number(m[2]) > 12) mdy = true;
+        });
+        return dmy && !mdy ? 'dmy' : mdy && !dmy ? 'mdy' : fallback;
+    }
+
     function buildRows(table, mapping) {
-        const { mode = 'single', date, description, amount, debit, credit, category, store, balance,
-            dateFormat = 'auto', expensesAre = 'negative' } = mapping;
+        const { mode = 'single', date, description, amount, debit, credit, category, store, balance, expensesAre = 'negative' } = mapping;
+        let dateFormat = mapping.dateFormat || 'auto';
+        if (dateFormat === 'auto' && date !== undefined && date >= 0) dateFormat = detectDateOrder(table.map(r => r[date]), mapping.dateDefault || 'dmy');
         let decimal = mapping.decimal || 'auto';
         if (decimal === 'auto') {
             const cols = [amount, debit, credit, balance].filter(c => c !== undefined && c !== null && c >= 0);
@@ -212,6 +226,7 @@
             if (!out.date) out.error = 'Fecha no reconocida';
             else if (value === null || value === 0) out.error = 'Sin monto';
             else if (!out.description.trim()) out.description = out.store || '(sin descripción)';
+            out.signed = value;
             out.amount = value === null ? 0 : Math.round(Math.abs(value) * 100) / 100;
             out.type = value !== null && value > 0 ? 'Ingreso' : 'Gasto';
             return out;
@@ -450,7 +465,7 @@
         return null;
     }
 
-    const Importers = { parseOFX, classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    const Importers = { detectDateOrder, parseOFX, classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
     if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
     else root.Importers = Importers;
 })(this);
