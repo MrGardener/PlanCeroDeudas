@@ -114,7 +114,7 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | 📋 Exact tables for more states | Today: Michigan, no-tax states, IL and PA are automatic; every other state uses the rate you type (from your pay stub). Add brackets state by state, starting with the ones users ask for |
 | 📋 Ohio/Pennsylvania/other city & school-district taxes | Michigan cities are listed; elsewhere type the rate |
 | 🔍 Verify 2026 figures each January | Federal brackets/standard deduction (IRS Rev. Proc.), Social Security wage base and bend points (SSA), Michigan rate/exemption; editable in Settings |
-| 📋 Bonuses, overtime and hourly pay | Today: monthly gross; hourly users can set a fixed amount per paycheck in "¿Cómo te pagan?" |
+| 🚧 Bonuses, overtime and hourly pay | Plan: `docs/plans/hourly-pay.md`. ✅ Phase 1 (engine): `Engine.usGrossPay` — salary or hourly (rate × hours a week × 52 ÷ 12, overtime at 1.5×), expected bonuses; taxes on the whole year, the budget on base pay (overtime only if counted), planned bonuses in their month after taxes. Next: phase 2, the Income screen |
 | 📋 Roth vs. traditional comparison, IRA contribution tracker, employer match optimizer | Builds on the 401(k)/IRA account type and deductions |
 | 📋 US bank CSV presets (Chase, BofA, Wells Fargo, Capital One, Amex) | The column mapper already handles them; presets would skip the mapping step |
 

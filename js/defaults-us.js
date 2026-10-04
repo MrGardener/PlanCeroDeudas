@@ -113,7 +113,10 @@
         const y = EC.newYear();
         return Object.assign(y, {
             country: 'US',
-            sueldo: 5000,               // gross pay per month
+            sueldo: 5000,               // gross pay per month (with hourly pay: the base pay, kept in sync)
+            payType: 'salary',          // 'salary' | 'hourly'
+            hourly: { rate: 0, hours: 40, otHours: 0, otRate: 1.5, otInBudget: false },   // hours per week
+            bonuses: [],                // [{ id, name, amount, month: '1'…'12', inBudget }] gross, this year
             tasa: 4.0,                  // savings / CD rate (APY %)
             d3: false, d4: false, iessRate: 0, sbu: 0, canasta: 0, sriCapMultiplier: 0, sriBrackets: [],
             cosede: 250000,             // FDIC / NCUA coverage per depositor, per bank, per ownership category
