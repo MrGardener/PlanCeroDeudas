@@ -1,0 +1,299 @@
+// US edition (ZeroDebtPlan) end-to-end checks.
+const { openApp, ROOT } = require('./harness');
+const path = require('path');
+let pass = 0, fail = 0;
+const ok = (c, name, extra) => { if (c) pass++; else { fail++; console.log('FAIL:', name, extra !== undefined ? JSON.stringify(extra) : ''); } };
+const text = (page, id) => page.evaluate(id => (document.getElementById(id) || {}).textContent || '', id);
+const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') document.querySelectorAll('[data-tab=config] details').forEach(d => { d.open = true; }); }, k);
+(async () => {
+  const { browser, page, errors } = await openApp({ file: 'index.html?edition=us', viewport: { width: 1366, height: 900 } });
+  await page.evaluate(() => { Store.reset('starter'); App.commitHistory(); App.go('resumen'); });
+  ok(await page.evaluate(() => [Store.KEY, Store.COUNTRY, document.title, I18n.lang].join()) === 'zerodebtplan_us_store,US,ZeroDebtPlan,en', 'US edition: own storage, country, title, English');
+  ok((await text(page, 'brand-title')) === 'ZeroDebtPlan', 'brand name');
+  const nav = await page.$$eval('#main-nav .nav-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim()));
+  ok(nav.length === 5 && nav.some(n => n.includes('Future')) && nav.some(n => n.includes('Transactions')) && nav.some(n => n.includes('Net Worth')), 'US navigation', nav);
+  const futureTabs = await page.$$eval('[data-tab="futuro"] .tab-segmented button', els => els.map(e => e.textContent.trim()));
+  ok(futureTabs.some(n => n.includes('Savings & CDs')) && futureTabs.some(n => n.includes('Mortgage')), 'Future holds savings, mortgage…', futureTabs);
+  // Payroll
+  await go(page, 'presupuesto/ingresos');
+  const pay = await page.evaluate(() => App.buildContext().pay);
+  ok(Math.abs(pay.netoM - 4007.56) < 0.01 && pay.country === 'US', 'Michigan single $5,000/mo → $4,007.56 net (2026 $5,900 exemption)', pay.netoM);
+  ok((await text(page, 'inc-payroll')).includes('Federal income tax') && (await text(page, 'inc-payroll')).includes('Medicare') && (await text(page, 'inc-payroll')).includes('Michigan 4.25%'), 'payroll breakdown shows US taxes');
+  ok(await page.isHidden('[data-bind="year.d3"]') && await page.isHidden('#inc-ded-status'), 'Ecuador-only fields are hidden');
+  await page.selectOption('[data-bind="year.filingStatus"]', 'mfj');
+  await page.fill('[data-bind="year.dependents"]', '2'); await page.dispatchEvent('[data-bind="year.dependents"]', 'input');
+  ok(await page.evaluate(() => App.buildContext().pay.fedM) < pay.fedM && (await text(page, 'inc-us-ded-kpis')).includes('$4,400.00'), 'married + 2 kids: lower federal tax, $4,400 in credits');
+  await page.selectOption('#inc-city', 'Detroit');
+  ok(Math.abs(await page.evaluate(() => App.buildContext().pay.localM) - (5000 * 12 - 4 * 600) * 0.024 / 12) < 0.01 && (await text(page, 'inc-payroll')).includes('Detroit'), 'Detroit city tax 2.4% after $600 × 4 people');
+  await page.selectOption('#inc-state', 'TX');
+  ok(await page.evaluate(() => App.buildContext().pay.stateM) === 0 && (await text(page, 'inc-state-note')).includes("doesn't tax wages") && await page.evaluate(() => Store.active().localRate) === 0, 'Texas: no state tax, city reset');
+  await page.selectOption('#inc-state', 'CA');
+  ok((await text(page, 'inc-state-note')).includes("don't have California"), 'a state without a table asks for the rate');
+  await page.fill('#inc-state-rate', '6'); await page.dispatchEvent('#inc-state-rate', 'change');
+  ok(Math.abs(await page.evaluate(() => App.buildContext().pay.stateM) - 5000 * 0.06) < 0.01, 'typed state rate is used');
+  await page.selectOption('#inc-state', 'MI');
+  await page.selectOption('[data-bind="year.filingStatus"]', 'single');
+  await page.fill('[data-bind="year.dependents"]', '0'); await page.dispatchEvent('[data-bind="year.dependents"]', 'input');
+  await page.selectOption('#inc-city', '');
+  // Pay stub: US taxes recognized as computed; 401(k) pre-tax lowers taxes
+  await page.evaluate(() => PayScan.fromText(`Pay Period: 09/14/2026 - 09/27/2026  Pay Date: 10/02/2026\nGross Pay  2,307.69\nFederal Income Tax  170.00\nSocial Security  135.00\nMedicare  31.00\nMI State Income Tax  86.00\n401(k) Pre-Tax  138.46\nMedical PPO  69.23\nNet Pay  1,678.00`));
+  await page.waitForSelector('#scan-save');
+  const inc = await page.$$eval('.scan-inc', els => els.map(e => e.checked));
+  ok(inc.filter(Boolean).length === 2 && (await page.textContent('.modal-backdrop:not(.hidden)')).includes('The app already calculates it'), 'stub: taxes are computed by the app; 401(k) and medical are kept', inc);
+  ok(await page.inputValue('#scan-ppy') === '26', 'biweekly stub');
+  const before = await page.evaluate(() => App.buildContext().pay.fedM);
+  await page.click('#scan-save');
+  const after = await page.evaluate(() => App.buildContext().pay);
+  ok(after.fedM < before && after.pretaxM > 0 && Math.abs(after.otrosDescuentosM - (138.46 + 69.23) * 26 / 12) < 0.02, 'pre-tax deductions lower federal tax and come off net', [before, after.fedM, after.otrosDescuentosM]);
+  await page.evaluate(() => { Store.active().payDeductions = []; App.changed({ structural: true }); });
+  // Mortgage PITI
+  await go(page, 'hipoteca');
+  ok((await text(page, 'mort-summary')).includes('Total monthly payment (PITI)') && (await text(page, 'mort-summary')).includes('Principal & interest'), 'mortgage shows PITI');
+  const piti = await page.evaluate(() => { const m = Store.state.mortgage; const pi = Engine.frenchPayment(m.amount, m.rate, m.years * 12); return Engine.pitiMonthly(Object.assign({ payment: pi }, m)).total; });
+  ok(Math.abs(piti - (1580.17 + 4000 / 12 + 1500 / 12)) < 1, 'PITI = P&I + tax + insurance', piti);
+  // Retirement: Social Security
+  await go(page, 'jubilacion');
+  const ss = await page.evaluate(() => App.buildContext().retirement.pension);
+  ok(ss > 1500 && ss < 3000 && (await page.textContent('[data-view="jubilacion"]')).includes('Social Security'), 'retirement uses a Social Security estimate', ss);
+  ok(await page.isHidden('[data-bind="retirement.tasaReemplazo"]'), 'IESS replacement rate hidden');
+  // Import: OFX
+  await go(page, 'presupuesto/importar');
+  ok(await page.isHidden('#imp-xml'), 'SRI invoice import hidden');
+  const n0 = await page.evaluate(() => Store.state.transactions.length);
+  await page.setInputFiles('#imp-file', path.join(ROOT, 'tests/fixtures/chase.ofx'));
+  await page.waitForTimeout(250);
+  ok((await page.textContent('#imp-summary')).includes('3 to import'), 'OFX rows read', await page.textContent('#imp-summary'));
+  await page.selectOption('#imp-ofx-account select', 'new');
+  await page.click('#imp-commit');
+  const acct = await page.evaluate(() => Store.state.accounts[Store.state.accounts.length - 1]);
+  ok(await page.evaluate(() => Store.state.transactions.length) === n0 + 3 && acct && acct.balance === 2340.55, 'OFX imported and the account balance updated', acct);
+  await page.setInputFiles('#imp-file', path.join(ROOT, 'tests/fixtures/chase.ofx'));
+  await page.waitForTimeout(250);
+  ok((await page.textContent('#imp-summary')).includes('0 to import'), 'the same OFX again: all already imported (FITID)', await page.textContent('#imp-summary'));
+  await page.click('[data-action="imp.cancel"]');
+  // Settings: US tax table, FDIC
+  await go(page, 'config');
+  ok(await page.$$eval('#cfg-us-brackets tr', r => r.length) === 7 && await page.isHidden('[data-bind="year.iessRate"]'), 'federal table editable; IESS parameters hidden');
+  await page.fill('[data-bind="year.usTax.stdDeduction.single"]', '20000'); await page.dispatchEvent('[data-bind="year.usTax.stdDeduction.single"]', 'input');
+  ok(await page.evaluate(() => App.buildContext().pay.stdDeduction) === 20000, 'nested tax parameters are editable');
+  // Spanish in the US edition: US wording
+  await page.selectOption('#cfg-lang', 'es');
+  await page.waitForTimeout(150);
+  const navEs = await page.$$eval('#main-nav .nav-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim()));
+  const futEs = await page.$$eval('[data-tab="futuro"] .tab-segmented button', els => els.map(e => e.textContent.trim()));
+  ok(futEs.some(n => n.includes('Ahorro y CDs')) && navEs.some(n => n.includes('Resumen')), 'Spanish in the US edition uses US wording', navEs.concat(futEs));
+  await go(page, 'jubilacion');
+  ok((await page.textContent('[data-view="jubilacion"]')).includes('Seguro Social') && !(await page.textContent('[data-view="jubilacion"]')).includes('Pensión IESS'), 'Spanish: Seguro Social, not IESS');
+  await page.selectOption('#cfg-lang', 'en').catch(async () => { await go(page, 'config'); await page.selectOption('#cfg-lang', 'en'); });
+  // Mobile
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const k of ['resumen', 'presupuesto/ingresos', 'hipoteca', 'config']) {
+    await go(page, k); await page.waitForTimeout(200);
+    ok(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth) <= 0, `US: no horizontal scroll on mobile (${k})`);
+  }
+  // Next moves on the Overview (example family): three, snoozing one brings the next.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('resumen'); });
+  await page.waitForTimeout(200);
+  const mv0 = await page.$$eval('#dash-moves .move-title', a => a.map(e => e.textContent.trim()));
+  ok(mv0.length === 3 && await page.isVisible('#dash-moves-card'), 'Overview shows the next 3 moves', mv0);
+  const health = await page.evaluate(() => ({ n: Number(document.querySelector('#dash-health .health-num').textContent), pillars: document.querySelectorAll('#dash-health .health-pillar').length, txt: document.getElementById('dash-health').textContent }));
+  ok(health.n >= 0 && health.n <= 100 && health.pillars === 4 && /Spend/.test(health.txt) && /Borrow/.test(health.txt), 'Overview shows the financial health score with 4 pillars', health.n);
+  const firstKey = await page.$eval('#dash-moves [data-action="moves.snooze"]', b => b.dataset.key);
+  await page.click('#dash-moves [data-action="moves.snooze"]');
+  const mv1 = await page.$$eval('#dash-moves [data-action="moves.snooze"]', a => a.map(e => e.dataset.key));
+  ok(!mv1.includes(firstKey) && await page.evaluate(k => !!Store.state.settings.movesSnoozed[k], firstKey), 'Not now hides a move for two weeks', [firstKey, mv1]);
+  // Retirement: need vs. have, and the monthly fix goes into the simulator.
+  await go(page, 'futuro/jubilacion');
+  await page.waitForTimeout(200);
+  ok(/You'd need/.test(await page.textContent('#ret-gap')) && /%/.test(await page.textContent('#ret-gap')), 'retirement shows need vs have', (await page.textContent('#ret-gap')).slice(0, 120));
+  await page.fill('#ret-desired', '20000');
+  await page.dispatchEvent('#ret-desired', 'input');
+  await page.waitForTimeout(150);
+  ok(/more a month/.test(await page.textContent('#ret-gap')), 'a bigger lifestyle shows the extra monthly saving');
+  await page.click('#ret-gap [data-action="ret.tryGap"]');
+  ok(await page.evaluate(() => Store.state.retirement.whatIfExtra > 0), 'the fix goes into the what-if simulator');
+  // Budget coaching (example family).
+  await page.evaluate(() => { App.go('presupuesto/plan'); document.getElementById('bud-coach-card').open = true; });
+  await page.waitForTimeout(200);
+  const coachTxt = await page.textContent('#bud-coach');
+  ok(/Housing/.test(coachTxt) && /guideline|Guideline/.test(coachTxt) && await page.$$eval('#bud-coach tbody tr', r => r.length) >= 5, 'budget coaching compares the plan with guidelines', coachTxt.slice(0, 120));
+  // Insurance check (example family): guessed from the budget, answers override.
+  await page.evaluate(() => { App.go('futuro/metas'); document.getElementById('metas-insurance').open = true; });
+  await page.waitForTimeout(200);
+  const ins = await page.$$eval('#ins-list .ins-row', r => r.map(e => e.className.split(' ').pop()));
+  ok(ins.length === 7 && ins.includes('ok'), 'insurance check lists 7 coverages with what you have', ins);
+  const missingBefore = await page.evaluate(() => document.querySelectorAll('#ins-list .ins-row.falta').length);
+  if (missingBefore) {
+    const key = await page.$eval('#ins-list .ins-row.falta select', s => s.dataset.key);
+    await page.selectOption(`#ins-list select[data-key="${key}"]`, 'si');
+    ok(await page.evaluate(() => document.querySelectorAll('#ins-list .ins-row.falta').length) === missingBefore - 1, 'saying you have it marks it covered');
+  }
+  // College estimator (example family): Emma linked to her 529 goal, a goal created for Leo.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('futuro/metas'); document.getElementById('metas-college').open = true; });
+  await page.waitForTimeout(200);
+  ok(await page.$$eval('#college-results .college-card', c => c.length) === 2 && /Total cost/.test(await page.textContent('#college-results')), 'college estimator shows each child');
+  const nGoals = await page.evaluate(() => Store.state.goals.length);
+  await page.click('#college-results [data-action="college.goal"]');
+  const leo = await page.evaluate(() => { const k = Store.state.college.kids.find(x => x.name === 'Leo'); const g = Store.state.goals.find(x => x.id === k.goalId); return g && { name: g.name, monthly: g.monthly, target: g.target, n: Store.state.goals.length }; });
+  ok(leo && leo.n === nGoals + 1 && /Leo/.test(leo.name) && leo.monthly > 0 && leo.target > 100000, 'a savings goal is created and linked for the child', leo);
+  // Estate + yearly review checklists keep the date of each step.
+  await go(page, 'patrimonio');
+  await page.waitForTimeout(150);
+  ok(await page.$$eval('#check-estate .check-item', a => a.length) === 6 && await page.$$eval('#check-review .check-item', a => a.length) === 9, 'estate and yearly review checklists');
+  await page.click('#check-estate input[data-key="will"]');
+  await page.click('#check-review input[data-key="credit"]');
+  const ck = await page.evaluate(() => ({ will: Store.state.checklists.estate.will, credit: (Store.state.checklists.review[String(new Date().getFullYear())] || {}).credit, pct: document.getElementById('check-estate-pct').textContent, today: Engine.isoDate(new Date()) }));
+  ok(ck.will === ck.today && ck.credit === ck.today && ck.pct === '17%', 'checking a step saves its date (the yearly one under this year)', ck);
+  // Refund or owe (example family): a refund now; less withholding → owe, with the W-4 fix.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
+  await page.waitForTimeout(200);
+  ok(/Your refund would be/.test(await page.textContent('#inc-refund')), 'the example family gets a refund estimate', (await page.textContent('#inc-refund')).slice(0, 120));
+  await page.fill('#inc-refund-in [data-key="perCheck"]', '40');
+  await page.dispatchEvent('#inc-refund-in [data-key="perCheck"]', 'input');
+  await page.waitForTimeout(150);
+  const owe = await page.textContent('#inc-refund');
+  ok(/You'd owe/.test(owe) && /more per paycheck/.test(owe) && await page.evaluate(() => document.activeElement && document.activeElement.dataset.key === 'perCheck'), 'less withholding → owe, with extra per paycheck; typing keeps focus', owe.slice(0, 160));
+  // Itemize or standard: the example family is better off with the standard deduction; a bigger
+  // mortgage interest flips it, and "Use" puts the itemized total in the paycheck math.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
+  await page.waitForTimeout(200);
+  const it0 = (await page.textContent('#inc-itemize')).replace(/\s+/g, ' ');
+  ok(/Mortgage interest/.test(it0) && /State, local and property taxes/.test(it0) && /Charitable gifts/.test(it0) && /The standard deduction is better for you/.test(it0) && /\$34,200/.test(it0), 'itemize check: the example family takes the standard deduction (+ $2,000 for gifts)', it0.slice(0, 300));
+  await page.fill('#inc-itemize-in [data-key="mortgage"]', '30000');
+  await page.dispatchEvent('#inc-itemize-in [data-key="mortgage"]', 'input');
+  await page.waitForTimeout(150);
+  const it1 = await page.textContent('#inc-itemize');
+  ok(/Itemizing is better for you/.test(it1) && await page.evaluate(() => document.activeElement && document.activeElement.dataset.key === 'mortgage'), 'more mortgage interest → itemize, and typing keeps focus', it1.slice(0, 200));
+  const fed0 = await page.evaluate(() => App.buildContext().pay.fedM);
+  await page.click('#inc-itemize [data-action="itemize.use"]');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => Store.active().itemized) > 32200 && await page.evaluate(() => App.buildContext().pay.fedM) < fed0 && /Itemized/.test(await page.textContent('#inc-us-ded-kpis')), '"Use" sets the itemized deduction and lowers the federal tax');
+  // Investments: cost and gain per holding, the mix against the target, rebalancing, new money.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('patrimonio'); });
+  await page.waitForTimeout(200);
+  const hold = (await page.textContent('#nw-holdings')).replace(/\s+/g, ' ');
+  ok(/\+\$1,522 \(\+24\.9%\)/.test(hold) && /\+\$2,240 \(\+19\.0%\)/.test(hold) && /Manual/.test(hold), 'gain per holding and in total', hold.slice(0, 200));
+  ok(/drifted 5\.6 points/.test(hold) && /Buy \$788/.test(hold) && /Sell \$663/.test(hold), 'the example mix has drifted: buy and sell amounts', hold.match(/U\.S\. stocks\$.{0,200}/));
+  await page.fill('#mix-new', '1000');
+  await page.dispatchEvent('#mix-new', 'input');
+  await page.waitForTimeout(100);
+  const split = await page.textContent('#mix-split');
+  ok(/U\.S\. stocks\s*\$888\s*International stocks\s*\$112/.test(split), 'new money only: where to put the next contribution', split);
+  ok(await page.evaluate(() => document.activeElement && document.activeElement.id === 'mix-new'), 'typing the contribution keeps focus');
+  await page.click('[data-action="mix.preset"][data-key="calm"]');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => Store.state.investTarget.bonds === 40 && document.querySelector('#mix-in [data-key="bonds"]').value === '40'), 'a preset sets the target and the inputs show it');
+  await page.selectOption('#mix-in select[data-id="3"]', 'cash');
+  await page.waitForTimeout(100);
+  ok(await page.evaluate(() => Store.state.holdings.find(h => h.id === 3).asset === 'cash') && /Cash \/ money market/.test(await page.textContent('#mix-bars')), 'a holding\'s class can be changed');
+  const costCell = '#hold-body tr[data-row="1"] [data-field="cost"]';
+  await page.fill(costCell, '9000'); await page.dispatchEvent(costCell, 'input');
+  await page.waitForTimeout(100);
+  ok(/−\$1,358/.test(await page.textContent('#hold-body tr[data-row="1"] [data-cell="gain"]')), 'a higher cost shows a loss');
+  // Prepay the mortgage or invest: the example at 10% → investing wins, with the break-even; at 5% → prepay.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('futuro/hipoteca'); });
+  await page.waitForTimeout(200);
+  const pp = (await page.textContent('#mort-prepay')).replace(/\s+/g, ' ');
+  ok(/investing would leave \$[\d,]+ more/.test(pp) && /only wins if it earns more than 6\.\d% a year/.test(pp) && /House paid off \d+y/.test(pp) && /From your balance today/.test(pp), 'prepay or invest: investing wins at 10%, with the break-even', pp.slice(0, 300));
+  await page.fill('#mort-prepay-in [data-key="returnPct"]', '5');
+  await page.dispatchEvent('#mort-prepay-in [data-key="returnPct"]', 'input');
+  await page.waitForTimeout(100);
+  ok(/Paying down the house leaves \$[\d,]+ more/.test(await page.textContent('#mort-prepay-out')) && await page.evaluate(() => document.activeElement.dataset.key === 'returnPct'), 'at 5% paying the house wins; typing keeps focus');
+  // Rate sensitivity: the mortgage at ±1 point, CDs renewing 1 point lower.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('futuro/hipoteca'); });
+  await page.waitForTimeout(200);
+  const rates = (await page.textContent('#mort-rates')).replace(/\s+/g, ' ');
+  ok(/1 point lower · 5\.25% \$1,501\.99/.test(rates) && /1 point higher · 7\.25% \$1,855\.52/.test(rates) && /\+\$181\/mo/.test(rates), 'mortgage payment and interest at ±1 point', rates.slice(0, 200));
+  await go(page, 'ahorro/polizas');
+  await page.waitForTimeout(150);
+  ok(/If the rate is 1 point lower when they renew, they'd earn \$[\d,]+: \$[\d,]+ less a year/.test(await page.textContent('#pol-rate-risk')), 'CDs: what a 1-point lower renewal costs a year');
+  // Side income: the example's photography income → % to set aside, a tax fund goal.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
+  await page.waitForTimeout(200);
+  const side = await page.textContent('#inc-side');
+  const sidePct = Number((side.match(/(\d+)%/) || [])[1]);
+  ok(/Side income/.test(side) && sidePct >= 20 && sidePct <= 45 && /quarterly/.test(side), 'side income shows the share to set aside and quarterly payments', side.slice(0, 160));
+  await page.click('#inc-side [data-action="side.goal"]');
+  ok(await page.evaluate(() => Store.state.goals.some(g => g.taxFund && g.monthly > 0)), 'a tax fund goal can be created');
+  // Subscription finder on the example family.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('transacciones/lista'); });
+  await page.waitForTimeout(200);
+  const foundTxt = await page.textContent('#rec-found');
+  ok(/Disney\+/.test(foundTxt) && /iCloud/.test(foundTxt) && /repeating charge/.test(foundTxt), 'the finder lists untracked subscriptions', foundTxt.slice(0, 200));
+  const nRec = await page.evaluate(() => Store.state.recurring.length);
+  await page.click('#rec-found .found-row:has-text("Disney+") [data-action="subs.track"]');
+  const tracked = await page.evaluate(() => { const r = Store.state.recurring.find(x => x.description === 'Disney+'); return r && { r, linked: Store.state.transactions.filter(t => t.recurringId === r.id).length, n: Store.state.recurring.length, next: Engine.nextOccurrence(r, new Date()), today: Engine.isoDate(new Date()) }; });
+  ok(tracked && tracked.n === nRec + 1 && tracked.r.frequency === 'monthly' && tracked.linked >= 12 && tracked.next >= tracked.today, 'Schedule turns it into a repeating movement linked to its past charges', tracked && [tracked.n, tracked.linked, tracked.next]);
+  ok(!/Disney\+/.test(await page.textContent('#rec-found')), 'a scheduled one leaves the list');
+  ok(await page.evaluate(() => Engine.dueOccurrences(Store.state.recurring.find(x => x.description === 'Disney+'), new Date()).length === 0), 'scheduling does not re-post charges already logged');
+  await page.click('#rec-found .found-row:has-text("Help for Mom") [data-action="subs.dismiss"]');
+  ok(!/Help for Mom/.test(await page.textContent('#rec-found')) && await page.evaluate(() => (Store.state.settings.dismissedRepeats || []).length === 1), 'Not recurring hides it for good');
+  // Net worth month by month + milestones (example family).
+  await go(page, 'patrimonio');
+  await page.waitForTimeout(200);
+  const prog = await page.evaluate(() => ({ points: (UI.chartInstance('nw-month-chart') || { data: { datasets: [{ data: [] }] } }).data.datasets[0].data.length, txt: document.getElementById('nw-milestones').textContent, hist: Store.state.netWorthHistory.length }));
+  ok(prog.points >= 12 && prog.points === prog.hist, 'the example shows net worth month by month', prog.points);
+  ok(/Reached \(\d+\)/.test(prog.txt) && /Up next/.test(prog.txt) && /Net worth of \$/.test(prog.txt), 'milestones: reached and up next', prog.txt.slice(0, 160));
+  const er = await page.evaluate(() => Store.state.debts.find(d => /ER bill/.test(d.name)));
+  await go(page, 'futuro/metas');
+  await page.click(`#debt-body tr[data-row="${er.id}"] [data-action="debt.pay"]`);
+  await page.fill('.modal input[name="amount"]', String(er.balance));
+  await page.fill('.modal input[name="interest"]', '0');
+  await page.click('[data-dialog-ok]');
+  await page.waitForTimeout(600);
+  const ms = await page.evaluate(id => ({ m: Store.state.milestones['debt-' + id], toasts: [...document.querySelectorAll('.toast')].map(t => t.textContent).join(' | ') }), er.id);
+  ok(ms.m === await page.evaluate(() => Engine.isoDate(new Date())) && /Milestone!/.test(ms.toasts), 'paying a debt off is a dated, celebrated milestone', ms);
+  // Phones: debts and goals show as one card per row, each field labeled; tables on desktop.
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('futuro/metas'); });
+  await page.waitForTimeout(150);
+  ok(await page.isVisible('#metas-goals thead') && await page.evaluate(() => getComputedStyle(document.querySelector('#debt-body tr')).display) === 'table-row', 'desktop: debts and goals stay tables', await page.evaluate(() => [getComputedStyle(document.querySelector('#metas-goals thead')).display, getComputedStyle(document.querySelector('#debt-body tr')).display, innerWidth, Store.ui.tab, document.querySelectorAll('#debt-body tr').length]));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(200);
+  const card = await page.evaluate(() => ({ head: getComputedStyle(document.querySelector('#metas-goals thead')).display, row: getComputedStyle(document.querySelector('#debt-body tr')).display,
+    labels: [...document.querySelectorAll('#goal-body tr:first-child td')].map(td => getComputedStyle(td, '::before').content), over: document.documentElement.scrollWidth - innerWidth }));
+  ok(card.head === 'none' && card.row === 'grid' && card.labels.includes('"Budget per month"') && card.labels.includes('"Target"') && card.over <= 0, 'phone: debts and goals as labeled cards, no sideways scroll', card);
+  await page.fill('#debt-body tr:first-child [data-field="balance"]', '1234');
+  await page.dispatchEvent('#debt-body tr:first-child [data-field="balance"]', 'input');
+  ok(await page.evaluate(() => Store.state.debts[0].balance === 1234 && document.activeElement.dataset.field === 'balance'), 'phone: editing in a card works and keeps focus');
+  await page.setViewportSize({ width: 1366, height: 900 });
+  // Erase all my data in English: the dialog asks for DELETE, any case works, then a box confirms.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('config'); document.querySelectorAll('[data-tab=config] details').forEach(d => { d.open = true; }); });
+  await page.click('[data-action="cfg.purge"]');
+  await page.waitForTimeout(100);
+  ok(/Type DELETE to confirm/.test(await page.textContent('.modal')), 'English: the erase dialog asks for DELETE');
+  await page.fill('.modal input[name="word"]', 'Delete');
+  await page.click('[data-dialog-ok]');
+  await page.waitForTimeout(200);
+  const purged = await page.evaluate(() => ({ n: ['transactions', 'debts', 'goals', 'accounts', 'holdings'].map(k => Store.state[k].length).join(), saved: JSON.parse(localStorage.getItem(Store.KEY) || '{}'), box: (document.querySelector('.modal') || {}).textContent || '' }));
+  ok(purged.n === '0,0,0,0,0' && (purged.saved.transactions || []).length === 0 && /Your data has been erased/.test(purged.box), 'typing "Delete" erases everything (memory and storage) and confirms it', [purged.n, purged.box.slice(0, 80)]);
+  await page.click('[data-dialog-ok]');
+  // Smart CSV import (engine, streams, rules) — see e2e-imp.js.
+  await require('./e2e-imp.js')(page, ok);
+  // Salary schedule confirmation in English.
+  await page.evaluate(() => { Store.reset('empty'); App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
+  await page.evaluate(() => { UI.run('pay.edit', {}); });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => { UI.run('pay.save', {}); });
+  await page.waitForTimeout(200);
+  const payToast = await page.evaluate(() => [...document.querySelectorAll('.toast')].map(t => t.textContent).join('|'));
+  ok(/Saved: On the 15th and 30th, every month/.test(payToast) && /On the 15th and 30th/.test(await page.textContent('#pay-summary')), 'pay schedule saved message and summary in English', payToast);
+  // PIN lock screen in English.
+  await page.evaluate(async () => { await Device.setPin('1234'); Device.lockNow(); });
+  await page.waitForTimeout(150);
+  const lockTxt = await page.textContent('#lock-screen');
+  await page.fill('#lock-pin', '9999');
+  await page.click('#lock-screen button[type="submit"]');
+  await page.waitForTimeout(400);
+  const wrong = await page.textContent('#lock-msg');
+  ok(/Type your PIN to get in/.test(lockTxt) && /ZeroDebtPlan/.test(lockTxt) && /Wrong PIN\. 4 tries left/.test(wrong), 'PIN screen and its messages in English', [lockTxt, wrong]);
+  await page.fill('#lock-pin', '1234');
+  await page.click('#lock-screen button[type="submit"]');
+  await page.waitForTimeout(400);
+  ok(!(await page.$('#lock-screen')) && await page.evaluate(() => I18n.lang) === 'en' && /Overview|Budget/.test(await page.textContent('#main-nav')), 'unlocking keeps the app in English');
+  await page.evaluate(() => Device.removePin());
+  ok(errors.length === 0, 'no console errors', errors);
+  console.log(`\n${pass} passed, ${fail} failed`);
+  await browser.close();
+  process.exit(fail ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(1); });

@@ -1,0 +1,244 @@
+// Run with: node --test tests/
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const I = require('../js/importers.js');
+
+test('CSV: delimiter, quotes and line breaks inside quotes', () => {
+    const semi = 'Fecha;Concepto;Valor\n01/09/2026;"Supermaxi; Quito";-45,50\n02/09/2026;Sueldo;1.200,00\n';
+    const p = I.parseCSV(semi);
+    assert.equal(p.delimiter, ';');
+    assert.deepEqual(p.rows[1], ['01/09/2026', 'Supermaxi; Quito', '-45,50']);
+    const comma = 'date,description,amount\n2026-09-03,"Line one\nline two",12.00\n';
+    const q = I.parseCSV(comma);
+    assert.equal(q.delimiter, ',');
+    assert.equal(q.rows[1][1], 'Line one\nline two');
+    assert.equal(I.parseCSV('a\tb\tc\n1\t2\t3').delimiter, '\t');
+});
+
+test('amounts in any style', () => {
+    assert.equal(I.parseAmount('1.234,56'), 1234.56);
+    assert.equal(I.parseAmount('1,234.56'), 1234.56);
+    assert.equal(I.parseAmount('-45,50'), -45.5);
+    assert.equal(I.parseAmount('(45.00)'), -45);
+    assert.equal(I.parseAmount('$ -12.30'), -12.3);
+    assert.equal(I.parseAmount('12.50-'), -12.5);
+    assert.equal(I.parseAmount('1.234.567'), 1234567);
+    assert.equal(I.parseAmount('1,5'), 1.5);
+    assert.equal(I.parseAmount(''), null);
+    assert.equal(I.parseAmount('abc'), null);
+});
+
+test('decimal separator decided by the whole column, not one value', () => {
+    assert.equal(I.detectDecimal(['208.33900000000003', '189.464', '273.841', '173.94']), '.');
+    assert.equal(I.detectDecimal(['1.254,50', '45,50', '1.200']), ',');
+    assert.equal(I.detectDecimal(['1.200', '45']), 'auto');
+    const m = { mode: 'single', date: 0, description: 1, amount: 2, expensesAre: 'positive' };
+    const rows = I.buildRows([['2023-06-18', 'Luz', '220.38099999999997'], ['2023-07-18', 'Luz', '273.841'], ['2023-08-16', 'Luz', '248.71']], m);
+    assert.deepEqual(rows.map(r => r.amount), [220.38, 273.84, 248.71]);
+    // A file with only thousands-style values keeps reading them as thousands.
+    assert.equal(I.buildRows([['2023-06-18', 'Casa', '1.200']], m)[0].amount, 1200);
+});
+
+test('dates: Ecuador day-first by default, ISO, month names', () => {
+    assert.equal(I.parseDate('05/09/2026'), '2026-09-05');
+    assert.equal(I.parseDate('09/25/2026'), '2026-09-25');          // 25 can't be a month
+    assert.equal(I.parseDate('09/05/2026', 'mdy'), '2026-09-05');
+    assert.equal(I.parseDate('2026-09-05T10:00'), '2026-09-05');
+    assert.equal(I.parseDate('5-sep-26'), '2026-09-05');
+    assert.equal(I.parseDate('31/02/2026'), null);
+    assert.equal(I.parseDate('hola'), null);
+});
+
+test('column guess, rows and duplicates', () => {
+    const m = I.guessMapping(['Fecha', 'Descripción', 'Débito', 'Crédito', 'Saldo']);
+    assert.equal(m.mode, 'split');
+    assert.equal(m.date, 0); assert.equal(m.description, 1); assert.equal(m.debit, 2); assert.equal(m.credit, 3);
+    const rows = I.buildRows([
+        ['01/09/2026', 'Supermaxi', '45,50', '', '900'],
+        ['02/09/2026', 'Transferencia recibida', '', '200,00', '1100'],
+        ['xx', 'Mala', '1', '', ''],
+        ['03/09/2026', '', '', '', '']
+    ], m);
+    assert.deepEqual([rows[0].type, rows[0].amount, rows[0].date], ['Gasto', 45.5, '2026-09-01']);
+    assert.deepEqual([rows[1].type, rows[1].amount], ['Ingreso', 200]);
+    assert.equal(rows[2].error, 'Fecha no reconocida');
+    assert.equal(rows[3].error, 'Sin monto');
+    const single = I.guessMapping(['date', 'description', 'amount', 'category']);
+    assert.equal(single.mode, 'single'); assert.equal(single.category, 3);
+    const pos = I.buildRows([['2026-09-01', 'Coffee', '4.50', 'Food']], { ...single, expensesAre: 'positive' });
+    assert.deepEqual([pos[0].type, pos[0].amount, pos[0].category], ['Gasto', 4.5, 'Food']);
+    assert.ok(I.isDuplicate(rows[0], [{ type: 'Gasto', date: '2026-09-01', amount: 45.5, description: 'SUPERMAXI' }]));
+    assert.ok(!I.isDuplicate(rows[0], [{ type: 'Gasto', date: '2026-09-02', amount: 45.5, description: 'Supermaxi' }]));
+    assert.equal(I.importRef(rows[0]), '2026-09-01|4550|Gasto|supermaxi');
+});
+
+test('running balance column gives the account balance after the latest movement', () => {
+    const m = I.guessMapping(['Fecha', 'Descripción', 'Débito', 'Crédito', 'Saldo']);
+    assert.equal(m.balance, 4);
+    const oldestFirst = I.buildRows([['01/09/2026', 'A', '10', '', '990'], ['02/09/2026', 'B', '', '5', '995'], ['02/09/2026', 'C', '20', '', '975']], m);
+    assert.deepEqual(I.latestBalance(oldestFirst), { date: '2026-09-02', balance: 975 });
+    const newestFirst = I.buildRows([['02/09/2026', 'C', '20', '', '975'], ['02/09/2026', 'B', '', '5', '995'], ['01/09/2026', 'A', '10', '', '990']], m);
+    assert.deepEqual(I.latestBalance(newestFirst), { date: '2026-09-02', balance: 975 });
+    assert.equal(I.latestBalance(I.buildRows([['01/09/2026', 'A', '10', '']], { ...m, balance: -1 })), null);
+});
+
+test('a manual entry and the bank line for it are matched by amount and nearby date', () => {
+    const txns = [
+        { id: 1, type: 'Gasto', date: '2026-09-12', amount: 45.5, description: 'Supermaxi' },
+        { id: 2, type: 'Gasto', date: '2026-09-20', amount: 45.5, description: 'Otra compra' },
+        { id: 3, type: 'Ingreso', date: '2026-09-14', amount: 45.5, description: 'Reembolso' }
+    ];
+    const row = { type: 'Gasto', date: '2026-09-14', amount: 45.5, description: 'COMPRA SUPERMAXI EL BOSQUE' };
+    const m = I.findMatch(row, txns);
+    assert.equal(m.txn.id, 1); assert.equal(m.days, 2);
+    assert.equal(I.findMatch(row, txns, { exclude: new Set([1]) }), null);          // 20 sep is 6 days away
+    assert.equal(I.findMatch({ ...row, amount: 45.51 }, txns), null);
+    assert.equal(I.findMatch({ ...row, type: 'Ingreso' }, txns).txn.id, 3);
+});
+
+test('categorization rules match text regardless of case and accents', () => {
+    const rules = [{ contains: 'farmacia', category: 'Salud' }, { contains: 'SUPERMAXI', category: 'Alimentación' }];
+    assert.equal(I.applyRules(rules, 'Farmacia Fybeca').category, 'Salud');
+    assert.equal(I.applyRules(rules, 'Compra supermaxí').category, 'Alimentación');
+    assert.equal(I.applyRules(rules, 'Otra cosa'), null);
+});
+
+test('SRI electronic invoice (authorization file with CDATA)', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<autorizacion><estado>AUTORIZADO</estado><numeroAutorizacion>0909202601179001691900120010010000123451234567811</numeroAutorizacion>
+<comprobante><![CDATA[<?xml version="1.0" encoding="UTF-8"?><factura id="comprobante" version="1.1.0">
+<infoTributaria><ambiente>2</ambiente><razonSocial>CORPORACION FAVORITA C.A.</razonSocial><nombreComercial>SUPERMAXI</nombreComercial>
+<ruc>1790016919001</ruc><claveAcceso>0909202601179001691900120010010000123451234567811</claveAcceso><codDoc>01</codDoc>
+<estab>001</estab><ptoEmi>001</ptoEmi><secuencial>000012345</secuencial></infoTributaria>
+<infoFactura><fechaEmision>09/09/2026</fechaEmision><totalSinImpuestos>40.00</totalSinImpuestos>
+<totalConImpuestos><totalImpuesto><codigo>2</codigo><codigoPorcentaje>4</codigoPorcentaje><baseImponible>40.00</baseImponible><valor>6.00</valor></totalImpuesto></totalConImpuestos>
+<importeTotal>46.00</importeTotal><pagos><pago><formaPago>19</formaPago><total>46.00</total></pago></pagos></infoFactura>
+<detalles><detalle><descripcion>LECHE ENTERA 1L</descripcion><cantidad>2</cantidad><precioTotalSinImpuesto>2.00</precioTotalSinImpuesto></detalle>
+<detalle><descripcion>ARROZ &amp; GRANOS</descripcion><cantidad>1</cantidad><precioTotalSinImpuesto>38.00</precioTotalSinImpuesto></detalle></detalles>
+</factura>]]></comprobante></autorizacion>`;
+    const f = I.parseSriXml(xml);
+    assert.equal(f.supplier, 'SUPERMAXI');
+    assert.equal(f.legalName, 'CORPORACION FAVORITA C.A.');
+    assert.equal(f.ruc, '1790016919001');
+    assert.equal(f.number, '001-001-000012345');
+    assert.equal(f.date, '2026-09-09');
+    assert.equal(f.total, 46);
+    assert.equal(f.iva, 6);
+    assert.equal(f.payment, 'Tarjeta de Crédito');
+    assert.equal(f.items.length, 2);
+    assert.equal(f.items[1].description, 'ARROZ & GRANOS');
+    assert.equal(I.parseSriXml('<nota>hola</nota>'), null);
+});
+
+test('CSV export: quotes, BOM, numbers, and no formula injection', () => {
+    const csv = I.toCSV([['Fecha', 'Descripción', 'Monto'], ['2026-09-01', 'Pan, leche', 12.5], ['2026-09-02', 'Dijo "hola"', -3], ['x', '=HYPERLINK("a")', 1]]);
+    assert.ok(csv.startsWith('﻿'));
+    const lines = csv.slice(1).trim().split('\r\n');
+    assert.equal(lines[1], '2026-09-01,"Pan, leche",12.5');
+    assert.equal(lines[2], '2026-09-02,"Dijo ""hola""",-3');
+    assert.equal(lines[3], `x,"'=HYPERLINK(""a"")",1`);
+    // Round-trips through our own importer.
+    assert.deepEqual(I.parseCSV(csv).rows[1], ['2026-09-01', 'Pan, leche', '12.5']);
+});
+
+test('receipt text from a photo: total, date, RUC, store', () => {
+    const text = `FARMACIAS FYBECA\nRUC: 1790710319001\nFACTURA 001-002-000045678\nFecha: 12/09/2026\nSUBTOTAL 20,00\nIVA 15% 3,00\nTOTAL 23,00\nGracias por su compra`;
+    const r = I.parseReceiptText(text);
+    assert.equal(r.total, 23);
+    assert.equal(r.date, '2026-09-12');
+    assert.equal(r.ruc, '1790710319001');
+    assert.equal(r.merchant, 'FARMACIAS FYBECA');
+});
+
+test('pay stub deductions are classified in English and Spanish', () => {
+    const c = (l) => { const r = I.classifyDeduction(l); return r ? `${r.group}/${r.kind}` : null; };
+    assert.equal(c('Federal Income Tax'), 'mandatory/federal');
+    assert.equal(c('MI State Income Tax'), 'mandatory/state');
+    assert.equal(c('Social Security'), 'mandatory/ss');
+    assert.equal(c('Medicare'), 'mandatory/medicare');
+    assert.equal(c('401(k) Pre-Tax'), 'retirement/retirement');
+    assert.equal(c('Roth 401k'), 'retirement/retirement');
+    assert.equal(I.classifyDeduction('Roth 401k').pretax, false);
+    assert.equal(I.classifyDeduction('401K').pretax, true);
+    assert.equal(c('401k Loan'), 'loan/loan');
+    assert.equal(c('ER 401K Match'), 'employer/retirement');
+    assert.equal(c('Medical PPO'), 'insurance/health');
+    assert.equal(c('Dental'), 'insurance/dental');
+    assert.equal(c('Vision'), 'insurance/vision');
+    assert.equal(c('Supp Life AD&D'), 'insurance/life');
+    assert.equal(c('Child Support Garnishment'), 'garnishment/garnishment');
+    assert.equal(c('Pensión alimenticia'), 'garnishment/garnishment');
+    assert.equal(c('Aporte personal IESS 9.45%'), 'mandatory/iess');
+    assert.equal(c('Préstamo quirografario IESS'), 'loan/loan');
+    assert.equal(c('Retención impuesto a la renta'), 'mandatory/ir');
+    assert.equal(c('Seguro de vida'), 'insurance/life');
+    assert.equal(c('Seguro vehicular'), 'insurance/auto');
+    assert.equal(c('Union Dues'), 'other/other');
+    assert.equal(c('Regular Earnings'), null);
+});
+
+test('US pay stub text: gross, net, period, deductions with YTD; SSN never kept', () => {
+    const text = `ACME CORP  Pay Statement
+Employee: Jane Doe   SSN: 123-45-6789
+Pay Period: 09/14/2026 - 09/27/2026   Pay Date: 10/02/2026
+Regular  80.00  25.00  2,000.00  38,000.00
+Gross Pay  2,000.00  38,000.00
+Federal Income Tax  182.40  3,465.60
+Social Security  117.80  2,238.20
+Medicare  27.55  523.45
+MI State Income Tax  73.10  1,388.90
+401(k) Pre-Tax  120.00  2,280.00
+Medical PPO  85.00  1,615.00
+Dental  9.50  180.50
+Child Support Garnishment  150.00  2,850.00
+ER 401K Match  60.00  1,140.00
+Total Deductions  765.35  14,541.65
+Net Pay  1,234.65  23,458.35`;
+    const p = I.parsePaystub(text);
+    assert.equal(p.gross, 2000);
+    assert.equal(p.net, 1234.65);
+    assert.equal(p.totalDeductions, 765.35);
+    assert.equal(p.periodDays, 14);
+    assert.equal(I.paysPerYearFromPeriod(p.periodDays), 26);
+    assert.equal(p.payDate, '2026-10-02');
+    assert.deepEqual(p.deductions.map(d => [d.label, d.amount, d.group]), [
+        ['Federal Income Tax', 182.4, 'mandatory'], ['Social Security', 117.8, 'mandatory'], ['Medicare', 27.55, 'mandatory'],
+        ['MI State Income Tax', 73.1, 'mandatory'], ['401(k) Pre-Tax', 120, 'retirement'], ['Medical PPO', 85, 'insurance'],
+        ['Dental', 9.5, 'insurance'], ['Child Support Garnishment', 150, 'garnishment'], ['ER 401K Match', 60, 'employer']]);
+    assert.equal(p.deductions[0].ytd, 3465.6);
+    assert.ok(!JSON.stringify(p).includes('6789') && !JSON.stringify(p).includes('Jane'));
+});
+
+test('Ecuador rol de pagos text', () => {
+    const text = `ROL DE PAGOS - SEPTIEMBRE 2026
+Periodo: 01/09/2026 - 30/09/2026
+Sueldo  1.500,00
+Total ingresos  1.500,00
+Aporte personal IESS 9,45%  141,75
+Préstamo quirografario IESS  85,20
+Pensión alimenticia  200,00
+Seguro de vida  12,00
+Total egresos  438,95
+Líquido a recibir  1.061,05`;
+    const p = I.parsePaystub(text);
+    assert.equal(p.gross, 1500); assert.equal(p.net, 1061.05); assert.equal(p.totalDeductions, 438.95);
+    assert.equal(p.periodDays, 30);
+    assert.deepEqual(p.deductions.map(d => [d.kind, d.amount]), [['iess', 141.75], ['loan', 85.2], ['garnishment', 200], ['life', 12]]);
+});
+
+test('OFX / QFX bank download (SGML, no closing tags)', () => {
+    const ofx = `OFXHEADER:100
+DATA:OFXSGML
+<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>USD<BANKACCTFROM><BANKID>072000326<ACCTID>123456789<ACCTTYPE>CHECKING</BANKACCTFROM>
+<BANKTRANLIST><DTSTART>20260901<DTEND>20260930
+<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260903120000.000[-5:EST]<TRNAMT>-85.40<FITID>2026090301<NAME>MEIJER #123<MEMO>POS PURCHASE
+<STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20260915<TRNAMT>1850.00<FITID>2026091502<NAME>ACME CORP PAYROLL
+</BANKTRANLIST><LEDGERBAL><BALAMT>2340.55<DTASOF>20260930</LEDGERBAL></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>`;
+    const r = I.parseOFX(ofx);
+    assert.equal(r.rows.length, 2);
+    assert.deepEqual([r.rows[0].date, r.rows[0].amount, r.rows[0].type, r.rows[0].description, r.rows[0].store, r.rows[0].fitid], ['2026-09-03', 85.4, 'Gasto', 'MEIJER #123', 'POS PURCHASE', '2026090301']);
+    assert.deepEqual([r.rows[1].type, r.rows[1].amount], ['Ingreso', 1850]);
+    assert.deepEqual(r.balance, { balance: 2340.55, date: '2026-09-30' });
+    assert.equal(r.account, '•••••6789');
+    assert.equal(I.parseOFX('date,amount\n'), null);
+});

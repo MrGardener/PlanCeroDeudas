@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<autorizacion><estado>AUTORIZADO</estado><numeroAutorizacion>0909202601179001691900120010010000123451234567811</numeroAutorizacion>
+<comprobante><![CDATA[<?xml version="1.0" encoding="UTF-8"?><factura id="comprobante" version="1.1.0">
+<infoTributaria><ambiente>2</ambiente><razonSocial>CORPORACION FAVORITA C.A.</razonSocial><nombreComercial>SUPERMAXI</nombreComercial>
+<ruc>1790016919001</ruc><claveAcceso>0909202601179001691900120010010000123451234567811</claveAcceso><codDoc>01</codDoc>
+<estab>001</estab><ptoEmi>001</ptoEmi><secuencial>000012345</secuencial></infoTributaria>
+<infoFactura><fechaEmision>09/09/2026</fechaEmision><totalSinImpuestos>40.00</totalSinImpuestos>
+<totalConImpuestos><totalImpuesto><codigo>2</codigo><codigoPorcentaje>4</codigoPorcentaje><baseImponible>40.00</baseImponible><valor>6.00</valor></totalImpuesto></totalConImpuestos>
+<importeTotal>46.00</importeTotal><pagos><pago><formaPago>19</formaPago><total>46.00</total></pago></pagos></infoFactura>
+<detalles><detalle><descripcion>LECHE ENTERA 1L</descripcion><cantidad>2</cantidad><precioTotalSinImpuesto>2.00</precioTotalSinImpuesto></detalle>
+<detalle><descripcion>ARROZ &amp; GRANOS</descripcion><cantidad>1</cantidad><precioTotalSinImpuesto>38.00</precioTotalSinImpuesto></detalle></detalles>
+</factura>]]></comprobante></autorizacion>

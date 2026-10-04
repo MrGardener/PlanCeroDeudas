@@ -1,0 +1,4 @@
+resumen	@title: Cambiar a español
+ahorro/polizas	SEPS
+ahorro/polizas	COSEDE
+config	COSEDE:
