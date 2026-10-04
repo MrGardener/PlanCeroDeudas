@@ -311,7 +311,10 @@
             out = document.createElement('div');
             out.className = 'chart-readout';
             out.setAttribute('aria-live', 'polite');
-            out.innerHTML = '<span class="chart-readout-hint">Tap the chart to see its values here.</span>';
+            const hint = document.createElement('span');
+            hint.className = 'chart-readout-hint';
+            hint.textContent = 'Tap the chart to see its values here.';
+            out.appendChild(hint);
             box.parentNode.insertBefore(out, box.nextSibling);
         }
         return out;

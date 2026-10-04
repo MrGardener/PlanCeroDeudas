@@ -15,7 +15,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
    field to the middle of what's visible (`visualViewport`), in pages and in sheets/dialogs.
 2. ✅ **Chart values cover the chart** — the tooltip box goes away. A readout line under each chart shows
    the values of the tapped point; a thin vertical marker on the chart shows where it is.
-3. **Edit a rule** — rules can only be deleted. Tap a rule to edit everything it does (text, name,
+3. ✅ **Edit a rule** — rules can only be deleted. Tap a rule to edit everything it does (text, name,
    type, category, subcategory, person, income link) with the same form used to create it.
 4. **Categories you can find and change** — "Manage categories" is buried in Transactions. Move it to
    Settings (plus a link from the category picker), add **rename** (category and subcategory, carried to

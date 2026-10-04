@@ -154,6 +154,19 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(300);
   const ro = await page.evaluate(() => { const c = UI.chartInstance('dash-curve-chart'), r = c.canvas.parentNode.nextElementSibling; return { cls: r && r.className, txt: r && r.textContent, box: c.options.plugins.tooltip.enabled }; });
   ok(ro.cls === 'chart-readout' && /\$/.test(ro.txt || '') && ro.box === false, 'tapping a chart shows its values under the chart (no box over it)', ro);
+  // Edit an automatic rule (step 3).
+  await page.evaluate(() => { Store.state.rules = [{ id: 7, contains: 'STARBUKS', category: 'Alimentación', sub: 'Mercado/Supermercado' }]; App.changed({ structural: true }); App.go('transacciones/importar'); });
+  await page.waitForTimeout(250);
+  await page.click('[data-action="rule.edit"][data-id="7"]');
+  await page.waitForSelector('.modal-backdrop:not(.hidden) [data-dialog-ok]');
+  const preset = await page.evaluate(() => document.querySelector('.modal select[name="cat"]').value);
+  await page.fill('.modal input[name="contains"]', 'STARBUCKS');
+  await page.fill('.modal input[name="rename"]', 'Starbucks');
+  await page.selectOption('.modal select[name="cat"]', 'G|Alimentación|Restaurantes');
+  await page.click('[data-dialog-ok]');
+  await page.waitForTimeout(250);
+  const ru = await page.evaluate(() => ({ r: Store.state.rules[0], row: document.getElementById('rule-body').textContent }));
+  ok(preset === 'G|Alimentación|Mercado/Supermercado' && ru.r.contains === 'STARBUCKS' && ru.r.rename === 'Starbucks' && ru.r.sub === 'Restaurantes' && ru.r.type === 'Gasto' && /STARBUCKS/.test(ru.row), 'a rule can be edited: text, name, category and subcategory', ru);
   // Hourly pay, overtime and bonuses (docs/plans/hourly-pay.md, phase 2).
   await page.evaluate(() => { Store.reset('example'); Store.active().sueldo = 5000; Store.active().payDeductions = []; App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
   await page.waitForTimeout(200);
