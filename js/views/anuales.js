@@ -45,7 +45,7 @@
         const g = fund();
         list.forEach(b => {
             const cell = document.querySelector(`#annual-body tr[data-row="${b.id}"] [data-cell="monthly"]`);
-            if (cell) cell.textContent = `${money((Number(b.amount) || 0) / (Number(b.every) || 12))}/mes`;
+            if (cell) cell.textContent = `${money((Number(b.amount) || 0) / (Number(b.every) || 12))}/mo`;
         });
         if (!list.length) { UI.html('annual-summary', ''); UI.html('annual-timeline', ''); return; }
         const need = Engine.annualSetAside(list);
@@ -58,7 +58,7 @@
         } else {
             const low = (Number(g.monthly) || 0) + 0.005 < need;
             const msgs = [`Your «${esc(g.name)}» fund has <strong>${money(g.current)}</strong> and your budget puts in <strong>${money(g.monthly)}</strong> a month.`];
-            if (low) msgs.push(`That's less than you need (${money(need)}). <button type="button" class="link" data-action="annual.fund">Ajustar a ${money(need)}</button>`);
+            if (low) msgs.push(`That's less than you need (${money(need)}). <button type="button" class="link" data-action="annual.fund">Adjust to ${money(need)}</button>`);
             if (plan.firstShort) msgs.push(`<span class="text-red-700 font-semibold">In ${monthLabel(plan.firstShort.year, plan.firstShort.month)} you'd be ${money(plan.needed)} short.</span> Deposit that difference into the fund now (or set aside more) to pay on time.`);
             else msgs.push('<span class="text-emerald-700 font-semibold"><i class="fa-solid fa-circle-check"></i> There\'s enough to pay each bill on time.</span>');
             fundHTML = `<div class="panel ${plan.firstShort || low ? 'tone-amber' : 'tone-emerald'} text-xs space-y-1.5">${msgs.map(m => `<p>${m}</p>`).join('')}</div>`;

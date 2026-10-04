@@ -179,14 +179,14 @@
             ['Federal income tax', '−' + money(p.fedM), 'text-red-600'],
             ['Seguro Social', '−' + money(p.ssM), 'text-red-600'],
             ['Medicare', '−' + money(p.medM), 'text-red-600'],
-            [`Impuesto estatal (${esc(st.name)}${p.stateRate ? ` ${p.stateRate}%` : ''})`, '−' + money(p.stateM), 'text-red-600'],
+            [`State income tax (${esc(st.name) + (p.stateRate ? ` ${p.stateRate}%` : '')})`, '−' + money(p.stateM), 'text-red-600'],
             p.localM > 0 ? [`City tax${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'residente' : 'non-resident'} ${p.localRate}%)` : ''}`, '−' + money(p.localM), 'text-red-600'] : null,
             p.otrosDescuentosM - p.pretaxM > 0.004 ? ['Other paycheck deductions (after tax)', '−' + money(p.otrosDescuentosM - p.pretaxM), 'text-red-600'] : null
         ].filter(Boolean);
         UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join(''));
         UI.text('inc-neto', money(p.netoM));
         UI.html('inc-us-ded-kpis', `
-            <div class="kpi tone-slate"><span class="kpi-label">Deduction applied</span><span class="kpi-value">${money(p.dedApplied)}</span><span class="kpi-note">${Number(yd.itemized) > p.stdDeduction ? 'Detallada' : `Standard (${money(p.stdDeduction)})`}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Deduction applied</span><span class="kpi-value">${money(p.dedApplied)}</span><span class="kpi-note">${Number(yd.itemized) > p.stdDeduction ? 'Itemized' : `Standard (${money(p.stdDeduction)})`}</span></div>
             <div class="kpi tone-slate"><span class="kpi-label">Federal taxable income</span><span class="kpi-value">${money(p.baseImponible)}</span><span class="kpi-note">a year</span></div>
             <div class="kpi tone-blue"><span class="kpi-label">Dependent credits</span><span class="kpi-value">${money(p.credits)}</span><span class="kpi-note">a year</span></div>
             <div class="kpi tone-amber"><span class="kpi-label">Income taxes</span><span class="kpi-value">${money(p.isrAnual)}</span><span class="kpi-note">a year (federal + state + city)</span></div>`);
@@ -271,7 +271,7 @@
         'us.city': async (el) => {
             const y = Store.active();
             if (el.value === '__custom') {
-                const r = await UI.form({ title: 'Your city\'s tax', fields: [{ name: 'name', label: 'Ciudad', value: y.localName || '' }, { name: 'rate', label: 'Rate (%)', type: 'number', step: '0.01', min: 0, value: y.localRate || '' }], confirmText: 'Guardar' });
+                const r = await UI.form({ title: 'Your city\'s tax', fields: [{ name: 'name', label: 'City', value: y.localName || '' }, { name: 'rate', label: 'Rate (%)', type: 'number', step: '0.01', min: 0, value: y.localRate || '' }], confirmText: 'Save' });
                 if (!r) { App.render(); return; }
                 y.localName = r.name.trim().slice(0, 40); y.localRate = Math.max(0, Number(r.rate) || 0);
             } else {
@@ -301,7 +301,7 @@
             st.paydays = sch.freq === 'monthly' && sch.interval === 1 ? sch.days : [];
             sheet.close();
             App.changed({ structural: true, step: true });
-            UI.toast(`${window.I18n ? I18n.t('Guardado') : 'Guardado'}: ${describe(sch)}`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`${window.I18n ? I18n.t('Saved') : 'Saved'}: ${describe(sch)}`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         'pay.clear': () => {
             const st = Store.state.settings;

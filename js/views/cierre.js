@@ -34,9 +34,9 @@
         const past = history().filter(h => h.key !== r.key).slice(0, 6);
         const parts = [past.length ? `<div class="flex flex-wrap items-center gap-1.5 mb-3 text-xs"><span class="text-slate-500">Closed months:</span>${past.map(h => { const [hy, hm] = h.key.split('-').map(Number); return `<button type="button" class="quick-chip" data-action="close.open" data-y="${hy}" data-m="${hm}"><i class="fa-solid fa-circle-check text-emerald-600"></i> ${esc(Fmt.MONTH_SHORT[hm - 1])} ${hy} · ${h.leftover >= 0 ? '+' : '−'}${money0(Math.abs(h.leftover))}</button>`; }).join('')}</div>` : ''];
         parts.push(`<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            ${kpi('tone-emerald', 'Entró', money0(r.income), 'income logged')}
-            ${kpi('tone-slate', 'Salió', money0(r.spent), `you planned ${money0(r.planned)}`)}
-            ${kpi(r.leftover >= 0 ? 'tone-blue' : 'tone-red', r.leftover >= 0 ? 'Sobró' : 'Faltó', money0(Math.abs(r.leftover)), r.leftover >= 0 ? 'what wasn\'t spent' : 'you spent more than came in')}
+            ${kpi('tone-emerald', 'Came in', money0(r.income), 'income logged')}
+            ${kpi('tone-slate', 'Went out', money0(r.spent), `you planned ${money0(r.planned)}`)}
+            ${kpi(r.leftover >= 0 ? 'tone-blue' : 'tone-red', r.leftover >= 0 ? 'Left over' : 'Short', money0(Math.abs(r.leftover)), r.leftover >= 0 ? 'what wasn\'t spent' : 'you spent more than came in')}
         </div>`);
         if (!r.count) parts.push('<p class="help mt-3">You didn\'t log anything this month.</p>');
         parts.push(`<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
@@ -93,7 +93,7 @@
             const r = review(y, m);
             const note = (document.getElementById('close-note') || {}).value || '';
             const was = closes()[r.key];
-            App.undoable(was ? 'Nota guardada' : `${label(y, m)} closed. One more month on your plan!`, () => {
+            App.undoable(was ? 'Note saved' : `${label(y, m)} closed. One more month on your plan!`, () => {
                 closes()[r.key] = { closedAt: was ? was.closedAt : new Date().toISOString(), income: r.income, spent: r.spent, leftover: r.leftover, planned: r.planned, note: note.trim().slice(0, 500) };
             });
             if (sheet) sheet.close();

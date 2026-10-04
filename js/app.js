@@ -15,27 +15,27 @@
     // generated from this list, and every cross-link in the app points at an id here
     // (never at a hard-coded "Tab N"), so reordering can't leave stale references behind.
     const tabs = [
-        { id: 'resumen', label: 'Resumen', icon: 'fa-gauge-high' },
-        { id: 'presupuesto', label: 'Presupuesto', icon: 'fa-wallet', subviews: [
+        { id: 'resumen', label: 'Overview', icon: 'fa-gauge-high' },
+        { id: 'presupuesto', label: 'Budget', icon: 'fa-wallet', subviews: [
             { id: 'plan', label: 'Monthly Budget', icon: 'fa-table-list' },
             { id: 'ingresos', label: 'Income & Taxes', icon: 'fa-receipt' }
         ] },
-        { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping', subviews: [
-            { id: 'lista', label: 'Historial', icon: 'fa-list' },
-            { id: 'importar', label: 'Importar', icon: 'fa-file-import' },
-            { id: 'reportes', label: 'Reportes', icon: 'fa-chart-pie' }
+        { id: 'transacciones', label: 'Transactions', icon: 'fa-cart-shopping', subviews: [
+            { id: 'lista', label: 'History', icon: 'fa-list' },
+            { id: 'importar', label: 'Import', icon: 'fa-file-import' },
+            { id: 'reportes', label: 'Reports', icon: 'fa-chart-pie' }
         ] },
-        { id: 'futuro', label: 'Futuro', icon: 'fa-road', subviews: [
+        { id: 'futuro', label: 'Future', icon: 'fa-road', subviews: [
             { id: 'metas', label: 'Debts & Goals', icon: 'fa-bullseye' },
             { id: 'proyeccion', label: 'Savings & CDs', icon: 'fa-piggy-bank' },
             { id: 'polizas', label: 'CDs & Banks', icon: 'fa-file-contract' },
             { id: 'hipoteca', label: 'Hipoteca', icon: 'fa-house-chimney' },
-            { id: 'jubilacion', label: 'Jubilación', icon: 'fa-person-cane' },
-            { id: 'calculadoras', label: 'Calculadoras', icon: 'fa-calculator' }
+            { id: 'jubilacion', label: 'Retirement', icon: 'fa-person-cane' },
+            { id: 'calculadoras', label: 'Calculators', icon: 'fa-calculator' }
         ] },
-        { id: 'patrimonio', label: 'Patrimonio', icon: 'fa-scale-balanced' },
+        { id: 'patrimonio', label: 'Net Worth', icon: 'fa-scale-balanced' },
         // Reached from the gear in the header, not from the tab bar.
-        { id: 'config', label: 'Configuración', icon: 'fa-gears', nav: false }
+        { id: 'config', label: 'Settings', icon: 'fa-gears', nav: false }
     ];
     // Where the screens used to live (links, bookmarks and #hashes from before the 5-tab layout).
     const ALIASES = {
@@ -291,7 +291,7 @@
         if (!hist.past.length) { UI.toast('Nothing to undo.', 'error'); return; }
         hist.future.push(hist.committed);
         restore(hist.past.pop());
-        UI.toast('Change undone', 'ok', { label: 'Rehacer', className: 'toast-undo', onClick: redo });
+        UI.toast('Change undone', 'ok', { label: 'Redo', className: 'toast-undo', onClick: redo });
     }
 
     function redo() {
@@ -364,7 +364,7 @@
         commitHistory();
         mutate();
         changed({ structural: true, keepUndo: true, step: true });
-        UI.toast(message, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: undo });
+        UI.toast(message, 'ok', { label: 'Undo', className: 'toast-undo', onClick: undo });
     }
 
     function renderSaveStatus(status) {
@@ -394,7 +394,7 @@
         'app.redo': () => redo(),
         // Leave the example family for an empty plan of your own (undoable).
         'app.startOwn': async () => {
-            const ok = await UI.confirm({ title: 'Start with my own data', message: 'The example family is removed and you start with an empty plan. You can see the example again from Settings.', confirmText: 'Empezar' });
+            const ok = await UI.confirm({ title: 'Start with my own data', message: 'The example family is removed and you start with an empty plan. You can see the example again from Settings.', confirmText: 'Start' });
             if (!ok) return;
             commitHistory();
             Store.reset('empty');
@@ -409,7 +409,7 @@
             const st = Store.state.settings;
             st.movesSnoozed = Object.assign({}, st.movesSnoozed, { [el.dataset.key]: Engine.isoDate(d) });
             changed({ step: true });
-            UI.toast('Done: we\'ll remind you in 2 weeks.', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: undo });
+            UI.toast('Done: we\'ll remind you in 2 weeks.', 'ok', { label: 'Undo', className: 'toast-undo', onClick: undo });
         },
         'app.help': () => {
             go('config', { focus: 'cfg-guide' });

@@ -12,8 +12,18 @@ global.I18n = { d: {}, add(l, e) { Object.assign(this.d, e); }, country(c, e) { 
 const norm = (s) => s.replace(/\s+/g, ' ').trim();
 const have = new Set(Object.keys(I18n.d).map(norm));
 // Bits of code the extractor catches between quotes.
-const CODE = /=>|[;{}<>]\s|\/>|\(\)|^[,:;).\/]/;
-const missing = Object.entries(keys).filter(([k]) => !have.has(norm(k)) && !CODE.test(k));
+const CODE = /=>|[;{}<>]\s|\/>|\(\)|^[,:;).\/]|\/\/|^use strict$|^no (lib|Tesseract)$/;
+// Names (services, plugins, keys, places) and internal words that read the same in Spanish.
+const NAMES = new Set(['Alpha Vantage', 'App', 'Escape', 'Filesystem', 'Finnhub', 'Global Quote', 'Medicare', 'Michigan Treasury', 'Out',
+    'Switch to English', 'Vanguard S&P 500', 'health insurance', 'life insurance', 'recognizing text', 'help block', "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"]);
+// CSS class lists ("kpi tone-amber", "help mt-2 {0}").
+const CLASSES = (k) => /^(?:[a-z0-9:\[\]\/.-]+|\{\d+\})(?: (?:[a-z0-9:\[\]\/.-]+|\{\d+\}))*$/.test(k) && /-/.test(k);
+// Names in the data packs (states, example budget lines, default goals) are data, not app text.
+const DATA = /(^|\/)js\/(defaults(-us)?|categorize|sample)\.js$/;
+const inApp = (where) => where.split(', ').some(f => !DATA.test(f.replace(/@attr$/, '')));
+const missing = Object.entries(keys).filter(([k, where]) => !have.has(norm(k)) && !CODE.test(k) && !NAMES.has(k) && !CLASSES(k) && inApp(where)
+    // Spanish month names in js/format.js are shown through Fmt (dates), not as text.
+    && !(where === 'js/format.js' && /^[A-Z][a-z]+$/.test(k)));
 if (process.argv.includes('--json')) process.stdout.write(JSON.stringify(Object.fromEntries(missing), null, 1) + '\n');
 else {
     missing.forEach(([k, where]) => console.log(`${k}\n    ${where}`));

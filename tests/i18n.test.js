@@ -49,3 +49,8 @@ test('Spanish (es.js) and Ecuador wording (ec.js) keep their placeholders', () =
     // Ecuador's own wording is for text the app has.
     assert.deepEqual(Object.keys(o.ECen).concat(Object.keys(o.ECes)).filter(k => d[k] === undefined), []);
 });
+
+test('no new Spanish text in the code (write it in English)', () => {
+    const { added } = require('../scripts/i18n-spanish.js').compare();
+    assert.deepEqual(added, [], 'New text goes in English (Spanish goes in js/i18n/es.js). If it is saved data (a category, a type), run: npm run i18n:spanish -- --write');
+});

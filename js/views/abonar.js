@@ -57,7 +57,7 @@
                 ? `<p><strong>By the numbers, investing would leave ${money0(r.diff)} more</strong> if the money earns ${c.returnPct}% every year. But that return isn't guaranteed: some years the market falls. Paying down the house is a sure ${m.rate}% return.</p>`
                 : `<p><strong>By the numbers, investing would leave ${money0(r.diff)} more</strong> if the money earns ${c.returnPct}% every year for the whole term. CD rates change when you renew them; paying down the house is a sure ${m.rate}% return.</p>`)
             : win === 'prepay' ? `<p><strong>Paying down the house leaves ${money0(-r.diff)} more</strong>, with no risk: at a ${c.returnPct}% return, investing doesn't beat the mortgage's ${m.rate}%.</p>`
-            : '<p><strong>Quedan casi iguales.</strong></p>';
+            : '<p><strong>They come out about the same.</strong></p>';
         const be = r.breakEven === null ? '' : `<p class="mt-1">Investing only wins if it earns more than <strong>${r.breakEven.toFixed(1)}%</strong> a year on average for ${Fmt.monthsAsYears(r.horizon)}.</p>`;
         out.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                 ${kpi(win === 'prepay' ? 'tone-emerald' : 'tone-slate', `Paying ${money0(c.extra)} extra a month`, money0(r.wealthPrepay), `House paid off ${Fmt.monthsAsYears(r.monthsSooner)} sooner, ${money0(r.interestSaved)} less interest; then you invest the payment`)}

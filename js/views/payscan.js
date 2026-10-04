@@ -12,8 +12,8 @@
     'use strict';
     const { money, esc } = Fmt;
     const GROUPS = {
-        mandatory: 'Taxes and contributions', retirement: 'Retirement savings', insurance: 'Seguro', garnishment: 'Court-ordered (child support…)',
-        loan: 'Préstamo', other: 'Otro', employer: 'Paid by your employer (not deducted)'
+        mandatory: 'Taxes and contributions', retirement: 'Retirement savings', insurance: 'Insurance', garnishment: 'Court-ordered (child support…)',
+        loan: 'Loan', other: 'Otro', employer: 'Paid by your employer (not deducted)'
     };
     const PPY = [[52, 'Every week'], [26, 'Every 2 weeks'], [24, 'Twice a month'], [12, 'Once a month']];
     // In Ecuador the app already computes these from the salary.
@@ -163,10 +163,10 @@
     UI.register({
         'ded.add': async () => {
             const r = await UI.form({
-                title: 'Add a paycheck deduction', confirmText: 'Agregar',
+                title: 'Add a paycheck deduction', confirmText: 'Add',
                 fields: [
-                    { name: 'name', label: 'Nombre', placeholder: 'E.g. Life insurance, Child support, 401(k) loan' },
-                    { name: 'group', label: 'Tipo', options: Object.keys(GROUPS).map(g => ({ value: g, label: GROUPS[g] })) },
+                    { name: 'name', label: 'Name', placeholder: 'E.g. Life insurance, Child support, 401(k) loan' },
+                    { name: 'group', label: 'Type', options: Object.keys(GROUPS).map(g => ({ value: g, label: GROUPS[g] })) },
                     { name: 'monthly', label: 'Monthly amount', type: 'number', step: '0.01', min: 0 }
                 ],
                 validate: v => !v.name.trim() ? 'Type a name.' : !(v.monthly > 0) ? 'Type an amount greater than 0.' : null
@@ -233,7 +233,7 @@
             if (draft.stub.net) y.lastPaystub = { payDate: draft.stub.payDate, net: draft.stub.net, gross: draft.stub.gross, ppy: draft.ppy };
             sheet.close();
             App.changed({ structural: true, step: true });
-            UI.toast(`${added} descuento${added === 1 ? '' : 's'} agregado${added === 1 ? '' : 's'}${updated ? `, ${updated} actualizado${updated === 1 ? '' : 's'}` : ''}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast([`${added} deduction${added === 1 ? '' : 's'} added.`, updated ? `${updated} deduction${updated === 1 ? '' : 's'} updated.` : ''].filter(Boolean).map(x => (window.I18n ? I18n.t(x) : x)).join(' '), 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         }
     });
 

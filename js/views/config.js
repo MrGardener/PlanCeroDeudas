@@ -87,7 +87,7 @@
         'device.toggleTheme': () => Device.setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'),
         'device.setPin': async () => {
             if (Device.hasPin()) {
-                const cur = await UI.form({ title: 'Change PIN', confirmText: 'Continuar', fields: [{ name: 'pin', label: 'Your current PIN', type: 'password', inputmode: 'numeric' }] });
+                const cur = await UI.form({ title: 'Change PIN', confirmText: 'Continue', fields: [{ name: 'pin', label: 'Your current PIN', type: 'password', inputmode: 'numeric' }] });
                 if (!cur) return;
                 const lock = Device.read().lock;
                 if (await Device.hashPin(cur.pin, lock.salt) !== lock.hash) { UI.toast('That\'s not your current PIN.', 'error'); return; }
@@ -99,7 +99,7 @@
             UI.toast('PIN saved. The app will ask for it when it opens. If you forget it, you\'ll have to erase the data and load your backup.');
         },
         'device.removePin': async () => {
-            const cur = await UI.form({ title: 'Remove the PIN', confirmText: 'Quitar', fields: [{ name: 'pin', label: 'Your current PIN', type: 'password', inputmode: 'numeric' }] });
+            const cur = await UI.form({ title: 'Remove the PIN', confirmText: 'Remove', fields: [{ name: 'pin', label: 'Your current PIN', type: 'password', inputmode: 'numeric' }] });
             if (!cur) return;
             const lock = Device.read().lock;
             if (await Device.hashPin(cur.pin, lock.salt) !== lock.hash) { UI.toast('That\'s not your PIN.', 'error'); return; }
@@ -114,7 +114,7 @@
             catch (e) { el.select(); UI.toast('Select it and copy it (Ctrl+C).', 'warn'); }
         },
         'member.add': async () => {
-            const r = await UI.form({ title: 'Add person', fields: [{ name: 'name', label: 'Nombre', placeholder: 'E.g. Ana' }], confirmText: 'Agregar', validate: v => v.name.trim() ? null : 'Type a name.' });
+            const r = await UI.form({ title: 'Add person', fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Ana' }], confirmText: 'Add', validate: v => v.name.trim() ? null : 'Type a name.' });
             if (!r) return;
             const list = Store.state.members || (Store.state.members = []);
             const used = new Set(list.map(p => p.color));
@@ -124,7 +124,7 @@
         'member.rename': async (el) => {
             const p = (Store.state.members || []).find(x => x.id === Number(el.dataset.id));
             if (!p) return;
-            const r = await UI.form({ title: 'Rename', fields: [{ name: 'name', label: 'Nombre', value: p.name }], confirmText: 'Guardar', validate: v => v.name.trim() ? null : 'Type a name.' });
+            const r = await UI.form({ title: 'Rename', fields: [{ name: 'name', label: 'Name', value: p.name }], confirmText: 'Save', validate: v => v.name.trim() ? null : 'Type a name.' });
             if (!r) return;
             p.name = r.name.trim().slice(0, 30);
             App.changed({ structural: true, step: true });
@@ -183,26 +183,26 @@
                 Store.replaceState(data);
                 App.changed({ step: true });
                 App.go('resumen');
-                UI.toast('Backup loaded', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+                UI.toast('Backup loaded', 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
             };
             reader.readAsText(file);
         },
         'cfg.copyYear': async () => {
             const from = Number(document.getElementById('cfg-copy-from').value);
             const to = Store.state.activeYear;
-            const ok = await UI.confirm({ title: `Copiar ${from} → ${to}`, message: `${to}'s budget and parameters will be replaced with ${from}'s. Your ${to} net worth doesn't change.`, confirmText: 'Copiar', danger: true });
+            const ok = await UI.confirm({ title: `Copiar ${from} → ${to}`, message: `${to}'s budget and parameters will be replaced with ${from}'s. Your ${to} net worth doesn't change.`, confirmText: 'Copy', danger: true });
             if (!ok) return;
             App.undoable(`${from} budget copied to ${to}`, () => Store.copyYear(from, to));
         },
         'cfg.propagate': async () => {
             const s = Store.state, from = s.activeYear;
             if (from >= s.configEndYear) { UI.toast('There are no later years in your range.', 'warn'); return; }
-            const ok = await UI.confirm({ title: `Propagar ${from} → ${from + 1}–${s.configEndYear}`, message: `The budget and parameters of every later year will be replaced with ${from}'s. Each year's net worth doesn't change.`, confirmText: 'Propagar', danger: true });
+            const ok = await UI.confirm({ title: `Propagar ${from} → ${from + 1}–${s.configEndYear}`, message: `The budget and parameters of every later year will be replaced with ${from}'s. Each year's net worth doesn't change.`, confirmText: 'Carry forward', danger: true });
             if (!ok) return;
             App.undoable(`${from} budget carried through ${s.configEndYear}`, () => { for (let y = from + 1; y <= s.configEndYear; y++) Store.copyYear(from, y); });
         },
         'cfg.baseline': async () => {
-            const r = await UI.form({ title: 'Create baseline', message: 'Save a full snapshot of your current plan.', fields: [{ name: 'name', label: 'Nombre', value: 'Baseline ' + new Date().toLocaleDateString('es-EC') }], confirmText: 'Crear', validate: v => v.name.trim() ? null : 'Type a name.' });
+            const r = await UI.form({ title: 'Create baseline', message: 'Save a full snapshot of your current plan.', fields: [{ name: 'name', label: 'Name', value: 'Baseline ' + new Date().toLocaleDateString('es-EC') }], confirmText: 'Create', validate: v => v.name.trim() ? null : 'Type a name.' });
             if (!r) return;
             Store.createBaseline(r.name.trim());
             App.changed({ structural: true });
@@ -210,7 +210,7 @@
         },
         'cfg.restoreBaseline': async (el) => {
             const b = Store.state.baselines.find(x => x.id === Number(el.dataset.id));
-            const ok = await UI.confirm({ title: `Restaurar "${b.name}"`, message: b.legacy ? 'The years, CDs and banks saved in this baseline (made with the previous version) will be restored.' : 'Your whole plan will go back to how it was in this baseline.', confirmText: 'Restaurar', danger: true });
+            const ok = await UI.confirm({ title: `Restaurar "${b.name}"`, message: b.legacy ? 'The years, CDs and banks saved in this baseline (made with the previous version) will be restored.' : 'Your whole plan will go back to how it was in this baseline.', confirmText: 'Restore', danger: true });
             if (!ok) return;
             App.undoable(`Baseline "${b.name}" restaurado`, () => Store.restoreBaseline(b.id));
         },
@@ -252,13 +252,13 @@
             const s = Store.state;
             const left = ['transactions', 'debts', 'goals', 'polizas', 'assets', 'accounts', 'holdings', 'recurring', 'trash', 'annualBills'].filter(k => (s[k] || []).length);
             if (left.length) {
-                await UI.form({ title: 'Couldn\'t erase everything', message: 'Some data is still saved. Close and reopen the app, then try again.', confirmText: 'Entendido', cancelText: null, danger: true });
+                await UI.form({ title: 'Couldn\'t erase everything', message: 'Some data is still saved. Close and reopen the app, then try again.', confirmText: 'Got it', cancelText: null, danger: true });
                 return;
             }
             await UI.form({
                 title: 'Your data has been erased',
                 message: 'Your budget, transactions, debts, goals, CDs, accounts, investments and assets were erased from this device. Your language, theme and PIN stay. If it was a mistake, tap Undo at the top before closing the app.',
-                confirmText: 'Entendido', cancelText: null, icon: 'fa-circle-check'
+                confirmText: 'Got it', cancelText: null, icon: 'fa-circle-check'
             });
         }
     });

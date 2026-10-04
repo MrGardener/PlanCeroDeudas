@@ -30,6 +30,8 @@ npm test                          # unit tests (fast; run often)
 npm run build:mobile              # phone build (must run from mobile/ — the script does that)
 npm run e2e                       # all browser suites (~4 min); `node tests/e2e/run.js us` runs matching ones
 npm run check                     # all of the above, before pushing
+npm run i18n:missing              # English text with no Spanish yet (report)
+npm run i18n:spanish              # Spanish text left in the code (only shrinks)
 ```
 CI (`.github/workflows/tests.yml`) runs the same on every push; `mobile.yml` builds the Android APK.
 While developing, run `npm test` and the one suite you touched; run `npm run check` before pushing.
@@ -51,7 +53,9 @@ While developing, run `npm test` and the one suite you touched; run `npm run che
   in English and Spanish (`I18n.override('EC', 'en'|'es', {...})`). Checked first.
 - Saved data stays Spanish (`'Gasto'`, `'Alimentación'`, CD modalities…) and some older code is still
   Spanish: `js/i18n/en.js` (Spanish → English) and `us.js` (Ecuador → US Spanish wording) handle those.
-  `tests/i18n.test.js` fails when Spanish text in the code has no English entry.
+- `tests/i18n.test.js` fails when new Spanish text appears in the code (`tests/i18n-spanish-left.json` is
+  what's left, and it only shrinks: `npm run i18n:spanish` shows it, `-- --write` saves it after you move
+  text to English or add a saved-data name). It also fails when Spanish text has no English entry.
 - `${…}` in a template becomes `{0}`, `{1}`… in the key. Plurals: `day${n === 1 ? '' : 's'}` and in
   Spanish `día{1|s|}` (`{n|a|b}`: a when that piece is non-empty, else b).
 - Avoid several placeholders side by side (`{2}{3}`): matching becomes ambiguous. Build messages from
@@ -77,5 +81,5 @@ While developing, run `npm test` and the one suite you touched; run `npm run che
 1. ✅ Tests in the repo + CI, this file, PR #1 merged.
 2. ✅ Source language flipped to English: English text in the code, `es.js` for Spanish, `ec.js` for
    Ecuador wording; Spanish identifiers in data stay.
-3. Then: new work in English only; Spanish catches up in batches (`npm run i18n:missing` lists what's
-   pending). The Ecuador edition may show some English between batches.
+3. ✅ New work in English only (a test enforces it); Spanish catches up in batches (`npm run i18n:missing`
+   lists what's pending; 0 after the first batch). The Ecuador edition may show some English between batches.

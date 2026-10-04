@@ -40,7 +40,7 @@
             case 'unlinked': return '<span class="text-slate-300">—</span>';
             case 'empty': return '<span class="text-slate-400 text-[11px]">$0.00</span>';
             case 'unbudgeted': return `<span class="badge badge-bad">${money(st.spent)} without a budget</span>`;
-            case 'untouched': return `<span class="badge badge-info" title="No transactions in the period">$0 de ${money0(st.target)}</span>`;
+            case 'untouched': return `<span class="badge badge-info" title="No transactions in the period">$0 of ${money0(st.target)}</span>`;
             case 'over': return `<span class="badge badge-bad">${money(st.spent)} · +${money0(st.over)}</span>`;
             case 'warning': return `<span class="badge badge-warn">${money(st.spent)} (${Math.round(st.ratio * 100)}%)</span>`;
             default: return `<span class="badge badge-ok">${money(st.spent)} (${Math.round(st.ratio * 100)}%)</span>`;
@@ -123,9 +123,9 @@
                     ${step(1, 'presupuesto/ingresos', 'Income & Taxes', 'your salary and bonuses.')}
                     ${step(2, 'presupuesto/plan', 'Monthly Budget', 'give every dollar a line.')}
                     ${step(3, 'futuro/metas', 'Debts & Goals', 'add your debts and goals.')}
-                    ${step(4, 'futuro/polizas', 'Pólizas', 'add your CDs.')}
-                    ${step(5, 'patrimonio', 'Patrimonio', 'what you own and what you owe.')}
-                    ${step(6, 'resumen', 'Resumen', 'tells you your next step.')}
+                    ${step(4, 'futuro/polizas', 'CDs', 'add your CDs.')}
+                    ${step(5, 'patrimonio', 'Net Worth', 'what you own and what you owe.')}
+                    ${step(6, 'resumen', 'Overview', 'tells you your next step.')}
                 </ol>
             </div>
         </div>`;

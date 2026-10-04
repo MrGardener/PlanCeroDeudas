@@ -32,7 +32,7 @@
         const kind = r.short > 0 || (safe.res && safe.res.safe - amount < 0) ? 'bad' : goalsHit.length ? 'warn' : 'ok';
         return `<div class="wi-col" id="wi-budget">
             <div class="wi-head"><i class="fa-solid fa-wallet text-blue-600"></i> From this month's budget</div>
-            ${verdict(kind, kind === 'ok' ? 'Cabe' : kind === 'warn' ? 'Fits, but slows your saving' : 'Doesn\'t fit')}
+            ${verdict(kind, kind === 'ok' ? 'Fits' : kind === 'warn' ? 'Fits, but slows your saving' : 'Doesn\'t fit')}
             <ul class="wi-list">
                 ${safe.res ? change('Safe to spend today', safe.res.safe, safe.res.safe - amount) : '<li class="help">Add your account balance to see the effect on your cash.</li>'}
             </ul>
@@ -68,7 +68,7 @@
         const interest = cuota * months - amount;
         const pool = ctx.debtExtraRubros;
         const extra = Math.max(0, pool - cuota);
-        const newDebt = { id: 'wi', name: st.description || 'Compra', balance: amount, rate, minPayment: cuota, monthly: cuota };
+        const newDebt = { id: 'wi', name: st.description || 'Purchase', balance: amount, rate, minPayment: cuota, monthly: cuota };
         const before = ctx.debts;
         const after = Engine.debtPayoff(s.debts.concat([newDebt]), s.debtPlan.strategy, extra);
         const missing = Math.max(0, cuota - pool);

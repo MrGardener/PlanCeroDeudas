@@ -8,7 +8,7 @@
         { field: 'savings', label: 'Savings accounts', help: 'Also counts toward your emergency fund.' },
         { field: 'investments', label: 'Investments, CDs and 401(k)/IRA', help: 'CDs, stocks/ETFs and retirement accounts.' },
         { registry: 'Bienes Raíces', label: 'Real estate' },
-        { registry: 'Vehículo', label: 'Vehículos' },
+        { registry: 'Vehículo', label: 'Vehicles' },
         { registry: 'Otro', label: 'Other valuables' }
     ];
     const LIABILITY_FIELDS = [
@@ -224,7 +224,7 @@
             if (!row) return;
             row.querySelector('[data-cell="value"]').textContent = money(Engine.holdingValue(h));
             row.querySelector('[data-cell="gain"]').innerHTML = gainHTML(Number(h.cost) > 0 ? Engine.holdingValue(h) - Number(h.cost) : null, Number(h.cost));
-            row.querySelector('[data-cell="when"]').innerHTML = h.priceAt ? `${h.priceSource === 'manual' ? 'Manual' : 'Mercado'} · ${esc(new Date(h.priceAt).toLocaleString(window.I18n && I18n.lang === 'en' ? 'en-US' : 'es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">No price</span>';
+            row.querySelector('[data-cell="when"]').innerHTML = h.priceAt ? `${h.priceSource === 'manual' ? 'Manual' : 'Market'} · ${esc(new Date(h.priceAt).toLocaleString(window.I18n && I18n.lang === 'en' ? 'en-US' : 'es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">No price</span>';
         });
         UI.text('hold-total', money0(Engine.holdingsValue(s.holdings)));
         const mix = Engine.portfolioMix(s.holdings, null);

@@ -43,7 +43,7 @@
 
     // How it was paid matters: a credit-card purchase doesn't leave checking until the card is
     // paid, so it must not lower "safe to spend". The last choice is remembered.
-    const PAYMENTS = [['Tarjeta de Débito', 'fa-building-columns', 'Débito'], ['Tarjeta de Crédito', 'fa-credit-card', 'Crédito'], ['Efectivo', 'fa-money-bill-wave', 'Efectivo'], ['Transferencia', 'fa-right-left', 'Transferencia']];
+    const PAYMENTS = [['Tarjeta de Débito', 'fa-building-columns', 'Debit'], ['Tarjeta de Crédito', 'fa-credit-card', 'Credit'], ['Efectivo', 'fa-money-bill-wave', 'Efectivo'], ['Transferencia', 'fa-right-left', 'Transferencia']];
 
     function open() {
         state = { type: (state && state.type) || 'Gasto', amount: '', category: null, payment: Store.ui.lastPayment || 'Tarjeta de Débito' };
@@ -99,7 +99,7 @@
             s.transactions.push(t);
             state.sheet.close();
             App.changed({ structural: true, step: true });
-            if (!TxnForm.warnIfImported(t)) UI.toast(`${state.type === 'Ingreso' ? '+' : '−'}${money(amount)} in ${cat} logged.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            if (!TxnForm.warnIfImported(t)) UI.toast(`${state.type === 'Ingreso' ? '+' : '−'}${money(amount)} in ${cat} logged.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         }
     });
 

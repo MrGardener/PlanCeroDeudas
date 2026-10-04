@@ -31,10 +31,10 @@
     // every month); name, type and deletion are managed from Deudas y Metas.
     function linkedRowHTML(item) {
         const isDebt = item.link === 'debt';
-        const input = (field) => `<input type="number" class="cell-input num money" step="10" min="0" value="${Number(item[field]) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" data-field="${field}" aria-label="${field === 'prep' ? 'Presupuestado' : 'Real'}" title="Monthly amount for the whole year. Also editable in Debts & Goals.">`;
+        const input = (field) => `<input type="number" class="cell-input num money" step="10" min="0" value="${Number(item[field]) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" data-field="${field}" aria-label="${field === 'prep' ? 'Budgeted' : 'Real'}" title="Monthly amount for the whole year. Also editable in Debts & Goals.">`;
         return `
             <tr data-row="${item.id}" class="bg-slate-50/60">
-                <td><div class="flex items-center gap-2 px-1"><span class="font-semibold text-slate-800 truncate">${esc(item.name)}</span><a href="#" class="badge ${isDebt ? 'badge-bad' : 'badge-purple'} shrink-0" data-goto="futuro/metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Managed in Debts & Goals"><i class="fa-solid fa-link"></i> ${isDebt ? 'Deuda' : 'Meta'}</a></div></td>
+                <td><div class="flex items-center gap-2 px-1"><span class="font-semibold text-slate-800 truncate">${esc(item.name)}</span><a href="#" class="badge ${isDebt ? 'badge-bad' : 'badge-purple'} shrink-0" data-goto="futuro/metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Managed in Debts & Goals"><i class="fa-solid fa-link"></i> ${isDebt ? 'Deuda' : 'Goal'}</a></div></td>
                 <td class="text-xs text-slate-500 px-3">${isDebt ? 'Pago Deuda' : 'Savings (goal)'}</td>
                 <td class="text-center text-slate-300">—</td>
                 <td>${input('prep')}</td>
@@ -197,7 +197,7 @@
 
     // Coaching: the plan's shares vs. common guidelines, lines you go over month after month, and
     // lines that barely get used (money that could go to debt or savings).
-    const GUIDE = (r) => r.lo !== null && r.hi !== null ? `${r.lo}–${r.hi}%` : r.lo !== null ? `${r.lo}% or more` : r.hi !== null ? `máx. ${r.hi}%` : '';
+    const GUIDE = (r) => r.lo !== null && r.hi !== null ? `${r.lo}–${r.hi}%` : r.lo !== null ? `${r.lo}% or more` : r.hi !== null ? `max ${r.hi}%` : '';
     function coach(ctx, buckets) {
         const c = Engine.budgetCoach({ buckets: buckets.buckets, income: buckets.income, itemsFor: (y, m) => Engine.monthItems(Store.effective(y), m), transactions: ctx.state.transactions, today: ctx.today });
         const flagged = c.ranges.filter(r => r.status === 'alto' || r.status === 'bajo').length + c.chronicOver.length + c.underUsed.length;
@@ -242,7 +242,7 @@
         if (m === 'base' && ctx.state.activeYear === today.getFullYear()) {
             const cm = String(today.getMonth() + 1);
             const cur = Engine.otherIncome(ctx.budgetYear, cm);
-            if (cur.extraReceived > 0.005) note.innerHTML += ` <span class="block mt-1 text-emerald-800"><i class="fa-solid fa-circle-plus"></i> In ${Fmt.MONTH_NAMES[cm - 1]} you logged ${money(cur.extraReceived)} of extra income: it's added to that month. <button type="button" class="link" data-action="budget.showMonth" data-month="${cm}">Ver ${Fmt.MONTH_NAMES[cm - 1]}</button></span>`;
+            if (cur.extraReceived > 0.005) note.innerHTML += ` <span class="block mt-1 text-emerald-800"><i class="fa-solid fa-circle-plus"></i> In ${Fmt.MONTH_NAMES[cm - 1]} you logged ${money(cur.extraReceived)} of extra income: it's added to that month. <button type="button" class="link" data-action="budget.showMonth" data-month="${cm}">See ${Fmt.MONTH_NAMES[cm - 1]}</button></span>`;
         }
 
         const other = updateIncome(ctx);
@@ -257,7 +257,7 @@
             const spentAll = ctx.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && !t.fromGoal && Number(t.date.slice(0, 4)) === ctx.state.activeYear && String(Number(t.date.slice(5, 7))) === sm)
                 .reduce((t, x) => t + Engine.spendAmount(x), 0);
             const risk = Engine.overspendRisk({ planned: plannedSpend, spent: spentAll, year: ctx.state.activeYear, month: sm, today });
-            const LBL = { none: ['No data', 'tone-slate', 'Log your expenses to measure it.'], low: ['Bajo', 'tone-emerald', 'You\'re on pace.'], medium: ['Medio', 'tone-amber', 'You\'re spending a little faster than planned.'], high: ['Alto', 'tone-red', 'At this pace you\'ll go over budget.'] }[risk.level];
+            const LBL = { none: ['No data', 'tone-slate', 'Log your expenses to measure it.'], low: ['Low', 'tone-emerald', 'You\'re on pace.'], medium: ['Medium', 'tone-amber', 'You\'re spending a little faster than planned.'], high: ['High', 'tone-red', 'At this pace you\'ll go over budget.'] }[risk.level];
             riskBox.className = `kpi ${LBL[1]}`;
             UI.text('bud-risk', LBL[0]);
             UI.text('bud-risk-note', `${money0(spentAll)} of ${money0(plannedSpend)} spent in ${Fmt.MONTH_NAMES[sm - 1]}. ${LBL[2]}`);
@@ -409,8 +409,8 @@
                 data: {
                     labels: Fmt.MONTH_SHORT,
                     datasets: [
-                        { label: 'Planeado', data: trend.map(t => t.budgeted), borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: .25, cubicInterpolationMode: 'monotone', fill: false },
-                        { label: 'Gastado', data: trend.map((t, i) => i < cutoff ? t.actual : null), borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: .25, cubicInterpolationMode: 'monotone', fill: true }
+                        { label: 'Planned', data: trend.map(t => t.budgeted), borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: .25, cubicInterpolationMode: 'monotone', fill: false },
+                        { label: 'Spent', data: trend.map((t, i) => i < cutoff ? t.actual : null), borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: .25, cubicInterpolationMode: 'monotone', fill: true }
                     ]
                 },
                 options: { interaction: { mode: 'index', intersect: false } }
@@ -444,7 +444,7 @@
             // absorbs income already logged under that category by surprise.
             list.push({ id, name: 'Nuevo ingreso', amount: 0, category: 'none' });
             App.changed({ structural: true, step: true });
-            UI.toast('Income added. Type its name and how much you receive a month (net).', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast('Income added. Type its name and how much you receive a month (net).', 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
             const input = document.querySelector(layout() === 'simple' ? `#bud-simple [data-income="${id}"] .bs-name-input` : `#bud-body tr[data-income="${id}"] input`);
             if (input) { input.focus(); input.select(); }
         },
@@ -473,7 +473,7 @@
             list.push({ id, name: el.dataset.category, amount: Math.round(Number(el.dataset.amount) * 100) / 100, category: el.dataset.category });
             looseTxns(el.dataset.category).forEach(t => { t.incomeId = id; });  // this month's money is its first receipt
             App.changed({ structural: true, step: true });
-            UI.toast(`"${el.dataset.category}" now counts as income every month.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`"${el.dataset.category}" now counts as income every month.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         // "This logged money is what I received from that income line."
         'income.linkTxns': (el) => {
@@ -482,7 +482,7 @@
             const list = looseTxns(el.dataset.category);
             list.forEach(t => { t.incomeId = src.id; });
             App.changed({ structural: true, step: true });
-            UI.toast(`${money(list.reduce((t, x) => t + (Number(x.amount) || 0), 0))} now counts as received from «${src.name}».`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`${money(list.reduce((t, x) => t + (Number(x.amount) || 0), 0))} now counts as received from «${src.name}».`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         // Logs the missing part of a planned income as a transaction in its category, so the
         // month shows it as received (same as registering it in Transacciones by hand).
@@ -505,7 +505,7 @@
             txns.push({ id: Store.nextId(txns), type: 'Ingreso', description: src.name, store: '', parentCategory: cat, category: sub, incomeId: src.id,
                 amount, date, paymentType: 'Transferencia', countAsExtra: Engine.PAYROLL_SUBCATEGORIES.includes(sub) || undefined });
             App.changed({ structural: true, step: true });
-            UI.toast(`Logged: ${money(amount)} from "${src.name}" (${date}). You'll see it in Transactions.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`Logged: ${money(amount)} from "${src.name}" (${date}). You'll see it in Transactions.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         'income.countExtra': (el) => {
             const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
@@ -559,7 +559,7 @@
             const r = await UI.form({
                 title: `Due date: ${target.name}`,
                 fields: [{ name: 'day', label: 'Day of the month it\'s due (1–31)', type: 'number', min: 1, step: 1, value: target.dueDay || '', help: 'Leave it empty if it has no fixed date. We\'ll remind you in the Overview when it\'s close.' }],
-                confirmText: 'Guardar',
+                confirmText: 'Save',
                 validate: v => v.day === '' || (Number(v.day) >= 1 && Number(v.day) <= 31 && Number.isInteger(Number(v.day))) ? null : 'Type a day between 1 and 31.'
             });
             if (!r) return;
