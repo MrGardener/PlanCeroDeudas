@@ -2,6 +2,7 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Tap the chart to see its values here.": "Toca el gráfico para ver sus valores aquí.",
     "Bonus": "Bono",
     "Leave it unchecked if overtime comes and goes.": "Déjalo sin marcar si las horas extra van y vienen.",
     "Paid by the hour: {0} an hour, {1} hours a week": "Pago por hora: {0} la hora, {1} horas por semana",

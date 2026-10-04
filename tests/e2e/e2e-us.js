@@ -144,6 +144,16 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('#check-review input[data-key="credit"]');
   const ck = await page.evaluate(() => ({ will: Store.state.checklists.estate.will, credit: (Store.state.checklists.review[String(new Date().getFullYear())] || {}).credit, pct: document.getElementById('check-estate-pct').textContent, today: Engine.isoDate(new Date()) }));
   ok(ck.will === ck.today && ck.credit === ck.today && ck.pct === '17%', 'checking a step saves its date (the yearly one under this year)', ck);
+  // Chart values show under the chart, not in a box over it (plan phone-and-corebank, step 2).
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('resumen'); });
+  await page.waitForTimeout(400);
+  const cv = await page.$('#dash-curve-chart');
+  await cv.scrollIntoViewIfNeeded();
+  const bb = await cv.boundingBox();
+  await page.mouse.move(bb.x + bb.width * 0.6, bb.y + bb.height * 0.5);
+  await page.waitForTimeout(300);
+  const ro = await page.evaluate(() => { const c = UI.chartInstance('dash-curve-chart'), r = c.canvas.parentNode.nextElementSibling; return { cls: r && r.className, txt: r && r.textContent, box: c.options.plugins.tooltip.enabled }; });
+  ok(ro.cls === 'chart-readout' && /\$/.test(ro.txt || '') && ro.box === false, 'tapping a chart shows its values under the chart (no box over it)', ro);
   // Hourly pay, overtime and bonuses (docs/plans/hourly-pay.md, phase 2).
   await page.evaluate(() => { Store.reset('example'); Store.active().sueldo = 5000; Store.active().payDeductions = []; App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
   await page.waitForTimeout(200);

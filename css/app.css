@@ -776,3 +776,11 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
    step aside so they don't cover the form (js/ui/core.js adds .kb-open). */
 html.kb-open .main-nav, html.kb-open .fab { display: none !important; }
 html.kb-open.is-native body { padding-bottom: 0; }
+
+/* Chart values for the tapped point, under the chart (UI.chartReadout). */
+.chart-readout { display: flex; flex-wrap: wrap; gap: .25rem .75rem; align-items: center; min-height: 1.25rem; margin-top: .35rem; font-size: .72rem; color: var(--ink-2); }
+.chart-readout strong { color: var(--ink); }
+.chart-readout-item { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
+.chart-readout-item i { width: .6rem; height: .6rem; border-radius: 2px; display: inline-block; }
+.chart-readout .contents { display: contents; }
+.chart-readout-hint { color: var(--faint); }
