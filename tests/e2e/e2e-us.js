@@ -179,6 +179,17 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(150);
   ok(await page.evaluate(() => Store.active().payType === 'salary' && !document.getElementById('inc-sueldo').readOnly), 'back to salary: the monthly field is typed again');
   ok(net0 > 0, 'baseline take-home', net0);
+  // Pay stub with hours, overtime and a bonus (phase 4): back to a salary first, then scan.
+  await page.evaluate(() => { const y = Store.active(); y.payType = 'salary'; y.bonuses = []; App.changed({ structural: true }); PayScan.fromText('Pay Period: 09/14/2026 - 09/27/2026  Pay Date: 10/02/2026\nEarnings Rate Hours Current YTD\nRegular 25.0000 80.00 2,000.00 38,000.00\nOvertime 37.5000 6.00 225.00 1,125.00\nBonus 500.00 500.00\nGross Pay 2,725.00\nFederal Income Tax 250.00\nNet Pay 2,100.00'); });
+  await page.waitForTimeout(250);
+  const sc = (await page.textContent('.sheet-body')).replace(/\s+/g, ' ');
+  ok(/Paid by the hour: \$25\.00 an hour, 40 hours a week/.test(sc) && /3 hours a week at 1\.5×/.test(sc) && /Add this \$500\.00 bonus/.test(sc), 'the stub review offers its hourly pay, overtime and bonus', sc.slice(0, 300));
+  await page.check('#scan-ot');
+  await page.waitForTimeout(150);
+  await page.click('#scan-save');
+  await page.waitForTimeout(250);
+  const st = await page.evaluate(() => { const y = Store.active(); return { t: y.payType, h: y.hourly, sueldo: y.sueldo, b: y.bonuses.map(b => [b.amount, b.month, b.inBudget]) }; });
+  ok(st.t === 'hourly' && st.h.rate === 25 && st.h.hours === 40 && st.h.otHours === 3 && st.h.otRate === 1.5 && Math.abs(st.sueldo - 4333.33) < 0.01 && JSON.stringify(st.b) === '[[500,"10",false]]', 'saving the stub sets hourly pay, usual overtime and the paid bonus', st);
   // Extra paychecks (phase 3): every 2 weeks from the year's first Friday.
   await page.evaluate(() => { const y = Store.state.activeYear, d = new Date(y, 0, 1); d.setDate(1 + (5 - d.getDay() + 7) % 7); Store.state.settings.paySchedule = { freq: 'weekly', weekday: 5, interval: 2, anchor: Engine.isoDate(d) }; App.changed({ structural: true }); });
   await page.waitForTimeout(200);

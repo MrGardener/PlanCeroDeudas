@@ -38,7 +38,9 @@
         // Contribution limits (for warnings)
         limit401k: 24500, catchUp401k: 8000, limitIRA: 7500, limitHSA: { self: 4400, family: 8750 },
         // Social Security benefit formula (PIA bend points, full retirement age 67)
-        ssBend1: 1286, ssBend2: 7749, ssFullAge: 67
+        ssBend1: 1286, ssBend2: 7749, ssFullAge: 67,
+        // Bonuses and other supplemental wages: employers usually withhold a flat 22% federal.
+        supplementalRate: 22
     });
 
     // ------------------------------------------------------------------ states

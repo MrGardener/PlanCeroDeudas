@@ -2,6 +2,12 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Bonus": "Bono",
+    "Leave it unchecked if overtime comes and goes.": "Déjalo sin marcar si las horas extra van y vienen.",
+    "Paid by the hour: {0} an hour, {1} hours a week": "Pago por hora: {0} la hora, {1} horas por semana",
+    "This overtime is usual: {0} hours a week at {1}×": "Estas horas extra son habituales: {0} horas por semana a {1}×",
+    "Add this {0} bonus to this year's bonuses (already paid)": "Agregar este bono de {0} a los bonos de este año (ya pagado)",
+    "Includes {0} withheld from bonuses (22%)": "Incluye {0} retenidos de bonos (22%)",
     "About {0}. Budget on your usual paychecks so it's real extra money, then send it to {1}.": "Unos {0}. Presupuesta con tus pagos de siempre para que sea dinero extra de verdad, y mándalo a {1}.",
     "About {0} on top of your usual pay. Give it a job before it arrives: {1}.": "Unos {0} además de tu pago de siempre. Dale un trabajo antes de que llegue: {1}.",
     "{0} brings an extra paycheck": "{0} trae un pago extra",

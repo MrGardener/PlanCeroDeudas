@@ -36,7 +36,9 @@
         const box = document.getElementById('inc-refund-in');
         if (box && !box.contains(document.activeElement)) UI.html('inc-refund-in', inputs);
         if (!per && !Number(c.ytd)) { UI.html('inc-refund', '<p class="text-xs mt-3"><i class="fa-solid fa-circle-info text-blue-600"></i> Enter the federal withholding from your latest pay stub to see whether you\'ll get a refund or owe.</p>'); return; }
-        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: c.spouseWages, otherWithheld: c.spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left, stdExtra: window.Itemize ? Itemize.giftsOffStandard(ctx) : 0 });
+        // Bonuses still to come this year (the income already counts them): withheld apart, at 22%.
+        const bonusesLeft = (yd.bonuses || []).filter(b => Number(b.month) > ctx.today.getMonth() + 1).reduce((a, b) => a + (Number(b.amount) || 0), 0);
+        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: c.spouseWages, otherWithheld: c.spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left, stdExtra: window.Itemize ? Itemize.giftsOffStandard(ctx) : 0, bonusesLeft });
         const big = Math.abs(r.diff) >= 500;
         const tone = r.diff >= 0 && r.diff < 1500 ? 'tone-emerald' : r.diff >= 0 ? 'tone-amber' : 'tone-red';
         const w4 = r.adjustPerCheck === null ? '' : r.diff < -100
@@ -45,7 +47,7 @@
             : '<p class="text-xs mt-2 text-emerald-700"><i class="fa-solid fa-circle-check"></i> Your withholding is well tuned.</p>';
         UI.html('inc-refund', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
                 <div class="kpi tone-slate"><span class="kpi-label">Federal tax for the year</span><span class="kpi-value">${money0(r.tax)}</span><span class="kpi-note">on ${money0(r.income)}, minus ${money0(r.dedApplied)} deduction${r.credits ? ` and ${money0(r.credits)} in credits` : ''}</span></div>
-                <div class="kpi tone-slate"><span class="kpi-label">Withheld for the year</span><span class="kpi-value">${money0(r.withheld)}</span><span class="kpi-note">${money0(ytd)} so far + ${k.left} paychecks${k.assumed ? ' (every 2 weeks)' : ''}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">Withheld for the year</span><span class="kpi-value">${money0(r.withheld)}</span><span class="kpi-note">${money0(ytd)} so far + ${k.left} paychecks${k.assumed ? ' (every 2 weeks)' : ''}</span>${r.bonusWithheld > 0 ? `<span class="kpi-note">Includes ${money0(r.bonusWithheld)} withheld from bonuses (22%)</span>` : ''}</div>
                 <div class="kpi ${tone}"><span class="kpi-label">${r.diff >= 0 ? 'Your refund would be' : 'You\'d owe'}</span><span class="kpi-value">${money0(Math.abs(r.diff))}</span><span class="kpi-note">${big ? (r.diff >= 0 ? 'in April' : 'when you file in April') : 'close to zero'}</span></div>
             </div>${w4}
             <p class="help mt-2">An estimate of federal tax on wages only (not state, nor special credits). For an exact W-4, use the IRS Tax Withholding Estimator.</p>`);

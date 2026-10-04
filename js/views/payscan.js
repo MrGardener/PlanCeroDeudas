@@ -116,7 +116,26 @@
         const ppy = Importers.paysPerYearFromPeriod(p.periodDays) || (schedule ? Math.round(Engine.nominalPaymentsPerYear(schedule)) : 12);
         draft = { stub: p, ppy: [52, 26, 24, 12].includes(ppy) ? ppy : 12, useGross: false, rows: p.deductions.map(d => ({ label: d.label, group: d.group, kind: d.kind, pretax: d.pretax, amount: d.amount, ytd: d.ytd, include: !COMPUTED[d.kind] })) };
         draft.useGross = p.gross > 0 && Math.abs(p.gross * draft.ppy / 12 - (Number(yd().sueldo) || 0)) > 1;
+        // US stubs: hourly pay (rate × hours), overtime and a bonus line (docs/plans/hourly-pay.md, phase 4).
+        const e = (Store.COUNTRY === 'US' && p.earnings) || {}, cur = yd(), h = cur.hourly || {};
+        draft.reg = e.regular && e.regular.rate > 0 && e.regular.hours > 0 ? e.regular : null;
+        draft.ot = draft.reg && e.overtime && e.overtime.hours > 0 ? e.overtime : null;
+        draft.bonus = e.bonus && e.bonus.amount > 0 ? Object.assign({ month: String(Number((p.payDate || Engine.isoDate(new Date())).slice(5, 7))) }, e.bonus) : null;
+        draft.useHourly = !!draft.reg && !(cur.payType === 'hourly' && Math.abs(Number(h.rate) - draft.reg.rate) < 0.005 && Math.abs(Number(h.hours) - weekly(draft.reg.hours)) < 0.05);
+        draft.useOt = false;
+        draft.addBonus = !!draft.bonus && !(cur.bonuses || []).some(b => Math.abs(Number(b.amount) - draft.bonus.amount) < 0.005 && String(b.month) === draft.bonus.month);
+        if (draft.reg) draft.useGross = false;
         sheet = UI.sheet({ title: 'Review your pay stub', icon: 'fa-file-invoice-dollar', wide: true, html: reviewHTML(), onClose: () => { draft = null; sheet = null; } });
+    }
+
+    // Hours on the stub (for its pay period) → hours a week.
+    const weekly = (hours) => Math.round(hours * (draft ? draft.ppy : 26) / 52 * 100) / 100;
+    const otMultiple = () => (draft.ot.rate > 0 ? Math.round(draft.ot.rate / draft.reg.rate * 20) / 20 : 1.5);
+    // The hourly setup the stub gives (what "Use" saves).
+    function stubHourly(y) {
+        const out = Object.assign({ rate: 0, hours: 40, otHours: 0, otRate: 1.5, otInBudget: false }, y.hourly || {}, { rate: draft.reg.rate, hours: weekly(draft.reg.hours) });
+        if (draft.useOt && draft.ot) Object.assign(out, { otHours: weekly(draft.ot.hours), otRate: otMultiple() });
+        return out;
     }
 
     function reviewHTML() {
@@ -125,7 +144,8 @@
         const extra = d.rows.filter(r => r.include && r.group !== 'employer').reduce((a, r) => a + r.amount * f, 0);
         const gross = d.useGross && stub.gross ? stub.gross * f : p.sueldo;
         // Net with this gross (IESS and income tax recomputed) minus the checked deductions.
-        const est = Math.max(0, Engine.payroll(Object.assign({}, Store.effective(Store.state.activeYear), { sueldo: gross, payDeductions: [] })).netoAntesM - extra);
+        const eff = Store.effective(Store.state.activeYear);
+        const est = Math.max(0, Engine.payroll(Object.assign({}, eff, { sueldo: gross, payDeductions: [] }, d.useHourly && d.reg ? { payType: 'hourly', hourly: stubHourly(eff) } : {})).netoAntesM - extra);
         const stubMonthly = stub.net ? stub.net * f : null;
         return `<div class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
                 <div class="kpi tone-slate"><span class="kpi-label">Gross on the stub</span><span class="kpi-value">${stub.gross ? money(stub.gross) : '—'}</span></div>
@@ -143,7 +163,10 @@
                     <td class="text-[11px] text-slate-500">${COMPUTED[r.kind] ? `The app already calculates it: ${money(COMPUTED[r.kind](p) / f)} per paycheck` : r.ytd ? `Year to date: ${money(r.ytd)}` : ''}</td>
                 </tr>`).join('')}
             </tbody></table></div>
-            ${stub.gross ? `<label class="check mt-3"><input type="checkbox" id="scan-gross" data-change="scan.field" ${d.useGross ? 'checked' : ''}> Use the stub's gross as my monthly gross pay (${money(stub.gross * f)}; today you have ${money(p.sueldo)})</label>` : ''}
+            ${stub.gross && !d.reg ? `<label class="check mt-3"><input type="checkbox" id="scan-gross" data-change="scan.field" ${d.useGross ? 'checked' : ''}> Use the stub's gross as my monthly gross pay (${money(stub.gross * f)}; today you have ${money(p.sueldo)})</label>` : ''}
+            ${d.reg ? `<label class="check mt-3"><input type="checkbox" id="scan-hourly" data-change="scan.field" ${d.useHourly ? 'checked' : ''}><span>Paid by the hour: ${money(d.reg.rate)} an hour, ${weekly(d.reg.hours)} hours a week</span></label>` : ''}
+            ${d.reg && d.ot ? `<label class="check mt-1"><input type="checkbox" id="scan-ot" data-change="scan.field" ${d.useOt ? 'checked' : ''}><span>This overtime is usual: ${weekly(d.ot.hours)} hours a week at ${otMultiple()}× <span class="block text-[11px] font-normal text-slate-500">Leave it unchecked if overtime comes and goes.</span></span></label>` : ''}
+            ${d.bonus ? `<label class="check mt-1"><input type="checkbox" id="scan-bonus" data-change="scan.field" ${d.addBonus ? 'checked' : ''}><span>Add this ${money(d.bonus.amount)} bonus to this year's bonuses (already paid)</span></label>` : ''}
             <div class="bs-banner ${stubMonthly === null || Math.abs(stubMonthly - est) < 1 ? 'ok' : 'warn'} mt-3" id="scan-check">${stubMonthly === null ? `With these deductions you'd receive ≈ ${money(est)} a month.` : `Your stub: ≈ ${money(stubMonthly)} a month. With these deductions the app calculates ≈ ${money(est)}.${Math.abs(stubMonthly - est) < 1 ? ' They match!' : ' Check the checked amounts.'}`}</div>
             <p class="help mt-2">The file was read on this device and isn't saved. Only the deduction names and amounts are kept.</p>
             <div class="flex justify-end gap-2 mt-3"><button type="button" class="btn btn-secondary" data-action="scan.cancel">Cancel</button><button type="button" class="btn btn-primary" data-action="scan.save" id="scan-save"><i class="fa-solid fa-check"></i> Save deductions</button></div>`;
@@ -158,6 +181,7 @@
         UI.$$('.scan-amount').forEach(el => { draft.rows[el.dataset.i].amount = Math.max(0, Fmt.parseNum(el.value, 0)); });
         const g = document.getElementById('scan-gross');
         if (g) draft.useGross = g.checked;
+        [['scan-hourly', 'useHourly'], ['scan-ot', 'useOt'], ['scan-bonus', 'addBonus']].forEach(([id, k]) => { const el = document.getElementById(id); if (el) draft[k] = el.checked; });
     }
 
     UI.register({
@@ -229,7 +253,15 @@
                 if (same) { Object.assign(same, { group: r.group, monthly, perPay: r.amount, paysPerYear: draft.ppy }); updated++; }
                 else { list().push({ id: Store.nextId(list()), name: r.label, group: r.group, kind: r.kind, pretax: !!r.pretax, monthly, perPay: r.amount, paysPerYear: draft.ppy }); added++; }
             });
-            if (draft.useGross && draft.stub.gross) y.sueldo = Math.round(draft.stub.gross * f * 100) / 100;
+            if (draft.useHourly && draft.reg) {
+                y.payType = 'hourly';
+                y.hourly = stubHourly(y);
+                y.sueldo = Math.round(Engine.usGrossPay(y).baseM * 100) / 100;
+            } else if (draft.useGross && draft.stub.gross) y.sueldo = Math.round(draft.stub.gross * f * 100) / 100;
+            if (draft.addBonus && draft.bonus) {
+                y.bonuses = y.bonuses || [];
+                y.bonuses.push({ id: Store.nextId(y.bonuses), name: window.I18n ? I18n.t('Bonus') : 'Bonus', amount: draft.bonus.amount, month: draft.bonus.month, inBudget: false });
+            }
             if (draft.stub.net) y.lastPaystub = { payDate: draft.stub.payDate, net: draft.stub.net, gross: draft.stub.gross, ppy: draft.ppy };
             sheet.close();
             App.changed({ structural: true, step: true });
