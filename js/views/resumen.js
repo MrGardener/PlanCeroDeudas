@@ -90,9 +90,9 @@
     function healthHTML(ctx, overdue) {
         const h = Engine.healthScore(healthFacts(ctx, overdue));
         if (h.score === null) return '';
-        const BAND = { sano: ['Sana', 'tone-emerald', '#10b981'], camino: ['Getting there', 'tone-amber', '#f59e0b'], vulnerable: ['Vulnerable', 'tone-red', '#ef4444'] }[h.band];
+        const BAND = { sano: ['Healthy', 'tone-emerald', '#10b981'], camino: ['Getting there', 'tone-amber', '#f59e0b'], vulnerable: ['Vulnerable', 'tone-red', '#ef4444'] }[h.band];
         const C = 2 * Math.PI * 34, dash = (h.score / 100) * C;
-        const ring = `<svg viewBox="0 0 80 80" class="health-ring" role="img" aria-label="${h.score} de 100"><circle cx="40" cy="40" r="34" class="health-track"/><circle cx="40" cy="40" r="34" fill="none" stroke="${BAND[2]}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${dash.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 40 40)"/><text x="40" y="45" text-anchor="middle" class="health-num">${h.score}</text></svg>`;
+        const ring = `<svg viewBox="0 0 80 80" class="health-ring" role="img" aria-label="${h.score} out of 100"><circle cx="40" cy="40" r="34" class="health-track"/><circle cx="40" cy="40" r="34" fill="none" stroke="${BAND[2]}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${dash.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 40 40)"/><text x="40" y="45" text-anchor="middle" class="health-num">${h.score}</text></svg>`;
         const pill = (p) => `<div class="health-pillar"><div class="flex justify-between text-xs"><span class="font-bold">${esc(p.label)}</span><span class="font-bold">${p.score === null ? '—' : p.score}</span></div><div class="progress-track mt-1"><div class="progress-fill" style="width:${p.score || 0}%;background:${p.score >= 80 ? '#10b981' : p.score >= 40 ? '#f59e0b' : '#ef4444'}"></div></div></div>`;
         const rows = h.pillars.flatMap(p => p.items).map(i => { const [g, f] = GOTO[i.key]; return `<li class="flex items-center justify-between gap-3"><span class="min-w-0"><span class="font-semibold">${esc(i.label)}</span><span class="block text-[11px] text-slate-500">${esc(i.note)}</span></span><a href="#" class="link whitespace-nowrap font-bold" data-goto="${g}" ${f ? `data-focus="${f}"` : ''}>${i.score}</a></li>`; }).join('');
         return `<div class="flex flex-col sm:flex-row gap-5 items-center">
@@ -148,7 +148,7 @@
         const curve = Engine.monthSpendCurve(txns, t);
         UI.text('dash-spent', money0(curve.spent));
         UI.html('dash-curve-note', curve.sameDayLast > 0
-            ? (curve.diff <= 0 ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> So far <strong>${money0(-curve.diff)} less</strong> than last month by this date.` : `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> So far <strong>${money0(curve.diff)} más</strong> than last month by this date.`)
+            ? (curve.diff <= 0 ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> So far <strong>${money0(-curve.diff)} less</strong> than last month by this date.` : `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> So far <strong>${money0(curve.diff)} more</strong> than last month by this date.`)
             : 'Log your expenses: next month you\'ll see the comparison with this one.');
         const days = curve.current.length;
         const prev = Array.from({ length: days }, (_, i) => i < curve.previous.length ? curve.previous[i] : curve.previous[curve.previous.length - 1]);
@@ -159,7 +159,7 @@
                 datasets: [
                     { label: 'This month', data: curve.current, borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, fill: true, cubicInterpolationMode: 'monotone' },
                     { label: 'Last month', data: prev, borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, cubicInterpolationMode: 'monotone' },
-                    { label: 'Planeado', data: Array(days).fill(plannedSpend), borderColor: '#cbd5e1', borderDash: [2, 4], borderWidth: 2, pointRadius: 0, fill: false }
+                    { label: 'Planned', data: Array(days).fill(plannedSpend), borderColor: '#cbd5e1', borderDash: [2, 4], borderWidth: 2, pointRadius: 0, fill: false }
                 ]
             },
             options: { interaction: { mode: 'index', intersect: false } }
@@ -196,7 +196,7 @@
             </div>
             <div class="kpi ${streak.days >= 3 ? 'tone-amber' : 'tone-slate'}">
                 <span class="kpi-label">${streak.days ? '🔥 Logging streak' : 'Log today'}</span>
-                <span class="kpi-value">${streak.days} día${streak.days === 1 ? '' : 's'}</span>
+                <span class="kpi-value">${streak.days} day${streak.days === 1 ? '' : 's'}</span>
                 <div class="streak-week">${streak.week.map((on, i) => `<span class="${on ? 'on' : ''}" title="${on ? 'Registraste' : 'Nothing logged'}">${DOW[i]}</span>`).join('')}</div>
                 <span class="kpi-note">${streak.today ? 'You\'ve logged today!' : streak.days ? 'Log something today to keep your streak.' : 'Logging your spending every day is the habit that helps most.'} <button type="button" class="link" data-action="quick.open">+ Log</button></span>
             </div>`);
@@ -384,7 +384,7 @@
             Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-shield-heart', label: 'Emergency fund', value: money0(ef.liquid), note: `${ef.monthsCovered.toFixed(1)} months of essential expenses covered`, goto: 'futuro/metas', focus: 'metas-ef' }),
             Views.kpiCard({ tone: 'text-amber-500', icon: 'fa-piggy-bank', label: 'Savings & CDs', value: money0(ctx.polizasCapital), note: `Projection to ${s.configEndYear}: ${money0(ctx.projection.finalBalance)}`, goto: 'futuro/proyeccion' }),
             Views.kpiCard({ tone: 'text-teal-600', icon: 'fa-scale-balanced', label: `Net worth ${s.activeYear}`, value: money0(ctx.netWorth.value), note: `Assets ${money0(ctx.netWorth.assets)} · Liabilities ${money0(ctx.netWorth.liabilities)}`, goto: 'patrimonio', spark: nwSpark }),
-            Views.kpiCard({ tone: 'text-indigo-600', icon: 'fa-person-cane', label: 'Estimated retirement', value: `${money0(r.ingresoTotal)}/mes`, note: `At age ${r.edadJubilacion} · savings ${money0(r.ingresoAhorro)} + Social Security ${money0(r.pension)}`, goto: 'futuro/jubilacion' })
+            Views.kpiCard({ tone: 'text-indigo-600', icon: 'fa-person-cane', label: 'Estimated retirement', value: `${money0(r.ingresoTotal)}/mo`, note: `At age ${r.edadJubilacion} · savings ${money0(r.ingresoAhorro)} + Social Security ${money0(r.pension)}`, goto: 'futuro/jubilacion' })
         ].join(''));
 
         // Alerts sit at the top, and only when there's something to do.
@@ -413,7 +413,7 @@
             const amount = Math.round(Number(el.dataset.amount) * 100) / 100;
             txns.push({ id: Store.nextId(txns), type: 'Gasto', description: item.name, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date: Engine.isoDate(today), paymentType: 'Transferencia', budgetLine: String(item.id) });
             App.changed({ structural: true, step: true });
-            UI.toast(`Payment for "${item.name}" logged (${Fmt.money(amount)}).`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`Payment for "${item.name}" logged (${Fmt.money(amount)}).`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         'app.loadExample': async () => {
             const s = Store.state;

@@ -1017,7 +1017,7 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
 
             <div id="bud-detailed">
             <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
-                <p class="text-xs text-slate-500 max-w-2xl">Above are <strong>all your income</strong>: your salary and any other (business, freelance, remittances). Below, the lines: edit amounts, mark the <strong>deducibles SRI</strong> and link each line to a transaction category to compare what you budgeted with what you actually spent.</p>
+                <p class="text-xs text-slate-500 max-w-2xl">Above are <strong>all your income</strong>: your salary and any other (business, freelance, remittances). Below, the lines: edit amounts, mark the <strong>SRI deductibles</strong> and link each line to a transaction category to compare what you budgeted with what you actually spent.</p>
                 <div class="flex flex-wrap gap-2">
                     <button class="btn btn-secondary" data-action="income.add"><i class="fa-solid fa-plus"></i> Add Income</button>
                     <button class="btn btn-primary" data-action="budget.addRow"><i class="fa-solid fa-plus"></i> Add Line</button>
@@ -2269,7 +2269,7 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
                 <label class="field field-box"><span class="field-label"><span>Standard deduction · head of household (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.stdDeduction.hoh"></label>
                 <label class="field field-box"><span class="field-label"><span>Child tax credit (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="50" data-bind="year.usTax.childCredit"></label>
                 <label class="field field-box"><span class="field-label"><span>Social Security wage base (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="100" data-bind="year.usTax.ssWageBase"></label>
-                <label class="field field-box"><span class="field-label">Seguro Social (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.ssRate"></label>
+                <label class="field field-box"><span class="field-label">Social Security (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.ssRate"></label>
                 <label class="field field-box"><span class="field-label">Medicare (%)</span><input type="number" class="input" min="0" step="0.01" data-bind="year.usTax.medicareRate"></label>
                 <label class="field field-box"><span class="field-label"><span>FDIC / NCUA coverage (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="1000" data-bind="year.cosede"></label>
             </div>
@@ -5350,6 +5350,123 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Baseline": "Baseline",
+    "Baseline:": "Baseline:",
+    "A transaction you already have contains": "1 transacción que ya tienes contiene",
+    "On the {0}, {1}{2}": "El {0}, {1}{2}",
+    "A transaction you already have contains «{0}». Apply the rule to it ({1})?": "1 transacción que ya tienes contiene «{0}». ¿Le aplicamos la regla ({1})?",
+    "{0} transactions you already have contain «{1}». Apply the rule to them ({2})?": "{0} transacciones que ya tienes contienen «{1}». ¿Les aplicamos la regla ({2})?",
+    "name «{0}»": "nombre «{0}»",
+    "Apply to {0}": "Aplicar a {0}",
+    "City": "Ciudad",
+    "State income tax ({0})": "Impuesto estatal ({0})",
+    "Adjust to {0}": "Ajustar a {0}",
+    "Itemized deductions: {0}": "Deducciones detalladas: {0}",
+    "Note saved": "Nota guardada",
+    "They come out about the same.": "Quedan casi iguales.",
+    "Refund": "Reembolso",
+    "Social Security (%)": "Seguro Social (%)",
+    "SRI deductibles": "deducibles SRI",
+    "Ideas:": "Ideas:",
+    "This doesn't look like an SRI invoice": "No parece una factura del SRI",
+    "These don't look like SRI invoices": "No parecen facturas del SRI",
+    "(on a weekend, the Friday before)": "(si cae en fin de semana, el viernes antes)",
+    "(on a weekend, the Monday after)": "(si cae en fin de semana, el lunes después)",
+    "Every business day (Monday to Friday)": "Cada día laborable (lunes a viernes)",
+    "last day": "último día",
+    "once a year": "una vez al año",
+    "Monday": "lunes",
+    "Tuesday": "martes",
+    "Wednesday": "miércoles",
+    "Thursday": "jueves",
+    "Friday": "viernes",
+    "Saturday": "sábado",
+    "Sunday": "domingo",
+    "{0} row{1}": "{0} fila{1|s|}",
+    "{0} row{1} already logged (unchecked)": "{0} fila{1|s|} ya registrada{1|s|} (desmarcada{1|s|})",
+    "Applied to {0} row{1}.": "Aplicado a {0} fila{1|s|}.",
+    "{0} transaction{1} imported.": "{0} movimiento{1|s|} importado{1|s|}.",
+    "{0} row{1} skipped.": "{0} fila{1|s|} omitida{1|s|}.",
+    "{0} transaction{1} already typed by hand: not duplicated.": "{0} movimiento{1|s|} ya anotado{1|s|} a mano: no se duplicaron.",
+    "{0} rule{1} saved.": "{0} regla{1|s|} guardada{1|s|}.",
+    "{0} new income line{1} in your budget.": "{0} ingreso{1|s|} nuevo{1|s|} en tu presupuesto.",
+    "This doesn't look like an SRI invoice: {0}": "No parece una factura del SRI: {0}",
+    "These don't look like SRI invoices: {0}": "No parecen facturas del SRI: {0}",
+    "{0} deduction{1} added.": "{0} descuento{1|s|} agregado{1|s|}.",
+    "{0} deduction{1} updated.": "{0} descuento{1|s|} actualizado{1|s|}.",
+    "{0} transaction{1}": "{0} movimiento{1|s|}",
+    "We found {0} repeating charge{1} you don't have scheduled: together, {2} a year.": "Encontramos {0} cargo{1|s|} que se repite{1|n|} y no tienes programado{1|s|}: juntos, {2} al año.",
+    "{0} scheduled transaction{1} logged: {2}.": "Se registraron {0} movimiento{1|s|} programado{1|s|}: {2}.",
+    "\"{0}\" will repeat {1}.": "\"{0}\" se repetirá {1}.",
+    "{0} pending transaction{1} logged.": "Se registraron {0} pendiente{1|s|}.",
+    "{0} transaction{1} logged.": "{0} movimiento{1|s|} registrado{1|s|}.",
+    "Spending": "Gastar",
+    "Borrowing": "Deber",
+    "Planning": "Planear",
+    "(tell us how you get paid in Income)": "(dinos cómo te pagan en Ingresos)",
+    "{0} day{1}": "{0} día{1|s|}",
+    "{0} more": "{0} más",
+    "{0} of {1}": "{0} de {1}",
+    "{0} out of 100": "{0} de 100",
+    "{0}'s": "De {0}",
+    "{0}/mo": "{0}/mes",
+    "{0}% of {1}": "{0}% de {1}",
+    "+{0}/mo": "+{0}/mes",
+    "$0 of {0}": "$0 de {0}",
+    "Add": "Agregar",
+    "Add it": "Agregarla",
+    "Borrow": "Deber",
+    "Budget": "Presupuesto",
+    "Calculators": "Calculadoras",
+    "Change": "Cambiar",
+    "Charitable gifts": "Donaciones",
+    "College": "Universidad",
+    "Conservative": "Conservadora",
+    "Continue": "Continuar",
+    "Create": "Crear",
+    "Credit": "Crédito",
+    "Day/Month/Year": "Día/Mes/Año",
+    "Debit": "Débito",
+    "Fits": "Cabe",
+    "Food": "Comida",
+    "Future": "Futuro",
+    "Giving": "Dar",
+    "Got it": "Entendido",
+    "Healthy": "Sana",
+    "High": "Alto",
+    "Insurance": "Seguro",
+    "Invoice": "Factura",
+    "Left over": "Sobró",
+    "Loan": "Préstamo",
+    "Log": "Registrar",
+    "Low": "Bajo",
+    "Mark": "Marcar",
+    "Market": "Mercado",
+    "max {0}%": "máx. {0}%",
+    "Medium": "Medio",
+    "Month {0}": "Mes {0}",
+    "Month {0} · {1}": "Mes {0} · {1}",
+    "Month/Day/Year": "Mes/Día/Año",
+    "Never": "Nunca",
+    "OK": "Aceptar",
+    "Overview": "Resumen",
+    "Plan": "Planear",
+    "Purchase": "Compra",
+    "Received": "Recibido",
+    "Remove it": "Quitarla",
+    "Reports": "Reportes",
+    "See {0}": "Ver {0}",
+    "Short": "Faltó",
+    "Spend": "Gastar",
+    "Start": "Empezar",
+    "Target": "Objetivo",
+    "Term": "Plazo",
+    "Transfer": "Traspaso",
+    "Vehicles": "Vehículos",
+    "Vulnerable": "Vulnerable",
+    "Year-Month-Day": "Año-Mes-Día",
+    "Yes: {0}": "Sí: {0}",
+    "You'd owe": "Deberías",
     "Saved automatically in this browser at {0}": "Guardado automáticamente en este navegador a las {0}",
     " and applied to {0} transaction{1}": "y aplicada a {0} transacci{1|ones|ón}",
     " deleted": "ón eliminada",
@@ -5514,7 +5631,6 @@ I18n.add('es', {
     "{0} times since {1}": "{0} veces desde {1}",
     "{0} to import": "{0} para importar",
     "{0} transaction logged": "Transacción de {0} registrada",
-    "{0} transaction{1} «{2}». Apply the rule to them ({3})?": "{0} transacci{1} «{2}». ¿Les aplicamos la regla ({3})?",
     "{0} transaction{1} (in \"Recently deleted\")": "{0} transacci{1} (en \"Eliminadas recientemente\")",
     "{0} transaction{1} for {2}": "{0} transacci{1} de {2}",
     "{0} transactions": "Transacciones de {0}",
@@ -9947,7 +10063,7 @@ I18n.override('EC', 'es', {
         const items = [
             { key: 'mortgage', label: 'Mortgage interest', amount: cents(num(mortgageInterest)), raw: cents(num(mortgageInterest)) },
             { key: 'salt', label: 'State, local and property taxes', amount: cents(Math.min(saltRaw, saltCap)), raw: cents(saltRaw), limit: cents(saltCap) },
-            { key: 'charity', label: 'Donaciones', amount: cents(Math.max(0, num(charity) - charityFloor)), raw: cents(num(charity)), floor: cents(charityFloor) },
+            { key: 'charity', label: 'Charitable gifts', amount: cents(Math.max(0, num(charity) - charityFloor)), raw: cents(num(charity)), floor: cents(charityFloor) },
             { key: 'medical', label: 'Medical costs', amount: cents(Math.max(0, num(medical) - medFloor)), raw: cents(num(medical)), floor: cents(medFloor) }
         ];
         const itemized = cents(sum(items, i => i.amount));
@@ -10472,10 +10588,10 @@ I18n.override('EC', 'es', {
     // savings. Returns every group (amount 0 when empty, so colors stay with the group), the
     // income, what's assigned, and what's left to assign (negative = assigned more than income).
     const BUCKETS = [
-        { key: 'dar', label: 'Dar' },
+        { key: 'dar', label: 'Giving' },
         { key: 'ahorro', label: 'Ahorro' },
         { key: 'vivienda', label: 'Housing and utilities' },
-        { key: 'comida', label: 'Comida' },
+        { key: 'comida', label: 'Food' },
         { key: 'transporte', label: 'Transporte' },
         { key: 'otros', label: 'Other spending' },
         { key: 'deudas', label: 'Deudas' }
@@ -11132,19 +11248,19 @@ I18n.override('EC', 'es', {
         const ind = (key, label, score, note) => ({ key, label, score, note });
         const has = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
         const pillars = [
-            { key: 'spend', label: 'Gastar', items: [
+            { key: 'spend', label: 'Spending', items: [
                 has(f.spendRatio) ? ind('spendLess', 'You spend less than you earn', lin(-f.spendRatio, -1.1, -0.9), 'Last 3 months: spending ÷ income.') : null,
                 has(f.overdue) ? ind('onTime', 'You pay your bills on time', f.overdue <= 0 ? 100 : f.overdue === 1 ? 50 : 0, 'Overdue payments this month.') : null
             ] },
-            { key: 'save', label: 'Ahorrar', items: [
+            { key: 'save', label: 'Saving', items: [
                 has(f.monthsCovered) ? ind('cushion', 'You have a cushion for surprises', lin(f.monthsCovered, 0, 3), 'Months of essential expenses saved (3 or more = 100).') : null,
                 has(f.savingsRate) ? ind('longTerm', 'You save for the long term', lin(f.savingsRate, 0, 0.15), 'Share of your pay going to retirement (15% = 100).') : null
             ] },
-            { key: 'borrow', label: 'Deber', items: [
+            { key: 'borrow', label: 'Borrowing', items: [
                 has(f.debtToIncome) ? ind('dti', 'Your debts don\'t swamp your income', lin(-f.debtToIncome, -0.36, -0.10), 'Consumer debt payments ÷ income (10% or less = 100).') : null,
                 has(f.costlyDebtRatio) ? ind('costly', 'No expensive debt', lin(-f.costlyDebtRatio, -0.15, 0), 'Debts at 10% or more, against your yearly income.') : null
             ] },
-            { key: 'plan', label: 'Planear', items: [
+            { key: 'plan', label: 'Planning', items: [
                 has(f.unassignedRatio) ? ind('budget', 'Every dollar has a job', Math.abs(f.unassignedRatio) <= 0.01 ? 100 : Math.abs(f.unassignedRatio) <= 0.05 ? 60 : 20, 'Your budget assigns all your income, no more, no less.') : null,
                 has(f.retirePct) ? ind('retire', 'On track for retirement', lin(f.retirePct, 0, 1), 'What you\'re on track to have ÷ what you\'d need.') : null
             ] }
@@ -11549,7 +11665,7 @@ I18n.override('EC', 'es', {
             return { yearly: true, marks, labels: marks.map(m => m % 12 === 0 ? `Year ${m / 12}` : `Year ${Math.floor(m / 12)}+${m % 12}m`), title: 'Loan Term (years)' };
         }
         const marks = Array.from({ length: scheduleLength }, (_, k) => k + 1);
-        return { yearly: false, marks, labels: marks.map(m => `Mes ${m}`), title: 'Loan Term (months)' };
+        return { yearly: false, marks, labels: marks.map(m => `Month ${m}`), title: 'Loan Term (months)' };
     }
 
     // Value of `field` at each axis mark; undefined past the end of a shorter schedule.
@@ -11823,7 +11939,7 @@ I18n.override('EC', 'es', {
 
     function babySteps({ liquid, consumerDebt, monthsCovered, savingsRate, mortgageBalance, ownsHome = mortgageBalance > 0.01, money = (v) => '$' + Math.round(v).toLocaleString('en-US') }) {
         const steps = [
-            { n: 1, title: 'Starter Emergency Fund', done: liquid >= 1000, detail: `${Math.min(100, liquid / 10).toFixed(0)}% de ${money(1000)}` },
+            { n: 1, title: 'Starter Emergency Fund', done: liquid >= 1000, detail: `${Math.min(100, liquid / 10).toFixed(0)}% of ${money(1000)}` },
             { n: 2, title: 'Pay Off Consumer Debt', done: consumerDebt <= 0.01, detail: consumerDebt > 0.01 ? `${money(consumerDebt)} left` : 'No debt' },
             { n: 3, title: 'Full Emergency Fund', done: monthsCovered >= 3, detail: `${monthsCovered.toFixed(1)} of 3-6 months` },
             { n: 4, title: 'Invest 15% for Retirement', done: savingsRate >= 0.15, detail: `You save ${(savingsRate * 100).toFixed(0)}% of your salary` },
@@ -13227,7 +13343,7 @@ I18n.override('EC', 'es', {
         // -------------------------------------------------------------- dialogs
         // form(): a modal with optional fields; resolves to the values, or null if cancelled.
         // cancelText: null shows only the OK button (a notice); icon replaces the title's icon.
-        form({ title, message = '', fields = [], confirmText = 'Aceptar', cancelText = 'Cancelar', danger = false, validate, icon = null }) {
+        form({ title, message = '', fields = [], confirmText = 'OK', cancelText = 'Cancel', danger = false, validate, icon = null }) {
             return new Promise((resolve) => {
                 const back = document.createElement('div');
                 back.className = 'modal-backdrop';
@@ -13467,7 +13583,7 @@ I18n.override('EC', 'es', {
                 c.strokeStyle = Chart.defaults.color; c.globalAlpha = .55; c.setLineDash([3, 3]); c.lineWidth = 1;
                 c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
                 c.globalAlpha = .9; c.setLineDash([]); c.fillStyle = Chart.defaults.color; c.font = '600 10px Inter, sans-serif'; c.textAlign = 'left';
-                c.fillText(opts.label || 'Hoy', x + 4, top + 10);
+                c.fillText(opts.label || 'Today', x + 4, top + 10);
                 c.restore();
             }
         });
@@ -13526,27 +13642,27 @@ I18n.override('EC', 'es', {
     // generated from this list, and every cross-link in the app points at an id here
     // (never at a hard-coded "Tab N"), so reordering can't leave stale references behind.
     const tabs = [
-        { id: 'resumen', label: 'Resumen', icon: 'fa-gauge-high' },
-        { id: 'presupuesto', label: 'Presupuesto', icon: 'fa-wallet', subviews: [
+        { id: 'resumen', label: 'Overview', icon: 'fa-gauge-high' },
+        { id: 'presupuesto', label: 'Budget', icon: 'fa-wallet', subviews: [
             { id: 'plan', label: 'Monthly Budget', icon: 'fa-table-list' },
             { id: 'ingresos', label: 'Income & Taxes', icon: 'fa-receipt' }
         ] },
-        { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping', subviews: [
-            { id: 'lista', label: 'Historial', icon: 'fa-list' },
-            { id: 'importar', label: 'Importar', icon: 'fa-file-import' },
-            { id: 'reportes', label: 'Reportes', icon: 'fa-chart-pie' }
+        { id: 'transacciones', label: 'Transactions', icon: 'fa-cart-shopping', subviews: [
+            { id: 'lista', label: 'History', icon: 'fa-list' },
+            { id: 'importar', label: 'Import', icon: 'fa-file-import' },
+            { id: 'reportes', label: 'Reports', icon: 'fa-chart-pie' }
         ] },
-        { id: 'futuro', label: 'Futuro', icon: 'fa-road', subviews: [
+        { id: 'futuro', label: 'Future', icon: 'fa-road', subviews: [
             { id: 'metas', label: 'Debts & Goals', icon: 'fa-bullseye' },
             { id: 'proyeccion', label: 'Savings & CDs', icon: 'fa-piggy-bank' },
             { id: 'polizas', label: 'CDs & Banks', icon: 'fa-file-contract' },
             { id: 'hipoteca', label: 'Hipoteca', icon: 'fa-house-chimney' },
-            { id: 'jubilacion', label: 'Jubilación', icon: 'fa-person-cane' },
-            { id: 'calculadoras', label: 'Calculadoras', icon: 'fa-calculator' }
+            { id: 'jubilacion', label: 'Retirement', icon: 'fa-person-cane' },
+            { id: 'calculadoras', label: 'Calculators', icon: 'fa-calculator' }
         ] },
-        { id: 'patrimonio', label: 'Patrimonio', icon: 'fa-scale-balanced' },
+        { id: 'patrimonio', label: 'Net Worth', icon: 'fa-scale-balanced' },
         // Reached from the gear in the header, not from the tab bar.
-        { id: 'config', label: 'Configuración', icon: 'fa-gears', nav: false }
+        { id: 'config', label: 'Settings', icon: 'fa-gears', nav: false }
     ];
     // Where the screens used to live (links, bookmarks and #hashes from before the 5-tab layout).
     const ALIASES = {
@@ -13802,7 +13918,7 @@ I18n.override('EC', 'es', {
         if (!hist.past.length) { UI.toast('Nothing to undo.', 'error'); return; }
         hist.future.push(hist.committed);
         restore(hist.past.pop());
-        UI.toast('Change undone', 'ok', { label: 'Rehacer', className: 'toast-undo', onClick: redo });
+        UI.toast('Change undone', 'ok', { label: 'Redo', className: 'toast-undo', onClick: redo });
     }
 
     function redo() {
@@ -13875,7 +13991,7 @@ I18n.override('EC', 'es', {
         commitHistory();
         mutate();
         changed({ structural: true, keepUndo: true, step: true });
-        UI.toast(message, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: undo });
+        UI.toast(message, 'ok', { label: 'Undo', className: 'toast-undo', onClick: undo });
     }
 
     function renderSaveStatus(status) {
@@ -13905,7 +14021,7 @@ I18n.override('EC', 'es', {
         'app.redo': () => redo(),
         // Leave the example family for an empty plan of your own (undoable).
         'app.startOwn': async () => {
-            const ok = await UI.confirm({ title: 'Start with my own data', message: 'The example family is removed and you start with an empty plan. You can see the example again from Settings.', confirmText: 'Empezar' });
+            const ok = await UI.confirm({ title: 'Start with my own data', message: 'The example family is removed and you start with an empty plan. You can see the example again from Settings.', confirmText: 'Start' });
             if (!ok) return;
             commitHistory();
             Store.reset('empty');
@@ -13920,7 +14036,7 @@ I18n.override('EC', 'es', {
             const st = Store.state.settings;
             st.movesSnoozed = Object.assign({}, st.movesSnoozed, { [el.dataset.key]: Engine.isoDate(d) });
             changed({ step: true });
-            UI.toast('Done: we\'ll remind you in 2 weeks.', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: undo });
+            UI.toast('Done: we\'ll remind you in 2 weeks.', 'ok', { label: 'Undo', className: 'toast-undo', onClick: undo });
         },
         'app.help': () => {
             go('config', { focus: 'cfg-guide' });
@@ -14043,7 +14159,7 @@ I18n.override('EC', 'es', {
             case 'unlinked': return '<span class="text-slate-300">—</span>';
             case 'empty': return '<span class="text-slate-400 text-[11px]">$0.00</span>';
             case 'unbudgeted': return `<span class="badge badge-bad">${money(st.spent)} without a budget</span>`;
-            case 'untouched': return `<span class="badge badge-info" title="No transactions in the period">$0 de ${money0(st.target)}</span>`;
+            case 'untouched': return `<span class="badge badge-info" title="No transactions in the period">$0 of ${money0(st.target)}</span>`;
             case 'over': return `<span class="badge badge-bad">${money(st.spent)} · +${money0(st.over)}</span>`;
             case 'warning': return `<span class="badge badge-warn">${money(st.spent)} (${Math.round(st.ratio * 100)}%)</span>`;
             default: return `<span class="badge badge-ok">${money(st.spent)} (${Math.round(st.ratio * 100)}%)</span>`;
@@ -14126,9 +14242,9 @@ I18n.override('EC', 'es', {
                     ${step(1, 'presupuesto/ingresos', 'Income & Taxes', 'your salary and bonuses.')}
                     ${step(2, 'presupuesto/plan', 'Monthly Budget', 'give every dollar a line.')}
                     ${step(3, 'futuro/metas', 'Debts & Goals', 'add your debts and goals.')}
-                    ${step(4, 'futuro/polizas', 'Pólizas', 'add your CDs.')}
-                    ${step(5, 'patrimonio', 'Patrimonio', 'what you own and what you owe.')}
-                    ${step(6, 'resumen', 'Resumen', 'tells you your next step.')}
+                    ${step(4, 'futuro/polizas', 'CDs', 'add your CDs.')}
+                    ${step(5, 'patrimonio', 'Net Worth', 'what you own and what you owe.')}
+                    ${step(6, 'resumen', 'Overview', 'tells you your next step.')}
                 </ol>
             </div>
         </div>`;
@@ -14289,9 +14405,9 @@ I18n.override('EC', 'es', {
     function healthHTML(ctx, overdue) {
         const h = Engine.healthScore(healthFacts(ctx, overdue));
         if (h.score === null) return '';
-        const BAND = { sano: ['Sana', 'tone-emerald', '#10b981'], camino: ['Getting there', 'tone-amber', '#f59e0b'], vulnerable: ['Vulnerable', 'tone-red', '#ef4444'] }[h.band];
+        const BAND = { sano: ['Healthy', 'tone-emerald', '#10b981'], camino: ['Getting there', 'tone-amber', '#f59e0b'], vulnerable: ['Vulnerable', 'tone-red', '#ef4444'] }[h.band];
         const C = 2 * Math.PI * 34, dash = (h.score / 100) * C;
-        const ring = `<svg viewBox="0 0 80 80" class="health-ring" role="img" aria-label="${h.score} de 100"><circle cx="40" cy="40" r="34" class="health-track"/><circle cx="40" cy="40" r="34" fill="none" stroke="${BAND[2]}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${dash.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 40 40)"/><text x="40" y="45" text-anchor="middle" class="health-num">${h.score}</text></svg>`;
+        const ring = `<svg viewBox="0 0 80 80" class="health-ring" role="img" aria-label="${h.score} out of 100"><circle cx="40" cy="40" r="34" class="health-track"/><circle cx="40" cy="40" r="34" fill="none" stroke="${BAND[2]}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${dash.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 40 40)"/><text x="40" y="45" text-anchor="middle" class="health-num">${h.score}</text></svg>`;
         const pill = (p) => `<div class="health-pillar"><div class="flex justify-between text-xs"><span class="font-bold">${esc(p.label)}</span><span class="font-bold">${p.score === null ? '—' : p.score}</span></div><div class="progress-track mt-1"><div class="progress-fill" style="width:${p.score || 0}%;background:${p.score >= 80 ? '#10b981' : p.score >= 40 ? '#f59e0b' : '#ef4444'}"></div></div></div>`;
         const rows = h.pillars.flatMap(p => p.items).map(i => { const [g, f] = GOTO[i.key]; return `<li class="flex items-center justify-between gap-3"><span class="min-w-0"><span class="font-semibold">${esc(i.label)}</span><span class="block text-[11px] text-slate-500">${esc(i.note)}</span></span><a href="#" class="link whitespace-nowrap font-bold" data-goto="${g}" ${f ? `data-focus="${f}"` : ''}>${i.score}</a></li>`; }).join('');
         return `<div class="flex flex-col sm:flex-row gap-5 items-center">
@@ -14347,7 +14463,7 @@ I18n.override('EC', 'es', {
         const curve = Engine.monthSpendCurve(txns, t);
         UI.text('dash-spent', money0(curve.spent));
         UI.html('dash-curve-note', curve.sameDayLast > 0
-            ? (curve.diff <= 0 ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> So far <strong>${money0(-curve.diff)} less</strong> than last month by this date.` : `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> So far <strong>${money0(curve.diff)} más</strong> than last month by this date.`)
+            ? (curve.diff <= 0 ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> So far <strong>${money0(-curve.diff)} less</strong> than last month by this date.` : `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> So far <strong>${money0(curve.diff)} more</strong> than last month by this date.`)
             : 'Log your expenses: next month you\'ll see the comparison with this one.');
         const days = curve.current.length;
         const prev = Array.from({ length: days }, (_, i) => i < curve.previous.length ? curve.previous[i] : curve.previous[curve.previous.length - 1]);
@@ -14358,7 +14474,7 @@ I18n.override('EC', 'es', {
                 datasets: [
                     { label: 'This month', data: curve.current, borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, fill: true, cubicInterpolationMode: 'monotone' },
                     { label: 'Last month', data: prev, borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, cubicInterpolationMode: 'monotone' },
-                    { label: 'Planeado', data: Array(days).fill(plannedSpend), borderColor: '#cbd5e1', borderDash: [2, 4], borderWidth: 2, pointRadius: 0, fill: false }
+                    { label: 'Planned', data: Array(days).fill(plannedSpend), borderColor: '#cbd5e1', borderDash: [2, 4], borderWidth: 2, pointRadius: 0, fill: false }
                 ]
             },
             options: { interaction: { mode: 'index', intersect: false } }
@@ -14395,7 +14511,7 @@ I18n.override('EC', 'es', {
             </div>
             <div class="kpi ${streak.days >= 3 ? 'tone-amber' : 'tone-slate'}">
                 <span class="kpi-label">${streak.days ? '🔥 Logging streak' : 'Log today'}</span>
-                <span class="kpi-value">${streak.days} día${streak.days === 1 ? '' : 's'}</span>
+                <span class="kpi-value">${streak.days} day${streak.days === 1 ? '' : 's'}</span>
                 <div class="streak-week">${streak.week.map((on, i) => `<span class="${on ? 'on' : ''}" title="${on ? 'Registraste' : 'Nothing logged'}">${DOW[i]}</span>`).join('')}</div>
                 <span class="kpi-note">${streak.today ? 'You\'ve logged today!' : streak.days ? 'Log something today to keep your streak.' : 'Logging your spending every day is the habit that helps most.'} <button type="button" class="link" data-action="quick.open">+ Log</button></span>
             </div>`);
@@ -14583,7 +14699,7 @@ I18n.override('EC', 'es', {
             Views.kpiCard({ tone: 'text-emerald-600', icon: 'fa-shield-heart', label: 'Emergency fund', value: money0(ef.liquid), note: `${ef.monthsCovered.toFixed(1)} months of essential expenses covered`, goto: 'futuro/metas', focus: 'metas-ef' }),
             Views.kpiCard({ tone: 'text-amber-500', icon: 'fa-piggy-bank', label: 'Savings & CDs', value: money0(ctx.polizasCapital), note: `Projection to ${s.configEndYear}: ${money0(ctx.projection.finalBalance)}`, goto: 'futuro/proyeccion' }),
             Views.kpiCard({ tone: 'text-teal-600', icon: 'fa-scale-balanced', label: `Net worth ${s.activeYear}`, value: money0(ctx.netWorth.value), note: `Assets ${money0(ctx.netWorth.assets)} · Liabilities ${money0(ctx.netWorth.liabilities)}`, goto: 'patrimonio', spark: nwSpark }),
-            Views.kpiCard({ tone: 'text-indigo-600', icon: 'fa-person-cane', label: 'Estimated retirement', value: `${money0(r.ingresoTotal)}/mes`, note: `At age ${r.edadJubilacion} · savings ${money0(r.ingresoAhorro)} + Social Security ${money0(r.pension)}`, goto: 'futuro/jubilacion' })
+            Views.kpiCard({ tone: 'text-indigo-600', icon: 'fa-person-cane', label: 'Estimated retirement', value: `${money0(r.ingresoTotal)}/mo`, note: `At age ${r.edadJubilacion} · savings ${money0(r.ingresoAhorro)} + Social Security ${money0(r.pension)}`, goto: 'futuro/jubilacion' })
         ].join(''));
 
         // Alerts sit at the top, and only when there's something to do.
@@ -14612,7 +14728,7 @@ I18n.override('EC', 'es', {
             const amount = Math.round(Number(el.dataset.amount) * 100) / 100;
             txns.push({ id: Store.nextId(txns), type: 'Gasto', description: item.name, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date: Engine.isoDate(today), paymentType: 'Transferencia', budgetLine: String(item.id) });
             App.changed({ structural: true, step: true });
-            UI.toast(`Payment for "${item.name}" logged (${Fmt.money(amount)}).`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`Payment for "${item.name}" logged (${Fmt.money(amount)}).`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         'app.loadExample': async () => {
             const s = Store.state;
@@ -14665,8 +14781,8 @@ I18n.override('EC', 'es', {
         { type: 'Deuda', label: 'Debt payments', icon: 'fa-credit-card' },
         { type: 'Ahorro', label: 'Savings & investing', icon: 'fa-piggy-bank' }
     ];
-    const MODES = { planned: 'Planeado', spent: 'Gastado', remaining: 'Restante', all: 'Todo' };
-    const INCOME_MODES = { planned: 'Planeado', spent: 'Recibido', remaining: 'To receive', all: 'Todo' };
+    const MODES = { planned: 'Planned', spent: 'Spent', remaining: 'Remaining', all: 'All' };
+    const INCOME_MODES = { planned: 'Planned', spent: 'Received', remaining: 'To receive', all: 'All' };
 
     // Lines can live in a custom group (item.group); otherwise their type decides.
     const groupOf = (item) => {
@@ -14712,7 +14828,7 @@ I18n.override('EC', 'es', {
         if (item.sweep) input = '';
         else if (item.link) input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" aria-label="Planned for ${esc(item.name)}">`;
         else input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.set" data-id="${id}" data-field="real" data-sync="prep" aria-label="Planned for ${esc(item.name)}">`;
-        const badge = item.link ? `<a href="#" class="badge ${item.link === 'debt' ? 'badge-bad' : 'badge-purple'}" data-goto="futuro/metas" data-focus="${item.link === 'debt' ? 'metas-debts' : 'metas-goals'}"><i class="fa-solid fa-link"></i> ${item.link === 'debt' ? 'Deuda' : 'Meta'}</a>`
+        const badge = item.link ? `<a href="#" class="badge ${item.link === 'debt' ? 'badge-bad' : 'badge-purple'}" data-goto="futuro/metas" data-focus="${item.link === 'debt' ? 'metas-debts' : 'metas-goals'}"><i class="fa-solid fa-link"></i> ${item.link === 'debt' ? 'Deuda' : 'Goal'}</a>`
             : item.sweep ? '<span class="badge badge-ok"><i class="fa-solid fa-wand-magic-sparkles"></i> Automatic</span>' : '';
         const canDue = !item.sweep && item.link !== 'goal';
         return `<div class="bs-row" data-line="${id}">
@@ -14764,7 +14880,7 @@ I18n.override('EC', 'es', {
         const purposeField = (it, lineId) => {
             if (!Engine.isSavingsItem(it)) return '';
             const auto = PURPOSE_LABEL[Engine.savingsPurpose(Object.assign({}, it, { purpose: '' }))];
-            const opts = [{ value: '', label: `Automatic (${auto})` }, { value: 'emergencia', label: 'Emergency fund' }, { value: 'jubilacion', label: 'Jubilación' }, { value: 'general', label: 'General savings' }];
+            const opts = [{ value: '', label: `Automatic (${auto})` }, { value: 'emergencia', label: 'Emergency fund' }, { value: 'jubilacion', label: 'Retirement' }, { value: 'general', label: 'General savings' }];
             return `<label class="field mt-3 max-w-sm"><span class="field-label">What is this saving for?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
                 <span class="help">The emergency fund doesn't count as retirement saving (Step 4).</span></label>`;
         };
@@ -14845,7 +14961,7 @@ I18n.override('EC', 'es', {
         host.classList.toggle('mode-all', md === 'all');
         UI.$$('#bud-simple .bs-card[data-group]').forEach(c => {
             const col = c.querySelector('[data-col]');
-            if (col) col.textContent = md === 'all' ? 'Planeado' : (c.dataset.group === 'income' ? INCOME_MODES : MODES)[md];
+            if (col) col.textContent = md === 'all' ? 'Planned' : (c.dataset.group === 'income' ? INCOME_MODES : MODES)[md];
         });
         const t = ctx.today;
         const isCurrent = m.sm && ctx.state.activeYear === t.getFullYear() && Number(m.sm) === t.getMonth() + 1;
@@ -14980,7 +15096,7 @@ I18n.override('EC', 'es', {
         App.changed({ structural: true, step: true });
         if (lineId) {
             const item = Engine.monthItems(Store.effective(Number(t.date.slice(0, 4))), String(Number(t.date.slice(5, 7)))).find(i => String(i.id) === String(lineId));
-            UI.toast(`"${t.description}" now counts in «${item ? item.name : lineId}».`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`"${t.description}" now counts in «${item ? item.name : lineId}».`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         }
     }
 
@@ -15017,7 +15133,7 @@ I18n.override('EC', 'es', {
         const purposeField = (it, lineId) => {
             if (!Engine.isSavingsItem(it)) return '';
             const auto = PURPOSE_LABEL[Engine.savingsPurpose(Object.assign({}, it, { purpose: '' }))];
-            const opts = [{ value: '', label: `Automatic (${auto})` }, { value: 'emergencia', label: 'Emergency fund' }, { value: 'jubilacion', label: 'Jubilación' }, { value: 'general', label: 'General savings' }];
+            const opts = [{ value: '', label: `Automatic (${auto})` }, { value: 'emergencia', label: 'Emergency fund' }, { value: 'jubilacion', label: 'Retirement' }, { value: 'general', label: 'General savings' }];
             return `<label class="field mt-3 max-w-sm"><span class="field-label">What is this saving for?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
                 <span class="help">The emergency fund doesn't count as retirement saving (Step 4).</span></label>`;
         };
@@ -15041,8 +15157,8 @@ I18n.override('EC', 'es', {
         UI.chart('line-detail-chart', {
             type: 'line',
             data: { labels: hist.map(h => h.label), datasets: [
-                { label: 'Planeado', data: hist.map(h => h.planned), borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, stepped: true },
-                { label: 'Gastado', data: hist.map(h => h.spent), borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 4, fill: true, cubicInterpolationMode: 'monotone' }
+                { label: 'Planned', data: hist.map(h => h.planned), borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, stepped: true },
+                { label: 'Spent', data: hist.map(h => h.spent), borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 4, fill: true, cubicInterpolationMode: 'monotone' }
             ] },
             options: { interaction: { mode: 'index', intersect: false } }
         });
@@ -15060,7 +15176,7 @@ I18n.override('EC', 'es', {
             fields.push({ name: 'line' + k, label: `Line ${k + 1}`, options, value: cur[k] ? String(cur[k].line) : '' });
             fields.push({ name: 'amt' + k, label: `Amount ${k + 1}`, type: 'number', min: 0, step: '0.01', value: cur[k] ? cur[k].amount : '' });
         }
-        const r = await UI.form({ title: `Dividir "${t.description}" (${money(t.amount)})`, message: 'Split the amount across lines. Whatever you don\'t split counts as usual (by its category).', fields, confirmText: 'Guardar',
+        const r = await UI.form({ title: `Dividir "${t.description}" (${money(t.amount)})`, message: 'Split the amount across lines. Whatever you don\'t split counts as usual (by its category).', fields, confirmText: 'Save',
             validate: v => { const tot = [0, 1, 2].reduce((a, k) => a + (v['line' + k] ? Number(v['amt' + k]) || 0 : 0), 0); return tot > Number(t.amount) + 0.005 ? `You split ${money(tot)}, more than ${money(t.amount)}.` : null; } });
         if (!r) return;
         const splits = [0, 1, 2].map(k => ({ line: r['line' + k], amount: Math.round((Number(r['amt' + k]) || 0) * 100) / 100 })).filter(x => x.line && x.amount > 0);
@@ -15101,7 +15217,7 @@ I18n.override('EC', 'es', {
             const r = await UI.form({ title: 'New group', fields: [
                 { name: 'name', label: 'Group name', placeholder: 'E.g. Giving, Pets, Car' },
                 { name: 'type', label: 'What kind of money is it?', options: [{ value: 'Gasto Variable', label: 'Expenses that vary' }, { value: 'Gasto Fijo', label: 'Fixed expenses' }, { value: 'Ahorro/Inversión', label: 'Ahorro' }] }
-            ], confirmText: 'Crear', validate: v => !v.name.trim() ? 'Type a name.' : (Store.active().groups || []).some(g => g.name === v.name.trim()) ? 'There\'s already a group with that name.' : null });
+            ], confirmText: 'Create', validate: v => !v.name.trim() ? 'Type a name.' : (Store.active().groups || []).some(g => g.name === v.name.trim()) ? 'There\'s already a group with that name.' : null });
             if (!r) return;
             const yd = Store.active();
             (yd.groups || (yd.groups = [])).push({ name: r.name.trim().slice(0, 40), type: r.type });
@@ -15153,10 +15269,10 @@ I18n.override('EC', 'es', {
     // every month); name, type and deletion are managed from Deudas y Metas.
     function linkedRowHTML(item) {
         const isDebt = item.link === 'debt';
-        const input = (field) => `<input type="number" class="cell-input num money" step="10" min="0" value="${Number(item[field]) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" data-field="${field}" aria-label="${field === 'prep' ? 'Presupuestado' : 'Real'}" title="Monthly amount for the whole year. Also editable in Debts & Goals.">`;
+        const input = (field) => `<input type="number" class="cell-input num money" step="10" min="0" value="${Number(item[field]) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" data-field="${field}" aria-label="${field === 'prep' ? 'Budgeted' : 'Real'}" title="Monthly amount for the whole year. Also editable in Debts & Goals.">`;
         return `
             <tr data-row="${item.id}" class="bg-slate-50/60">
-                <td><div class="flex items-center gap-2 px-1"><span class="font-semibold text-slate-800 truncate">${esc(item.name)}</span><a href="#" class="badge ${isDebt ? 'badge-bad' : 'badge-purple'} shrink-0" data-goto="futuro/metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Managed in Debts & Goals"><i class="fa-solid fa-link"></i> ${isDebt ? 'Deuda' : 'Meta'}</a></div></td>
+                <td><div class="flex items-center gap-2 px-1"><span class="font-semibold text-slate-800 truncate">${esc(item.name)}</span><a href="#" class="badge ${isDebt ? 'badge-bad' : 'badge-purple'} shrink-0" data-goto="futuro/metas" data-focus="${isDebt ? 'metas-debts' : 'metas-goals'}" title="Managed in Debts & Goals"><i class="fa-solid fa-link"></i> ${isDebt ? 'Deuda' : 'Goal'}</a></div></td>
                 <td class="text-xs text-slate-500 px-3">${isDebt ? 'Pago Deuda' : 'Savings (goal)'}</td>
                 <td class="text-center text-slate-300">—</td>
                 <td>${input('prep')}</td>
@@ -15319,7 +15435,7 @@ I18n.override('EC', 'es', {
 
     // Coaching: the plan's shares vs. common guidelines, lines you go over month after month, and
     // lines that barely get used (money that could go to debt or savings).
-    const GUIDE = (r) => r.lo !== null && r.hi !== null ? `${r.lo}–${r.hi}%` : r.lo !== null ? `${r.lo}% or more` : r.hi !== null ? `máx. ${r.hi}%` : '';
+    const GUIDE = (r) => r.lo !== null && r.hi !== null ? `${r.lo}–${r.hi}%` : r.lo !== null ? `${r.lo}% or more` : r.hi !== null ? `max ${r.hi}%` : '';
     function coach(ctx, buckets) {
         const c = Engine.budgetCoach({ buckets: buckets.buckets, income: buckets.income, itemsFor: (y, m) => Engine.monthItems(Store.effective(y), m), transactions: ctx.state.transactions, today: ctx.today });
         const flagged = c.ranges.filter(r => r.status === 'alto' || r.status === 'bajo').length + c.chronicOver.length + c.underUsed.length;
@@ -15364,7 +15480,7 @@ I18n.override('EC', 'es', {
         if (m === 'base' && ctx.state.activeYear === today.getFullYear()) {
             const cm = String(today.getMonth() + 1);
             const cur = Engine.otherIncome(ctx.budgetYear, cm);
-            if (cur.extraReceived > 0.005) note.innerHTML += ` <span class="block mt-1 text-emerald-800"><i class="fa-solid fa-circle-plus"></i> In ${Fmt.MONTH_NAMES[cm - 1]} you logged ${money(cur.extraReceived)} of extra income: it's added to that month. <button type="button" class="link" data-action="budget.showMonth" data-month="${cm}">Ver ${Fmt.MONTH_NAMES[cm - 1]}</button></span>`;
+            if (cur.extraReceived > 0.005) note.innerHTML += ` <span class="block mt-1 text-emerald-800"><i class="fa-solid fa-circle-plus"></i> In ${Fmt.MONTH_NAMES[cm - 1]} you logged ${money(cur.extraReceived)} of extra income: it's added to that month. <button type="button" class="link" data-action="budget.showMonth" data-month="${cm}">See ${Fmt.MONTH_NAMES[cm - 1]}</button></span>`;
         }
 
         const other = updateIncome(ctx);
@@ -15379,7 +15495,7 @@ I18n.override('EC', 'es', {
             const spentAll = ctx.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && !t.fromGoal && Number(t.date.slice(0, 4)) === ctx.state.activeYear && String(Number(t.date.slice(5, 7))) === sm)
                 .reduce((t, x) => t + Engine.spendAmount(x), 0);
             const risk = Engine.overspendRisk({ planned: plannedSpend, spent: spentAll, year: ctx.state.activeYear, month: sm, today });
-            const LBL = { none: ['No data', 'tone-slate', 'Log your expenses to measure it.'], low: ['Bajo', 'tone-emerald', 'You\'re on pace.'], medium: ['Medio', 'tone-amber', 'You\'re spending a little faster than planned.'], high: ['Alto', 'tone-red', 'At this pace you\'ll go over budget.'] }[risk.level];
+            const LBL = { none: ['No data', 'tone-slate', 'Log your expenses to measure it.'], low: ['Low', 'tone-emerald', 'You\'re on pace.'], medium: ['Medium', 'tone-amber', 'You\'re spending a little faster than planned.'], high: ['High', 'tone-red', 'At this pace you\'ll go over budget.'] }[risk.level];
             riskBox.className = `kpi ${LBL[1]}`;
             UI.text('bud-risk', LBL[0]);
             UI.text('bud-risk-note', `${money0(spentAll)} of ${money0(plannedSpend)} spent in ${Fmt.MONTH_NAMES[sm - 1]}. ${LBL[2]}`);
@@ -15531,8 +15647,8 @@ I18n.override('EC', 'es', {
                 data: {
                     labels: Fmt.MONTH_SHORT,
                     datasets: [
-                        { label: 'Planeado', data: trend.map(t => t.budgeted), borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: .25, cubicInterpolationMode: 'monotone', fill: false },
-                        { label: 'Gastado', data: trend.map((t, i) => i < cutoff ? t.actual : null), borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: .25, cubicInterpolationMode: 'monotone', fill: true }
+                        { label: 'Planned', data: trend.map(t => t.budgeted), borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: .25, cubicInterpolationMode: 'monotone', fill: false },
+                        { label: 'Spent', data: trend.map((t, i) => i < cutoff ? t.actual : null), borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: .25, cubicInterpolationMode: 'monotone', fill: true }
                     ]
                 },
                 options: { interaction: { mode: 'index', intersect: false } }
@@ -15566,7 +15682,7 @@ I18n.override('EC', 'es', {
             // absorbs income already logged under that category by surprise.
             list.push({ id, name: 'Nuevo ingreso', amount: 0, category: 'none' });
             App.changed({ structural: true, step: true });
-            UI.toast('Income added. Type its name and how much you receive a month (net).', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast('Income added. Type its name and how much you receive a month (net).', 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
             const input = document.querySelector(layout() === 'simple' ? `#bud-simple [data-income="${id}"] .bs-name-input` : `#bud-body tr[data-income="${id}"] input`);
             if (input) { input.focus(); input.select(); }
         },
@@ -15595,7 +15711,7 @@ I18n.override('EC', 'es', {
             list.push({ id, name: el.dataset.category, amount: Math.round(Number(el.dataset.amount) * 100) / 100, category: el.dataset.category });
             looseTxns(el.dataset.category).forEach(t => { t.incomeId = id; });  // this month's money is its first receipt
             App.changed({ structural: true, step: true });
-            UI.toast(`"${el.dataset.category}" now counts as income every month.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`"${el.dataset.category}" now counts as income every month.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         // "This logged money is what I received from that income line."
         'income.linkTxns': (el) => {
@@ -15604,7 +15720,7 @@ I18n.override('EC', 'es', {
             const list = looseTxns(el.dataset.category);
             list.forEach(t => { t.incomeId = src.id; });
             App.changed({ structural: true, step: true });
-            UI.toast(`${money(list.reduce((t, x) => t + (Number(x.amount) || 0), 0))} now counts as received from «${src.name}».`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`${money(list.reduce((t, x) => t + (Number(x.amount) || 0), 0))} now counts as received from «${src.name}».`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         // Logs the missing part of a planned income as a transaction in its category, so the
         // month shows it as received (same as registering it in Transacciones by hand).
@@ -15627,7 +15743,7 @@ I18n.override('EC', 'es', {
             txns.push({ id: Store.nextId(txns), type: 'Ingreso', description: src.name, store: '', parentCategory: cat, category: sub, incomeId: src.id,
                 amount, date, paymentType: 'Transferencia', countAsExtra: Engine.PAYROLL_SUBCATEGORIES.includes(sub) || undefined });
             App.changed({ structural: true, step: true });
-            UI.toast(`Logged: ${money(amount)} from "${src.name}" (${date}). You'll see it in Transactions.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`Logged: ${money(amount)} from "${src.name}" (${date}). You'll see it in Transactions.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         'income.countExtra': (el) => {
             const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
@@ -15681,7 +15797,7 @@ I18n.override('EC', 'es', {
             const r = await UI.form({
                 title: `Due date: ${target.name}`,
                 fields: [{ name: 'day', label: 'Day of the month it\'s due (1–31)', type: 'number', min: 1, step: 1, value: target.dueDay || '', help: 'Leave it empty if it has no fixed date. We\'ll remind you in the Overview when it\'s close.' }],
-                confirmText: 'Guardar',
+                confirmText: 'Save',
                 validate: v => v.day === '' || (Number(v.day) >= 1 && Number(v.day) <= 31 && Number.isInteger(Number(v.day))) ? null : 'Type a day between 1 and 31.'
             });
             if (!r) return;
@@ -15776,7 +15892,7 @@ I18n.override('EC', 'es', {
         const g = fund();
         list.forEach(b => {
             const cell = document.querySelector(`#annual-body tr[data-row="${b.id}"] [data-cell="monthly"]`);
-            if (cell) cell.textContent = `${money((Number(b.amount) || 0) / (Number(b.every) || 12))}/mes`;
+            if (cell) cell.textContent = `${money((Number(b.amount) || 0) / (Number(b.every) || 12))}/mo`;
         });
         if (!list.length) { UI.html('annual-summary', ''); UI.html('annual-timeline', ''); return; }
         const need = Engine.annualSetAside(list);
@@ -15789,7 +15905,7 @@ I18n.override('EC', 'es', {
         } else {
             const low = (Number(g.monthly) || 0) + 0.005 < need;
             const msgs = [`Your «${esc(g.name)}» fund has <strong>${money(g.current)}</strong> and your budget puts in <strong>${money(g.monthly)}</strong> a month.`];
-            if (low) msgs.push(`That's less than you need (${money(need)}). <button type="button" class="link" data-action="annual.fund">Ajustar a ${money(need)}</button>`);
+            if (low) msgs.push(`That's less than you need (${money(need)}). <button type="button" class="link" data-action="annual.fund">Adjust to ${money(need)}</button>`);
             if (plan.firstShort) msgs.push(`<span class="text-red-700 font-semibold">In ${monthLabel(plan.firstShort.year, plan.firstShort.month)} you'd be ${money(plan.needed)} short.</span> Deposit that difference into the fund now (or set aside more) to pay on time.`);
             else msgs.push('<span class="text-emerald-700 font-semibold"><i class="fa-solid fa-circle-check"></i> There\'s enough to pay each bill on time.</span>');
             fundHTML = `<div class="panel ${plan.firstShort || low ? 'tone-amber' : 'tone-emerald'} text-xs space-y-1.5">${msgs.map(m => `<p>${m}</p>`).join('')}</div>`;
@@ -15898,9 +16014,9 @@ I18n.override('EC', 'es', {
         const past = history().filter(h => h.key !== r.key).slice(0, 6);
         const parts = [past.length ? `<div class="flex flex-wrap items-center gap-1.5 mb-3 text-xs"><span class="text-slate-500">Closed months:</span>${past.map(h => { const [hy, hm] = h.key.split('-').map(Number); return `<button type="button" class="quick-chip" data-action="close.open" data-y="${hy}" data-m="${hm}"><i class="fa-solid fa-circle-check text-emerald-600"></i> ${esc(Fmt.MONTH_SHORT[hm - 1])} ${hy} · ${h.leftover >= 0 ? '+' : '−'}${money0(Math.abs(h.leftover))}</button>`; }).join('')}</div>` : ''];
         parts.push(`<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            ${kpi('tone-emerald', 'Entró', money0(r.income), 'income logged')}
-            ${kpi('tone-slate', 'Salió', money0(r.spent), `you planned ${money0(r.planned)}`)}
-            ${kpi(r.leftover >= 0 ? 'tone-blue' : 'tone-red', r.leftover >= 0 ? 'Sobró' : 'Faltó', money0(Math.abs(r.leftover)), r.leftover >= 0 ? 'what wasn\'t spent' : 'you spent more than came in')}
+            ${kpi('tone-emerald', 'Came in', money0(r.income), 'income logged')}
+            ${kpi('tone-slate', 'Went out', money0(r.spent), `you planned ${money0(r.planned)}`)}
+            ${kpi(r.leftover >= 0 ? 'tone-blue' : 'tone-red', r.leftover >= 0 ? 'Left over' : 'Short', money0(Math.abs(r.leftover)), r.leftover >= 0 ? 'what wasn\'t spent' : 'you spent more than came in')}
         </div>`);
         if (!r.count) parts.push('<p class="help mt-3">You didn\'t log anything this month.</p>');
         parts.push(`<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
@@ -15957,7 +16073,7 @@ I18n.override('EC', 'es', {
             const r = review(y, m);
             const note = (document.getElementById('close-note') || {}).value || '';
             const was = closes()[r.key];
-            App.undoable(was ? 'Nota guardada' : `${label(y, m)} closed. One more month on your plan!`, () => {
+            App.undoable(was ? 'Note saved' : `${label(y, m)} closed. One more month on your plan!`, () => {
                 closes()[r.key] = { closedAt: was ? was.closedAt : new Date().toISOString(), income: r.income, spent: r.spent, leftover: r.leftover, planned: r.planned, note: note.trim().slice(0, 500) };
             });
             if (sheet) sheet.close();
@@ -16161,14 +16277,14 @@ I18n.override('EC', 'es', {
             ['Federal income tax', '−' + money(p.fedM), 'text-red-600'],
             ['Seguro Social', '−' + money(p.ssM), 'text-red-600'],
             ['Medicare', '−' + money(p.medM), 'text-red-600'],
-            [`Impuesto estatal (${esc(st.name)}${p.stateRate ? ` ${p.stateRate}%` : ''})`, '−' + money(p.stateM), 'text-red-600'],
+            [`State income tax (${esc(st.name) + (p.stateRate ? ` ${p.stateRate}%` : '')})`, '−' + money(p.stateM), 'text-red-600'],
             p.localM > 0 ? [`City tax${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'residente' : 'non-resident'} ${p.localRate}%)` : ''}`, '−' + money(p.localM), 'text-red-600'] : null,
             p.otrosDescuentosM - p.pretaxM > 0.004 ? ['Other paycheck deductions (after tax)', '−' + money(p.otrosDescuentosM - p.pretaxM), 'text-red-600'] : null
         ].filter(Boolean);
         UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join(''));
         UI.text('inc-neto', money(p.netoM));
         UI.html('inc-us-ded-kpis', `
-            <div class="kpi tone-slate"><span class="kpi-label">Deduction applied</span><span class="kpi-value">${money(p.dedApplied)}</span><span class="kpi-note">${Number(yd.itemized) > p.stdDeduction ? 'Detallada' : `Standard (${money(p.stdDeduction)})`}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Deduction applied</span><span class="kpi-value">${money(p.dedApplied)}</span><span class="kpi-note">${Number(yd.itemized) > p.stdDeduction ? 'Itemized' : `Standard (${money(p.stdDeduction)})`}</span></div>
             <div class="kpi tone-slate"><span class="kpi-label">Federal taxable income</span><span class="kpi-value">${money(p.baseImponible)}</span><span class="kpi-note">a year</span></div>
             <div class="kpi tone-blue"><span class="kpi-label">Dependent credits</span><span class="kpi-value">${money(p.credits)}</span><span class="kpi-note">a year</span></div>
             <div class="kpi tone-amber"><span class="kpi-label">Income taxes</span><span class="kpi-value">${money(p.isrAnual)}</span><span class="kpi-note">a year (federal + state + city)</span></div>`);
@@ -16253,7 +16369,7 @@ I18n.override('EC', 'es', {
         'us.city': async (el) => {
             const y = Store.active();
             if (el.value === '__custom') {
-                const r = await UI.form({ title: 'Your city\'s tax', fields: [{ name: 'name', label: 'Ciudad', value: y.localName || '' }, { name: 'rate', label: 'Rate (%)', type: 'number', step: '0.01', min: 0, value: y.localRate || '' }], confirmText: 'Guardar' });
+                const r = await UI.form({ title: 'Your city\'s tax', fields: [{ name: 'name', label: 'City', value: y.localName || '' }, { name: 'rate', label: 'Rate (%)', type: 'number', step: '0.01', min: 0, value: y.localRate || '' }], confirmText: 'Save' });
                 if (!r) { App.render(); return; }
                 y.localName = r.name.trim().slice(0, 40); y.localRate = Math.max(0, Number(r.rate) || 0);
             } else {
@@ -16283,7 +16399,7 @@ I18n.override('EC', 'es', {
             st.paydays = sch.freq === 'monthly' && sch.interval === 1 ? sch.days : [];
             sheet.close();
             App.changed({ structural: true, step: true });
-            UI.toast(`${window.I18n ? I18n.t('Guardado') : 'Guardado'}: ${describe(sch)}`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`${window.I18n ? I18n.t('Saved') : 'Saved'}: ${describe(sch)}`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         'pay.clear': () => {
             const st = Store.state.settings;
@@ -16346,7 +16462,7 @@ I18n.override('EC', 'es', {
         UI.html('inc-refund', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
                 <div class="kpi tone-slate"><span class="kpi-label">Federal tax for the year</span><span class="kpi-value">${money0(r.tax)}</span><span class="kpi-note">on ${money0(r.income)}, minus ${money0(r.dedApplied)} deduction${r.credits ? ` and ${money0(r.credits)} in credits` : ''}</span></div>
                 <div class="kpi tone-slate"><span class="kpi-label">Withheld for the year</span><span class="kpi-value">${money0(r.withheld)}</span><span class="kpi-note">${money0(ytd)} so far + ${k.left} paychecks${k.assumed ? ' (every 2 weeks)' : ''}</span></div>
-                <div class="kpi ${tone}"><span class="kpi-label">${r.diff >= 0 ? 'Your refund would be' : 'Deberías'}</span><span class="kpi-value">${money0(Math.abs(r.diff))}</span><span class="kpi-note">${big ? (r.diff >= 0 ? 'in April' : 'when you file in April') : 'close to zero'}</span></div>
+                <div class="kpi ${tone}"><span class="kpi-label">${r.diff >= 0 ? 'Your refund would be' : 'You\'d owe'}</span><span class="kpi-value">${money0(Math.abs(r.diff))}</span><span class="kpi-note">${big ? (r.diff >= 0 ? 'in April' : 'when you file in April') : 'close to zero'}</span></div>
             </div>${w4}
             <p class="help mt-2">An estimate of federal tax on wages only (not state, nor special credits). For an exact W-4, use the IRS Tax Withholding Estimator.</p>`);
     }
@@ -16447,7 +16563,7 @@ I18n.override('EC', 'es', {
         },
         'itemize.use': (el) => {
             const amount = Math.max(0, Number(el.dataset.amount) || 0);
-            App.undoable(amount > 0 ? `Deducciones detalladas: ${money(amount)}` : 'Using the standard deduction', () => { Store.active().itemized = amount; });
+            App.undoable(amount > 0 ? `Itemized deductions: ${money(amount)}` : 'Using the standard deduction', () => { Store.active().itemized = amount; });
         }
     });
 
@@ -16472,7 +16588,7 @@ I18n.override('EC', 'es', {
         return [
             { key: 'age', label: `By your age (${stocks}% in stocks)`, mix: { us, intl: stocks - us, bonds: 100 - stocks, cash: 0, other: 0 } },
             { key: 'growth', label: 'All stocks (long term)', mix: { us: 75, intl: 25, bonds: 0, cash: 0, other: 0 } },
-            { key: 'calm', label: 'Conservadora', mix: { us: 40, intl: 20, bonds: 40, cash: 0, other: 0 } }
+            { key: 'calm', label: 'Conservative', mix: { us: 40, intl: 20, bonds: 40, cash: 0, other: 0 } }
         ];
     }
 
@@ -16627,7 +16743,7 @@ I18n.override('EC', 'es', {
                 ? `<p><strong>By the numbers, investing would leave ${money0(r.diff)} more</strong> if the money earns ${c.returnPct}% every year. But that return isn't guaranteed: some years the market falls. Paying down the house is a sure ${m.rate}% return.</p>`
                 : `<p><strong>By the numbers, investing would leave ${money0(r.diff)} more</strong> if the money earns ${c.returnPct}% every year for the whole term. CD rates change when you renew them; paying down the house is a sure ${m.rate}% return.</p>`)
             : win === 'prepay' ? `<p><strong>Paying down the house leaves ${money0(-r.diff)} more</strong>, with no risk: at a ${c.returnPct}% return, investing doesn't beat the mortgage's ${m.rate}%.</p>`
-            : '<p><strong>Quedan casi iguales.</strong></p>';
+            : '<p><strong>They come out about the same.</strong></p>';
         const be = r.breakEven === null ? '' : `<p class="mt-1">Investing only wins if it earns more than <strong>${r.breakEven.toFixed(1)}%</strong> a year on average for ${Fmt.monthsAsYears(r.horizon)}.</p>`;
         out.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                 ${kpi(win === 'prepay' ? 'tone-emerald' : 'tone-slate', `Paying ${money0(c.extra)} extra a month`, money0(r.wealthPrepay), `House paid off ${Fmt.monthsAsYears(r.monthsSooner)} sooner, ${money0(r.interestSaved)} less interest; then you invest the payment`)}
@@ -16732,8 +16848,8 @@ I18n.override('EC', 'es', {
     'use strict';
     const { money, esc } = Fmt;
     const GROUPS = {
-        mandatory: 'Taxes and contributions', retirement: 'Retirement savings', insurance: 'Seguro', garnishment: 'Court-ordered (child support…)',
-        loan: 'Préstamo', other: 'Otro', employer: 'Paid by your employer (not deducted)'
+        mandatory: 'Taxes and contributions', retirement: 'Retirement savings', insurance: 'Insurance', garnishment: 'Court-ordered (child support…)',
+        loan: 'Loan', other: 'Otro', employer: 'Paid by your employer (not deducted)'
     };
     const PPY = [[52, 'Every week'], [26, 'Every 2 weeks'], [24, 'Twice a month'], [12, 'Once a month']];
     // In Ecuador the app already computes these from the salary.
@@ -16883,10 +16999,10 @@ I18n.override('EC', 'es', {
     UI.register({
         'ded.add': async () => {
             const r = await UI.form({
-                title: 'Add a paycheck deduction', confirmText: 'Agregar',
+                title: 'Add a paycheck deduction', confirmText: 'Add',
                 fields: [
-                    { name: 'name', label: 'Nombre', placeholder: 'E.g. Life insurance, Child support, 401(k) loan' },
-                    { name: 'group', label: 'Tipo', options: Object.keys(GROUPS).map(g => ({ value: g, label: GROUPS[g] })) },
+                    { name: 'name', label: 'Name', placeholder: 'E.g. Life insurance, Child support, 401(k) loan' },
+                    { name: 'group', label: 'Type', options: Object.keys(GROUPS).map(g => ({ value: g, label: GROUPS[g] })) },
                     { name: 'monthly', label: 'Monthly amount', type: 'number', step: '0.01', min: 0 }
                 ],
                 validate: v => !v.name.trim() ? 'Type a name.' : !(v.monthly > 0) ? 'Type an amount greater than 0.' : null
@@ -16953,7 +17069,7 @@ I18n.override('EC', 'es', {
             if (draft.stub.net) y.lastPaystub = { payDate: draft.stub.payDate, net: draft.stub.net, gross: draft.stub.gross, ppy: draft.ppy };
             sheet.close();
             App.changed({ structural: true, step: true });
-            UI.toast(`${added} descuento${added === 1 ? '' : 's'} agregado${added === 1 ? '' : 's'}${updated ? `, ${updated} actualizado${updated === 1 ? '' : 's'}` : ''}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast([`${added} deduction${added === 1 ? '' : 's'} added.`, updated ? `${updated} deduction${updated === 1 ? '' : 's'} updated.` : ''].filter(Boolean).map(x => (window.I18n ? I18n.t(x) : x)).join(' '), 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         }
     });
 
@@ -16991,7 +17107,7 @@ I18n.override('EC', 'es', {
     // instead of a category, and never counts as income or spending.
     function transferPlaces() {
         const s = Store.state;
-        const KIND = { corriente: 'Checking account', ahorros: 'Savings account', efectivo: 'Efectivo', retiro: 'Jubilación' };
+        const KIND = { corriente: 'Checking account', ahorros: 'Savings account', efectivo: 'Efectivo', retiro: 'Retirement' };
         return (s.accounts || []).map(a => ({ value: 'acc-' + a.id, label: `${a.name} (${KIND[a.kind] || KIND.corriente})` }))
             .concat((s.debts || []).map(d => ({ value: 'debt-' + d.id, label: `Pay: ${d.name}` })))
             .concat([{ value: '', label: 'Other account (not listed)' }]);
@@ -17057,7 +17173,7 @@ I18n.override('EC', 'es', {
         UI.show('txn-income-field', isInc && lines.length > 0);
         const sel = document.getElementById('txn-income');
         const prev = keep !== undefined ? String(keep || '') : sel.value;
-        sel.innerHTML = Views.selectOptions([{ value: '', label: 'No: it\'s extra income' }].concat(lines.map(x => ({ value: String(x.id), label: `Sí: ${x.name}` }))), lines.some(x => String(x.id) === prev) ? prev : '');
+        sel.innerHTML = Views.selectOptions([{ value: '', label: 'No: it\'s extra income' }].concat(lines.map(x => ({ value: String(x.id), label: `Yes: ${x.name}` }))), lines.some(x => String(x.id) === prev) ? prev : '');
     }
 
     function fillMemberSelect(keep) {
@@ -17220,7 +17336,7 @@ I18n.override('EC', 'es', {
                 </div>
                 <div class="txn-amt ${inc || t.refund ? 'inc' : tr ? 'tr' : ''}">${tr ? '' : inc || t.refund ? '+' : '−'}${money(t.amount)}</div>
                 <div class="txn-chip">${chip}</div>
-                <div class="txn-actions">${t.refund ? '' : t.recurringId ? '<span class="text-purple-500 text-xs px-1" title="Repeats"><i class="fa-solid fa-repeat"></i></span>' : `<button class="row-edit" data-action="txn.repeat" data-id="${t.id}" title="Repeat every month/week/year" aria-label="Repeat"><i class="fa-solid fa-repeat"></i></button>`}${!inc && !tr && !t.refund ? `<button class="row-edit" data-action="txn.refund" data-id="${t.id}" title="Log a refund or reimbursement for this purchase" aria-label="Reembolso"><i class="fa-solid fa-rotate-left"></i></button>` : ''}<button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Delete" aria-label="Delete"><i class="fa-solid fa-trash-can"></i></button></div>
+                <div class="txn-actions">${t.refund ? '' : t.recurringId ? '<span class="text-purple-500 text-xs px-1" title="Repeats"><i class="fa-solid fa-repeat"></i></span>' : `<button class="row-edit" data-action="txn.repeat" data-id="${t.id}" title="Repeat every month/week/year" aria-label="Repeat"><i class="fa-solid fa-repeat"></i></button>`}${!inc && !tr && !t.refund ? `<button class="row-edit" data-action="txn.refund" data-id="${t.id}" title="Log a refund or reimbursement for this purchase" aria-label="Refund"><i class="fa-solid fa-rotate-left"></i></button>` : ''}<button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Delete" aria-label="Delete"><i class="fa-solid fa-trash-can"></i></button></div>
             </div>`;
     }
 
@@ -17331,9 +17447,9 @@ I18n.override('EC', 'es', {
         const inc = recs.filter(x => x.r.type === 'Ingreso');
         const per = (list) => list.reduce((a, x) => a + Engine.monthlyCost(x.r), 0);
         UI.html('rec-kpis', `
-            <div class="kpi tone-slate"><span class="kpi-label">Scheduled expenses</span><span class="kpi-value">${money(per(exp))}<span class="text-xs font-semibold text-slate-500">/mo</span></span><span class="kpi-note">${exp.length} movimiento${exp.length === 1 ? '' : 's'}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Scheduled expenses</span><span class="kpi-value">${money(per(exp))}<span class="text-xs font-semibold text-slate-500">/mo</span></span><span class="kpi-note">${exp.length} transaction${exp.length === 1 ? '' : 's'}</span></div>
             <div class="kpi tone-slate"><span class="kpi-label">Subscriptions</span><span class="kpi-value">${money(per(subs))}<span class="text-xs font-semibold text-slate-500">/mo</span></span><span class="kpi-note">${money0(per(subs) * 12)} a year</span></div>
-            <div class="kpi tone-emerald"><span class="kpi-label">Scheduled income</span><span class="kpi-value">${money(per(inc))}<span class="text-xs font-semibold text-slate-500">/mo</span></span><span class="kpi-note">${inc.length} movimiento${inc.length === 1 ? '' : 's'}</span></div>`);
+            <div class="kpi tone-emerald"><span class="kpi-label">Scheduled income</span><span class="kpi-value">${money(per(inc))}<span class="text-xs font-semibold text-slate-500">/mo</span></span><span class="kpi-note">${inc.length} transaction${inc.length === 1 ? '' : 's'}</span></div>`);
         UI.html('rec-body', recs.length ? recs.map(({ r, next, due }) => `<tr>
                 <td class="whitespace-nowrap text-xs">${next ? esc(next) : '<span class="text-slate-400">Ended</span>'}${due.length && r.auto === false ? `<span class="block"><button type="button" class="mini-btn" data-action="rec.postNow" data-id="${r.id}">Registrar ${due.length} pendiente${due.length === 1 ? '' : 's'}</button></span>` : ''}</td>
                 <td><div class="font-semibold text-xs">${esc(r.description)}${isSubscription(r) ? ' <span class="badge badge-purple">Subscription</span>' : ''}</div><div class="text-[11px] text-slate-500">${esc(r.parentCategory)}</div></td>
@@ -17357,7 +17473,7 @@ I18n.override('EC', 'es', {
         if (!found.length) { UI.html('rec-found', ''); return; }
         const yearly = found.reduce((a, f) => a + f.yearly, 0);
         UI.html('rec-found', `<div class="panel tone-purple mb-3">
-            <div class="text-xs font-bold text-slate-800 mb-2"><i class="fa-solid fa-magnifying-glass-dollar text-purple-600"></i> Encontramos ${found.length} cargo${found.length === 1 ? '' : 's'} que se repite${found.length === 1 ? '' : 'n'} y no tienes programado${found.length === 1 ? '' : 's'}: juntos, ${money0(yearly)} al año.</div>
+            <div class="text-xs font-bold text-slate-800 mb-2"><i class="fa-solid fa-magnifying-glass-dollar text-purple-600"></i> We found ${found.length} repeating charge${found.length === 1 ? '' : 's'} you don't have scheduled: together, ${money0(yearly)} a year.</div>
             <p class="help mb-2">Still using them? Schedule them so you see them coming (and the cash forecast counts them), or cancel the ones you don't need.</p>
             <div class="space-y-1.5">${found.map(f => `<div class="found-row">
                 <div class="min-w-0"><div class="font-semibold text-xs truncate" data-i18n-skip>${esc(f.name)}</div>
@@ -17395,7 +17511,7 @@ I18n.override('EC', 'es', {
         if (posted.length || s.trash.length !== before) App.changed({ structural: true, step: true });
         if (posted.length) {
             const names = [...new Set(posted.map(t => t.description))].slice(0, 3).join(', ');
-            UI.toast(`Se registraron ${posted.length} movimiento${posted.length === 1 ? '' : 's'} programado${posted.length === 1 ? '' : 's'}: ${names}${posted.length > 3 ? '…' : ''}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`${posted.length} scheduled transaction${posted.length === 1 ? '' : 's'} logged: ${names + (posted.length > 3 ? '…' : '')}.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         }
     }
     window.Recurring = { maintain, postDue };
@@ -17416,7 +17532,7 @@ I18n.override('EC', 'es', {
     // How far ahead the projection goes, per period.
     const AHEAD = { week: [0, 4, 8, 13, 26], month: [0, 3, 6, 12, 24], year: [0, 1, 2, 3, 5] };
     const DEFAULT_AHEAD = { week: 8, month: 12, year: 2 };
-    const SERIES = { income: { label: 'Ingresos', color: '#1baf7a' }, expense: { label: 'Gastos', color: '#2a78d6' } };
+    const SERIES = { income: { label: 'Income', color: '#1baf7a' }, expense: { label: 'Expenses', color: '#2a78d6' } };
 
     function periodLabel(start, period) {
         const d = new Date(start + 'T00:00:00');
@@ -17472,7 +17588,7 @@ I18n.override('EC', 'es', {
         const future = projecting ? trendForecast(tr, ctx.today) : [];
         UI.show('trend-basis', projecting);
         UI.html('trend-note', tr.ahead > 0 && tr.category !== 'all' ? 'The projection shows with "All categories".'
-            : projecting ? `Dashed lines: what you expect from ${tr.basis === 'history' ? 'your history (average of the last 3 months)' : 'your budget'}, your pay on your paydays${Cash.paySchedule() ? '' : ' (dinos cómo te pagan en Ingresos)'} and your repeating income.` : '');
+            : projecting ? `Dashed lines: what you expect from ${tr.basis === 'history' ? 'your history (average of the last 3 months)' : 'your budget'}, your pay on your paydays${Cash.paySchedule() ? '' : ' (tell us how you get paid in Income)'} and your repeating income.` : '');
         const any = rows.some(r => r.count > 0) || future.length > 0;
         UI.show('txn-trend-empty', !any);
         UI.show(document.getElementById('txn-trend-chart').parentElement, any);
@@ -17488,7 +17604,7 @@ I18n.override('EC', 'es', {
             UI.chart('txn-trend-chart', {
                 type: 'line',
                 data: { labels, datasets },
-                options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: datasets.length > 1 }, todayLine: { index: future.length ? nowIdx : -1, label: 'Hoy' }, tooltip: { filter: (c) => c.raw !== null } } }
+                options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: datasets.length > 1 }, todayLine: { index: future.length ? nowIdx : -1, label: 'Today' }, tooltip: { filter: (c) => c.raw !== null } } }
             });
         }
         // Headline numbers for the selected window.
@@ -17500,7 +17616,7 @@ I18n.override('EC', 'es', {
         const fIn = future.reduce((a, r) => a + r.income, 0), fOut = future.reduce((a, r) => a + r.expense, 0);
         UI.html('trend-kpis', `
             <div class="kpi tone-slate"><span class="kpi-label">Average spending per ${unit[0]}</span><span class="kpi-value">${money(avg)}</span></div>
-            <div class="kpi tone-slate"><span class="kpi-label">Highest-spending ${unit[0] === 'mes' ? 'Mes' : unit[0] === 'año' ? 'Year' : 'Week'}</span><span class="kpi-value">${exp[maxI] > 0 ? money(exp[maxI]) : '—'}</span><span class="kpi-note">${exp[maxI] > 0 ? labels[maxI] : 'No expenses'}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Highest-spending ${unit[0] === 'mes' ? 'Month' : unit[0] === 'año' ? 'Year' : 'Week'}</span><span class="kpi-value">${exp[maxI] > 0 ? money(exp[maxI]) : '—'}</span><span class="kpi-note">${exp[maxI] > 0 ? labels[maxI] : 'No expenses'}</span></div>
             <div class="kpi ${change === null ? 'tone-slate' : change > 0.1 ? 'tone-red' : change < -0.1 ? 'tone-emerald' : 'tone-slate'}"><span class="kpi-label">This ${unit[0]} vs. the previous</span><span class="kpi-value">${change === null ? '—' : (change > 0 ? '+' : '') + Math.round(change * 100) + '%'}</span><span class="kpi-note">${money(last)} vs. ${money(prev)}${tr.period !== 'year' ? ' <span>(the current one isn\'t over yet)</span>' : ''}</span></div>
             ${future.length ? `<div class="kpi ${fIn - fOut < -0.005 ? 'tone-red' : 'tone-blue'}" id="trend-future-kpi"><span class="kpi-label">Next ${tr.ahead} ${tr.ahead === 1 ? unit[0] : unit[1]} (projection)</span><span class="kpi-value">${Math.abs(fIn - fOut) < 0.005 ? '' : fIn - fOut < 0 ? '−' : '+'}${money(Math.abs(fIn - fOut))}</span><span class="kpi-note">In ${money(fIn)} · out ${money(fOut)}</span></div>` : ''}`);
         UI.html('trend-table', future.slice().reverse().map(r => `<tr class="trend-future"><td>${periodLabel(r.start, tr.period)} <span class="badge badge-info">projection</span></td><td class="num">${money(r.income)}</td><td class="num">${money(r.expense)}</td><td class="num ${r.income - r.expense < 0 ? 'text-red-600' : ''}">${money(r.income - r.expense)}</td></tr>`).join('')
@@ -17526,12 +17642,12 @@ I18n.override('EC', 'es', {
         const savings0 = Engine.accountTotal(accts, 'ahorros') + Engine.accountTotal(accts, 'retiro') + ctx.polizasCapital + Engine.holdingsValue(s.holdings);
         const debts0 = (s.debts || []).reduce((a, d) => a + Math.max(0, Number(d.balance) || 0), 0);
         const pts = Engine.projectBalances({ start: { cash: cash ? cash.total : 0, savings: savings0, debts: debts0 }, months: flows.map(f => Object.assign({ key: f.start.slice(0, 7) }, f)), rate: Number(ctx.year.tasa) || 0, debtHistory: ctx.debts.history || [] });
-        const labels = ['Hoy'].concat(pts.map(p => { const d = new Date(p.key + '-01T00:00'); return `${Fmt.MONTH_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`; }));
+        const labels = ['Today'].concat(pts.map(p => { const d = new Date(p.key + '-01T00:00'); return `${Fmt.MONTH_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`; }));
         const start = { cash: cash ? cash.total : 0, savings: savings0, debts: debts0 };
         UI.chart('bal-forecast-chart', {
             type: 'line',
             data: { labels, datasets: Object.keys(BAL).map(k => ({ label: BAL[k].label, data: [start[k]].concat(pts.map(p => p[k])), borderColor: BAL[k].color, backgroundColor: BAL[k].color, borderWidth: 2, borderDash: [6, 4], pointRadius: labels.length > 30 ? 0 : 3, pointHoverRadius: 6, tension: .25, cubicInterpolationMode: 'monotone', fill: false })) },
-            options: { interaction: { mode: 'index', intersect: false }, plugins: { todayLine: { index: 0, label: 'Hoy' } } }
+            options: { interaction: { mode: 'index', intersect: false }, plugins: { todayLine: { index: 0, label: 'Today' } } }
         });
         const end = pts[pts.length - 1];
         const net0 = start.cash + start.savings - start.debts;
@@ -17540,7 +17656,7 @@ I18n.override('EC', 'es', {
             <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.savings.color}"></i>Savings & investments</span><span class="kpi-value">${money(end.savings)}</span><span class="kpi-note">Hoy ${money(start.savings)}</span></div>
             <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.debts.color}"></i>Deudas</span><span class="kpi-value">${money(end.debts)}</span><span class="kpi-note">Hoy ${money(start.debts)}</span></div>
             <div class="kpi ${end.net >= net0 ? 'tone-emerald' : 'tone-red'}"><span class="kpi-label">What you'd have (net)</span><span class="kpi-value">${money(end.net)}</span><span class="kpi-note">${end.net >= net0 ? '+' : '−'}${money(Math.abs(end.net - net0))} vs. today</span></div>`);
-        UI.html('bal-forecast-table', [['Hoy', start]].concat(pts.map((p, i) => [labels[i + 1], p])).map(([l, p]) => `<tr><td>${l}</td><td class="num">${money(p.cash)}</td><td class="num">${money(p.savings)}</td><td class="num">${money(p.debts)}</td></tr>`).join(''));
+        UI.html('bal-forecast-table', [['Today', start]].concat(pts.map((p, i) => [labels[i + 1], p])).map(([l, p]) => `<tr><td>${l}</td><td class="num">${money(p.cash)}</td><td class="num">${money(p.savings)}</td><td class="num">${money(p.debts)}</td></tr>`).join(''));
     }
 
     // Fill the form from elsewhere (e.g. a receipt photo) and let the person review it.
@@ -17567,7 +17683,7 @@ I18n.override('EC', 'es', {
         const imported = Store.state.transactions.filter(x => x.id !== t.id && (x.importRef || x.source === 'csv' || x.source === 'sri'));
         const m = Importers.findMatch(t, imported, { days: 4 });
         if (!m) return false;
-        UI.toast(`Heads up: you already imported ${money(m.txn.amount)} on ${m.txn.date} («${m.txn.description}»). If it's the same expense, undo it so it isn't counted twice.`, 'warn', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        UI.toast(`Heads up: you already imported ${money(m.txn.amount)} on ${m.txn.date} («${m.txn.description}»). If it's the same expense, undo it so it isn't counted twice.`, 'warn', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         return true;
     }
 
@@ -17614,9 +17730,9 @@ I18n.override('EC', 'es', {
                 message: `For «${t.description}» (${money(t.amount)}). It lowers what you spent in ${t.parentCategory}, in the month you get the money back.`,
                 fields: [
                     { name: 'amount', label: 'Amount returned', type: 'number', step: '0.01', min: 0, value: Number(t.amount) || '' },
-                    { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) }
+                    { name: 'date', label: 'Date', type: 'date', value: Engine.isoDate(new Date()) }
                 ],
-                confirmText: 'Registrar',
+                confirmText: 'Log',
                 validate: v => !(v.amount > 0) ? 'Enter an amount over $0.' : v.amount > Number(t.amount) + 0.005 ? `It can't be more than the purchase (${money(t.amount)}).` : !v.date ? 'Pick a date.' : null
             });
             if (!r) return;
@@ -17630,7 +17746,7 @@ I18n.override('EC', 'es', {
         'txn.repeat': async (el) => {
             const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
             if (!t) return;
-            const r = await UI.form({ title: `Repetir "${t.description}"`, message: `From ${t.date}. It'll be logged automatically each time.`, fields: [{ name: 'freq', label: 'Frecuencia', options: Object.keys(FREQ).map(k => ({ value: k, label: FREQ[k] })) }], confirmText: 'Repetir' });
+            const r = await UI.form({ title: `Repetir "${t.description}"`, message: `From ${t.date}. It'll be logged automatically each time.`, fields: [{ name: 'freq', label: 'Frequency', options: Object.keys(FREQ).map(k => ({ value: k, label: FREQ[k] })) }], confirmText: 'Repeat' });
             if (!r) return;
             const recs = Store.state.recurring || (Store.state.recurring = []);
             const rec = Object.assign({}, t, { id: Store.nextId(recs), frequency: r.freq, startDate: t.date, lastPosted: t.date, auto: true });
@@ -17639,7 +17755,7 @@ I18n.override('EC', 'es', {
             t.recurringId = rec.id;
             const posted = postDue([rec.id]);
             App.changed({ structural: true, step: true });
-            UI.toast(`"${t.description}" will repeat ${FREQ[r.freq].toLowerCase()}.${posted.length ? ` Se registraron ${posted.length} pendiente${posted.length === 1 ? '' : 's'}.` : ''}`);
+            UI.toast([`"${t.description}" will repeat ${FREQ[r.freq].toLowerCase()}.`, posted.length ? `${posted.length} pending transaction${posted.length === 1 ? '' : 's'} logged.` : ''].filter(Boolean).map(x => (window.I18n ? I18n.t(x) : x)).join(' '));
         },
         'rec.auto': (el) => {
             const r = (Store.state.recurring || []).find(x => x.id === Number(el.dataset.id));
@@ -17657,7 +17773,7 @@ I18n.override('EC', 'es', {
         'rec.postNow': (el) => {
             const posted = postDue([Number(el.dataset.id)]);
             App.changed({ structural: true, step: true });
-            UI.toast(`${posted.length} movimiento${posted.length === 1 ? '' : 's'} registrado${posted.length === 1 ? '' : 's'}.`);
+            UI.toast(`${posted.length} transaction${posted.length === 1 ? '' : 's'} logged.`);
         },
         'rec.delete': (el) => {
             const id = Number(el.dataset.id);
@@ -17709,8 +17825,8 @@ I18n.override('EC', 'es', {
                 title: `Tag for ${list.length} transaction${ones(list.length)}`,
                 message: known.length ? `The ones you use: ${known.slice(0, 8).map(g => '#' + g).join(' ')}` : '',
                 fields: [
-                    { name: 'tag', label: 'Etiqueta', placeholder: 'E.g. vacation-2026' },
-                    { name: 'mode', label: 'What should we do?', options: [{ value: 'add', label: 'Agregarla' }, { value: 'remove', label: 'Quitarla' }] }
+                    { name: 'tag', label: 'Tag', placeholder: 'E.g. vacation-2026' },
+                    { name: 'mode', label: 'What should we do?', options: [{ value: 'add', label: 'Add it' }, { value: 'remove', label: 'Remove it' }] }
                 ],
                 confirmText: 'Aplicar',
                 validate: v => Engine.normTag(v.tag) ? null : 'Type a tag.'
@@ -17763,7 +17879,7 @@ I18n.override('EC', 'es', {
             const r = await UI.form({
                 title: `Category for ${list.length} transaction${ones(list.length)}`,
                 fields: [{ name: 'cat', label: 'New category', options }],
-                confirmText: 'Cambiar'
+                confirmText: 'Change'
             });
             if (!r) return;
             const [parent, sub] = r.cat.split('|');
@@ -17782,7 +17898,7 @@ I18n.override('EC', 'es', {
                 title: `Budget line for ${list.length} expense${list.length === 1 ? '' : 's'}`,
                 message: list.some(t => Array.isArray(t.splits) && t.splits.length) ? 'Ones split across lines will count in just this one.' : '',
                 fields: [{ name: 'line', label: 'Count in the line', options: [{ value: '', label: 'Automatic (by category)' }].concat(items.map(i => ({ value: String(i.id), label: i.name }))) }],
-                confirmText: 'Cambiar'
+                confirmText: 'Change'
             });
             if (!r) return;
             const ids = new Set(list.map(t => t.id));
@@ -17798,8 +17914,8 @@ I18n.override('EC', 'es', {
             const list = picked();
             const r = await UI.form({
                 title: 'Whose are the selected transactions?',
-                fields: [{ name: 'member', label: 'Persona', options: members.map(p => ({ value: String(p.id), label: p.name })).concat([{ value: '', label: 'No person' }]) }],
-                confirmText: 'Cambiar'
+                fields: [{ name: 'member', label: 'Person', options: members.map(p => ({ value: String(p.id), label: p.name })).concat([{ value: '', label: 'No person' }]) }],
+                confirmText: 'Change'
             });
             if (!r) return;
             const who = members.find(p => String(p.id) === r.member);
@@ -17813,7 +17929,7 @@ I18n.override('EC', 'es', {
             const r = await UI.form({
                 title: `Payment method for ${list.length} transaction${ones(list.length)}`,
                 fields: [{ name: 'pay', label: 'Payment method', options }],
-                confirmText: 'Cambiar'
+                confirmText: 'Change'
             });
             if (!r) return;
             bulkApply(`Payment method: ${r.pay}`, t => { t.paymentType = r.pay; });
@@ -17821,7 +17937,7 @@ I18n.override('EC', 'es', {
         'txn.bulkDelete': async () => {
             const list = picked();
             if (!list.length) return;
-            const ok = await UI.confirm({ title: `Delete ${list.length} transaction${ones(list.length)}`, message: 'They go to "Recently deleted" for 60 days, and you can undo this.', confirmText: 'Eliminar', danger: true });
+            const ok = await UI.confirm({ title: `Delete ${list.length} transaction${ones(list.length)}`, message: 'They go to "Recently deleted" for 60 days, and you can undo this.', confirmText: 'Delete', danger: true });
             if (!ok) return;
             const ids = new Set(list.map(t => t.id));
             if (ids.has(Store.ui.txnEditing)) { setEditing(null); clearForm(); }
@@ -17838,7 +17954,7 @@ I18n.override('EC', 'es', {
         'txn.bulkTransfer': async () => {
             const list = picked().filter(t => !Engine.isTransfer(t));
             if (!list.length) return;
-            const ok = await UI.confirm({ title: `Mark ${list.length} as transfer${list.length === 1 ? '' : 's'}`, message: 'They stop counting as income or spending (for example, your card payment or what you move to savings). You can pick the accounts by editing each one.', confirmText: 'Marcar' });
+            const ok = await UI.confirm({ title: `Mark ${list.length} as transfer${list.length === 1 ? '' : 's'}`, message: 'They stop counting as income or spending (for example, your card payment or what you move to savings). You can pick the accounts by editing each one.', confirmText: 'Mark' });
             if (!ok) return;
             const ids = new Set(list.map(t => t.id));
             bulkApply(`${list.length} transfer${list.length === 1 ? '' : 's'}: no longer counted as income or spending`, t => {
@@ -17956,7 +18072,7 @@ I18n.override('EC', 'es', {
                 setEditing(null);
                 clearForm();
                 App.changed({ structural: true, step: true });
-                UI.toast(`Transaction "${description}" updated`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+                UI.toast(`Transaction "${description}" updated`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
                 const row = document.querySelector(`#txn-body tr[data-row="${editing.id}"]`);
                 if (row) { row.scrollIntoView({ block: 'center' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1600); }
                 return;
@@ -18035,8 +18151,8 @@ I18n.override('EC', 'es', {
             const tax = taxonomyFor(type);
             const r = await UI.form({
                 title: `New ${type === 'Ingreso' ? 'income' : 'expense'} category`,
-                fields: [{ name: 'name', label: 'Nombre', placeholder: 'E.g. Sports' }],
-                confirmText: 'Crear',
+                fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Sports' }],
+                confirmText: 'Create',
                 validate: v => !v.name.trim() ? 'Type a name.' : tax[v.name.trim()] ? 'That category already exists.' : null
             });
             if (!r) return;
@@ -18052,8 +18168,8 @@ I18n.override('EC', 'es', {
             if (!parent) { UI.toast('First pick or create a category.', 'warn'); return; }
             const r = await UI.form({
                 title: `New subcategory of "${parent}"`,
-                fields: [{ name: 'name', label: 'Nombre', placeholder: 'E.g. Gym' }],
-                confirmText: 'Crear',
+                fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Gym' }],
+                confirmText: 'Create',
                 validate: v => !v.name.trim() ? 'Type a name.' : tax[parent].includes(v.name.trim()) ? 'That subcategory already exists.' : null
             });
             if (!r) return;
@@ -18099,7 +18215,7 @@ I18n.override('EC', 'es', {
     const incomeTax = () => Store.state.taxonomy.income;
     const taxFor = (type) => (type === 'Ingreso' ? incomeTax() : expenseTax());
     const firstSub = (tax, cat) => (tax[cat] || [])[0] || '';
-    const TYPES = [{ value: 'Gasto', label: 'Gasto' }, { value: 'Ingreso', label: 'Ingreso' }, { value: 'Transferencia', label: 'Traspaso' }];
+    const TYPES = [{ value: 'Gasto', label: 'Gasto' }, { value: 'Ingreso', label: 'Ingreso' }, { value: 'Transferencia', label: 'Transfer' }];
     const PAYROLL = 'Sueldo/Salario';
     const fallbackCat = (type) => { const tax = taxFor(type); return type === 'Ingreso' ? (tax['Otros Ingresos'] ? 'Otros Ingresos' : Object.keys(tax)[0]) : (tax.Otros ? 'Otros' : Object.keys(tax)[0]); };
     // A subcategory the engine suggests may not be in this person's list yet (it's added on import).
@@ -18153,8 +18269,8 @@ I18n.override('EC', 'es', {
 
     // ------------------------------------------------------------------ CSV mapping
     const FIELDS = [
-        { key: 'date', label: 'Fecha', required: true },
-        { key: 'description', label: 'Descripción', required: true },
+        { key: 'date', label: 'Date', required: true },
+        { key: 'description', label: 'Description', required: true },
         { key: 'amount', label: 'Amount (one column)', mode: 'single' },
         { key: 'debit', label: 'Debit / charges (expenses)', mode: 'split' },
         { key: 'credit', label: 'Credit / deposits (income)', mode: 'split' },
@@ -18337,7 +18453,7 @@ I18n.override('EC', 'es', {
             sel('mode', 'Amounts come in…', [['single', 'One column (expenses with a sign)'], ['split', 'Two columns: debit and credit']]),
             ...FIELDS.map(field),
             m.mode === 'single' ? sel('expensesAre', 'In that column expenses are…', [['negative', 'Negative (−45.50)'], ['positive', 'Positive (everything is an expense)']]) : '',
-            sel('dateFormat', 'Date format', [['auto', order === 'mdy' ? 'Detect (month first)' : 'Detect (day first)'], ['dmy', 'Día/Mes/Año'], ['mdy', 'Mes/Día/Año'], ['ymd', 'Año-Mes-Día']]),
+            sel('dateFormat', 'Date format', [['auto', order === 'mdy' ? 'Detect (month first)' : 'Detect (day first)'], ['dmy', 'Day/Month/Year'], ['mdy', 'Month/Day/Year'], ['ymd', 'Year-Month-Day']]),
             sel('decimal', 'Decimal separator', [['auto', `Detectar (${{ '.': 'punto', ',': 'coma' }[detectedDecimal(s)] || 'row by row'})`], ['.', 'Dot (1,234.50)'], [',', 'Comma (1.234,50)']]),
             m.balance >= 0 ? `<label class="field"><span class="field-label">Update the balance of</span><select class="input" data-change="imp.account">${[['', 'Don\'t update any account'], ['new', 'A new account']].concat((Store.state.accounts || []).map(a => [String(a.id), a.name])).map(([v, l]) => `<option value="${v}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>` : ''
         ].join(''));
@@ -18359,13 +18475,13 @@ I18n.override('EC', 'es', {
         const ok = s.rows.filter(r => r.include);
         const dups = s.rows.filter(r => r.dup).length, errs = s.rows.filter(r => r.error).length;
         const links = s.rows.filter(r => r.match && !r.include).length, matches = s.rows.filter(r => r.match).length;
-        UI.html('imp-summary', `<strong>${esc(s.name)}</strong>: ${s.rows.length} fila${s.rows.length === 1 ? '' : 's'} · <span class="text-emerald-700 font-bold">${ok.length} to import</span>${dups ? ` · ${dups} ya registrada${dups === 1 ? '' : 's'} (desmarcada${dups === 1 ? '' : 's'})` : ''}${matches ? ` · <span class="text-amber-700 font-bold">${matches} look${matches === 1 ? 's' : ''} like what you already typed by hand</span>` : ''}${errs ? ` · <span class="text-red-600">${errs} with errors (skipped)</span>` : ''}`);
+        UI.html('imp-summary', `<strong>${esc(s.name)}</strong>: ${s.rows.length} row${s.rows.length === 1 ? '' : 's'} · <span class="text-emerald-700 font-bold">${ok.length} to import</span>${dups ? ` · ${dups} row${dups === 1 ? '' : 's'} already logged (unchecked)` : ''}${matches ? ` · <span class="text-amber-700 font-bold">${matches} look${matches === 1 ? 's' : ''} like what you already typed by hand</span>` : ''}${errs ? ` · <span class="text-red-600">${errs} with errors (skipped)</span>` : ''}`);
         document.getElementById('imp-commit').innerHTML = `<i class="fa-solid fa-file-import"></i> Importar ${ok.length}${links ? ` · vincular ${links}` : ''}`;
         document.getElementById('imp-commit').disabled = ok.length === 0 && links === 0;
         const members = Store.state.members || [];
         const ms = document.getElementById('imp-member');
         UI.show(ms, members.length > 0);
-        if (members.length && !ms.options.length) ms.innerHTML = `<option value="">Whose? (no one)</option>` + members.map(p => `<option value="${p.id}">De ${esc(p.name)}</option>`).join('');
+        if (members.length && !ms.options.length) ms.innerHTML = `<option value="">Whose? (no one)</option>` + members.map(p => `<option value="${p.id}">${esc(p.name)}'s</option>`).join('');
         renderBulk(ok.length);
         // OFX files carry the account's balance: offer to update one of yours with it.
         const ab = document.getElementById('imp-ofx-account');
@@ -18424,7 +18540,7 @@ I18n.override('EC', 'es', {
         const on = list.filter(g => g.on).length;
         const was = document.querySelector('#imp-suggest details');
         UI.html('imp-suggest', `<details class="panel tone-slate" ${was && was.open ? 'open' : ''}>
-            <summary class="cursor-pointer text-sm font-bold"><i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i> <span>Rules for next time</span> <span class="badge badge-info">${on} de ${list.length}</span></summary>
+            <summary class="cursor-pointer text-sm font-bold"><i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i> <span>Rules for next time</span> <span class="badge badge-info">${on} of ${list.length}</span></summary>
             <p class="help mt-2 mb-2">The checked ones are saved when you import: next time those names are categorized on their own. Change the category on a row and the rule follows your change.</p>
             <div class="space-y-1">${list.map(g => `<label class="flex items-center gap-2 text-xs"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.ruleToggle" data-k="${esc(Categorize.norm(g.key))}" ${g.on ? 'checked' : ''}>
                 <span class="font-semibold" data-i18n-skip>«${esc(g.key)}»</span><i class="fa-solid fa-arrow-right text-slate-400"></i><span>${esc(label(g))}</span><span class="text-slate-400">(${g.count})</span></label>`).join('')}</div>
@@ -18483,7 +18599,7 @@ I18n.override('EC', 'es', {
         UI.html('rule-body', rules.length ? rules.map(r => `<tr>
                 <td class="font-semibold">“${esc(r.contains)}”</td>
                 <td>${r.rename ? esc(r.rename) : '<span class="text-slate-400">—</span>'}</td>
-                <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">De ${esc(((Store.state.members || []).find(p => p.id === r.memberId) || {}).name || '')}</div>` : ''}</td>
+                <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">${esc(((Store.state.members || []).find(p => p.id === r.memberId) || {}).name || '')}'s</div>` : ''}</td>
                 <td class="text-xs">${r.budgetLine ? esc(lineName(r.budgetLine)) : '<span class="text-slate-400">Automatic</span>'}</td>
                 <td class="text-center"><button class="row-del" data-action="rule.delete" data-id="${r.id}" title="Delete rule" aria-label="Delete rule"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`).join('') : '<tr class="empty-row"><td colspan="5">No rules. Example: if it contains “SQ *COZ” → it\'s called “Cozy Coffee”, category Food.</td></tr>');
@@ -18515,7 +18631,7 @@ I18n.override('EC', 'es', {
     // A new person of the household, from the import screen (same as Settings → Household).
     const MEMBER_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
     async function addMember() {
-        const r = await UI.form({ title: 'Add person', message: 'Someone in your household who earns or spends money (shown in Settings → Your household).', fields: [{ name: 'name', label: 'Nombre', placeholder: 'E.g. Ana' }], confirmText: 'Agregar', validate: v => v.name.trim() ? null : 'Type a name.' });
+        const r = await UI.form({ title: 'Add person', message: 'Someone in your household who earns or spends money (shown in Settings → Your household).', fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Ana' }], confirmText: 'Add', validate: v => v.name.trim() ? null : 'Type a name.' });
         if (!r) return null;
         const list = Store.state.members || (Store.state.members = []);
         const used = new Set(list.map(p => p.color));
@@ -18626,7 +18742,7 @@ I18n.override('EC', 'es', {
             // Kept for next time (only when it was applied to the whole file).
             s.bulk = targets.length === s.rows.filter(r => !r.error).length ? Object.assign({}, s.bulk || {}, change) : null;
             recompute();
-            UI.toast(`Aplicado a ${targets.length} fila${targets.length === 1 ? '' : 's'}.${skipped ? ` The category wasn't changed on ${skipped} (${change.category} isn't that type).` : ''}`);
+            UI.toast([`Applied to ${targets.length} row${targets.length === 1 ? '' : 's'}.`, skipped ? `The category wasn't changed on ${skipped} (${change.category} isn't that type).` : ''].filter(Boolean).map(x => (window.I18n ? I18n.t(x) : x)).join(' '));
         },
         'imp.remember': (el) => { if (session) session.remember = el.checked; },
         'imp.same': (el) => { if (!session) return; session.include[Number(el.dataset.i)] = false; recompute(); },
@@ -18716,7 +18832,7 @@ I18n.override('EC', 'es', {
             if (lb) {
                 const accts = Store.state.accounts || (Store.state.accounts = []);
                 let a = accts.find(x => String(x.id) === String(s.account));
-                if (!a) { a = { id: Store.nextId(accts), name: s.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Cuenta', kind: 'ahorros', balance: 0 }; accts.push(a); }
+                if (!a) { a = { id: Store.nextId(accts), name: s.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Account', kind: 'ahorros', balance: 0 }; accts.push(a); }
                 a.balance = lb.balance; a.updatedAt = lb.date;
                 balanceNote = ` "${a.name}" balance: ${money(lb.balance)} (${lb.date}).`;
             }
@@ -18733,14 +18849,14 @@ I18n.override('EC', 'es', {
             App.changed({ structural: true, step: true });
             // Short sentences, one per fact (each one is translated on its own).
             const pl = (n) => (n === 1 ? '' : 's');
-            const parts = [`${rows.length} movimiento${pl(rows.length)} importado${pl(rows.length)}.`];
-            if (skipped) parts.push(`${skipped} omitido${pl(skipped)}.`);
-            if (linked) parts.push(`${linked} ya anotado${pl(linked)} a mano: no se duplicaron.`);
-            if (ruleCount) parts.push(`${ruleCount} regla${pl(ruleCount)} guardada${pl(ruleCount)}.`);
-            if (newLineCount) parts.push(`${newLineCount} ingreso${pl(newLineCount)} nuevo${pl(newLineCount)} en tu presupuesto.`);
+            const parts = [`${rows.length} transaction${pl(rows.length)} imported.`];
+            if (skipped) parts.push(`${skipped} row${pl(skipped)} skipped.`);
+            if (linked) parts.push(`${linked} transaction${pl(linked)} already typed by hand: not duplicated.`);
+            if (ruleCount) parts.push(`${ruleCount} rule${pl(ruleCount)} saved.`);
+            if (newLineCount) parts.push(`${newLineCount} new income line${pl(newLineCount)} in your budget.`);
             if (balanceNote) parts.push(balanceNote.trim());
             parts.push('Review them in Transactions.');
-            UI.toast(parts.map(x => (window.I18n ? I18n.t(x) : x)).join(' · '), 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(parts.map(x => (window.I18n ? I18n.t(x) : x)).join(' · '), 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         'imp.xml': async (el) => {
             const files = Array.from(el.files || []);
@@ -18754,7 +18870,7 @@ I18n.override('EC', 'es', {
                 rows.push({ date: inv.date, description: inv.supplier, store: inv.legalName !== inv.supplier ? inv.legalName : '', amount: Math.round(inv.total * 100) / 100, type: credit ? 'Ingreso' : 'Gasto', payment: inv.payment, items: inv.items, iva: inv.iva,
                     invoice: { ruc: inv.ruc, number: inv.number, accessKey: inv.accessKey, iva: inv.iva, subtotal: inv.subtotal } });
             }
-            if (bad.length) UI.toast(`No parece${bad.length === 1 ? '' : 'n'} factura${bad.length === 1 ? '' : 's'} del SRI: ${bad.join(', ')}`, 'error');
+            if (bad.length) UI.toast(`${bad.length === 1 ? 'This doesn\'t look like an SRI invoice' : 'These don\'t look like SRI invoices'}: ${bad.join(', ')}`, 'error');
             if (!rows.length) { el.value = ''; return; }
             session = { source: 'sri', name: `${rows.length} electronic invoice${rows.length === 1 ? '' : 's'}`, rows, base: rows, include: {}, edits: {}, catMap: {} };
             // Same invoice twice → duplicate by its access key too.
@@ -18809,7 +18925,7 @@ I18n.override('EC', 'es', {
             // Transactions you already have that the rule would have caught: offer to fix them too.
             const hits = Store.state.transactions.filter(t => Importers.applyRules([rule], `${t.description} ${t.store || ''}`));
             let fixed = 0;
-            if (hits.length && await UI.confirm({ title: 'Apply to what you already have', message: `${hits.length} transaction${hits.length === 1 ? 'ón que ya tienes contiene' : 's you already have contain'} «${rule.contains}». Apply the rule to them (${[rule.rename ? `nombre «${rule.rename}»` : '', `category ${rule.category}`].filter(Boolean).join(', ')})?`, confirmText: `Aplicar a ${hits.length}` })) {
+            if (hits.length && await UI.confirm({ title: 'Apply to what you already have', message: `${hits.length === 1 ? 'A transaction you already have contains' : `${hits.length} transactions you already have contain`} «${rule.contains}». Apply the rule to ${hits.length === 1 ? 'it' : 'them'} (${[rule.rename ? `name «${rule.rename}»` : '', `category ${rule.category}`].filter(Boolean).map(x => (window.I18n ? I18n.t(x) : x)).join(', ')})?`, confirmText: `Apply to ${hits.length}` })) {
                 hits.forEach(t => {
                     const tax = (t.type || 'Gasto') === 'Ingreso' ? incomeTax() : expenseTax();
                     if (rule.rename) t.description = rule.rename;
@@ -18820,7 +18936,7 @@ I18n.override('EC', 'es', {
             }
             if (session) recompute();
             App.changed({ structural: true, step: true });
-            UI.toast(`Rule created${fixed ? `  and applied to ${fixed} transaction${fixed === 1 ? '' : 's'}` : ''}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`Rule created${fixed ? `  and applied to ${fixed} transaction${fixed === 1 ? '' : 's'}` : ''}.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         'rule.delete': (el) => {
             const id = Number(el.dataset.id);
@@ -18841,7 +18957,7 @@ I18n.override('EC', 'es', {
 
     // File headers in the app's language (the page is translated as it shows; files aren't).
     const tr = (s) => (window.I18n ? I18n.t(s) : s);
-    const BY_LABEL = { category: 'Categoría', sub: 'Subcategoría', line: 'Budget line', member: 'Persona', month: 'Mes', week: 'Semana', store: 'Place / store', payment: 'Payment method' };
+    const BY_LABEL = { category: 'Category', sub: 'Subcategory', line: 'Budget line', member: 'Person', month: 'Month', week: 'Week', store: 'Place / store', payment: 'Payment method' };
     const opts = () => (Store.ui.report = Object.assign({ range: 'this-month', type: 'Gasto', by: 'category', from: '', to: '' }, Store.ui.report));
 
     // Period presets → [from, to] as ISO dates.
@@ -18867,7 +18983,7 @@ I18n.override('EC', 'es', {
             if ((t.type || 'Gasto') === 'Ingreso') {
                 const yd = Store.state.years[Number(t.date.slice(0, 4))];
                 const line = t.incomeId && yd && (yd.otherIncomes || []).find(x => x.id === t.incomeId);
-                return line ? line.name : Engine.isPayrollTxn(t) ? 'Sueldo' : 'Extra income';
+                return line ? line.name : Engine.isPayrollTxn(t) ? 'Salary' : 'Extra income';
             }
             const y = Number(t.date.slice(0, 4)), m = String(Number(t.date.slice(5, 7)));
             const key = y + '-' + m;
@@ -18981,7 +19097,7 @@ I18n.override('EC', 'es', {
         document.getElementById('rep-to').value = o.to;
         const r = build(ctx);
         UI.text('rep-group-head', BY_LABEL[o.by]);
-        const what = o.type === 'Ingreso' ? 'Ingresos' : o.type === 'Gasto' ? 'Gastos' : 'Net (income − expenses)';
+        const what = o.type === 'Ingreso' ? 'Income' : o.type === 'Gasto' ? 'Expenses' : 'Net (income − expenses)';
         const range = o.range === 'all' ? 'the whole history' : `${r.from} a ${r.to}`;
         UI.html('rep-kpis', `
             <div class="kpi tone-slate"><span class="kpi-label">${what}</span><span class="kpi-value">${money(r.total)}</span><span class="kpi-note">${esc(range)}</span></div>
@@ -19309,7 +19425,7 @@ I18n.override('EC', 'es', {
         const kind = r.short > 0 || (safe.res && safe.res.safe - amount < 0) ? 'bad' : goalsHit.length ? 'warn' : 'ok';
         return `<div class="wi-col" id="wi-budget">
             <div class="wi-head"><i class="fa-solid fa-wallet text-blue-600"></i> From this month's budget</div>
-            ${verdict(kind, kind === 'ok' ? 'Cabe' : kind === 'warn' ? 'Fits, but slows your saving' : 'Doesn\'t fit')}
+            ${verdict(kind, kind === 'ok' ? 'Fits' : kind === 'warn' ? 'Fits, but slows your saving' : 'Doesn\'t fit')}
             <ul class="wi-list">
                 ${safe.res ? change('Safe to spend today', safe.res.safe, safe.res.safe - amount) : '<li class="help">Add your account balance to see the effect on your cash.</li>'}
             </ul>
@@ -19345,7 +19461,7 @@ I18n.override('EC', 'es', {
         const interest = cuota * months - amount;
         const pool = ctx.debtExtraRubros;
         const extra = Math.max(0, pool - cuota);
-        const newDebt = { id: 'wi', name: st.description || 'Compra', balance: amount, rate, minPayment: cuota, monthly: cuota };
+        const newDebt = { id: 'wi', name: st.description || 'Purchase', balance: amount, rate, minPayment: cuota, monthly: cuota };
         const before = ctx.debts;
         const after = Engine.debtPayoff(s.debts.concat([newDebt]), s.debtPlan.strategy, extra);
         const missing = Math.max(0, cuota - pool);
@@ -19464,7 +19580,7 @@ I18n.override('EC', 'es', {
 
     // How it was paid matters: a credit-card purchase doesn't leave checking until the card is
     // paid, so it must not lower "safe to spend". The last choice is remembered.
-    const PAYMENTS = [['Tarjeta de Débito', 'fa-building-columns', 'Débito'], ['Tarjeta de Crédito', 'fa-credit-card', 'Crédito'], ['Efectivo', 'fa-money-bill-wave', 'Efectivo'], ['Transferencia', 'fa-right-left', 'Transferencia']];
+    const PAYMENTS = [['Tarjeta de Débito', 'fa-building-columns', 'Debit'], ['Tarjeta de Crédito', 'fa-credit-card', 'Credit'], ['Efectivo', 'fa-money-bill-wave', 'Efectivo'], ['Transferencia', 'fa-right-left', 'Transferencia']];
 
     function open() {
         state = { type: (state && state.type) || 'Gasto', amount: '', category: null, payment: Store.ui.lastPayment || 'Tarjeta de Débito' };
@@ -19520,7 +19636,7 @@ I18n.override('EC', 'es', {
             s.transactions.push(t);
             state.sheet.close();
             App.changed({ structural: true, step: true });
-            if (!TxnForm.warnIfImported(t)) UI.toast(`${state.type === 'Ingreso' ? '+' : '−'}${money(amount)} in ${cat} logged.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            if (!TxnForm.warnIfImported(t)) UI.toast(`${state.type === 'Ingreso' ? '+' : '−'}${money(amount)} in ${cat} logged.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         }
     });
 
@@ -19555,7 +19671,7 @@ I18n.override('EC', 'es', {
         const cell = (field, step, label, cls = '') => `<td data-label="${label}"><input type="number" class="cell-input num ${cls}" min="0" step="${step}" value="${Number(g[field]) || 0}" data-input="goal.set" data-id="${g.id}" data-field="${field}" aria-label="${label}"></td>`;
         return `<tr data-row="${g.id}">
             <td class="c-wide" data-label="Goal"><input class="cell-input" value="${esc(g.name)}" data-change="goal.set" data-id="${g.id}" data-field="name" aria-label="Goal name"></td>
-            ${cell('target', 100, 'Objetivo')}${cell('current', 100, 'Ahorrado')}${cell('monthly', 10, 'Budget per month', 'money')}${cell('rate', 0.1, Store.COUNTRY === 'US' ? 'Rate (%)' : 'Savings rate (APY %)')}
+            ${cell('target', 100, 'Target')}${cell('current', 100, 'Saved')}${cell('monthly', 10, 'Budget per month', 'money')}${cell('rate', 0.1, Store.COUNTRY === 'US' ? 'Rate (%)' : 'Savings rate (APY %)')}
             <td data-label="By when?"><input type="month" class="cell-input" value="${esc(g.targetDate || '')}" data-change="goal.set" data-id="${g.id}" data-field="targetDate" aria-label="Target date"></td>
             <td class="c-wide" data-label="Progress" data-cell="time"></td>
             <td class="c-wide c-actions text-center whitespace-nowrap"><button class="mini-btn" data-action="goal.deposit" data-id="${g.id}" title="Add a deposit to what's saved">Deposit</button> ${Number(g.current) > 0 ? `<button class="mini-btn" data-action="goal.spend" data-id="${g.id}" title="Pay for a purchase with this saved money (it doesn't count in this month's budget again)">Use</button> ` : ''}<button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Delete goal"><i class="fa-solid fa-trash-can"></i></button></td>
@@ -19595,7 +19711,7 @@ I18n.override('EC', 'es', {
             type: 'line',
             data: { labels, datasets: [
                 { label: 'Projected net worth', data: yearly, borderColor: '#059669', backgroundColor: 'rgba(5,150,105,.12)', borderWidth: 2, pointRadius: 0, fill: true, cubicInterpolationMode: 'monotone' },
-                { label: 'Hitos', data: milestones, borderColor: '#2a78d6', backgroundColor: '#2a78d6', pointStyle: 'rectRot', pointRadius: 7, pointHoverRadius: 9, showLine: false }
+                { label: 'Milestones', data: milestones, borderColor: '#2a78d6', backgroundColor: '#2a78d6', pointStyle: 'rectRot', pointRadius: 7, pointHoverRadius: 9, showLine: false }
             ] },
             options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false } } }
         });
@@ -19610,7 +19726,7 @@ I18n.override('EC', 'es', {
         const paidAll = s.debts.reduce((t, d) => t + Math.max(0, Math.max(Number(d.originalBalance) || 0, Number(d.balance) || 0) - (Number(d.balance) || 0)), 0);
         const next = st === 1 ? `<strong>Step 1:</strong> save ${money0(Math.max(0, 1000 - ef.liquid))} more to reach $1,000 in your starter emergency fund.`
             : st === 2 ? (plan.never || plan.shortfall > 0 ? `<strong>Step 2:</strong> your budget isn't enough to get out of debt. Assign more money to your debts in the budget.`
-                : `<strong>Step 2:</strong> sends <strong>${money0(plan.pool)}/mes</strong> to your debts (minimums ${money0(plan.totalMin)}${plan.extra > 0 ? ` + ${money0(plan.extra)} extra` : ''}) and you're free in <strong>${freeDate}</strong>.${paidAll > 0 ? ` You've paid ${money0(paidAll)}. Keep going!` : ''}`)
+                : `<strong>Step 2:</strong> sends <strong>${money0(plan.pool)}/mo</strong> to your debts (minimums ${money0(plan.totalMin)}${plan.extra > 0 ? ` + ${money0(plan.extra)} extra` : ''}) and you're free in <strong>${freeDate}</strong>.${paidAll > 0 ? ` You've paid ${money0(paidAll)}. Keep going!` : ''}`)
             : st === 3 ? `<strong>Step 3:</strong> you have ${ef.monthsCovered.toFixed(1)} of 3–6 months of expenses (${money0(ef.monthlyEssential)}/mo). You need ${money0(Math.max(0, ef.monthlyEssential * 3 - ef.liquid))} more for 3 months.`
             : st === 4 ? `<strong>Steps 4–6:</strong> you save ${(ctx.savingsRate * 100).toFixed(0)}% of your salary (goal 15%); then your kids' education and extra mortgage payments.`
             : '<strong>Step 7:</strong> keep investing and give generously.';
@@ -19662,7 +19778,7 @@ I18n.override('EC', 'es', {
                         title: (items) => (items[0] ? rows[items[0].dataIndex].debt.name : ''),
                         label: (c) => (c.raw ? `${c.dataset.label}: ${when(c.raw[0])} → ${when(c.raw[1])}` : '')
                     } },
-                    endLabels: { labels: rows.map(r => (r.payoffMonth ? when(r.payoffMonth) : 'Nunca')), dataset: rows.map((r, i) => (snowPart[i] ? 1 : 0)) }
+                    endLabels: { labels: rows.map(r => (r.payoffMonth ? when(r.payoffMonth) : 'Never')), dataset: rows.map((r, i) => (snowPart[i] ? 1 : 0)) }
                 }
             }
         });
@@ -19694,7 +19810,7 @@ I18n.override('EC', 'es', {
 
         UI.html('debt-ladder-table', rows.map(r => `<tr><td class="font-semibold" data-i18n-skip>${esc(r.debt.name)}</td><td class="num">${money0(r.debt.balance)}</td>
             <td>${r.attackMonth ? (r.attackMonth <= 1 ? 'From today' : when(r.attackMonth - 1)) : '—'}</td>
-            <td>${r.payoffMonth ? `${when(r.payoffMonth)} (mes ${r.payoffMonth})` : 'Nunca'}</td></tr>`).join(''));
+            <td>${r.payoffMonth ? `${when(r.payoffMonth)} (mes ${r.payoffMonth})` : 'Never'}</td></tr>`).join(''));
         const marks = [];
         for (let m = 0; m < len; m += 12) marks.push(m);
         if (marks[marks.length - 1] !== len - 1) marks.push(len - 1);
@@ -19730,7 +19846,7 @@ I18n.override('EC', 'es', {
             const orig = Math.max(Number(d.originalBalance) || 0, Number(d.balance) || 0);
             const paid = Math.max(0, orig - (Number(d.balance) || 0));
             const paidPct = orig > 0 ? paid / orig : 0;
-            row.querySelector('[data-cell="payoff"]').innerHTML = (info && info.payoffMonth ? `Mes ${info.payoffMonth} · ${Fmt.monthYear(Engine.addMonths(ctx.today, info.payoffMonth))}` : (Number(d.balance) > 0 ? 'Nunca' : '—'))
+            row.querySelector('[data-cell="payoff"]').innerHTML = (info && info.payoffMonth ? `Month ${info.payoffMonth} · ${Fmt.monthYear(Engine.addMonths(ctx.today, info.payoffMonth))}` : (Number(d.balance) > 0 ? 'Never' : '—'))
                 + (under ? '<span class="block"><span class="badge badge-bad">Below the minimum</span></span>' : '')
                 + (orig > 0 ? `<span class="block text-[11px] font-semibold text-slate-500 mt-1">Pagado ${money0(paid)} (${Math.round(paidPct * 100)}%)</span><div class="mini-bar"><span style="width:${(paidPct * 100).toFixed(1)}%;background:#059669"></span></div>` : '');
         });
@@ -19742,7 +19858,7 @@ I18n.override('EC', 'es', {
             : `${Fmt.monthYear(Engine.addMonths(ctx.today, plan.months))} (${plan.months}m)`);
 
         // Where the money comes from, and whether the budget can actually pay it.
-        UI.text('debt-pool', `${money0(plan.pool)}/mes`);
+        UI.text('debt-pool', `${money0(plan.pool)}/mo`);
         UI.html('debt-pool-note', `Minimums ${money0(plan.totalMin)}${plan.extra > 0 ? ` · ${money0(plan.extra)} extra to the snowball` : ''}${ctx.debtExtraRubros > 0 ? ` (includes ${money0(ctx.debtExtraRubros)} from other debt lines)` : ''} · <a href="#" class="link" data-goto="presupuesto/plan">see budget</a>`);
         document.getElementById('debt-funding').className = `kpi ${plan.totalBalance <= 0 ? 'tone-slate' : plan.shortfall > 0 ? 'tone-red' : 'tone-emerald'}`;
         const warn = document.getElementById('debt-warning');
@@ -19773,7 +19889,7 @@ I18n.override('EC', 'es', {
             const track = !sch || r.status === 'reached' ? ''
                 : sch.onTrack ? '<span class="badge badge-ok">On track</span>'
                 : `<span class="badge badge-bad" title="To get there on time">Behind: you need ${Fmt.money0(sch.required)}/mo</span>`;
-            cell.innerHTML = `<div class="flex justify-between text-[11px] text-slate-500"><span>${Fmt.money0(g.current)} de ${Fmt.money0(g.target)}</span><strong>${Math.round(pct * 100)}%</strong></div>
+            cell.innerHTML = `<div class="flex justify-between text-[11px] text-slate-500"><span>${Fmt.money0(g.current)} of ${Fmt.money0(g.target)}</span><strong>${Math.round(pct * 100)}%</strong></div>
                 <div class="mini-bar"><span style="width:${(pct * 100).toFixed(1)}%;background:#7c3aed"></span></div>
                 <div class="flex flex-wrap gap-1 mt-1">${eta}${track}</div>`;
         });
@@ -19819,7 +19935,7 @@ I18n.override('EC', 'es', {
                 fields: [
                     { name: 'amount', label: 'Amount paid', type: 'number', min: 0, step: '0.01', value: Number(el.dataset.amount) || Number(d.monthly) || Number(d.minPayment) || '' },
                     { name: 'interest', label: 'Of that, interest', type: 'number', min: 0, step: '0.01', value: est, help: `Estimate: balance × ${Number(d.rate) || 0}% ÷ 12. If your statement shows a different figure, type it.` },
-                    { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) },
+                    { name: 'date', label: 'Date', type: 'date', value: Engine.isoDate(new Date()) },
                     { name: 'log', label: 'Also log it as a transaction?', options: [{ value: 'yes', label: 'Yes, in Transactions (counts in this debt\'s budget line)' }, { value: 'no', label: 'No, just lower the balance' }] }
                 ],
                 confirmText: 'Log payment',
@@ -19868,10 +19984,10 @@ I18n.override('EC', 'es', {
             const r = await UI.form({
                 title: `Deposit to "${g.name}"`,
                 fields: [
-                    { name: 'amount', label: 'Monto', type: 'number', min: 0, step: '0.01', value: Number(el.dataset.amount) || Number(g.monthly) || '' },
+                    { name: 'amount', label: 'Amount', type: 'number', min: 0, step: '0.01', value: Number(el.dataset.amount) || Number(g.monthly) || '' },
                     { name: 'log', label: 'Also log it as a transaction?', options: [{ value: 'yes', label: 'Yes, in Transactions (counts on its budget line)' }, { value: 'no', label: 'No, just add to savings' }] }
                 ],
-                confirmText: 'Depositar',
+                confirmText: 'Deposit',
                 validate: v => Number(v.amount) > 0 ? null : 'Type an amount greater than 0.'
             });
             if (!r) return;
@@ -19884,7 +20000,7 @@ I18n.override('EC', 'es', {
                 txns.push({ id: Store.nextId(txns), type: 'Gasto', description: `Deposit: ${g.name}`, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date: Engine.isoDate(new Date()), paymentType: 'Transferencia', budgetLine: 'goal-' + g.id });
             }
             App.changed({ structural: true, step: true });
-            UI.toast(`${Fmt.money(amount)} deposited to "${g.name}". You have ${Fmt.money0(g.current)} of ${Fmt.money0(g.target)}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`${Fmt.money(amount)} deposited to "${g.name}". You have ${Fmt.money0(g.current)} of ${Fmt.money0(g.target)}.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         // Spend what was saved for this: the purchase is logged in its own category (so reports
         // show where the money went) but paid by the goal, so it doesn't count in this month's
@@ -19900,12 +20016,12 @@ I18n.override('EC', 'es', {
                 title: `Use the money in "${g.name}"`,
                 message: `You have ${money(g.current)} saved here. The purchase goes into Transactions, but it doesn't count in this month's budget again: you already set it aside.`,
                 fields: [
-                    { name: 'amount', label: 'Monto', type: 'number', min: 0, step: '0.01', value: pre.amount || '' },
+                    { name: 'amount', label: 'Amount', type: 'number', min: 0, step: '0.01', value: pre.amount || '' },
                     { name: 'desc', label: 'What did you pay for?', value: pre.desc || g.name },
-                    { name: 'cat', label: 'Categoría', options: cats },
-                    { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) }
+                    { name: 'cat', label: 'Category', options: cats },
+                    { name: 'date', label: 'Date', type: 'date', value: Engine.isoDate(new Date()) }
                 ],
-                confirmText: 'Registrar',
+                confirmText: 'Log',
                 validate: v => !(v.amount > 0) ? 'Type an amount greater than 0.' : !v.desc.trim() ? 'Type what you paid for.' : !v.date ? 'Pick a date.' : null
             });
             if (!r) return;
@@ -20013,7 +20129,7 @@ I18n.override('EC', 'es', {
         const path = r.path.slice(0, Math.min(r.path.length, 25));
         UI.chart('runway-chart', {
             type: 'bar',
-            data: { labels: path.map((_, i) => i === 0 ? 'Hoy' : Fmt.monthYear(Engine.addMonths(ctx.today, i))), datasets: [{ label: 'You\'d have left', data: path, backgroundColor: path.map(v => v > x.needs ? pal.alpha(pal.blue, 0.75) : pal.alpha(pal.orange, 0.8)), borderRadius: 4, borderSkipped: 'start' }] },
+            data: { labels: path.map((_, i) => i === 0 ? 'Today' : Fmt.monthYear(Engine.addMonths(ctx.today, i))), datasets: [{ label: 'You\'d have left', data: path, backgroundColor: path.map(v => v > x.needs ? pal.alpha(pal.blue, 0.75) : pal.alpha(pal.orange, 0.8)), borderRadius: 4, borderSkipped: 'start' }] },
             options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
         });
     }
@@ -20131,7 +20247,7 @@ I18n.override('EC', 'es', {
                 <td>${num(k, 'cost', 500, k.cost, money0(t.cost))}</td>
                 <td>${num(k, 'years', 1, k.years || 4)}</td>
                 <td><select class="cell-input" data-change="college.set" data-id="${k.id}" data-field="goalId" aria-label="Savings goal">${Views.selectOptions([{ value: '', label: 'No goal (type below)' }].concat(goals.map(x => ({ value: String(x.id), label: x.name }))), k.goalId ? String(k.goalId) : '')}</select>
-                    ${g ? '' : `<div class="flex gap-1 mt-1">${num(k, 'saved', 100, k.saved, 'Ahorrado')}${num(k, 'monthly', 10, k.monthly, 'Per month')}</div>`}</td>
+                    ${g ? '' : `<div class="flex gap-1 mt-1">${num(k, 'saved', 100, k.saved, 'Saved')}${num(k, 'monthly', 10, k.monthly, 'Per month')}</div>`}</td>
                 <td class="text-center"><button class="row-del" data-action="college.delete" data-id="${k.id}" title="Remove" aria-label="Remove"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`;
         }).join('') : `<tr class="empty-row"><td colspan="7">${Views.emptyState('fa-graduation-cap', 'Add your kids to see what college will cost and how much to set aside each month.')}</td></tr>`);
@@ -20153,7 +20269,7 @@ I18n.override('EC', 'es', {
                 <div class="text-[11px] text-slate-500"><span>${p.yearsToStart > 0 ? `Starts in ${start}` : 'Already in school'}</span> · <span>would cost ${money0(p.todayCost)} today</span></div>
                 <div class="calc-result mt-2"><div class="flex justify-between"><span>Total cost</span><strong>${money0(p.total)}</strong></div><div class="flex justify-between"><span>You'd have saved</span><strong>${money0(p.projected)}</strong></div><div class="flex justify-between"><span>Missing</span><strong>${money0(p.gap)}</strong></div></div>
                 <div class="progress-track mt-2"><div class="progress-fill" style="width:${pct}%"></div></div>
-                <p class="text-xs mt-2">${p.gap <= 0 ? 'What you set aside is enough!' : p.monthlyNeeded === null ? 'There\'s no time left to save: scholarships, work, and a school you can pay for without debt.' : `<span>To cover it all: <strong>${money0(p.monthlyNeeded)}/mes</strong> starting today.</span>`}
+                <p class="text-xs mt-2">${p.gap <= 0 ? 'What you set aside is enough!' : p.monthlyNeeded === null ? 'There\'s no time left to save: scholarships, work, and a school you can pay for without debt.' : `<span>To cover it all: <strong>${money0(p.monthlyNeeded)}/mo</strong> starting today.</span>`}
                 ${!g && p.monthlyNeeded ? ` <button type="button" class="link" data-action="college.goal" data-id="${k.id}">Create a savings goal for it</button>` : ''}</p>
             </div>`;
         }).join(''));
@@ -20177,7 +20293,7 @@ I18n.override('EC', 'es', {
         'college.add': () => {
             const c = cfg();
             const id = Store.nextId(c.kids);
-            c.kids.push({ id, name: window.I18n ? I18n.t('Hijo/a') : 'Hijo/a', age: 5, type: types()[0].id, years: 4, cost: null, saved: 0, monthly: 0, goalId: null });
+            c.kids.push({ id, name: window.I18n ? I18n.t('Child') : 'Child', age: 5, type: types()[0].id, years: 4, cost: null, saved: 0, monthly: 0, goalId: null });
             App.changed({ structural: true, step: true });
             const input = document.querySelector(`#college-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
@@ -20191,7 +20307,7 @@ I18n.override('EC', 'es', {
             const k = cfg().kids.find(x => x.id === Number(el.dataset.id));
             if (!k) return;
             const p = planFor(k), start = new Date().getFullYear() + Math.ceil(p.yearsToStart);
-            const name = `${window.I18n ? I18n.t('Universidad') : 'Universidad'}: ${k.name}`;
+            const name = `${window.I18n ? I18n.t('College') : 'College'}: ${k.name}`;
             App.undoable(`Goal «${name}» created: ${money(p.monthlyNeeded)} a month in your budget`, () => {
                 const goals = Store.state.goals;
                 const g = { id: Store.nextId(goals), name, target: Math.round(p.total), current: Number(k.saved) || 0, monthly: Math.ceil(p.monthlyNeeded), rate: cfg().returnPct === null || cfg().returnPct === undefined ? defs().returnPct : cfg().returnPct, targetDate: `${start}-08`, createdYear: new Date().getFullYear() };
@@ -20234,7 +20350,7 @@ I18n.override('EC', 'es', {
     function render() {
         UI.html('calc-loan-in', field('loan', 'amount', 'Loan amount ($)', { step: 100 }) + field('loan', 'rate', 'Annual rate (%)', { step: 0.1 }) + field('loan', 'years', 'Term (years)', { step: 1 }));
         UI.html('calc-card-in', field('card', 'balance', 'Card balance ($)', { step: 50 }) + field('card', 'rate', 'Annual rate (%)', { step: 0.1 }) + field('card', 'payment', 'You\'d pay each month ($)', { step: 10 }));
-        UI.html('calc-grow-in', field('grow', 'initial', 'You have today ($)', { step: 100 }) + field('grow', 'monthly', 'You add each month ($)', { step: 10 }) + field('grow', 'rate', 'Annual return (%)', { step: 0.1 }) + field('grow', 'years', 'Años', { step: 1 }) + field('grow', 'inflation', 'Annual inflation (%)', { step: 0.1 }));
+        UI.html('calc-grow-in', field('grow', 'initial', 'You have today ($)', { step: 100 }) + field('grow', 'monthly', 'You add each month ($)', { step: 10 }) + field('grow', 'rate', 'Annual return (%)', { step: 0.1 }) + field('grow', 'years', 'Years', { step: 1 }) + field('grow', 'inflation', 'Annual inflation (%)', { step: 0.1 }));
         UI.html('calc-goal-in', field('goal', 'target', 'You need ($)', { step: 100 }) + field('goal', 'have', 'You already have ($)', { step: 100 }) + field('goal', 'rate', 'Annual interest on savings (%)', { step: 0.1 }) + field('goal', 'months', 'You want it in (months)', { step: 1 }) + field('goal', 'monthly', 'Or you can put in per month ($)', { step: 10 }));
         update();
     }
@@ -20250,7 +20366,7 @@ I18n.override('EC', 'es', {
         const fixed = K.fixed.never ? ['With your payment', 'Never: it doesn\'t cover the interest', true] : ['With your payment', `${K.fixed.months} months (${when(K.fixed.months)})`, true];
         const rows = [fixed];
         if (!K.fixed.never) rows.push(['Interest you\'d pay', money0(K.fixed.interest)]);
-        rows.push(['Minimum payment only', K.minimum.never ? 'Nunca' : `${K.minimum.months} months · ${money0(K.minimum.interest)} interest`]);
+        rows.push(['Minimum payment only', K.minimum.never ? 'Never' : `${K.minimum.months} months · ${money0(K.minimum.interest)} interest`]);
         const saved = !K.fixed.never && !K.minimum.never ? K.minimum.interest - K.fixed.interest : null;
         UI.html('calc-card-out', result(rows) + `<p class="help mt-2">${saved && saved > 0 ? `<span>Paying ${money0(c.card.payment)} instead of the minimum saves you <strong>${money0(saved)}</strong> and ${Math.max(0, K.minimum.months - K.fixed.months)} months.</span> ` : ''}<span>Typical minimum: 1% of the balance + the month's interest (at least $25).</span></p>`);
 
@@ -20260,8 +20376,8 @@ I18n.override('EC', 'es', {
 
         const need = Engine.monthlyToReach(c.goal.target, c.goal.have, c.goal.rate, c.goal.months);
         const n = Engine.goalMonths({ target: c.goal.target, current: c.goal.have, monthly: c.goal.monthly, rate: c.goal.rate });
-        const inMonths = n === 'never' || n === null || n === undefined ? 'Nunca' : n === 0 ? 'You already have it' : `${n} months (${when(n)})`;
-        UI.html('calc-goal-out', result([[`To have it in ${Number(c.goal.months) || 0} months`, need > 0 ? `${money(need)}/mes` : 'You already have it', true], [`With ${money0(c.goal.monthly)}/mo you get there in`, inMonths]]));
+        const inMonths = n === 'never' || n === null || n === undefined ? 'Never' : n === 0 ? 'You already have it' : `${n} months (${when(n)})`;
+        UI.html('calc-goal-out', result([[`To have it in ${Number(c.goal.months) || 0} months`, need > 0 ? `${money(need)}/mo` : 'You already have it', true], [`With ${money0(c.goal.monthly)}/mo you get there in`, inMonths]]));
     }
 
     UI.register({
@@ -20463,7 +20579,7 @@ I18n.override('EC', 'es', {
 
         const tiles = system === 'aleman'
             ? [['tone-blue', 'First payment', money(base.firstPayment)], ['tone-blue', 'Last payment', money(base.lastPayment)]]
-            : [['tone-blue', 'Monthly payment', money(base.firstPayment)], ['tone-slate', 'Plazo', Fmt.monthsAsYears(months)]];
+            : [['tone-blue', 'Monthly payment', money(base.firstPayment)], ['tone-slate', 'Term', Fmt.monthsAsYears(months)]];
         tiles.push(['tone-red', 'Total interest', money0(base.totalInterest)], ['tone-slate', 'Total paid', money0(base.totalPaid)]);
         // US: what you really pay each month (PITI).
         if (ctx.budgetYear.country === 'US') {
@@ -20507,15 +20623,15 @@ I18n.override('EC', 'es', {
         UI.show('mort-split-toggle', !!extra);
         UI.$$('#mort-split-toggle [data-plan]').forEach(b => b.classList.toggle('active', (b.dataset.plan === 'extra') === useExtra));
         const years = Engine.amortizationByYear((useExtra ? extra : base).schedule);
-        const yearLabel = (y) => (y.months < 12 ? `Year ${y.year} (${y.months}m)` : `Año ${y.year}`);
+        const yearLabel = (y) => (y.months < 12 ? `Year ${y.year} (${y.months}m)` : `Year ${y.year}`);
         const topRound = { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 };
         UI.chart('mort-split-chart', {
             type: 'bar',
             data: {
                 labels: years.map(yearLabel),
                 datasets: [
-                    { label: 'Capital', data: years.map(y => Math.round(y.principal)), backgroundColor: pal.blue, stack: 'p', maxBarThickness: 24, borderSkipped: false, borderRadius: 0 },
-                    { label: 'Interés', data: years.map(y => Math.round(y.interest)), backgroundColor: pal.orange, stack: 'p', maxBarThickness: 24, borderColor: pal.surface, borderWidth: { bottom: 2, top: 0, left: 0, right: 0 }, borderSkipped: false, borderRadius: topRound }
+                    { label: 'Principal', data: years.map(y => Math.round(y.principal)), backgroundColor: pal.blue, stack: 'p', maxBarThickness: 24, borderSkipped: false, borderRadius: 0 },
+                    { label: 'Interest', data: years.map(y => Math.round(y.interest)), backgroundColor: pal.orange, stack: 'p', maxBarThickness: 24, borderColor: pal.surface, borderWidth: { bottom: 2, top: 0, left: 0, right: 0 }, borderSkipped: false, borderRadius: topRound }
                 ]
             },
             options: {
@@ -20620,7 +20736,7 @@ I18n.override('EC', 'es', {
         UI.text('ret-total', money(r.ingresoTotal));
 
         const extra = Number(s.retirement.whatIfExtra) || 0;
-        UI.text('ret-whatif-label', `+${money0(extra)}/mes`);
+        UI.text('ret-whatif-label', `+${money0(extra)}/mo`);
         const delta = document.getElementById('ret-total-delta');
         if (r.whatIf) {
             UI.text('ret-whatif-text', `Contributing ${money0(extra)} more a month you'd have ${money0(r.whatIf.gain)} more at retirement (${money0(r.whatIf.valorFuturo)} instead of ${money0(r.valorFuturo)}), and your total monthly income would rise to ${money(r.whatIf.ingresoTotal)}.`);
@@ -20651,7 +20767,7 @@ I18n.override('EC', 'es', {
         UI.chart('ret-chart', {
             type: 'line', data: { labels, datasets },
             options: {
-                scales: { x: { title: { display: true, text: 'Edad', font: { size: 10 } } }, y: { suggestedMax: empty ? 1000 : undefined } },
+                scales: { x: { title: { display: true, text: 'Age', font: { size: 10 } } }, y: { suggestedMax: empty ? 1000 : undefined } },
                 plugins: {
                     legend: { position: 'top', align: 'start', labels: { filter: (item) => item.datasetIndex !== 0, generateLabels: (chart) => Chart.defaults.plugins.legend.labels.generateLabels(chart).map(l => (l.datasetIndex === 1 ? Object.assign(l, { text: I18n.t(bandLabel), fillStyle: pal.alpha(pal.blue, 0.25), strokeStyle: 'transparent', lineWidth: 0 }) : l)) } },
                     tooltip: { itemSort: (a, b) => b.datasetIndex - a.datasetIndex }
@@ -20659,7 +20775,7 @@ I18n.override('EC', 'es', {
             }
         });
         const tile = (label, value, rateTxt, strong) => `<div class="kpi tone-slate text-center" style="padding:.6rem .35rem"><span class="kpi-label">${label}</span><span class="kpi-value" title="${money0(value)}" style="font-size:${strong ? '1.05rem' : '.95rem'}">${Math.abs(value) >= 1e6 ? `${money(value / 1e6)}M` : money0(value)}</span><span class="kpi-note">${rateTxt}</span></div>`;
-        UI.html('ret-range', tile('Pesimista', low.valorFuturoHoy, `at ${lowRate}% a year`) + tile('Esperado', r.valorFuturoHoy, `at ${rate}% a year`, true) + tile('Optimista', high.valorFuturoHoy, `at ${highRate}% a year`));
+        UI.html('ret-range', tile('Pessimistic', low.valorFuturoHoy, `at ${lowRate}% a year`) + tile('Expected', r.valorFuturoHoy, `at ${rate}% a year`, true) + tile('Optimistic', high.valorFuturoHoy, `at ${highRate}% a year`));
         UI.text('ret-range-note', `At age ${r.edadJubilacion}, in today's dollars. Nobody knows the return of the next ${r.aniosRestantes} years: with 2 points less or more a year, your savings would end between ${money0(low.valorFuturoHoy)} and ${money0(high.valorFuturoHoy)}.`);
         UI.html('ret-range-table', labels.map((age, i) => ({ age, i })).filter(({ i }) => i % 5 === 0 || i === labels.length - 1).map(({ age, i }) => `<tr><td>${age}</td><td class="num">${money0(low.schedule[i])}</td><td class="num font-bold">${money0(r.schedule[i])}</td><td class="num">${money0(high.schedule[i])}</td></tr>`).join(''));
     }
@@ -20707,7 +20823,7 @@ I18n.override('EC', 'es', {
         { field: 'savings', label: 'Savings accounts', help: 'Also counts toward your emergency fund.' },
         { field: 'investments', label: 'Investments, CDs and 401(k)/IRA', help: 'CDs, stocks/ETFs and retirement accounts.' },
         { registry: 'Bienes Raíces', label: 'Real estate' },
-        { registry: 'Vehículo', label: 'Vehículos' },
+        { registry: 'Vehículo', label: 'Vehicles' },
         { registry: 'Otro', label: 'Other valuables' }
     ];
     const LIABILITY_FIELDS = [
@@ -20923,7 +21039,7 @@ I18n.override('EC', 'es', {
             if (!row) return;
             row.querySelector('[data-cell="value"]').textContent = money(Engine.holdingValue(h));
             row.querySelector('[data-cell="gain"]').innerHTML = gainHTML(Number(h.cost) > 0 ? Engine.holdingValue(h) - Number(h.cost) : null, Number(h.cost));
-            row.querySelector('[data-cell="when"]').innerHTML = h.priceAt ? `${h.priceSource === 'manual' ? 'Manual' : 'Mercado'} · ${esc(new Date(h.priceAt).toLocaleString(window.I18n && I18n.lang === 'en' ? 'en-US' : 'es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">No price</span>';
+            row.querySelector('[data-cell="when"]').innerHTML = h.priceAt ? `${h.priceSource === 'manual' ? 'Manual' : 'Market'} · ${esc(new Date(h.priceAt).toLocaleString(window.I18n && I18n.lang === 'en' ? 'en-US' : 'es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">No price</span>';
         });
         UI.text('hold-total', money0(Engine.holdingsValue(s.holdings)));
         const mix = Engine.portfolioMix(s.holdings, null);
@@ -21230,7 +21346,7 @@ I18n.override('EC', 'es', {
         'device.toggleTheme': () => Device.setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'),
         'device.setPin': async () => {
             if (Device.hasPin()) {
-                const cur = await UI.form({ title: 'Change PIN', confirmText: 'Continuar', fields: [{ name: 'pin', label: 'Your current PIN', type: 'password', inputmode: 'numeric' }] });
+                const cur = await UI.form({ title: 'Change PIN', confirmText: 'Continue', fields: [{ name: 'pin', label: 'Your current PIN', type: 'password', inputmode: 'numeric' }] });
                 if (!cur) return;
                 const lock = Device.read().lock;
                 if (await Device.hashPin(cur.pin, lock.salt) !== lock.hash) { UI.toast('That\'s not your current PIN.', 'error'); return; }
@@ -21242,7 +21358,7 @@ I18n.override('EC', 'es', {
             UI.toast('PIN saved. The app will ask for it when it opens. If you forget it, you\'ll have to erase the data and load your backup.');
         },
         'device.removePin': async () => {
-            const cur = await UI.form({ title: 'Remove the PIN', confirmText: 'Quitar', fields: [{ name: 'pin', label: 'Your current PIN', type: 'password', inputmode: 'numeric' }] });
+            const cur = await UI.form({ title: 'Remove the PIN', confirmText: 'Remove', fields: [{ name: 'pin', label: 'Your current PIN', type: 'password', inputmode: 'numeric' }] });
             if (!cur) return;
             const lock = Device.read().lock;
             if (await Device.hashPin(cur.pin, lock.salt) !== lock.hash) { UI.toast('That\'s not your PIN.', 'error'); return; }
@@ -21257,7 +21373,7 @@ I18n.override('EC', 'es', {
             catch (e) { el.select(); UI.toast('Select it and copy it (Ctrl+C).', 'warn'); }
         },
         'member.add': async () => {
-            const r = await UI.form({ title: 'Add person', fields: [{ name: 'name', label: 'Nombre', placeholder: 'E.g. Ana' }], confirmText: 'Agregar', validate: v => v.name.trim() ? null : 'Type a name.' });
+            const r = await UI.form({ title: 'Add person', fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Ana' }], confirmText: 'Add', validate: v => v.name.trim() ? null : 'Type a name.' });
             if (!r) return;
             const list = Store.state.members || (Store.state.members = []);
             const used = new Set(list.map(p => p.color));
@@ -21267,7 +21383,7 @@ I18n.override('EC', 'es', {
         'member.rename': async (el) => {
             const p = (Store.state.members || []).find(x => x.id === Number(el.dataset.id));
             if (!p) return;
-            const r = await UI.form({ title: 'Rename', fields: [{ name: 'name', label: 'Nombre', value: p.name }], confirmText: 'Guardar', validate: v => v.name.trim() ? null : 'Type a name.' });
+            const r = await UI.form({ title: 'Rename', fields: [{ name: 'name', label: 'Name', value: p.name }], confirmText: 'Save', validate: v => v.name.trim() ? null : 'Type a name.' });
             if (!r) return;
             p.name = r.name.trim().slice(0, 30);
             App.changed({ structural: true, step: true });
@@ -21326,26 +21442,26 @@ I18n.override('EC', 'es', {
                 Store.replaceState(data);
                 App.changed({ step: true });
                 App.go('resumen');
-                UI.toast('Backup loaded', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+                UI.toast('Backup loaded', 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
             };
             reader.readAsText(file);
         },
         'cfg.copyYear': async () => {
             const from = Number(document.getElementById('cfg-copy-from').value);
             const to = Store.state.activeYear;
-            const ok = await UI.confirm({ title: `Copiar ${from} → ${to}`, message: `${to}'s budget and parameters will be replaced with ${from}'s. Your ${to} net worth doesn't change.`, confirmText: 'Copiar', danger: true });
+            const ok = await UI.confirm({ title: `Copiar ${from} → ${to}`, message: `${to}'s budget and parameters will be replaced with ${from}'s. Your ${to} net worth doesn't change.`, confirmText: 'Copy', danger: true });
             if (!ok) return;
             App.undoable(`${from} budget copied to ${to}`, () => Store.copyYear(from, to));
         },
         'cfg.propagate': async () => {
             const s = Store.state, from = s.activeYear;
             if (from >= s.configEndYear) { UI.toast('There are no later years in your range.', 'warn'); return; }
-            const ok = await UI.confirm({ title: `Propagar ${from} → ${from + 1}–${s.configEndYear}`, message: `The budget and parameters of every later year will be replaced with ${from}'s. Each year's net worth doesn't change.`, confirmText: 'Propagar', danger: true });
+            const ok = await UI.confirm({ title: `Propagar ${from} → ${from + 1}–${s.configEndYear}`, message: `The budget and parameters of every later year will be replaced with ${from}'s. Each year's net worth doesn't change.`, confirmText: 'Carry forward', danger: true });
             if (!ok) return;
             App.undoable(`${from} budget carried through ${s.configEndYear}`, () => { for (let y = from + 1; y <= s.configEndYear; y++) Store.copyYear(from, y); });
         },
         'cfg.baseline': async () => {
-            const r = await UI.form({ title: 'Create baseline', message: 'Save a full snapshot of your current plan.', fields: [{ name: 'name', label: 'Nombre', value: 'Baseline ' + new Date().toLocaleDateString('es-EC') }], confirmText: 'Crear', validate: v => v.name.trim() ? null : 'Type a name.' });
+            const r = await UI.form({ title: 'Create baseline', message: 'Save a full snapshot of your current plan.', fields: [{ name: 'name', label: 'Name', value: 'Baseline ' + new Date().toLocaleDateString('es-EC') }], confirmText: 'Create', validate: v => v.name.trim() ? null : 'Type a name.' });
             if (!r) return;
             Store.createBaseline(r.name.trim());
             App.changed({ structural: true });
@@ -21353,7 +21469,7 @@ I18n.override('EC', 'es', {
         },
         'cfg.restoreBaseline': async (el) => {
             const b = Store.state.baselines.find(x => x.id === Number(el.dataset.id));
-            const ok = await UI.confirm({ title: `Restaurar "${b.name}"`, message: b.legacy ? 'The years, CDs and banks saved in this baseline (made with the previous version) will be restored.' : 'Your whole plan will go back to how it was in this baseline.', confirmText: 'Restaurar', danger: true });
+            const ok = await UI.confirm({ title: `Restaurar "${b.name}"`, message: b.legacy ? 'The years, CDs and banks saved in this baseline (made with the previous version) will be restored.' : 'Your whole plan will go back to how it was in this baseline.', confirmText: 'Restore', danger: true });
             if (!ok) return;
             App.undoable(`Baseline "${b.name}" restaurado`, () => Store.restoreBaseline(b.id));
         },
@@ -21395,13 +21511,13 @@ I18n.override('EC', 'es', {
             const s = Store.state;
             const left = ['transactions', 'debts', 'goals', 'polizas', 'assets', 'accounts', 'holdings', 'recurring', 'trash', 'annualBills'].filter(k => (s[k] || []).length);
             if (left.length) {
-                await UI.form({ title: 'Couldn\'t erase everything', message: 'Some data is still saved. Close and reopen the app, then try again.', confirmText: 'Entendido', cancelText: null, danger: true });
+                await UI.form({ title: 'Couldn\'t erase everything', message: 'Some data is still saved. Close and reopen the app, then try again.', confirmText: 'Got it', cancelText: null, danger: true });
                 return;
             }
             await UI.form({
                 title: 'Your data has been erased',
                 message: 'Your budget, transactions, debts, goals, CDs, accounts, investments and assets were erased from this device. Your language, theme and PIN stay. If it was a mistake, tap Undo at the top before closing the app.',
-                confirmText: 'Entendido', cancelText: null, icon: 'fa-circle-check'
+                confirmText: 'Got it', cancelText: null, icon: 'fa-circle-check'
             });
         }
     });

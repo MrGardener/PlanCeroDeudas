@@ -71,7 +71,7 @@
         // -------------------------------------------------------------- dialogs
         // form(): a modal with optional fields; resolves to the values, or null if cancelled.
         // cancelText: null shows only the OK button (a notice); icon replaces the title's icon.
-        form({ title, message = '', fields = [], confirmText = 'Aceptar', cancelText = 'Cancelar', danger = false, validate, icon = null }) {
+        form({ title, message = '', fields = [], confirmText = 'OK', cancelText = 'Cancel', danger = false, validate, icon = null }) {
             return new Promise((resolve) => {
                 const back = document.createElement('div');
                 back.className = 'modal-backdrop';
@@ -311,7 +311,7 @@
                 c.strokeStyle = Chart.defaults.color; c.globalAlpha = .55; c.setLineDash([3, 3]); c.lineWidth = 1;
                 c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
                 c.globalAlpha = .9; c.setLineDash([]); c.fillStyle = Chart.defaults.color; c.font = '600 10px Inter, sans-serif'; c.textAlign = 'left';
-                c.fillText(opts.label || 'Hoy', x + 4, top + 10);
+                c.fillText(opts.label || 'Today', x + 4, top + 10);
                 c.restore();
             }
         });

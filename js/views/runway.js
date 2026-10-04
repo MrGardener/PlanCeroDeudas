@@ -81,7 +81,7 @@
         const path = r.path.slice(0, Math.min(r.path.length, 25));
         UI.chart('runway-chart', {
             type: 'bar',
-            data: { labels: path.map((_, i) => i === 0 ? 'Hoy' : Fmt.monthYear(Engine.addMonths(ctx.today, i))), datasets: [{ label: 'You\'d have left', data: path, backgroundColor: path.map(v => v > x.needs ? pal.alpha(pal.blue, 0.75) : pal.alpha(pal.orange, 0.8)), borderRadius: 4, borderSkipped: 'start' }] },
+            data: { labels: path.map((_, i) => i === 0 ? 'Today' : Fmt.monthYear(Engine.addMonths(ctx.today, i))), datasets: [{ label: 'You\'d have left', data: path, backgroundColor: path.map(v => v > x.needs ? pal.alpha(pal.blue, 0.75) : pal.alpha(pal.orange, 0.8)), borderRadius: 4, borderSkipped: 'start' }] },
             options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
         });
     }

@@ -82,7 +82,7 @@
         },
         'itemize.use': (el) => {
             const amount = Math.max(0, Number(el.dataset.amount) || 0);
-            App.undoable(amount > 0 ? `Deducciones detalladas: ${money(amount)}` : 'Using the standard deduction', () => { Store.active().itemized = amount; });
+            App.undoable(amount > 0 ? `Itemized deductions: ${money(amount)}` : 'Using the standard deduction', () => { Store.active().itemized = amount; });
         }
     });
 

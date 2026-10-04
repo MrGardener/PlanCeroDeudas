@@ -15,7 +15,7 @@
         return [
             { key: 'age', label: `By your age (${stocks}% in stocks)`, mix: { us, intl: stocks - us, bonds: 100 - stocks, cash: 0, other: 0 } },
             { key: 'growth', label: 'All stocks (long term)', mix: { us: 75, intl: 25, bonds: 0, cash: 0, other: 0 } },
-            { key: 'calm', label: 'Conservadora', mix: { us: 40, intl: 20, bonds: 40, cash: 0, other: 0 } }
+            { key: 'calm', label: 'Conservative', mix: { us: 40, intl: 20, bonds: 40, cash: 0, other: 0 } }
         ];
     }
 

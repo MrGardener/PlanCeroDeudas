@@ -18,7 +18,7 @@
     const incomeTax = () => Store.state.taxonomy.income;
     const taxFor = (type) => (type === 'Ingreso' ? incomeTax() : expenseTax());
     const firstSub = (tax, cat) => (tax[cat] || [])[0] || '';
-    const TYPES = [{ value: 'Gasto', label: 'Gasto' }, { value: 'Ingreso', label: 'Ingreso' }, { value: 'Transferencia', label: 'Traspaso' }];
+    const TYPES = [{ value: 'Gasto', label: 'Gasto' }, { value: 'Ingreso', label: 'Ingreso' }, { value: 'Transferencia', label: 'Transfer' }];
     const PAYROLL = 'Sueldo/Salario';
     const fallbackCat = (type) => { const tax = taxFor(type); return type === 'Ingreso' ? (tax['Otros Ingresos'] ? 'Otros Ingresos' : Object.keys(tax)[0]) : (tax.Otros ? 'Otros' : Object.keys(tax)[0]); };
     // A subcategory the engine suggests may not be in this person's list yet (it's added on import).
@@ -72,8 +72,8 @@
 
     // ------------------------------------------------------------------ CSV mapping
     const FIELDS = [
-        { key: 'date', label: 'Fecha', required: true },
-        { key: 'description', label: 'Descripción', required: true },
+        { key: 'date', label: 'Date', required: true },
+        { key: 'description', label: 'Description', required: true },
         { key: 'amount', label: 'Amount (one column)', mode: 'single' },
         { key: 'debit', label: 'Debit / charges (expenses)', mode: 'split' },
         { key: 'credit', label: 'Credit / deposits (income)', mode: 'split' },
@@ -256,7 +256,7 @@
             sel('mode', 'Amounts come in…', [['single', 'One column (expenses with a sign)'], ['split', 'Two columns: debit and credit']]),
             ...FIELDS.map(field),
             m.mode === 'single' ? sel('expensesAre', 'In that column expenses are…', [['negative', 'Negative (−45.50)'], ['positive', 'Positive (everything is an expense)']]) : '',
-            sel('dateFormat', 'Date format', [['auto', order === 'mdy' ? 'Detect (month first)' : 'Detect (day first)'], ['dmy', 'Día/Mes/Año'], ['mdy', 'Mes/Día/Año'], ['ymd', 'Año-Mes-Día']]),
+            sel('dateFormat', 'Date format', [['auto', order === 'mdy' ? 'Detect (month first)' : 'Detect (day first)'], ['dmy', 'Day/Month/Year'], ['mdy', 'Month/Day/Year'], ['ymd', 'Year-Month-Day']]),
             sel('decimal', 'Decimal separator', [['auto', `Detectar (${{ '.': 'punto', ',': 'coma' }[detectedDecimal(s)] || 'row by row'})`], ['.', 'Dot (1,234.50)'], [',', 'Comma (1.234,50)']]),
             m.balance >= 0 ? `<label class="field"><span class="field-label">Update the balance of</span><select class="input" data-change="imp.account">${[['', 'Don\'t update any account'], ['new', 'A new account']].concat((Store.state.accounts || []).map(a => [String(a.id), a.name])).map(([v, l]) => `<option value="${v}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>` : ''
         ].join(''));
@@ -278,13 +278,13 @@
         const ok = s.rows.filter(r => r.include);
         const dups = s.rows.filter(r => r.dup).length, errs = s.rows.filter(r => r.error).length;
         const links = s.rows.filter(r => r.match && !r.include).length, matches = s.rows.filter(r => r.match).length;
-        UI.html('imp-summary', `<strong>${esc(s.name)}</strong>: ${s.rows.length} fila${s.rows.length === 1 ? '' : 's'} · <span class="text-emerald-700 font-bold">${ok.length} to import</span>${dups ? ` · ${dups} ya registrada${dups === 1 ? '' : 's'} (desmarcada${dups === 1 ? '' : 's'})` : ''}${matches ? ` · <span class="text-amber-700 font-bold">${matches} look${matches === 1 ? 's' : ''} like what you already typed by hand</span>` : ''}${errs ? ` · <span class="text-red-600">${errs} with errors (skipped)</span>` : ''}`);
+        UI.html('imp-summary', `<strong>${esc(s.name)}</strong>: ${s.rows.length} row${s.rows.length === 1 ? '' : 's'} · <span class="text-emerald-700 font-bold">${ok.length} to import</span>${dups ? ` · ${dups} row${dups === 1 ? '' : 's'} already logged (unchecked)` : ''}${matches ? ` · <span class="text-amber-700 font-bold">${matches} look${matches === 1 ? 's' : ''} like what you already typed by hand</span>` : ''}${errs ? ` · <span class="text-red-600">${errs} with errors (skipped)</span>` : ''}`);
         document.getElementById('imp-commit').innerHTML = `<i class="fa-solid fa-file-import"></i> Importar ${ok.length}${links ? ` · vincular ${links}` : ''}`;
         document.getElementById('imp-commit').disabled = ok.length === 0 && links === 0;
         const members = Store.state.members || [];
         const ms = document.getElementById('imp-member');
         UI.show(ms, members.length > 0);
-        if (members.length && !ms.options.length) ms.innerHTML = `<option value="">Whose? (no one)</option>` + members.map(p => `<option value="${p.id}">De ${esc(p.name)}</option>`).join('');
+        if (members.length && !ms.options.length) ms.innerHTML = `<option value="">Whose? (no one)</option>` + members.map(p => `<option value="${p.id}">${esc(p.name)}'s</option>`).join('');
         renderBulk(ok.length);
         // OFX files carry the account's balance: offer to update one of yours with it.
         const ab = document.getElementById('imp-ofx-account');
@@ -343,7 +343,7 @@
         const on = list.filter(g => g.on).length;
         const was = document.querySelector('#imp-suggest details');
         UI.html('imp-suggest', `<details class="panel tone-slate" ${was && was.open ? 'open' : ''}>
-            <summary class="cursor-pointer text-sm font-bold"><i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i> <span>Rules for next time</span> <span class="badge badge-info">${on} de ${list.length}</span></summary>
+            <summary class="cursor-pointer text-sm font-bold"><i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i> <span>Rules for next time</span> <span class="badge badge-info">${on} of ${list.length}</span></summary>
             <p class="help mt-2 mb-2">The checked ones are saved when you import: next time those names are categorized on their own. Change the category on a row and the rule follows your change.</p>
             <div class="space-y-1">${list.map(g => `<label class="flex items-center gap-2 text-xs"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.ruleToggle" data-k="${esc(Categorize.norm(g.key))}" ${g.on ? 'checked' : ''}>
                 <span class="font-semibold" data-i18n-skip>«${esc(g.key)}»</span><i class="fa-solid fa-arrow-right text-slate-400"></i><span>${esc(label(g))}</span><span class="text-slate-400">(${g.count})</span></label>`).join('')}</div>
@@ -402,7 +402,7 @@
         UI.html('rule-body', rules.length ? rules.map(r => `<tr>
                 <td class="font-semibold">“${esc(r.contains)}”</td>
                 <td>${r.rename ? esc(r.rename) : '<span class="text-slate-400">—</span>'}</td>
-                <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">De ${esc(((Store.state.members || []).find(p => p.id === r.memberId) || {}).name || '')}</div>` : ''}</td>
+                <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">${esc(((Store.state.members || []).find(p => p.id === r.memberId) || {}).name || '')}'s</div>` : ''}</td>
                 <td class="text-xs">${r.budgetLine ? esc(lineName(r.budgetLine)) : '<span class="text-slate-400">Automatic</span>'}</td>
                 <td class="text-center"><button class="row-del" data-action="rule.delete" data-id="${r.id}" title="Delete rule" aria-label="Delete rule"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`).join('') : '<tr class="empty-row"><td colspan="5">No rules. Example: if it contains “SQ *COZ” → it\'s called “Cozy Coffee”, category Food.</td></tr>');
@@ -434,7 +434,7 @@
     // A new person of the household, from the import screen (same as Settings → Household).
     const MEMBER_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
     async function addMember() {
-        const r = await UI.form({ title: 'Add person', message: 'Someone in your household who earns or spends money (shown in Settings → Your household).', fields: [{ name: 'name', label: 'Nombre', placeholder: 'E.g. Ana' }], confirmText: 'Agregar', validate: v => v.name.trim() ? null : 'Type a name.' });
+        const r = await UI.form({ title: 'Add person', message: 'Someone in your household who earns or spends money (shown in Settings → Your household).', fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Ana' }], confirmText: 'Add', validate: v => v.name.trim() ? null : 'Type a name.' });
         if (!r) return null;
         const list = Store.state.members || (Store.state.members = []);
         const used = new Set(list.map(p => p.color));
@@ -545,7 +545,7 @@
             // Kept for next time (only when it was applied to the whole file).
             s.bulk = targets.length === s.rows.filter(r => !r.error).length ? Object.assign({}, s.bulk || {}, change) : null;
             recompute();
-            UI.toast(`Aplicado a ${targets.length} fila${targets.length === 1 ? '' : 's'}.${skipped ? ` The category wasn't changed on ${skipped} (${change.category} isn't that type).` : ''}`);
+            UI.toast([`Applied to ${targets.length} row${targets.length === 1 ? '' : 's'}.`, skipped ? `The category wasn't changed on ${skipped} (${change.category} isn't that type).` : ''].filter(Boolean).map(x => (window.I18n ? I18n.t(x) : x)).join(' '));
         },
         'imp.remember': (el) => { if (session) session.remember = el.checked; },
         'imp.same': (el) => { if (!session) return; session.include[Number(el.dataset.i)] = false; recompute(); },
@@ -635,7 +635,7 @@
             if (lb) {
                 const accts = Store.state.accounts || (Store.state.accounts = []);
                 let a = accts.find(x => String(x.id) === String(s.account));
-                if (!a) { a = { id: Store.nextId(accts), name: s.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Cuenta', kind: 'ahorros', balance: 0 }; accts.push(a); }
+                if (!a) { a = { id: Store.nextId(accts), name: s.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Account', kind: 'ahorros', balance: 0 }; accts.push(a); }
                 a.balance = lb.balance; a.updatedAt = lb.date;
                 balanceNote = ` "${a.name}" balance: ${money(lb.balance)} (${lb.date}).`;
             }
@@ -652,14 +652,14 @@
             App.changed({ structural: true, step: true });
             // Short sentences, one per fact (each one is translated on its own).
             const pl = (n) => (n === 1 ? '' : 's');
-            const parts = [`${rows.length} movimiento${pl(rows.length)} importado${pl(rows.length)}.`];
-            if (skipped) parts.push(`${skipped} omitido${pl(skipped)}.`);
-            if (linked) parts.push(`${linked} ya anotado${pl(linked)} a mano: no se duplicaron.`);
-            if (ruleCount) parts.push(`${ruleCount} regla${pl(ruleCount)} guardada${pl(ruleCount)}.`);
-            if (newLineCount) parts.push(`${newLineCount} ingreso${pl(newLineCount)} nuevo${pl(newLineCount)} en tu presupuesto.`);
+            const parts = [`${rows.length} transaction${pl(rows.length)} imported.`];
+            if (skipped) parts.push(`${skipped} row${pl(skipped)} skipped.`);
+            if (linked) parts.push(`${linked} transaction${pl(linked)} already typed by hand: not duplicated.`);
+            if (ruleCount) parts.push(`${ruleCount} rule${pl(ruleCount)} saved.`);
+            if (newLineCount) parts.push(`${newLineCount} new income line${pl(newLineCount)} in your budget.`);
             if (balanceNote) parts.push(balanceNote.trim());
             parts.push('Review them in Transactions.');
-            UI.toast(parts.map(x => (window.I18n ? I18n.t(x) : x)).join(' · '), 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(parts.map(x => (window.I18n ? I18n.t(x) : x)).join(' · '), 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         'imp.xml': async (el) => {
             const files = Array.from(el.files || []);
@@ -673,7 +673,7 @@
                 rows.push({ date: inv.date, description: inv.supplier, store: inv.legalName !== inv.supplier ? inv.legalName : '', amount: Math.round(inv.total * 100) / 100, type: credit ? 'Ingreso' : 'Gasto', payment: inv.payment, items: inv.items, iva: inv.iva,
                     invoice: { ruc: inv.ruc, number: inv.number, accessKey: inv.accessKey, iva: inv.iva, subtotal: inv.subtotal } });
             }
-            if (bad.length) UI.toast(`No parece${bad.length === 1 ? '' : 'n'} factura${bad.length === 1 ? '' : 's'} del SRI: ${bad.join(', ')}`, 'error');
+            if (bad.length) UI.toast(`${bad.length === 1 ? 'This doesn\'t look like an SRI invoice' : 'These don\'t look like SRI invoices'}: ${bad.join(', ')}`, 'error');
             if (!rows.length) { el.value = ''; return; }
             session = { source: 'sri', name: `${rows.length} electronic invoice${rows.length === 1 ? '' : 's'}`, rows, base: rows, include: {}, edits: {}, catMap: {} };
             // Same invoice twice → duplicate by its access key too.
@@ -728,7 +728,7 @@
             // Transactions you already have that the rule would have caught: offer to fix them too.
             const hits = Store.state.transactions.filter(t => Importers.applyRules([rule], `${t.description} ${t.store || ''}`));
             let fixed = 0;
-            if (hits.length && await UI.confirm({ title: 'Apply to what you already have', message: `${hits.length} transaction${hits.length === 1 ? 'ón que ya tienes contiene' : 's you already have contain'} «${rule.contains}». Apply the rule to them (${[rule.rename ? `nombre «${rule.rename}»` : '', `category ${rule.category}`].filter(Boolean).join(', ')})?`, confirmText: `Aplicar a ${hits.length}` })) {
+            if (hits.length && await UI.confirm({ title: 'Apply to what you already have', message: `${hits.length === 1 ? 'A transaction you already have contains' : `${hits.length} transactions you already have contain`} «${rule.contains}». Apply the rule to ${hits.length === 1 ? 'it' : 'them'} (${[rule.rename ? `name «${rule.rename}»` : '', `category ${rule.category}`].filter(Boolean).map(x => (window.I18n ? I18n.t(x) : x)).join(', ')})?`, confirmText: `Apply to ${hits.length}` })) {
                 hits.forEach(t => {
                     const tax = (t.type || 'Gasto') === 'Ingreso' ? incomeTax() : expenseTax();
                     if (rule.rename) t.description = rule.rename;
@@ -739,7 +739,7 @@
             }
             if (session) recompute();
             App.changed({ structural: true, step: true });
-            UI.toast(`Rule created${fixed ? `  and applied to ${fixed} transaction${fixed === 1 ? '' : 's'}` : ''}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`Rule created${fixed ? `  and applied to ${fixed} transaction${fixed === 1 ? '' : 's'}` : ''}.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         'rule.delete': (el) => {
             const id = Number(el.dataset.id);

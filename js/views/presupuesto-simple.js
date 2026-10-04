@@ -14,8 +14,8 @@
         { type: 'Deuda', label: 'Debt payments', icon: 'fa-credit-card' },
         { type: 'Ahorro', label: 'Savings & investing', icon: 'fa-piggy-bank' }
     ];
-    const MODES = { planned: 'Planeado', spent: 'Gastado', remaining: 'Restante', all: 'Todo' };
-    const INCOME_MODES = { planned: 'Planeado', spent: 'Recibido', remaining: 'To receive', all: 'Todo' };
+    const MODES = { planned: 'Planned', spent: 'Spent', remaining: 'Remaining', all: 'All' };
+    const INCOME_MODES = { planned: 'Planned', spent: 'Received', remaining: 'To receive', all: 'All' };
 
     // Lines can live in a custom group (item.group); otherwise their type decides.
     const groupOf = (item) => {
@@ -61,7 +61,7 @@
         if (item.sweep) input = '';
         else if (item.link) input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" aria-label="Planned for ${esc(item.name)}">`;
         else input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.set" data-id="${id}" data-field="real" data-sync="prep" aria-label="Planned for ${esc(item.name)}">`;
-        const badge = item.link ? `<a href="#" class="badge ${item.link === 'debt' ? 'badge-bad' : 'badge-purple'}" data-goto="futuro/metas" data-focus="${item.link === 'debt' ? 'metas-debts' : 'metas-goals'}"><i class="fa-solid fa-link"></i> ${item.link === 'debt' ? 'Deuda' : 'Meta'}</a>`
+        const badge = item.link ? `<a href="#" class="badge ${item.link === 'debt' ? 'badge-bad' : 'badge-purple'}" data-goto="futuro/metas" data-focus="${item.link === 'debt' ? 'metas-debts' : 'metas-goals'}"><i class="fa-solid fa-link"></i> ${item.link === 'debt' ? 'Deuda' : 'Goal'}</a>`
             : item.sweep ? '<span class="badge badge-ok"><i class="fa-solid fa-wand-magic-sparkles"></i> Automatic</span>' : '';
         const canDue = !item.sweep && item.link !== 'goal';
         return `<div class="bs-row" data-line="${id}">
@@ -113,7 +113,7 @@
         const purposeField = (it, lineId) => {
             if (!Engine.isSavingsItem(it)) return '';
             const auto = PURPOSE_LABEL[Engine.savingsPurpose(Object.assign({}, it, { purpose: '' }))];
-            const opts = [{ value: '', label: `Automatic (${auto})` }, { value: 'emergencia', label: 'Emergency fund' }, { value: 'jubilacion', label: 'Jubilación' }, { value: 'general', label: 'General savings' }];
+            const opts = [{ value: '', label: `Automatic (${auto})` }, { value: 'emergencia', label: 'Emergency fund' }, { value: 'jubilacion', label: 'Retirement' }, { value: 'general', label: 'General savings' }];
             return `<label class="field mt-3 max-w-sm"><span class="field-label">What is this saving for?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
                 <span class="help">The emergency fund doesn't count as retirement saving (Step 4).</span></label>`;
         };
@@ -194,7 +194,7 @@
         host.classList.toggle('mode-all', md === 'all');
         UI.$$('#bud-simple .bs-card[data-group]').forEach(c => {
             const col = c.querySelector('[data-col]');
-            if (col) col.textContent = md === 'all' ? 'Planeado' : (c.dataset.group === 'income' ? INCOME_MODES : MODES)[md];
+            if (col) col.textContent = md === 'all' ? 'Planned' : (c.dataset.group === 'income' ? INCOME_MODES : MODES)[md];
         });
         const t = ctx.today;
         const isCurrent = m.sm && ctx.state.activeYear === t.getFullYear() && Number(m.sm) === t.getMonth() + 1;
@@ -329,7 +329,7 @@
         App.changed({ structural: true, step: true });
         if (lineId) {
             const item = Engine.monthItems(Store.effective(Number(t.date.slice(0, 4))), String(Number(t.date.slice(5, 7)))).find(i => String(i.id) === String(lineId));
-            UI.toast(`"${t.description}" now counts in «${item ? item.name : lineId}».`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`"${t.description}" now counts in «${item ? item.name : lineId}».`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         }
     }
 
@@ -366,7 +366,7 @@
         const purposeField = (it, lineId) => {
             if (!Engine.isSavingsItem(it)) return '';
             const auto = PURPOSE_LABEL[Engine.savingsPurpose(Object.assign({}, it, { purpose: '' }))];
-            const opts = [{ value: '', label: `Automatic (${auto})` }, { value: 'emergencia', label: 'Emergency fund' }, { value: 'jubilacion', label: 'Jubilación' }, { value: 'general', label: 'General savings' }];
+            const opts = [{ value: '', label: `Automatic (${auto})` }, { value: 'emergencia', label: 'Emergency fund' }, { value: 'jubilacion', label: 'Retirement' }, { value: 'general', label: 'General savings' }];
             return `<label class="field mt-3 max-w-sm"><span class="field-label">What is this saving for?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
                 <span class="help">The emergency fund doesn't count as retirement saving (Step 4).</span></label>`;
         };
@@ -390,8 +390,8 @@
         UI.chart('line-detail-chart', {
             type: 'line',
             data: { labels: hist.map(h => h.label), datasets: [
-                { label: 'Planeado', data: hist.map(h => h.planned), borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, stepped: true },
-                { label: 'Gastado', data: hist.map(h => h.spent), borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 4, fill: true, cubicInterpolationMode: 'monotone' }
+                { label: 'Planned', data: hist.map(h => h.planned), borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, stepped: true },
+                { label: 'Spent', data: hist.map(h => h.spent), borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.10)', borderWidth: 2, pointRadius: 4, fill: true, cubicInterpolationMode: 'monotone' }
             ] },
             options: { interaction: { mode: 'index', intersect: false } }
         });
@@ -409,7 +409,7 @@
             fields.push({ name: 'line' + k, label: `Line ${k + 1}`, options, value: cur[k] ? String(cur[k].line) : '' });
             fields.push({ name: 'amt' + k, label: `Amount ${k + 1}`, type: 'number', min: 0, step: '0.01', value: cur[k] ? cur[k].amount : '' });
         }
-        const r = await UI.form({ title: `Dividir "${t.description}" (${money(t.amount)})`, message: 'Split the amount across lines. Whatever you don\'t split counts as usual (by its category).', fields, confirmText: 'Guardar',
+        const r = await UI.form({ title: `Dividir "${t.description}" (${money(t.amount)})`, message: 'Split the amount across lines. Whatever you don\'t split counts as usual (by its category).', fields, confirmText: 'Save',
             validate: v => { const tot = [0, 1, 2].reduce((a, k) => a + (v['line' + k] ? Number(v['amt' + k]) || 0 : 0), 0); return tot > Number(t.amount) + 0.005 ? `You split ${money(tot)}, more than ${money(t.amount)}.` : null; } });
         if (!r) return;
         const splits = [0, 1, 2].map(k => ({ line: r['line' + k], amount: Math.round((Number(r['amt' + k]) || 0) * 100) / 100 })).filter(x => x.line && x.amount > 0);
@@ -450,7 +450,7 @@
             const r = await UI.form({ title: 'New group', fields: [
                 { name: 'name', label: 'Group name', placeholder: 'E.g. Giving, Pets, Car' },
                 { name: 'type', label: 'What kind of money is it?', options: [{ value: 'Gasto Variable', label: 'Expenses that vary' }, { value: 'Gasto Fijo', label: 'Fixed expenses' }, { value: 'Ahorro/Inversión', label: 'Ahorro' }] }
-            ], confirmText: 'Crear', validate: v => !v.name.trim() ? 'Type a name.' : (Store.active().groups || []).some(g => g.name === v.name.trim()) ? 'There\'s already a group with that name.' : null });
+            ], confirmText: 'Create', validate: v => !v.name.trim() ? 'Type a name.' : (Store.active().groups || []).some(g => g.name === v.name.trim()) ? 'There\'s already a group with that name.' : null });
             if (!r) return;
             const yd = Store.active();
             (yd.groups || (yd.groups = [])).push({ name: r.name.trim().slice(0, 40), type: r.type });

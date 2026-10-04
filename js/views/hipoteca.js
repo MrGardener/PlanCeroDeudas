@@ -22,7 +22,7 @@
 
         const tiles = system === 'aleman'
             ? [['tone-blue', 'First payment', money(base.firstPayment)], ['tone-blue', 'Last payment', money(base.lastPayment)]]
-            : [['tone-blue', 'Monthly payment', money(base.firstPayment)], ['tone-slate', 'Plazo', Fmt.monthsAsYears(months)]];
+            : [['tone-blue', 'Monthly payment', money(base.firstPayment)], ['tone-slate', 'Term', Fmt.monthsAsYears(months)]];
         tiles.push(['tone-red', 'Total interest', money0(base.totalInterest)], ['tone-slate', 'Total paid', money0(base.totalPaid)]);
         // US: what you really pay each month (PITI).
         if (ctx.budgetYear.country === 'US') {
@@ -66,15 +66,15 @@
         UI.show('mort-split-toggle', !!extra);
         UI.$$('#mort-split-toggle [data-plan]').forEach(b => b.classList.toggle('active', (b.dataset.plan === 'extra') === useExtra));
         const years = Engine.amortizationByYear((useExtra ? extra : base).schedule);
-        const yearLabel = (y) => (y.months < 12 ? `Year ${y.year} (${y.months}m)` : `Año ${y.year}`);
+        const yearLabel = (y) => (y.months < 12 ? `Year ${y.year} (${y.months}m)` : `Year ${y.year}`);
         const topRound = { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 };
         UI.chart('mort-split-chart', {
             type: 'bar',
             data: {
                 labels: years.map(yearLabel),
                 datasets: [
-                    { label: 'Capital', data: years.map(y => Math.round(y.principal)), backgroundColor: pal.blue, stack: 'p', maxBarThickness: 24, borderSkipped: false, borderRadius: 0 },
-                    { label: 'Interés', data: years.map(y => Math.round(y.interest)), backgroundColor: pal.orange, stack: 'p', maxBarThickness: 24, borderColor: pal.surface, borderWidth: { bottom: 2, top: 0, left: 0, right: 0 }, borderSkipped: false, borderRadius: topRound }
+                    { label: 'Principal', data: years.map(y => Math.round(y.principal)), backgroundColor: pal.blue, stack: 'p', maxBarThickness: 24, borderSkipped: false, borderRadius: 0 },
+                    { label: 'Interest', data: years.map(y => Math.round(y.interest)), backgroundColor: pal.orange, stack: 'p', maxBarThickness: 24, borderColor: pal.surface, borderWidth: { bottom: 2, top: 0, left: 0, right: 0 }, borderSkipped: false, borderRadius: topRound }
                 ]
             },
             options: {

@@ -27,7 +27,7 @@
     function render() {
         UI.html('calc-loan-in', field('loan', 'amount', 'Loan amount ($)', { step: 100 }) + field('loan', 'rate', 'Annual rate (%)', { step: 0.1 }) + field('loan', 'years', 'Term (years)', { step: 1 }));
         UI.html('calc-card-in', field('card', 'balance', 'Card balance ($)', { step: 50 }) + field('card', 'rate', 'Annual rate (%)', { step: 0.1 }) + field('card', 'payment', 'You\'d pay each month ($)', { step: 10 }));
-        UI.html('calc-grow-in', field('grow', 'initial', 'You have today ($)', { step: 100 }) + field('grow', 'monthly', 'You add each month ($)', { step: 10 }) + field('grow', 'rate', 'Annual return (%)', { step: 0.1 }) + field('grow', 'years', 'Años', { step: 1 }) + field('grow', 'inflation', 'Annual inflation (%)', { step: 0.1 }));
+        UI.html('calc-grow-in', field('grow', 'initial', 'You have today ($)', { step: 100 }) + field('grow', 'monthly', 'You add each month ($)', { step: 10 }) + field('grow', 'rate', 'Annual return (%)', { step: 0.1 }) + field('grow', 'years', 'Years', { step: 1 }) + field('grow', 'inflation', 'Annual inflation (%)', { step: 0.1 }));
         UI.html('calc-goal-in', field('goal', 'target', 'You need ($)', { step: 100 }) + field('goal', 'have', 'You already have ($)', { step: 100 }) + field('goal', 'rate', 'Annual interest on savings (%)', { step: 0.1 }) + field('goal', 'months', 'You want it in (months)', { step: 1 }) + field('goal', 'monthly', 'Or you can put in per month ($)', { step: 10 }));
         update();
     }
@@ -43,7 +43,7 @@
         const fixed = K.fixed.never ? ['With your payment', 'Never: it doesn\'t cover the interest', true] : ['With your payment', `${K.fixed.months} months (${when(K.fixed.months)})`, true];
         const rows = [fixed];
         if (!K.fixed.never) rows.push(['Interest you\'d pay', money0(K.fixed.interest)]);
-        rows.push(['Minimum payment only', K.minimum.never ? 'Nunca' : `${K.minimum.months} months · ${money0(K.minimum.interest)} interest`]);
+        rows.push(['Minimum payment only', K.minimum.never ? 'Never' : `${K.minimum.months} months · ${money0(K.minimum.interest)} interest`]);
         const saved = !K.fixed.never && !K.minimum.never ? K.minimum.interest - K.fixed.interest : null;
         UI.html('calc-card-out', result(rows) + `<p class="help mt-2">${saved && saved > 0 ? `<span>Paying ${money0(c.card.payment)} instead of the minimum saves you <strong>${money0(saved)}</strong> and ${Math.max(0, K.minimum.months - K.fixed.months)} months.</span> ` : ''}<span>Typical minimum: 1% of the balance + the month's interest (at least $25).</span></p>`);
 
@@ -53,8 +53,8 @@
 
         const need = Engine.monthlyToReach(c.goal.target, c.goal.have, c.goal.rate, c.goal.months);
         const n = Engine.goalMonths({ target: c.goal.target, current: c.goal.have, monthly: c.goal.monthly, rate: c.goal.rate });
-        const inMonths = n === 'never' || n === null || n === undefined ? 'Nunca' : n === 0 ? 'You already have it' : `${n} months (${when(n)})`;
-        UI.html('calc-goal-out', result([[`To have it in ${Number(c.goal.months) || 0} months`, need > 0 ? `${money(need)}/mes` : 'You already have it', true], [`With ${money0(c.goal.monthly)}/mo you get there in`, inMonths]]));
+        const inMonths = n === 'never' || n === null || n === undefined ? 'Never' : n === 0 ? 'You already have it' : `${n} months (${when(n)})`;
+        UI.html('calc-goal-out', result([[`To have it in ${Number(c.goal.months) || 0} months`, need > 0 ? `${money(need)}/mo` : 'You already have it', true], [`With ${money0(c.goal.monthly)}/mo you get there in`, inMonths]]));
     }
 
     UI.register({

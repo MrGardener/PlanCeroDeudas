@@ -31,7 +31,7 @@
                 <td>${num(k, 'cost', 500, k.cost, money0(t.cost))}</td>
                 <td>${num(k, 'years', 1, k.years || 4)}</td>
                 <td><select class="cell-input" data-change="college.set" data-id="${k.id}" data-field="goalId" aria-label="Savings goal">${Views.selectOptions([{ value: '', label: 'No goal (type below)' }].concat(goals.map(x => ({ value: String(x.id), label: x.name }))), k.goalId ? String(k.goalId) : '')}</select>
-                    ${g ? '' : `<div class="flex gap-1 mt-1">${num(k, 'saved', 100, k.saved, 'Ahorrado')}${num(k, 'monthly', 10, k.monthly, 'Per month')}</div>`}</td>
+                    ${g ? '' : `<div class="flex gap-1 mt-1">${num(k, 'saved', 100, k.saved, 'Saved')}${num(k, 'monthly', 10, k.monthly, 'Per month')}</div>`}</td>
                 <td class="text-center"><button class="row-del" data-action="college.delete" data-id="${k.id}" title="Remove" aria-label="Remove"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`;
         }).join('') : `<tr class="empty-row"><td colspan="7">${Views.emptyState('fa-graduation-cap', 'Add your kids to see what college will cost and how much to set aside each month.')}</td></tr>`);
@@ -53,7 +53,7 @@
                 <div class="text-[11px] text-slate-500"><span>${p.yearsToStart > 0 ? `Starts in ${start}` : 'Already in school'}</span> · <span>would cost ${money0(p.todayCost)} today</span></div>
                 <div class="calc-result mt-2"><div class="flex justify-between"><span>Total cost</span><strong>${money0(p.total)}</strong></div><div class="flex justify-between"><span>You'd have saved</span><strong>${money0(p.projected)}</strong></div><div class="flex justify-between"><span>Missing</span><strong>${money0(p.gap)}</strong></div></div>
                 <div class="progress-track mt-2"><div class="progress-fill" style="width:${pct}%"></div></div>
-                <p class="text-xs mt-2">${p.gap <= 0 ? 'What you set aside is enough!' : p.monthlyNeeded === null ? 'There\'s no time left to save: scholarships, work, and a school you can pay for without debt.' : `<span>To cover it all: <strong>${money0(p.monthlyNeeded)}/mes</strong> starting today.</span>`}
+                <p class="text-xs mt-2">${p.gap <= 0 ? 'What you set aside is enough!' : p.monthlyNeeded === null ? 'There\'s no time left to save: scholarships, work, and a school you can pay for without debt.' : `<span>To cover it all: <strong>${money0(p.monthlyNeeded)}/mo</strong> starting today.</span>`}
                 ${!g && p.monthlyNeeded ? ` <button type="button" class="link" data-action="college.goal" data-id="${k.id}">Create a savings goal for it</button>` : ''}</p>
             </div>`;
         }).join(''));
@@ -77,7 +77,7 @@
         'college.add': () => {
             const c = cfg();
             const id = Store.nextId(c.kids);
-            c.kids.push({ id, name: window.I18n ? I18n.t('Hijo/a') : 'Hijo/a', age: 5, type: types()[0].id, years: 4, cost: null, saved: 0, monthly: 0, goalId: null });
+            c.kids.push({ id, name: window.I18n ? I18n.t('Child') : 'Child', age: 5, type: types()[0].id, years: 4, cost: null, saved: 0, monthly: 0, goalId: null });
             App.changed({ structural: true, step: true });
             const input = document.querySelector(`#college-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
@@ -91,7 +91,7 @@
             const k = cfg().kids.find(x => x.id === Number(el.dataset.id));
             if (!k) return;
             const p = planFor(k), start = new Date().getFullYear() + Math.ceil(p.yearsToStart);
-            const name = `${window.I18n ? I18n.t('Universidad') : 'Universidad'}: ${k.name}`;
+            const name = `${window.I18n ? I18n.t('College') : 'College'}: ${k.name}`;
             App.undoable(`Goal «${name}» created: ${money(p.monthlyNeeded)} a month in your budget`, () => {
                 const goals = Store.state.goals;
                 const g = { id: Store.nextId(goals), name, target: Math.round(p.total), current: Number(k.saved) || 0, monthly: Math.ceil(p.monthlyNeeded), rate: cfg().returnPct === null || cfg().returnPct === undefined ? defs().returnPct : cfg().returnPct, targetDate: `${start}-08`, createdYear: new Date().getFullYear() };

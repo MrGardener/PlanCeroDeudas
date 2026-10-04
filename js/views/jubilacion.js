@@ -71,7 +71,7 @@
         UI.text('ret-total', money(r.ingresoTotal));
 
         const extra = Number(s.retirement.whatIfExtra) || 0;
-        UI.text('ret-whatif-label', `+${money0(extra)}/mes`);
+        UI.text('ret-whatif-label', `+${money0(extra)}/mo`);
         const delta = document.getElementById('ret-total-delta');
         if (r.whatIf) {
             UI.text('ret-whatif-text', `Contributing ${money0(extra)} more a month you'd have ${money0(r.whatIf.gain)} more at retirement (${money0(r.whatIf.valorFuturo)} instead of ${money0(r.valorFuturo)}), and your total monthly income would rise to ${money(r.whatIf.ingresoTotal)}.`);
@@ -102,7 +102,7 @@
         UI.chart('ret-chart', {
             type: 'line', data: { labels, datasets },
             options: {
-                scales: { x: { title: { display: true, text: 'Edad', font: { size: 10 } } }, y: { suggestedMax: empty ? 1000 : undefined } },
+                scales: { x: { title: { display: true, text: 'Age', font: { size: 10 } } }, y: { suggestedMax: empty ? 1000 : undefined } },
                 plugins: {
                     legend: { position: 'top', align: 'start', labels: { filter: (item) => item.datasetIndex !== 0, generateLabels: (chart) => Chart.defaults.plugins.legend.labels.generateLabels(chart).map(l => (l.datasetIndex === 1 ? Object.assign(l, { text: I18n.t(bandLabel), fillStyle: pal.alpha(pal.blue, 0.25), strokeStyle: 'transparent', lineWidth: 0 }) : l)) } },
                     tooltip: { itemSort: (a, b) => b.datasetIndex - a.datasetIndex }
@@ -110,7 +110,7 @@
             }
         });
         const tile = (label, value, rateTxt, strong) => `<div class="kpi tone-slate text-center" style="padding:.6rem .35rem"><span class="kpi-label">${label}</span><span class="kpi-value" title="${money0(value)}" style="font-size:${strong ? '1.05rem' : '.95rem'}">${Math.abs(value) >= 1e6 ? `${money(value / 1e6)}M` : money0(value)}</span><span class="kpi-note">${rateTxt}</span></div>`;
-        UI.html('ret-range', tile('Pesimista', low.valorFuturoHoy, `at ${lowRate}% a year`) + tile('Esperado', r.valorFuturoHoy, `at ${rate}% a year`, true) + tile('Optimista', high.valorFuturoHoy, `at ${highRate}% a year`));
+        UI.html('ret-range', tile('Pessimistic', low.valorFuturoHoy, `at ${lowRate}% a year`) + tile('Expected', r.valorFuturoHoy, `at ${rate}% a year`, true) + tile('Optimistic', high.valorFuturoHoy, `at ${highRate}% a year`));
         UI.text('ret-range-note', `At age ${r.edadJubilacion}, in today's dollars. Nobody knows the return of the next ${r.aniosRestantes} years: with 2 points less or more a year, your savings would end between ${money0(low.valorFuturoHoy)} and ${money0(high.valorFuturoHoy)}.`);
         UI.html('ret-range-table', labels.map((age, i) => ({ age, i })).filter(({ i }) => i % 5 === 0 || i === labels.length - 1).map(({ age, i }) => `<tr><td>${age}</td><td class="num">${money0(low.schedule[i])}</td><td class="num font-bold">${money0(r.schedule[i])}</td><td class="num">${money0(high.schedule[i])}</td></tr>`).join(''));
     }

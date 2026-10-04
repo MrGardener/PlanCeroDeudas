@@ -134,7 +134,7 @@
         const items = [
             { key: 'mortgage', label: 'Mortgage interest', amount: cents(num(mortgageInterest)), raw: cents(num(mortgageInterest)) },
             { key: 'salt', label: 'State, local and property taxes', amount: cents(Math.min(saltRaw, saltCap)), raw: cents(saltRaw), limit: cents(saltCap) },
-            { key: 'charity', label: 'Donaciones', amount: cents(Math.max(0, num(charity) - charityFloor)), raw: cents(num(charity)), floor: cents(charityFloor) },
+            { key: 'charity', label: 'Charitable gifts', amount: cents(Math.max(0, num(charity) - charityFloor)), raw: cents(num(charity)), floor: cents(charityFloor) },
             { key: 'medical', label: 'Medical costs', amount: cents(Math.max(0, num(medical) - medFloor)), raw: cents(num(medical)), floor: cents(medFloor) }
         ];
         const itemized = cents(sum(items, i => i.amount));
@@ -659,10 +659,10 @@
     // savings. Returns every group (amount 0 when empty, so colors stay with the group), the
     // income, what's assigned, and what's left to assign (negative = assigned more than income).
     const BUCKETS = [
-        { key: 'dar', label: 'Dar' },
+        { key: 'dar', label: 'Giving' },
         { key: 'ahorro', label: 'Ahorro' },
         { key: 'vivienda', label: 'Housing and utilities' },
-        { key: 'comida', label: 'Comida' },
+        { key: 'comida', label: 'Food' },
         { key: 'transporte', label: 'Transporte' },
         { key: 'otros', label: 'Other spending' },
         { key: 'deudas', label: 'Deudas' }
@@ -1319,19 +1319,19 @@
         const ind = (key, label, score, note) => ({ key, label, score, note });
         const has = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
         const pillars = [
-            { key: 'spend', label: 'Gastar', items: [
+            { key: 'spend', label: 'Spending', items: [
                 has(f.spendRatio) ? ind('spendLess', 'You spend less than you earn', lin(-f.spendRatio, -1.1, -0.9), 'Last 3 months: spending ÷ income.') : null,
                 has(f.overdue) ? ind('onTime', 'You pay your bills on time', f.overdue <= 0 ? 100 : f.overdue === 1 ? 50 : 0, 'Overdue payments this month.') : null
             ] },
-            { key: 'save', label: 'Ahorrar', items: [
+            { key: 'save', label: 'Saving', items: [
                 has(f.monthsCovered) ? ind('cushion', 'You have a cushion for surprises', lin(f.monthsCovered, 0, 3), 'Months of essential expenses saved (3 or more = 100).') : null,
                 has(f.savingsRate) ? ind('longTerm', 'You save for the long term', lin(f.savingsRate, 0, 0.15), 'Share of your pay going to retirement (15% = 100).') : null
             ] },
-            { key: 'borrow', label: 'Deber', items: [
+            { key: 'borrow', label: 'Borrowing', items: [
                 has(f.debtToIncome) ? ind('dti', 'Your debts don\'t swamp your income', lin(-f.debtToIncome, -0.36, -0.10), 'Consumer debt payments ÷ income (10% or less = 100).') : null,
                 has(f.costlyDebtRatio) ? ind('costly', 'No expensive debt', lin(-f.costlyDebtRatio, -0.15, 0), 'Debts at 10% or more, against your yearly income.') : null
             ] },
-            { key: 'plan', label: 'Planear', items: [
+            { key: 'plan', label: 'Planning', items: [
                 has(f.unassignedRatio) ? ind('budget', 'Every dollar has a job', Math.abs(f.unassignedRatio) <= 0.01 ? 100 : Math.abs(f.unassignedRatio) <= 0.05 ? 60 : 20, 'Your budget assigns all your income, no more, no less.') : null,
                 has(f.retirePct) ? ind('retire', 'On track for retirement', lin(f.retirePct, 0, 1), 'What you\'re on track to have ÷ what you\'d need.') : null
             ] }
@@ -1736,7 +1736,7 @@
             return { yearly: true, marks, labels: marks.map(m => m % 12 === 0 ? `Year ${m / 12}` : `Year ${Math.floor(m / 12)}+${m % 12}m`), title: 'Loan Term (years)' };
         }
         const marks = Array.from({ length: scheduleLength }, (_, k) => k + 1);
-        return { yearly: false, marks, labels: marks.map(m => `Mes ${m}`), title: 'Loan Term (months)' };
+        return { yearly: false, marks, labels: marks.map(m => `Month ${m}`), title: 'Loan Term (months)' };
     }
 
     // Value of `field` at each axis mark; undefined past the end of a shorter schedule.
@@ -2010,7 +2010,7 @@
 
     function babySteps({ liquid, consumerDebt, monthsCovered, savingsRate, mortgageBalance, ownsHome = mortgageBalance > 0.01, money = (v) => '$' + Math.round(v).toLocaleString('en-US') }) {
         const steps = [
-            { n: 1, title: 'Starter Emergency Fund', done: liquid >= 1000, detail: `${Math.min(100, liquid / 10).toFixed(0)}% de ${money(1000)}` },
+            { n: 1, title: 'Starter Emergency Fund', done: liquid >= 1000, detail: `${Math.min(100, liquid / 10).toFixed(0)}% of ${money(1000)}` },
             { n: 2, title: 'Pay Off Consumer Debt', done: consumerDebt <= 0.01, detail: consumerDebt > 0.01 ? `${money(consumerDebt)} left` : 'No debt' },
             { n: 3, title: 'Full Emergency Fund', done: monthsCovered >= 3, detail: `${monthsCovered.toFixed(1)} of 3-6 months` },
             { n: 4, title: 'Invest 15% for Retirement', done: savingsRate >= 0.15, detail: `You save ${(savingsRate * 100).toFixed(0)}% of your salary` },

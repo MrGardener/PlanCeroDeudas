@@ -28,7 +28,7 @@
     // instead of a category, and never counts as income or spending.
     function transferPlaces() {
         const s = Store.state;
-        const KIND = { corriente: 'Checking account', ahorros: 'Savings account', efectivo: 'Efectivo', retiro: 'Jubilación' };
+        const KIND = { corriente: 'Checking account', ahorros: 'Savings account', efectivo: 'Efectivo', retiro: 'Retirement' };
         return (s.accounts || []).map(a => ({ value: 'acc-' + a.id, label: `${a.name} (${KIND[a.kind] || KIND.corriente})` }))
             .concat((s.debts || []).map(d => ({ value: 'debt-' + d.id, label: `Pay: ${d.name}` })))
             .concat([{ value: '', label: 'Other account (not listed)' }]);
@@ -94,7 +94,7 @@
         UI.show('txn-income-field', isInc && lines.length > 0);
         const sel = document.getElementById('txn-income');
         const prev = keep !== undefined ? String(keep || '') : sel.value;
-        sel.innerHTML = Views.selectOptions([{ value: '', label: 'No: it\'s extra income' }].concat(lines.map(x => ({ value: String(x.id), label: `Sí: ${x.name}` }))), lines.some(x => String(x.id) === prev) ? prev : '');
+        sel.innerHTML = Views.selectOptions([{ value: '', label: 'No: it\'s extra income' }].concat(lines.map(x => ({ value: String(x.id), label: `Yes: ${x.name}` }))), lines.some(x => String(x.id) === prev) ? prev : '');
     }
 
     function fillMemberSelect(keep) {
@@ -257,7 +257,7 @@
                 </div>
                 <div class="txn-amt ${inc || t.refund ? 'inc' : tr ? 'tr' : ''}">${tr ? '' : inc || t.refund ? '+' : '−'}${money(t.amount)}</div>
                 <div class="txn-chip">${chip}</div>
-                <div class="txn-actions">${t.refund ? '' : t.recurringId ? '<span class="text-purple-500 text-xs px-1" title="Repeats"><i class="fa-solid fa-repeat"></i></span>' : `<button class="row-edit" data-action="txn.repeat" data-id="${t.id}" title="Repeat every month/week/year" aria-label="Repeat"><i class="fa-solid fa-repeat"></i></button>`}${!inc && !tr && !t.refund ? `<button class="row-edit" data-action="txn.refund" data-id="${t.id}" title="Log a refund or reimbursement for this purchase" aria-label="Reembolso"><i class="fa-solid fa-rotate-left"></i></button>` : ''}<button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Delete" aria-label="Delete"><i class="fa-solid fa-trash-can"></i></button></div>
+                <div class="txn-actions">${t.refund ? '' : t.recurringId ? '<span class="text-purple-500 text-xs px-1" title="Repeats"><i class="fa-solid fa-repeat"></i></span>' : `<button class="row-edit" data-action="txn.repeat" data-id="${t.id}" title="Repeat every month/week/year" aria-label="Repeat"><i class="fa-solid fa-repeat"></i></button>`}${!inc && !tr && !t.refund ? `<button class="row-edit" data-action="txn.refund" data-id="${t.id}" title="Log a refund or reimbursement for this purchase" aria-label="Refund"><i class="fa-solid fa-rotate-left"></i></button>` : ''}<button class="row-edit" data-action="txn.edit" data-id="${t.id}" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="txn.delete" data-id="${t.id}" title="Delete" aria-label="Delete"><i class="fa-solid fa-trash-can"></i></button></div>
             </div>`;
     }
 
@@ -368,9 +368,9 @@
         const inc = recs.filter(x => x.r.type === 'Ingreso');
         const per = (list) => list.reduce((a, x) => a + Engine.monthlyCost(x.r), 0);
         UI.html('rec-kpis', `
-            <div class="kpi tone-slate"><span class="kpi-label">Scheduled expenses</span><span class="kpi-value">${money(per(exp))}<span class="text-xs font-semibold text-slate-500">/mo</span></span><span class="kpi-note">${exp.length} movimiento${exp.length === 1 ? '' : 's'}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Scheduled expenses</span><span class="kpi-value">${money(per(exp))}<span class="text-xs font-semibold text-slate-500">/mo</span></span><span class="kpi-note">${exp.length} transaction${exp.length === 1 ? '' : 's'}</span></div>
             <div class="kpi tone-slate"><span class="kpi-label">Subscriptions</span><span class="kpi-value">${money(per(subs))}<span class="text-xs font-semibold text-slate-500">/mo</span></span><span class="kpi-note">${money0(per(subs) * 12)} a year</span></div>
-            <div class="kpi tone-emerald"><span class="kpi-label">Scheduled income</span><span class="kpi-value">${money(per(inc))}<span class="text-xs font-semibold text-slate-500">/mo</span></span><span class="kpi-note">${inc.length} movimiento${inc.length === 1 ? '' : 's'}</span></div>`);
+            <div class="kpi tone-emerald"><span class="kpi-label">Scheduled income</span><span class="kpi-value">${money(per(inc))}<span class="text-xs font-semibold text-slate-500">/mo</span></span><span class="kpi-note">${inc.length} transaction${inc.length === 1 ? '' : 's'}</span></div>`);
         UI.html('rec-body', recs.length ? recs.map(({ r, next, due }) => `<tr>
                 <td class="whitespace-nowrap text-xs">${next ? esc(next) : '<span class="text-slate-400">Ended</span>'}${due.length && r.auto === false ? `<span class="block"><button type="button" class="mini-btn" data-action="rec.postNow" data-id="${r.id}">Registrar ${due.length} pendiente${due.length === 1 ? '' : 's'}</button></span>` : ''}</td>
                 <td><div class="font-semibold text-xs">${esc(r.description)}${isSubscription(r) ? ' <span class="badge badge-purple">Subscription</span>' : ''}</div><div class="text-[11px] text-slate-500">${esc(r.parentCategory)}</div></td>
@@ -394,7 +394,7 @@
         if (!found.length) { UI.html('rec-found', ''); return; }
         const yearly = found.reduce((a, f) => a + f.yearly, 0);
         UI.html('rec-found', `<div class="panel tone-purple mb-3">
-            <div class="text-xs font-bold text-slate-800 mb-2"><i class="fa-solid fa-magnifying-glass-dollar text-purple-600"></i> Encontramos ${found.length} cargo${found.length === 1 ? '' : 's'} que se repite${found.length === 1 ? '' : 'n'} y no tienes programado${found.length === 1 ? '' : 's'}: juntos, ${money0(yearly)} al año.</div>
+            <div class="text-xs font-bold text-slate-800 mb-2"><i class="fa-solid fa-magnifying-glass-dollar text-purple-600"></i> We found ${found.length} repeating charge${found.length === 1 ? '' : 's'} you don't have scheduled: together, ${money0(yearly)} a year.</div>
             <p class="help mb-2">Still using them? Schedule them so you see them coming (and the cash forecast counts them), or cancel the ones you don't need.</p>
             <div class="space-y-1.5">${found.map(f => `<div class="found-row">
                 <div class="min-w-0"><div class="font-semibold text-xs truncate" data-i18n-skip>${esc(f.name)}</div>
@@ -432,7 +432,7 @@
         if (posted.length || s.trash.length !== before) App.changed({ structural: true, step: true });
         if (posted.length) {
             const names = [...new Set(posted.map(t => t.description))].slice(0, 3).join(', ');
-            UI.toast(`Se registraron ${posted.length} movimiento${posted.length === 1 ? '' : 's'} programado${posted.length === 1 ? '' : 's'}: ${names}${posted.length > 3 ? '…' : ''}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`${posted.length} scheduled transaction${posted.length === 1 ? '' : 's'} logged: ${names + (posted.length > 3 ? '…' : '')}.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         }
     }
     window.Recurring = { maintain, postDue };
@@ -453,7 +453,7 @@
     // How far ahead the projection goes, per period.
     const AHEAD = { week: [0, 4, 8, 13, 26], month: [0, 3, 6, 12, 24], year: [0, 1, 2, 3, 5] };
     const DEFAULT_AHEAD = { week: 8, month: 12, year: 2 };
-    const SERIES = { income: { label: 'Ingresos', color: '#1baf7a' }, expense: { label: 'Gastos', color: '#2a78d6' } };
+    const SERIES = { income: { label: 'Income', color: '#1baf7a' }, expense: { label: 'Expenses', color: '#2a78d6' } };
 
     function periodLabel(start, period) {
         const d = new Date(start + 'T00:00:00');
@@ -509,7 +509,7 @@
         const future = projecting ? trendForecast(tr, ctx.today) : [];
         UI.show('trend-basis', projecting);
         UI.html('trend-note', tr.ahead > 0 && tr.category !== 'all' ? 'The projection shows with "All categories".'
-            : projecting ? `Dashed lines: what you expect from ${tr.basis === 'history' ? 'your history (average of the last 3 months)' : 'your budget'}, your pay on your paydays${Cash.paySchedule() ? '' : ' (dinos cómo te pagan en Ingresos)'} and your repeating income.` : '');
+            : projecting ? `Dashed lines: what you expect from ${tr.basis === 'history' ? 'your history (average of the last 3 months)' : 'your budget'}, your pay on your paydays${Cash.paySchedule() ? '' : ' (tell us how you get paid in Income)'} and your repeating income.` : '');
         const any = rows.some(r => r.count > 0) || future.length > 0;
         UI.show('txn-trend-empty', !any);
         UI.show(document.getElementById('txn-trend-chart').parentElement, any);
@@ -525,7 +525,7 @@
             UI.chart('txn-trend-chart', {
                 type: 'line',
                 data: { labels, datasets },
-                options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: datasets.length > 1 }, todayLine: { index: future.length ? nowIdx : -1, label: 'Hoy' }, tooltip: { filter: (c) => c.raw !== null } } }
+                options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: datasets.length > 1 }, todayLine: { index: future.length ? nowIdx : -1, label: 'Today' }, tooltip: { filter: (c) => c.raw !== null } } }
             });
         }
         // Headline numbers for the selected window.
@@ -537,7 +537,7 @@
         const fIn = future.reduce((a, r) => a + r.income, 0), fOut = future.reduce((a, r) => a + r.expense, 0);
         UI.html('trend-kpis', `
             <div class="kpi tone-slate"><span class="kpi-label">Average spending per ${unit[0]}</span><span class="kpi-value">${money(avg)}</span></div>
-            <div class="kpi tone-slate"><span class="kpi-label">Highest-spending ${unit[0] === 'mes' ? 'Mes' : unit[0] === 'año' ? 'Year' : 'Week'}</span><span class="kpi-value">${exp[maxI] > 0 ? money(exp[maxI]) : '—'}</span><span class="kpi-note">${exp[maxI] > 0 ? labels[maxI] : 'No expenses'}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Highest-spending ${unit[0] === 'mes' ? 'Month' : unit[0] === 'año' ? 'Year' : 'Week'}</span><span class="kpi-value">${exp[maxI] > 0 ? money(exp[maxI]) : '—'}</span><span class="kpi-note">${exp[maxI] > 0 ? labels[maxI] : 'No expenses'}</span></div>
             <div class="kpi ${change === null ? 'tone-slate' : change > 0.1 ? 'tone-red' : change < -0.1 ? 'tone-emerald' : 'tone-slate'}"><span class="kpi-label">This ${unit[0]} vs. the previous</span><span class="kpi-value">${change === null ? '—' : (change > 0 ? '+' : '') + Math.round(change * 100) + '%'}</span><span class="kpi-note">${money(last)} vs. ${money(prev)}${tr.period !== 'year' ? ' <span>(the current one isn\'t over yet)</span>' : ''}</span></div>
             ${future.length ? `<div class="kpi ${fIn - fOut < -0.005 ? 'tone-red' : 'tone-blue'}" id="trend-future-kpi"><span class="kpi-label">Next ${tr.ahead} ${tr.ahead === 1 ? unit[0] : unit[1]} (projection)</span><span class="kpi-value">${Math.abs(fIn - fOut) < 0.005 ? '' : fIn - fOut < 0 ? '−' : '+'}${money(Math.abs(fIn - fOut))}</span><span class="kpi-note">In ${money(fIn)} · out ${money(fOut)}</span></div>` : ''}`);
         UI.html('trend-table', future.slice().reverse().map(r => `<tr class="trend-future"><td>${periodLabel(r.start, tr.period)} <span class="badge badge-info">projection</span></td><td class="num">${money(r.income)}</td><td class="num">${money(r.expense)}</td><td class="num ${r.income - r.expense < 0 ? 'text-red-600' : ''}">${money(r.income - r.expense)}</td></tr>`).join('')
@@ -563,12 +563,12 @@
         const savings0 = Engine.accountTotal(accts, 'ahorros') + Engine.accountTotal(accts, 'retiro') + ctx.polizasCapital + Engine.holdingsValue(s.holdings);
         const debts0 = (s.debts || []).reduce((a, d) => a + Math.max(0, Number(d.balance) || 0), 0);
         const pts = Engine.projectBalances({ start: { cash: cash ? cash.total : 0, savings: savings0, debts: debts0 }, months: flows.map(f => Object.assign({ key: f.start.slice(0, 7) }, f)), rate: Number(ctx.year.tasa) || 0, debtHistory: ctx.debts.history || [] });
-        const labels = ['Hoy'].concat(pts.map(p => { const d = new Date(p.key + '-01T00:00'); return `${Fmt.MONTH_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`; }));
+        const labels = ['Today'].concat(pts.map(p => { const d = new Date(p.key + '-01T00:00'); return `${Fmt.MONTH_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`; }));
         const start = { cash: cash ? cash.total : 0, savings: savings0, debts: debts0 };
         UI.chart('bal-forecast-chart', {
             type: 'line',
             data: { labels, datasets: Object.keys(BAL).map(k => ({ label: BAL[k].label, data: [start[k]].concat(pts.map(p => p[k])), borderColor: BAL[k].color, backgroundColor: BAL[k].color, borderWidth: 2, borderDash: [6, 4], pointRadius: labels.length > 30 ? 0 : 3, pointHoverRadius: 6, tension: .25, cubicInterpolationMode: 'monotone', fill: false })) },
-            options: { interaction: { mode: 'index', intersect: false }, plugins: { todayLine: { index: 0, label: 'Hoy' } } }
+            options: { interaction: { mode: 'index', intersect: false }, plugins: { todayLine: { index: 0, label: 'Today' } } }
         });
         const end = pts[pts.length - 1];
         const net0 = start.cash + start.savings - start.debts;
@@ -577,7 +577,7 @@
             <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.savings.color}"></i>Savings & investments</span><span class="kpi-value">${money(end.savings)}</span><span class="kpi-note">Hoy ${money(start.savings)}</span></div>
             <div class="kpi tone-slate"><span class="kpi-label"><i class="safe-dot" style="background:${BAL.debts.color}"></i>Deudas</span><span class="kpi-value">${money(end.debts)}</span><span class="kpi-note">Hoy ${money(start.debts)}</span></div>
             <div class="kpi ${end.net >= net0 ? 'tone-emerald' : 'tone-red'}"><span class="kpi-label">What you'd have (net)</span><span class="kpi-value">${money(end.net)}</span><span class="kpi-note">${end.net >= net0 ? '+' : '−'}${money(Math.abs(end.net - net0))} vs. today</span></div>`);
-        UI.html('bal-forecast-table', [['Hoy', start]].concat(pts.map((p, i) => [labels[i + 1], p])).map(([l, p]) => `<tr><td>${l}</td><td class="num">${money(p.cash)}</td><td class="num">${money(p.savings)}</td><td class="num">${money(p.debts)}</td></tr>`).join(''));
+        UI.html('bal-forecast-table', [['Today', start]].concat(pts.map((p, i) => [labels[i + 1], p])).map(([l, p]) => `<tr><td>${l}</td><td class="num">${money(p.cash)}</td><td class="num">${money(p.savings)}</td><td class="num">${money(p.debts)}</td></tr>`).join(''));
     }
 
     // Fill the form from elsewhere (e.g. a receipt photo) and let the person review it.
@@ -604,7 +604,7 @@
         const imported = Store.state.transactions.filter(x => x.id !== t.id && (x.importRef || x.source === 'csv' || x.source === 'sri'));
         const m = Importers.findMatch(t, imported, { days: 4 });
         if (!m) return false;
-        UI.toast(`Heads up: you already imported ${money(m.txn.amount)} on ${m.txn.date} («${m.txn.description}»). If it's the same expense, undo it so it isn't counted twice.`, 'warn', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+        UI.toast(`Heads up: you already imported ${money(m.txn.amount)} on ${m.txn.date} («${m.txn.description}»). If it's the same expense, undo it so it isn't counted twice.`, 'warn', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         return true;
     }
 
@@ -651,9 +651,9 @@
                 message: `For «${t.description}» (${money(t.amount)}). It lowers what you spent in ${t.parentCategory}, in the month you get the money back.`,
                 fields: [
                     { name: 'amount', label: 'Amount returned', type: 'number', step: '0.01', min: 0, value: Number(t.amount) || '' },
-                    { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) }
+                    { name: 'date', label: 'Date', type: 'date', value: Engine.isoDate(new Date()) }
                 ],
-                confirmText: 'Registrar',
+                confirmText: 'Log',
                 validate: v => !(v.amount > 0) ? 'Enter an amount over $0.' : v.amount > Number(t.amount) + 0.005 ? `It can't be more than the purchase (${money(t.amount)}).` : !v.date ? 'Pick a date.' : null
             });
             if (!r) return;
@@ -667,7 +667,7 @@
         'txn.repeat': async (el) => {
             const t = Store.state.transactions.find(x => x.id === Number(el.dataset.id));
             if (!t) return;
-            const r = await UI.form({ title: `Repetir "${t.description}"`, message: `From ${t.date}. It'll be logged automatically each time.`, fields: [{ name: 'freq', label: 'Frecuencia', options: Object.keys(FREQ).map(k => ({ value: k, label: FREQ[k] })) }], confirmText: 'Repetir' });
+            const r = await UI.form({ title: `Repetir "${t.description}"`, message: `From ${t.date}. It'll be logged automatically each time.`, fields: [{ name: 'freq', label: 'Frequency', options: Object.keys(FREQ).map(k => ({ value: k, label: FREQ[k] })) }], confirmText: 'Repeat' });
             if (!r) return;
             const recs = Store.state.recurring || (Store.state.recurring = []);
             const rec = Object.assign({}, t, { id: Store.nextId(recs), frequency: r.freq, startDate: t.date, lastPosted: t.date, auto: true });
@@ -676,7 +676,7 @@
             t.recurringId = rec.id;
             const posted = postDue([rec.id]);
             App.changed({ structural: true, step: true });
-            UI.toast(`"${t.description}" will repeat ${FREQ[r.freq].toLowerCase()}.${posted.length ? ` Se registraron ${posted.length} pendiente${posted.length === 1 ? '' : 's'}.` : ''}`);
+            UI.toast([`"${t.description}" will repeat ${FREQ[r.freq].toLowerCase()}.`, posted.length ? `${posted.length} pending transaction${posted.length === 1 ? '' : 's'} logged.` : ''].filter(Boolean).map(x => (window.I18n ? I18n.t(x) : x)).join(' '));
         },
         'rec.auto': (el) => {
             const r = (Store.state.recurring || []).find(x => x.id === Number(el.dataset.id));
@@ -694,7 +694,7 @@
         'rec.postNow': (el) => {
             const posted = postDue([Number(el.dataset.id)]);
             App.changed({ structural: true, step: true });
-            UI.toast(`${posted.length} movimiento${posted.length === 1 ? '' : 's'} registrado${posted.length === 1 ? '' : 's'}.`);
+            UI.toast(`${posted.length} transaction${posted.length === 1 ? '' : 's'} logged.`);
         },
         'rec.delete': (el) => {
             const id = Number(el.dataset.id);
@@ -746,8 +746,8 @@
                 title: `Tag for ${list.length} transaction${ones(list.length)}`,
                 message: known.length ? `The ones you use: ${known.slice(0, 8).map(g => '#' + g).join(' ')}` : '',
                 fields: [
-                    { name: 'tag', label: 'Etiqueta', placeholder: 'E.g. vacation-2026' },
-                    { name: 'mode', label: 'What should we do?', options: [{ value: 'add', label: 'Agregarla' }, { value: 'remove', label: 'Quitarla' }] }
+                    { name: 'tag', label: 'Tag', placeholder: 'E.g. vacation-2026' },
+                    { name: 'mode', label: 'What should we do?', options: [{ value: 'add', label: 'Add it' }, { value: 'remove', label: 'Remove it' }] }
                 ],
                 confirmText: 'Aplicar',
                 validate: v => Engine.normTag(v.tag) ? null : 'Type a tag.'
@@ -800,7 +800,7 @@
             const r = await UI.form({
                 title: `Category for ${list.length} transaction${ones(list.length)}`,
                 fields: [{ name: 'cat', label: 'New category', options }],
-                confirmText: 'Cambiar'
+                confirmText: 'Change'
             });
             if (!r) return;
             const [parent, sub] = r.cat.split('|');
@@ -819,7 +819,7 @@
                 title: `Budget line for ${list.length} expense${list.length === 1 ? '' : 's'}`,
                 message: list.some(t => Array.isArray(t.splits) && t.splits.length) ? 'Ones split across lines will count in just this one.' : '',
                 fields: [{ name: 'line', label: 'Count in the line', options: [{ value: '', label: 'Automatic (by category)' }].concat(items.map(i => ({ value: String(i.id), label: i.name }))) }],
-                confirmText: 'Cambiar'
+                confirmText: 'Change'
             });
             if (!r) return;
             const ids = new Set(list.map(t => t.id));
@@ -835,8 +835,8 @@
             const list = picked();
             const r = await UI.form({
                 title: 'Whose are the selected transactions?',
-                fields: [{ name: 'member', label: 'Persona', options: members.map(p => ({ value: String(p.id), label: p.name })).concat([{ value: '', label: 'No person' }]) }],
-                confirmText: 'Cambiar'
+                fields: [{ name: 'member', label: 'Person', options: members.map(p => ({ value: String(p.id), label: p.name })).concat([{ value: '', label: 'No person' }]) }],
+                confirmText: 'Change'
             });
             if (!r) return;
             const who = members.find(p => String(p.id) === r.member);
@@ -850,7 +850,7 @@
             const r = await UI.form({
                 title: `Payment method for ${list.length} transaction${ones(list.length)}`,
                 fields: [{ name: 'pay', label: 'Payment method', options }],
-                confirmText: 'Cambiar'
+                confirmText: 'Change'
             });
             if (!r) return;
             bulkApply(`Payment method: ${r.pay}`, t => { t.paymentType = r.pay; });
@@ -858,7 +858,7 @@
         'txn.bulkDelete': async () => {
             const list = picked();
             if (!list.length) return;
-            const ok = await UI.confirm({ title: `Delete ${list.length} transaction${ones(list.length)}`, message: 'They go to "Recently deleted" for 60 days, and you can undo this.', confirmText: 'Eliminar', danger: true });
+            const ok = await UI.confirm({ title: `Delete ${list.length} transaction${ones(list.length)}`, message: 'They go to "Recently deleted" for 60 days, and you can undo this.', confirmText: 'Delete', danger: true });
             if (!ok) return;
             const ids = new Set(list.map(t => t.id));
             if (ids.has(Store.ui.txnEditing)) { setEditing(null); clearForm(); }
@@ -875,7 +875,7 @@
         'txn.bulkTransfer': async () => {
             const list = picked().filter(t => !Engine.isTransfer(t));
             if (!list.length) return;
-            const ok = await UI.confirm({ title: `Mark ${list.length} as transfer${list.length === 1 ? '' : 's'}`, message: 'They stop counting as income or spending (for example, your card payment or what you move to savings). You can pick the accounts by editing each one.', confirmText: 'Marcar' });
+            const ok = await UI.confirm({ title: `Mark ${list.length} as transfer${list.length === 1 ? '' : 's'}`, message: 'They stop counting as income or spending (for example, your card payment or what you move to savings). You can pick the accounts by editing each one.', confirmText: 'Mark' });
             if (!ok) return;
             const ids = new Set(list.map(t => t.id));
             bulkApply(`${list.length} transfer${list.length === 1 ? '' : 's'}: no longer counted as income or spending`, t => {
@@ -993,7 +993,7 @@
                 setEditing(null);
                 clearForm();
                 App.changed({ structural: true, step: true });
-                UI.toast(`Transaction "${description}" updated`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+                UI.toast(`Transaction "${description}" updated`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
                 const row = document.querySelector(`#txn-body tr[data-row="${editing.id}"]`);
                 if (row) { row.scrollIntoView({ block: 'center' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1600); }
                 return;
@@ -1072,8 +1072,8 @@
             const tax = taxonomyFor(type);
             const r = await UI.form({
                 title: `New ${type === 'Ingreso' ? 'income' : 'expense'} category`,
-                fields: [{ name: 'name', label: 'Nombre', placeholder: 'E.g. Sports' }],
-                confirmText: 'Crear',
+                fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Sports' }],
+                confirmText: 'Create',
                 validate: v => !v.name.trim() ? 'Type a name.' : tax[v.name.trim()] ? 'That category already exists.' : null
             });
             if (!r) return;
@@ -1089,8 +1089,8 @@
             if (!parent) { UI.toast('First pick or create a category.', 'warn'); return; }
             const r = await UI.form({
                 title: `New subcategory of "${parent}"`,
-                fields: [{ name: 'name', label: 'Nombre', placeholder: 'E.g. Gym' }],
-                confirmText: 'Crear',
+                fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Gym' }],
+                confirmText: 'Create',
                 validate: v => !v.name.trim() ? 'Type a name.' : tax[parent].includes(v.name.trim()) ? 'That subcategory already exists.' : null
             });
             if (!r) return;

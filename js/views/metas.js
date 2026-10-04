@@ -22,7 +22,7 @@
         const cell = (field, step, label, cls = '') => `<td data-label="${label}"><input type="number" class="cell-input num ${cls}" min="0" step="${step}" value="${Number(g[field]) || 0}" data-input="goal.set" data-id="${g.id}" data-field="${field}" aria-label="${label}"></td>`;
         return `<tr data-row="${g.id}">
             <td class="c-wide" data-label="Goal"><input class="cell-input" value="${esc(g.name)}" data-change="goal.set" data-id="${g.id}" data-field="name" aria-label="Goal name"></td>
-            ${cell('target', 100, 'Objetivo')}${cell('current', 100, 'Ahorrado')}${cell('monthly', 10, 'Budget per month', 'money')}${cell('rate', 0.1, Store.COUNTRY === 'US' ? 'Rate (%)' : 'Savings rate (APY %)')}
+            ${cell('target', 100, 'Target')}${cell('current', 100, 'Saved')}${cell('monthly', 10, 'Budget per month', 'money')}${cell('rate', 0.1, Store.COUNTRY === 'US' ? 'Rate (%)' : 'Savings rate (APY %)')}
             <td data-label="By when?"><input type="month" class="cell-input" value="${esc(g.targetDate || '')}" data-change="goal.set" data-id="${g.id}" data-field="targetDate" aria-label="Target date"></td>
             <td class="c-wide" data-label="Progress" data-cell="time"></td>
             <td class="c-wide c-actions text-center whitespace-nowrap"><button class="mini-btn" data-action="goal.deposit" data-id="${g.id}" title="Add a deposit to what's saved">Deposit</button> ${Number(g.current) > 0 ? `<button class="mini-btn" data-action="goal.spend" data-id="${g.id}" title="Pay for a purchase with this saved money (it doesn't count in this month's budget again)">Use</button> ` : ''}<button class="row-del" data-action="goal.delete" data-id="${g.id}" title="Delete goal"><i class="fa-solid fa-trash-can"></i></button></td>
@@ -62,7 +62,7 @@
             type: 'line',
             data: { labels, datasets: [
                 { label: 'Projected net worth', data: yearly, borderColor: '#059669', backgroundColor: 'rgba(5,150,105,.12)', borderWidth: 2, pointRadius: 0, fill: true, cubicInterpolationMode: 'monotone' },
-                { label: 'Hitos', data: milestones, borderColor: '#2a78d6', backgroundColor: '#2a78d6', pointStyle: 'rectRot', pointRadius: 7, pointHoverRadius: 9, showLine: false }
+                { label: 'Milestones', data: milestones, borderColor: '#2a78d6', backgroundColor: '#2a78d6', pointStyle: 'rectRot', pointRadius: 7, pointHoverRadius: 9, showLine: false }
             ] },
             options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false } } }
         });
@@ -77,7 +77,7 @@
         const paidAll = s.debts.reduce((t, d) => t + Math.max(0, Math.max(Number(d.originalBalance) || 0, Number(d.balance) || 0) - (Number(d.balance) || 0)), 0);
         const next = st === 1 ? `<strong>Step 1:</strong> save ${money0(Math.max(0, 1000 - ef.liquid))} more to reach $1,000 in your starter emergency fund.`
             : st === 2 ? (plan.never || plan.shortfall > 0 ? `<strong>Step 2:</strong> your budget isn't enough to get out of debt. Assign more money to your debts in the budget.`
-                : `<strong>Step 2:</strong> sends <strong>${money0(plan.pool)}/mes</strong> to your debts (minimums ${money0(plan.totalMin)}${plan.extra > 0 ? ` + ${money0(plan.extra)} extra` : ''}) and you're free in <strong>${freeDate}</strong>.${paidAll > 0 ? ` You've paid ${money0(paidAll)}. Keep going!` : ''}`)
+                : `<strong>Step 2:</strong> sends <strong>${money0(plan.pool)}/mo</strong> to your debts (minimums ${money0(plan.totalMin)}${plan.extra > 0 ? ` + ${money0(plan.extra)} extra` : ''}) and you're free in <strong>${freeDate}</strong>.${paidAll > 0 ? ` You've paid ${money0(paidAll)}. Keep going!` : ''}`)
             : st === 3 ? `<strong>Step 3:</strong> you have ${ef.monthsCovered.toFixed(1)} of 3–6 months of expenses (${money0(ef.monthlyEssential)}/mo). You need ${money0(Math.max(0, ef.monthlyEssential * 3 - ef.liquid))} more for 3 months.`
             : st === 4 ? `<strong>Steps 4–6:</strong> you save ${(ctx.savingsRate * 100).toFixed(0)}% of your salary (goal 15%); then your kids' education and extra mortgage payments.`
             : '<strong>Step 7:</strong> keep investing and give generously.';
@@ -129,7 +129,7 @@
                         title: (items) => (items[0] ? rows[items[0].dataIndex].debt.name : ''),
                         label: (c) => (c.raw ? `${c.dataset.label}: ${when(c.raw[0])} → ${when(c.raw[1])}` : '')
                     } },
-                    endLabels: { labels: rows.map(r => (r.payoffMonth ? when(r.payoffMonth) : 'Nunca')), dataset: rows.map((r, i) => (snowPart[i] ? 1 : 0)) }
+                    endLabels: { labels: rows.map(r => (r.payoffMonth ? when(r.payoffMonth) : 'Never')), dataset: rows.map((r, i) => (snowPart[i] ? 1 : 0)) }
                 }
             }
         });
@@ -161,7 +161,7 @@
 
         UI.html('debt-ladder-table', rows.map(r => `<tr><td class="font-semibold" data-i18n-skip>${esc(r.debt.name)}</td><td class="num">${money0(r.debt.balance)}</td>
             <td>${r.attackMonth ? (r.attackMonth <= 1 ? 'From today' : when(r.attackMonth - 1)) : '—'}</td>
-            <td>${r.payoffMonth ? `${when(r.payoffMonth)} (mes ${r.payoffMonth})` : 'Nunca'}</td></tr>`).join(''));
+            <td>${r.payoffMonth ? `${when(r.payoffMonth)} (mes ${r.payoffMonth})` : 'Never'}</td></tr>`).join(''));
         const marks = [];
         for (let m = 0; m < len; m += 12) marks.push(m);
         if (marks[marks.length - 1] !== len - 1) marks.push(len - 1);
@@ -197,7 +197,7 @@
             const orig = Math.max(Number(d.originalBalance) || 0, Number(d.balance) || 0);
             const paid = Math.max(0, orig - (Number(d.balance) || 0));
             const paidPct = orig > 0 ? paid / orig : 0;
-            row.querySelector('[data-cell="payoff"]').innerHTML = (info && info.payoffMonth ? `Mes ${info.payoffMonth} · ${Fmt.monthYear(Engine.addMonths(ctx.today, info.payoffMonth))}` : (Number(d.balance) > 0 ? 'Nunca' : '—'))
+            row.querySelector('[data-cell="payoff"]').innerHTML = (info && info.payoffMonth ? `Month ${info.payoffMonth} · ${Fmt.monthYear(Engine.addMonths(ctx.today, info.payoffMonth))}` : (Number(d.balance) > 0 ? 'Never' : '—'))
                 + (under ? '<span class="block"><span class="badge badge-bad">Below the minimum</span></span>' : '')
                 + (orig > 0 ? `<span class="block text-[11px] font-semibold text-slate-500 mt-1">Pagado ${money0(paid)} (${Math.round(paidPct * 100)}%)</span><div class="mini-bar"><span style="width:${(paidPct * 100).toFixed(1)}%;background:#059669"></span></div>` : '');
         });
@@ -209,7 +209,7 @@
             : `${Fmt.monthYear(Engine.addMonths(ctx.today, plan.months))} (${plan.months}m)`);
 
         // Where the money comes from, and whether the budget can actually pay it.
-        UI.text('debt-pool', `${money0(plan.pool)}/mes`);
+        UI.text('debt-pool', `${money0(plan.pool)}/mo`);
         UI.html('debt-pool-note', `Minimums ${money0(plan.totalMin)}${plan.extra > 0 ? ` · ${money0(plan.extra)} extra to the snowball` : ''}${ctx.debtExtraRubros > 0 ? ` (includes ${money0(ctx.debtExtraRubros)} from other debt lines)` : ''} · <a href="#" class="link" data-goto="presupuesto/plan">see budget</a>`);
         document.getElementById('debt-funding').className = `kpi ${plan.totalBalance <= 0 ? 'tone-slate' : plan.shortfall > 0 ? 'tone-red' : 'tone-emerald'}`;
         const warn = document.getElementById('debt-warning');
@@ -240,7 +240,7 @@
             const track = !sch || r.status === 'reached' ? ''
                 : sch.onTrack ? '<span class="badge badge-ok">On track</span>'
                 : `<span class="badge badge-bad" title="To get there on time">Behind: you need ${Fmt.money0(sch.required)}/mo</span>`;
-            cell.innerHTML = `<div class="flex justify-between text-[11px] text-slate-500"><span>${Fmt.money0(g.current)} de ${Fmt.money0(g.target)}</span><strong>${Math.round(pct * 100)}%</strong></div>
+            cell.innerHTML = `<div class="flex justify-between text-[11px] text-slate-500"><span>${Fmt.money0(g.current)} of ${Fmt.money0(g.target)}</span><strong>${Math.round(pct * 100)}%</strong></div>
                 <div class="mini-bar"><span style="width:${(pct * 100).toFixed(1)}%;background:#7c3aed"></span></div>
                 <div class="flex flex-wrap gap-1 mt-1">${eta}${track}</div>`;
         });
@@ -286,7 +286,7 @@
                 fields: [
                     { name: 'amount', label: 'Amount paid', type: 'number', min: 0, step: '0.01', value: Number(el.dataset.amount) || Number(d.monthly) || Number(d.minPayment) || '' },
                     { name: 'interest', label: 'Of that, interest', type: 'number', min: 0, step: '0.01', value: est, help: `Estimate: balance × ${Number(d.rate) || 0}% ÷ 12. If your statement shows a different figure, type it.` },
-                    { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) },
+                    { name: 'date', label: 'Date', type: 'date', value: Engine.isoDate(new Date()) },
                     { name: 'log', label: 'Also log it as a transaction?', options: [{ value: 'yes', label: 'Yes, in Transactions (counts in this debt\'s budget line)' }, { value: 'no', label: 'No, just lower the balance' }] }
                 ],
                 confirmText: 'Log payment',
@@ -335,10 +335,10 @@
             const r = await UI.form({
                 title: `Deposit to "${g.name}"`,
                 fields: [
-                    { name: 'amount', label: 'Monto', type: 'number', min: 0, step: '0.01', value: Number(el.dataset.amount) || Number(g.monthly) || '' },
+                    { name: 'amount', label: 'Amount', type: 'number', min: 0, step: '0.01', value: Number(el.dataset.amount) || Number(g.monthly) || '' },
                     { name: 'log', label: 'Also log it as a transaction?', options: [{ value: 'yes', label: 'Yes, in Transactions (counts on its budget line)' }, { value: 'no', label: 'No, just add to savings' }] }
                 ],
-                confirmText: 'Depositar',
+                confirmText: 'Deposit',
                 validate: v => Number(v.amount) > 0 ? null : 'Type an amount greater than 0.'
             });
             if (!r) return;
@@ -351,7 +351,7 @@
                 txns.push({ id: Store.nextId(txns), type: 'Gasto', description: `Deposit: ${g.name}`, store: '', parentCategory: cat, category: (tax[cat] || [])[0] || '', amount, date: Engine.isoDate(new Date()), paymentType: 'Transferencia', budgetLine: 'goal-' + g.id });
             }
             App.changed({ structural: true, step: true });
-            UI.toast(`${Fmt.money(amount)} deposited to "${g.name}". You have ${Fmt.money0(g.current)} of ${Fmt.money0(g.target)}.`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`${Fmt.money(amount)} deposited to "${g.name}". You have ${Fmt.money0(g.current)} of ${Fmt.money0(g.target)}.`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         },
         // Spend what was saved for this: the purchase is logged in its own category (so reports
         // show where the money went) but paid by the goal, so it doesn't count in this month's
@@ -367,12 +367,12 @@
                 title: `Use the money in "${g.name}"`,
                 message: `You have ${money(g.current)} saved here. The purchase goes into Transactions, but it doesn't count in this month's budget again: you already set it aside.`,
                 fields: [
-                    { name: 'amount', label: 'Monto', type: 'number', min: 0, step: '0.01', value: pre.amount || '' },
+                    { name: 'amount', label: 'Amount', type: 'number', min: 0, step: '0.01', value: pre.amount || '' },
                     { name: 'desc', label: 'What did you pay for?', value: pre.desc || g.name },
-                    { name: 'cat', label: 'Categoría', options: cats },
-                    { name: 'date', label: 'Fecha', type: 'date', value: Engine.isoDate(new Date()) }
+                    { name: 'cat', label: 'Category', options: cats },
+                    { name: 'date', label: 'Date', type: 'date', value: Engine.isoDate(new Date()) }
                 ],
-                confirmText: 'Registrar',
+                confirmText: 'Log',
                 validate: v => !(v.amount > 0) ? 'Type an amount greater than 0.' : !v.desc.trim() ? 'Type what you paid for.' : !v.date ? 'Pick a date.' : null
             });
             if (!r) return;

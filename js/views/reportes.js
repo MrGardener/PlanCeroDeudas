@@ -5,7 +5,7 @@
 
     // File headers in the app's language (the page is translated as it shows; files aren't).
     const tr = (s) => (window.I18n ? I18n.t(s) : s);
-    const BY_LABEL = { category: 'Categoría', sub: 'Subcategoría', line: 'Budget line', member: 'Persona', month: 'Mes', week: 'Semana', store: 'Place / store', payment: 'Payment method' };
+    const BY_LABEL = { category: 'Category', sub: 'Subcategory', line: 'Budget line', member: 'Person', month: 'Month', week: 'Week', store: 'Place / store', payment: 'Payment method' };
     const opts = () => (Store.ui.report = Object.assign({ range: 'this-month', type: 'Gasto', by: 'category', from: '', to: '' }, Store.ui.report));
 
     // Period presets → [from, to] as ISO dates.
@@ -31,7 +31,7 @@
             if ((t.type || 'Gasto') === 'Ingreso') {
                 const yd = Store.state.years[Number(t.date.slice(0, 4))];
                 const line = t.incomeId && yd && (yd.otherIncomes || []).find(x => x.id === t.incomeId);
-                return line ? line.name : Engine.isPayrollTxn(t) ? 'Sueldo' : 'Extra income';
+                return line ? line.name : Engine.isPayrollTxn(t) ? 'Salary' : 'Extra income';
             }
             const y = Number(t.date.slice(0, 4)), m = String(Number(t.date.slice(5, 7)));
             const key = y + '-' + m;
@@ -145,7 +145,7 @@
         document.getElementById('rep-to').value = o.to;
         const r = build(ctx);
         UI.text('rep-group-head', BY_LABEL[o.by]);
-        const what = o.type === 'Ingreso' ? 'Ingresos' : o.type === 'Gasto' ? 'Gastos' : 'Net (income − expenses)';
+        const what = o.type === 'Ingreso' ? 'Income' : o.type === 'Gasto' ? 'Expenses' : 'Net (income − expenses)';
         const range = o.range === 'all' ? 'the whole history' : `${r.from} a ${r.to}`;
         UI.html('rep-kpis', `
             <div class="kpi tone-slate"><span class="kpi-label">${what}</span><span class="kpi-value">${money(r.total)}</span><span class="kpi-note">${esc(range)}</span></div>

@@ -9,6 +9,7 @@
     "build:mobile": "cd mobile && node build-www.js",
     "e2e": "node tests/e2e/run.js",
     "i18n:missing": "node scripts/i18n-missing.js",
+    "i18n:spanish": "node scripts/i18n-spanish.js",
     "check": "npm run build && npm test && npm run build:mobile && npm run e2e"
   },
   "devDependencies": {
