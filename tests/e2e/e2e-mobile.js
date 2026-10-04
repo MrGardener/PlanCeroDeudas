@@ -56,6 +56,20 @@ const bridge = (prefs) => {
   const nav = await page.evaluate(() => { const r = document.getElementById('main-nav').getBoundingClientRect(); return { pos: getComputedStyle(document.getElementById('main-nav')).position, bottom: r.bottom, h: innerHeight }; });
   ok(nav.pos === 'fixed' && Math.abs(nav.bottom - nav.h) < 2, 'bottom nav ' + JSON.stringify(nav));
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no horizontal scroll');
+  // The keyboard takes half the screen: the field being typed in stays visible, the bottom bar steps aside.
+  await page.evaluate(() => { App.go('presupuesto/ingresos'); });
+  await page.waitForTimeout(200);
+  await page.focus('#inc-sueldo');
+  await page.setViewportSize({ width: 412, height: 460 });
+  await page.waitForTimeout(700);
+  const kb = await page.evaluate(() => { const r = document.getElementById('inc-sueldo').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: innerHeight, open: document.documentElement.classList.contains('kb-open'), nav: getComputedStyle(document.getElementById('main-nav')).display }; });
+  ok(kb.top >= 0 && kb.bottom <= kb.h && kb.open && kb.nav === 'none', 'keyboard open: the field stays in view and the bottom bar hides ' + JSON.stringify(kb));
+  await page.evaluate(() => document.activeElement.blur());
+  await page.setViewportSize({ width: 412, height: 915 });
+  await page.waitForTimeout(300);
+  ok(await page.evaluate(() => !document.documentElement.classList.contains('kb-open') && getComputedStyle(document.getElementById('main-nav')).display !== 'none'), 'keyboard closed: the bottom bar is back');
+  await page.evaluate(() => { App.go('resumen'); document.querySelectorAll('#dash-welcome details').forEach(d => { d.open = true; }); });
+  await page.waitForTimeout(200);
   ok(await page.evaluate(() => [...document.querySelectorAll('[data-action="app.print"]')].every(b => !b.offsetParent)), 'print hidden');
   const fab = await page.evaluate(() => document.querySelector('.fab').getBoundingClientRect().bottom), navTop = await page.evaluate(() => document.getElementById('main-nav').getBoundingClientRect().top);
   ok(fab < navTop, 'fab above nav');

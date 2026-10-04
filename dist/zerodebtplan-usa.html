@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>ZeroDebtPlan</title>
     <script>/* Edition: Ecuador or US (ZeroDebtPlan). The build fixes it; while developing, add ?edition=us */
     window.APP_EDITION = window.APP_EDITION || (true
@@ -792,6 +792,11 @@ html[data-theme="dark"] .nwc-gap > span { border-color: #94a3b8; }
     .table-cards-wrap.tall { max-height: none; }
     .table-cards td.c-check { grid-column: 1 / -1; display: flex; justify-content: flex-start; }
 }
+
+/* Phones: while the on-screen keyboard is open (a field has focus), the bottom bar and the + button
+   step aside so they don't cover the form (js/ui/core.js adds .kb-open). */
+html.kb-open .main-nav, html.kb-open .fab { display: none !important; }
+html.kb-open.is-native body { padding-bottom: 0; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -13782,6 +13787,31 @@ I18n.override('EC', 'es', {
         });
         return out;
     }
+
+    // Phones: the on-screen keyboard takes half the screen. Keep the field being typed in visible
+    // (scrolled to the middle of what's left, in the page or inside a sheet) and hide the bottom
+    // bar and the + button meanwhile, so they don't sit on top of the form.
+    const typing = (el) => el && (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || (el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'file', 'range', 'color'].includes(el.type)));
+    function keepFocusedVisible() {
+        const el = document.activeElement;
+        if (!typing(el)) return;
+        const vv = root.visualViewport, top = vv ? vv.offsetTop : 0, h = vv ? vv.height : root.innerHeight;
+        const r = el.getBoundingClientRect();
+        if (r.top < top + 12 || r.bottom > top + h - 12) el.scrollIntoView({ block: 'center', inline: 'nearest' });
+    }
+    if (typeof document !== 'undefined') {
+        const touch = () => root.matchMedia && root.matchMedia('(pointer: coarse)').matches;
+        document.addEventListener('focusin', (e) => {
+            if (!typing(e.target)) return;
+            if (touch()) document.documentElement.classList.add('kb-open');
+            // Once the keyboard has opened (and again when it finishes resizing the screen).
+            setTimeout(keepFocusedVisible, 350);
+        });
+        document.addEventListener('focusout', () => setTimeout(() => { if (!typing(document.activeElement)) document.documentElement.classList.remove('kb-open'); }, 100));
+        if (root.visualViewport) root.visualViewport.addEventListener('resize', () => setTimeout(keepFocusedVisible, 50));
+        else root.addEventListener('resize', () => setTimeout(keepFocusedVisible, 50));
+    }
+    UI.keepFocusedVisible = keepFocusedVisible;
 
     root.UI = UI;
 })(this);
