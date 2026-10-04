@@ -153,13 +153,17 @@
         const parents = Object.keys(tax);
         UI.html('cat-list', parents.length ? parents.map(p => `
             <div class="panel tone-slate bg-white">
-                <div class="flex items-center justify-between mb-1.5">
+                <div class="flex items-center justify-between gap-2 mb-1.5">
                     <span class="font-bold text-slate-800 text-xs">${esc(p)}</span>
-                    <button class="row-del" data-action="cat.deleteParent" data-parent="${esc(p)}" title="Delete category"><i class="fa-solid fa-trash-can"></i></button>
+                    <span class="flex items-center shrink-0">
+                        <button class="row-edit" data-action="cat.rename" data-parent="${esc(p)}" title="Rename category" aria-label="Rename category"><i class="fa-solid fa-pen"></i></button>
+                        <button class="row-del" data-action="cat.deleteParent" data-parent="${esc(p)}" title="Delete category" aria-label="Delete category"><i class="fa-solid fa-trash-can"></i></button>
+                    </span>
                 </div>
                 <div class="flex flex-wrap gap-1.5">${tax[p].map(s => `
-                    <span class="inline-flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-full pl-2 pr-1 py-0.5 text-[11px]">${esc(s)}
-                        <button class="text-red-400 hover:text-red-700 font-bold px-1" data-action="cat.deleteSub" data-parent="${esc(p)}" data-sub="${esc(s)}" title="Delete subcategory">×</button></span>`).join('') || '<span class="text-slate-400 text-[11px]">(no subcategories)</span>'}
+                    <span class="inline-flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-full pl-2 pr-1 py-0.5 text-[11px]"><button type="button" class="hover:underline" data-action="cat.renameSub" data-parent="${esc(p)}" data-sub="${esc(s)}" title="Rename subcategory">${esc(s)}</button>
+                        <button class="text-red-400 hover:text-red-700 font-bold px-1" data-action="cat.deleteSub" data-parent="${esc(p)}" data-sub="${esc(s)}" title="Delete subcategory" aria-label="Delete subcategory">×</button></span>`).join('') || '<span class="text-slate-400 text-[11px]">(no subcategories)</span>'}
+                    <button type="button" class="mini-btn" data-action="cat.addSub" data-parent="${esc(p)}">+ Subcategory</button>
                 </div>
             </div>`).join('') : '<p class="help">No categories. Add one with "+ New".</p>');
     }
@@ -1099,6 +1103,24 @@
             fillSubSelect(r.name.trim());
             renderCategories();
         },
+        // From Settings → Categories: new category, rename (carried everywhere), new subcategory.
+        'cat.addParent': async () => {
+            const type = document.getElementById('cat-type').value, tax = taxonomyFor(type);
+            const r = await UI.form({ title: `New ${type === 'Ingreso' ? 'income' : 'expense'} category`, fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Sports' }], confirmText: 'Create',
+                validate: v => !v.name.trim() ? 'Type a name.' : tax[v.name.trim()] ? 'That category already exists.' : null });
+            if (!r) return;
+            App.undoable(`Category "${r.name.trim()}" created`, () => { tax[r.name.trim()] = []; });
+        },
+        'cat.addSub': async (el) => {
+            const tax = taxonomyFor(document.getElementById('cat-type').value), parent = el.dataset.parent;
+            if (!tax[parent]) return;
+            const r = await UI.form({ title: `New subcategory of "${parent}"`, fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Gym' }], confirmText: 'Create',
+                validate: v => !v.name.trim() ? 'Type a name.' : tax[parent].includes(v.name.trim()) ? 'That subcategory already exists.' : null });
+            if (!r) return;
+            App.undoable(`Subcategory "${r.name.trim()}" created`, () => { tax[parent].push(r.name.trim()); });
+        },
+        'cat.rename': async (el) => renameCat(el.dataset.parent),
+        'cat.renameSub': async (el) => renameCat(el.dataset.parent, el.dataset.sub),
         'cat.deleteParent': (el) => {
             const tax = taxonomyFor(document.getElementById('cat-type').value);
             const p = el.dataset.parent;
@@ -1111,6 +1133,22 @@
             App.undoable(`"${sub}" eliminada`, () => { tax[parent] = tax[parent].filter(s => s !== sub); });
         }
     });
+
+    async function renameCat(category, sub) {
+        const type = document.getElementById('cat-type').value, tax = taxonomyFor(type);
+        const current = sub === undefined ? category : sub;
+        const taken = (name) => (sub === undefined ? !!tax[name] : tax[category].includes(name));
+        // Built-in names are saved in Spanish and shown translated: start from what the person sees.
+        const shown = window.I18n ? I18n.t(current) : current;
+        const r = await UI.form({ title: sub === undefined ? 'Rename category' : 'Rename subcategory', fields: [{ name: 'name', label: 'New name', value: shown }], confirmText: 'Rename',
+            validate: v => !v.name.trim() ? 'Type a name.' : v.name.trim() !== shown && taken(v.name.trim()) ? 'That name is already used.' : null });
+        if (!r || r.name.trim() === shown || r.name.trim() === current) return;
+        const to = r.name.trim().slice(0, 60);
+        let n = 0;
+        App.undoable(`Renamed to "${to}"`, () => { n = Engine.renameCategory(Store.state, { kind: type === 'Ingreso' ? 'income' : 'expense', category, sub, to }); });
+        if (n) UI.toast(`${n} item${n === 1 ? '' : 's'} updated with the new name.`, 'ok');
+    }
+    window.Categories = { render: renderCategories };
 
     App.defineView('transacciones/lista', { render, update });
 })();

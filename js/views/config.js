@@ -6,6 +6,7 @@
     function render(ctx) {
         const s = ctx.state, yd = ctx.year;
         UI.html('cfg-guide-body', Views.guideHTML());
+        if (window.Categories) Categories.render();
         renderMembers();
         renderDevice();
         const curSel = document.getElementById('cfg-currency');

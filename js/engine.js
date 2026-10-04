@@ -388,6 +388,53 @@
     // Transactions labelled as the salary itself (Sueldo/Salario, décimos) aren't added: the
     // salary already comes from "Tu Sueldo". The person can mark one as extra (t.countAsExtra).
     const PAYROLL_SUBCATEGORIES = ['Sueldo/Salario', 'Décimo Tercero', 'Décimo Cuarto'];
+
+    // Rename a category, or one of its subcategories (sub = the subcategory's current name), in
+    // everything that saves it: the list, transactions, scheduled transactions, rules, budget lines
+    // and income lines of every year. kind: 'expense' | 'income'. Returns how many items changed.
+    // settings.renamed remembers it, so the statement reader's guesses (which use the original
+    // names) still land in the renamed category.
+    function renameCategory(state, { kind, category, sub, to }) {
+        const tax = state.taxonomy && state.taxonomy[kind];
+        to = String(to || '').trim();
+        if (!tax || !tax[category] || !to) return 0;
+        const isKind = (type) => (kind === 'income') === (type === 'Ingreso');
+        let n = 0;
+        const fix = (o, catKey, subKey) => {
+            if (!o || o[catKey] !== category) return;
+            if (sub === undefined) { o[catKey] = to; n++; }
+            else if (subKey && o[subKey] === sub) { o[subKey] = to; n++; }
+        };
+        if (sub === undefined) {
+            if (tax[to]) return 0;
+            Object.keys(tax).forEach(k => { const v = tax[k]; delete tax[k]; tax[k === category ? to : k] = v; });
+        } else {
+            if (!tax[category].includes(sub) || tax[category].includes(to)) return 0;
+            tax[category] = tax[category].map(s => (s === sub ? to : s));
+        }
+        (state.transactions || []).concat(state.recurring || []).forEach(t => { if (isKind(t.type || 'Gasto')) fix(t, 'parentCategory', 'category'); });
+        (state.rules || []).forEach(r => { if (r.type !== 'Transferencia') fix(r, 'category', 'sub'); });
+        Object.values(state.years || {}).forEach(y => {
+            if (kind === 'expense') {
+                (y.budgetBase || []).forEach(i => fix(i, 'linkedCategory'));
+                Object.values(y.monthOverrides || {}).forEach(list => (list || []).forEach(i => fix(i, 'linkedCategory')));
+            } else (y.otherIncomes || []).forEach(l => fix(l, 'category'));
+        });
+        const s = state.settings || (state.settings = {});
+        const renamed = s.renamed || (s.renamed = {});
+        // Keyed by the original name, so a second rename still points the guesses at the right place.
+        const orig = Object.keys(renamed).find(k => renamed[k] === `${kind}|${category}${sub !== undefined ? '|' + sub : ''}`);
+        renamed[orig || `${kind}|${category}${sub !== undefined ? '|' + sub : ''}`] = `${kind}|${sub !== undefined ? category + '|' + to : to}`;
+        return n;
+    }
+    // Where an original category (and subcategory) lives now, after renames.
+    function renamedCategory(settings, kind, category, sub) {
+        const r = (settings && settings.renamed) || {};
+        const parent = r[`${kind}|${category}`];
+        const cat = parent ? parent.split('|')[1] : category;
+        const s = sub ? r[`${kind}|${category}|${sub}`] || r[`${kind}|${cat}|${sub}`] : null;
+        return { category: cat, sub: s ? s.split('|')[2] : sub };
+    }
     const isPayrollTxn = (t) => PAYROLL_SUBCATEGORIES.includes(t.category) && !t.countAsExtra;
 
     // Income transactions of one year, by month: { '9': { txns: [txn], payroll: [txn] } }.
@@ -2308,7 +2355,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
