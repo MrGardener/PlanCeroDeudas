@@ -30,34 +30,34 @@
     function render(ctx) {
         if (!document.getElementById('inc-side')) return;
         const f = facts(ctx), p = ctx.pay, yd = ctx.year, us = p.country === 'US';
-        if (!f.count) { UI.html('inc-side', `<p class="help">Cuando registres ingresos en «${esc(SIDE)}» (trabajos por tu cuenta, ventas, honorarios), aquí verás cuánto apartar para impuestos.</p>`); return; }
+        if (!f.count) { UI.html('inc-side', `<p class="help">When you log income under «${esc(SIDE)}» (gigs, sales, professional fees), you'll see here how much to set aside for taxes.</p>`); return; }
         const w = yd.withholding || {};
         const r = Engine.sideIncomeTax(us
             ? { country: 'US', net: f.net, yd, wages: p.sueldoAnual + (Number(w.spouseWages) || 0), taxableBefore: p.baseImponible + (Number(w.spouseWages) || 0), stateRate: p.stateRate }
             : { country: 'EC', net: f.net, yd, ecBase: f.other ? 0 : p.baseImponible });
         const pct = Math.round(r.pct * 100);
-        const parts = us ? `autoempleo ${money0(r.parts.se)} + federal ${money0(r.parts.fed)}${r.parts.state ? ` + estatal ${money0(r.parts.state)}` : ''}` : `impuesto a la renta a tu tasa`;
+        const parts = us ? `autoempleo ${money0(r.parts.se)} + federal ${money0(r.parts.fed)}${r.parts.state ? ` + estatal ${money0(r.parts.state)}` : ''}` : `income tax at your rate`;
         const due = quarterly(ctx.today);
         UI.html('inc-side', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div class="kpi tone-slate"><span class="kpi-label">Ingreso extra (12 meses)</span><span class="kpi-value">${money0(f.net)}</span><span class="kpi-note">${money0(f.income)} cobrado − ${money0(f.expenses)} de gastos del negocio</span></div>
-                <div class="kpi tone-amber"><span class="kpi-label">Impuestos estimados</span><span class="kpi-value">${money0(r.total)}</span><span class="kpi-note">${parts}</span></div>
-                <div class="kpi tone-emerald"><span class="kpi-label">Aparta de cada cobro</span><span class="kpi-value">${pct}%</span><span class="kpi-note">${f.thisMonth ? `este mes: ${money0(f.thisMonth * r.pct)} de ${money0(f.thisMonth)}` : 'de lo que cobres'}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">Side income (12 months)</span><span class="kpi-value">${money0(f.net)}</span><span class="kpi-note">${money0(f.income)} received − ${money0(f.expenses)} of business expenses</span></div>
+                <div class="kpi tone-amber"><span class="kpi-label">Estimated taxes</span><span class="kpi-value">${money0(r.total)}</span><span class="kpi-note">${parts}</span></div>
+                <div class="kpi tone-emerald"><span class="kpi-label">Set aside from each payment</span><span class="kpi-value">${pct}%</span><span class="kpi-note">${f.thisMonth ? `this month: ${money0(f.thisMonth * r.pct)} of ${money0(f.thisMonth)}` : 'of what you\'re paid'}</span></div>
             </div>
             <p class="text-xs mt-3">${us
-                ? `Nadie te retiene impuestos de este dinero. Págalos por trimestre (próximo: <strong>${esc(Fmt.dayMonth ? Fmt.dayMonth(due) : due.toISOString().slice(0, 10))}</strong>, unos ${money0(r.total / 4)}) o súbele a tu retención en el W-4 para cubrirlos.`
-                : `${f.other ? `<span>Calculado como ingreso de ${esc(f.other.name)}, que declara por separado.</span> ` : ''}<span>Va en la declaración anual del impuesto a la renta. Si los clientes hacen retención, esa parte ya está pagada; en el RIMPE el cálculo es distinto (sobre las ventas).</span>`}
-                <button type="button" class="link" data-action="side.goal" data-amount="${Math.round(r.total)}">Crear un apartado para estos impuestos</button></p>
-            <p class="help mt-1">Estimado con tus tablas de ${yd.taxTableYear || ctx.state.activeYear}. Cuenta tus ingresos en «${esc(SIDE)}» y tus gastos en «${esc(BIZ)}».</p>`);
+                ? `No one withholds taxes from this money. Pay them quarterly (next: <strong>${esc(Fmt.dayMonth ? Fmt.dayMonth(due) : due.toISOString().slice(0, 10))}</strong>, about ${money0(r.total / 4)}) or raise the withholding on your W-4 to cover them.`
+                : `${f.other ? `<span>Calculated as ${esc(f.other.name)}'s income, who files separately.</span> ` : ''}<span>It goes in the yearly income tax return. If clients withhold tax, that part is already paid; under RIMPE the calculation is different (on sales).</span>`}
+                <button type="button" class="link" data-action="side.goal" data-amount="${Math.round(r.total)}">Set up a fund for these taxes</button></p>
+            <p class="help mt-1">Estimated with your ${yd.taxTableYear || ctx.state.activeYear} tables. It counts your income under «${esc(SIDE)}» and your expenses under «${esc(BIZ)}».</p>`);
     }
 
     UI.register({
         // A savings goal that holds the tax money until it's paid.
         'side.goal': (el) => {
             const total = Number(el.dataset.amount) || 0;
-            const name = window.I18n ? I18n.t('Impuestos por pagar') : 'Impuestos por pagar';
+            const name = window.I18n ? I18n.t('Taxes to pay') : 'Taxes to pay';
             const goals = Store.state.goals;
-            if (goals.some(g => g.taxFund)) { UI.toast('Ya tienes tu apartado de impuestos en Deudas y Metas.', 'warn'); return; }
-            App.undoable(`Meta «${name}» creada: ${money(total / 12)} al mes en tu presupuesto`, () => {
+            if (goals.some(g => g.taxFund)) { UI.toast('You already have your tax fund in Debts & Goals.', 'warn'); return; }
+            App.undoable(`Goal «${name}» created: ${money(total / 12)} a month in your budget`, () => {
                 goals.push({ id: Store.nextId(goals), name, target: total, current: 0, monthly: Math.ceil(total / 12), rate: 0, createdYear: new Date().getFullYear(), taxFund: true });
             });
         }

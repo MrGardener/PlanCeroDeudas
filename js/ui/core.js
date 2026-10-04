@@ -28,7 +28,7 @@
                 const el = e.target.closest(`[${attr}]`);
                 if (!el) return;
                 const fn = actions[el.getAttribute(attr)];
-                if (!fn) { console.warn('Acción no registrada:', el.getAttribute(attr)); return; }
+                if (!fn) { console.warn('Unregistered action:', el.getAttribute(attr)); return; }
                 if (attr === 'data-action' && el.tagName === 'A') e.preventDefault();
                 // Which field is being edited (stable across re-renders), for undo grouping.
                 UI.source = [el.getAttribute(attr), el.dataset.id, el.dataset.ref, el.dataset.field, el.dataset.bind].join('|');
@@ -151,7 +151,7 @@
             back.className = 'modal-backdrop sheet';
             back.innerHTML = `<div class="modal ${wide ? 'modal-wide' : ''}" role="dialog" aria-modal="true">
                     <div class="flex items-start justify-between gap-3"><h3 class="modal-title"><i class="fa-solid ${icon}"></i><span></span></h3>
-                    <button type="button" class="row-del text-lg" data-dialog-cancel aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button></div>
+                    <button type="button" class="row-del text-lg" data-dialog-cancel aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
                     <div class="sheet-body">${html}</div></div>`;
             back.querySelector('.modal-title span').textContent = title;
             const close = () => { if (!back.isConnected) return; back.remove(); if (onClose) onClose(); };
@@ -169,7 +169,7 @@
             if (!canvas || typeof Chart === 'undefined') return null;
             registerTodayLine();
             // Chart text lives in the canvas, outside the page: translate it here.
-            if (root.I18n && I18n.lang !== 'es') {
+            if (root.I18n) {
                 const tr = (v) => (typeof v === 'string' ? I18n.t(v) : v);
                 if (Array.isArray(config.data.labels)) config.data.labels = config.data.labels.map(tr);
                 (config.data.datasets || []).forEach(d => { d.label = tr(d.label); });

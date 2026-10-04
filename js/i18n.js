@@ -1,15 +1,20 @@
 /*
- * Language layer. The app is written in Spanish; other languages are dictionaries
- * (js/i18n/en.js…) keyed by the Spanish text. Everything on screen is translated as it appears:
- * text, placeholder / title / aria-label, toasts, dialogs and chart labels.
+ * Language layer. The app is written in English (US wording); other languages are dictionaries
+ * keyed by that text (js/i18n/es.js). Everything on screen is translated as it appears: text,
+ * placeholder / title / aria-label, toasts, dialogs and chart labels.
  *
- *   static text   'Ingreso neto mensual'            → 'Monthly net income'
- *   with values   'Te quedan {0} para {1} día{2}.'  → '{0} left for {1} day{2|s}.'
+ *   static text   'Monthly net income'            → 'Ingreso neto mensual'
+ *   with values   '{0} left for {1} day{2}.'      → 'Te quedan {0} para {1} día{2|s|}.'
  *
- * In a translation, {n} is the value as shown; {n|word} prints "word" only when the value is
- * not empty (Spanish plural endings like "es" / "s" → English "s"). Values that are themselves
- * in the dictionary (a month, a category…) are translated too. Elements marked
- * data-i18n-skip (and their children) are left alone: that's for the user's own words.
+ * In a translation, {n} is the value as shown; {n|a|b} prints a when the value is not empty and
+ * b when it is (plural endings: English "s" → Spanish "es" / "s"); {n|a} is {n|a|}. Values that
+ * are themselves in a dictionary (a month, a category…) are translated too.
+ *
+ * Saved data stays in Spanish (category names, types: 'Alimentación', 'Gasto'), and some older
+ * text in the code is still Spanish: js/i18n/en.js translates those to English, and the
+ * edition's Spanish wording (js/i18n/us.js) applies to them first.
+ * An edition can reword English text for its country (js/i18n/ec.js: I18n.override).
+ * Elements marked data-i18n-skip (and their children) are left alone: the user's own words.
  */
 (function (root) {
     'use strict';
@@ -17,8 +22,11 @@
     const norm = (s) => String(s).replace(/\s+/g, ' ').trim();
     const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+    const SOURCE = 'en';     // the language of the text in the code
     const dicts = {};        // lang → { exact: Map, patterns: [{ re, out, prefix }] , byPrefix: Map }
-    let lang = 'es';
+    const overrides = {};    // country → lang → compiled dictionary
+    let lang = SOURCE;
+    let known = null;        // English texts with a translation (pass-through, so their values translate)
 
     function compile(entries) {
         const d = { exact: new Map(), byPrefix: new Map(), lead: [] };
@@ -27,10 +35,13 @@
             if (!/\{\d+\}/.test(key)) { d.exact.set(key, out); return; }
             const parts = key.split(/\{(\d+)\}/);
             const order = [];
+            // A value that only picks an ending ({n|s|}) is a short ending, never a phrase.
+            const endings = new Set();
+            String(out).replace(/\{(\d+)\|([^}]*)\}/g, (_, n, alt) => { if (alt.split('|').every(x => x.length <= 4)) endings.add(n); return ''; });
             let src = '^';
             // A value never ends right before a decimal point: "$3,191.65." must not split at "191".
             parts.forEach((p, i) => {
-                if (i % 2) { src += '([\\s\\S]*?)'; order.push(Number(p)); return; }
+                if (i % 2) { src += endings.has(p) ? '(\\S{0,4}?)' : '([\\s\\S]*?)'; order.push(Number(p)); return; }
                 let lit = esc(p);
                 if (i > 0 && /^[.,]/.test(p)) lit = lit.replace(/^(\\?[.,])/, '$1(?!\\d)');
                 src += lit;
@@ -55,7 +66,7 @@
         return out.replace(/\{(\d+)(?:\|([^}]*))?\}/g, (_, n, alt) => {
             const v = vals[Number(n)];
             if (v === undefined) return '';
-            if (alt !== undefined) return v ? alt : '';
+            if (alt !== undefined) { const [a, b = ''] = alt.split('|'); return v ? a : b; }
             return depth < 3 ? translate(v, depth + 1) : v;
         });
     }
@@ -98,31 +109,48 @@
         return hit;
     }
 
-    // Country wording first (the US edition says "Seguro Social" where Ecuador says "IESS"),
-    // then the language.
+    // Edition wording for this language first, then the language's dictionary. Text that is
+    // still Spanish (saved data, older code) goes through the edition's Spanish wording and,
+    // in English, js/i18n/en.js.
     function t(text) {
         if (text == null) return text;
         const s = String(text);
         const key = norm(s);
         if (!key || !/[A-Za-zÁÉÍÓÚáéíóúñÑ]/.test(key)) return s;
-        let cur = key;
-        let changed = false;
-        if (country && !inCountry) {
-            inCountry = true;
-            try { const o = lookup(country, key); if (o !== undefined) { cur = norm(o); changed = true; } } finally { inCountry = false; }
+        let cur;
+        const o = overrides[countryCode] && overrides[countryCode][lang];
+        if (o) cur = lookup(o, key);
+        if (cur === undefined) cur = lookup(lang === SOURCE ? knownDict() : dicts[lang] || knownDict(), key);
+        if (cur === undefined) {
+            let sp = key, changed = false;
+            if (country && !inCountry) {
+                inCountry = true;
+                try { const c = lookup(country, key); if (c !== undefined) { sp = norm(c); changed = true; } } finally { inCountry = false; }
+            }
+            if (lang === LEGACY && dicts[LEGACY] && !inCountry) {
+                const hit = lookup(dicts[LEGACY], sp);
+                if (hit !== undefined) { sp = hit; changed = true; }
+            }
+            if (changed) cur = sp;
         }
-        if (lang !== 'es' && dicts[lang] && !inCountry) {
-            const hit = lookup(dicts[lang], cur);
-            if (hit !== undefined) { cur = hit; changed = true; }
-        }
-        if (!changed) return s;
+        if (cur === undefined || cur === key) return s;
         // Keep the spaces around the original text.
         const lead = s.match(/^\s*/)[0], trail = s.match(/\s*$/)[0];
         return lead + cur + trail;
     }
-    let country = null, inCountry = false;
+    // Spanish → English for text that is still Spanish (js/i18n/en.js).
+    const LEGACY = 'en';
+    function knownDict() {
+        if (!known) {
+            const src = {};
+            Object.keys(dicts).forEach(l => { if (l !== LEGACY) Object.keys(dicts[l].src).forEach(k => { src[k] = k; }); });
+            Object.values(overrides).forEach(byLang => Object.values(byLang).forEach(d => Object.keys(d.src).forEach(k => { src[k] = k; })));
+            known = compile(src);
+        }
+        return known;
+    }
+    let country = null, countryCode = null, inCountry = false;
     const countries = {};
-    const active = () => lang !== 'es' || !!country;
 
     const skip = (el) => el && el.closest && el.closest('[data-i18n-skip], script, style, textarea');
 
@@ -147,7 +175,7 @@
     }
 
     function apply(rootEl) {
-        if (!active() || !rootEl) return;
+        if (!rootEl) return;
         if (rootEl.nodeType === 3) { if (!skip(rootEl.parentElement)) translateText(rootEl); return; }
         if (rootEl.nodeType !== 1 || skip(rootEl)) return;
         translateAttrs(rootEl);
@@ -158,7 +186,7 @@
         while ((n = w.nextNode())) { if (n.nodeType === 3) translateText(n); else translateAttrs(n); }
     }
 
-    // Back to Spanish: put the original text back where it was replaced.
+    // Back to the source text: put the original text back where it was replaced.
     function restore(rootEl) {
         const w = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
         let n;
@@ -175,7 +203,7 @@
     function observe() {
         if (observer || typeof MutationObserver === 'undefined') return;
         observer = new MutationObserver((muts) => {
-            if (busy || !active()) return;
+            if (busy) return;
             busy = true;
             try {
                 muts.forEach(m => {
@@ -188,8 +216,9 @@
         observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
     }
 
-    // The edition's own wording (Spanish → Spanish), applied before translating.
+    // The edition: its overrides, and its Spanish wording for text that is still Spanish.
     function setCountry(code) {
+        countryCode = code || null;
         country = countries[code] || null;
         if (typeof document === 'undefined' || !document.body) return;
         busy = true;
@@ -198,23 +227,27 @@
     }
 
     function setLang(l) {
-        const next = dicts[l] || l === 'es' ? l : 'es';
+        const next = l === SOURCE || dicts[l] ? l : SOURCE;
+        // Dates and numbers follow the language (also on the first call, when it doesn't change).
+        if (root.Fmt && Fmt.setLang) Fmt.setLang(next);
+        document.documentElement.lang = next;
         if (next === lang) return;
-        const prev = lang;
         lang = next;
-        document.documentElement.lang = lang;
-        if (root.Fmt && Fmt.setLang) Fmt.setLang(lang);
         busy = true;
-        try { if (prev !== 'es' || country) restore(document.body); apply(document.body); } finally { busy = false; }
+        try { restore(document.body); apply(document.body); } finally { busy = false; }
         observe();
     }
 
+    const merge = (prev, entries) => { const src = Object.assign({}, prev ? prev.src : {}, entries); const d = compile(src); d.src = src; return d; };
+
     root.I18n = {
-        add(l, entries) { const src = Object.assign({}, dicts[l] ? dicts[l].src : {}, entries); dicts[l] = compile(src); dicts[l].src = src; },
+        add(l, entries) { dicts[l] = merge(dicts[l], entries); known = null; },
         keys: (l) => Object.keys((dicts[l] && dicts[l].src) || {}),
-        country(code, entries) { const src = Object.assign({}, countries[code] ? countries[code].src : {}, entries); countries[code] = compile(src); countries[code].src = src; },
+        country(code, entries) { countries[code] = merge(countries[code], entries); },
         countryKeys: (code) => Object.keys((countries[code] && countries[code].src) || {}),
+        override(code, l, entries) { overrides[code] = overrides[code] || {}; overrides[code][l] = merge(overrides[code][l], entries); known = null; },
+        overrideKeys: (code, l) => Object.keys((overrides[code] && overrides[code][l] && overrides[code][l].src) || {}),
         setCountry,
-        t, apply, setLang, get lang() { return lang; }, has: (l) => l === 'es' || !!dicts[l]
+        t, apply, setLang, get lang() { return lang; }, get countryCode() { return countryCode; }, has: (l) => l === SOURCE || !!dicts[l]
     };
 })(this);

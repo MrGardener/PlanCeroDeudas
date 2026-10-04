@@ -17,8 +17,8 @@
     const tabs = [
         { id: 'resumen', label: 'Resumen', icon: 'fa-gauge-high' },
         { id: 'presupuesto', label: 'Presupuesto', icon: 'fa-wallet', subviews: [
-            { id: 'plan', label: 'Presupuesto del Mes', icon: 'fa-table-list' },
-            { id: 'ingresos', label: 'Ingresos e Impuestos', icon: 'fa-receipt' }
+            { id: 'plan', label: 'Monthly Budget', icon: 'fa-table-list' },
+            { id: 'ingresos', label: 'Income & Taxes', icon: 'fa-receipt' }
         ] },
         { id: 'transacciones', label: 'Transacciones', icon: 'fa-cart-shopping', subviews: [
             { id: 'lista', label: 'Historial', icon: 'fa-list' },
@@ -26,9 +26,9 @@
             { id: 'reportes', label: 'Reportes', icon: 'fa-chart-pie' }
         ] },
         { id: 'futuro', label: 'Futuro', icon: 'fa-road', subviews: [
-            { id: 'metas', label: 'Deudas y Metas', icon: 'fa-bullseye' },
-            { id: 'proyeccion', label: 'Ahorro DPF', icon: 'fa-piggy-bank' },
-            { id: 'polizas', label: 'Pólizas y Cooperativas', icon: 'fa-file-contract' },
+            { id: 'metas', label: 'Debts & Goals', icon: 'fa-bullseye' },
+            { id: 'proyeccion', label: 'Savings & CDs', icon: 'fa-piggy-bank' },
+            { id: 'polizas', label: 'CDs & Banks', icon: 'fa-file-contract' },
             { id: 'hipoteca', label: 'Hipoteca', icon: 'fa-house-chimney' },
             { id: 'jubilacion', label: 'Jubilación', icon: 'fa-person-cane' },
             { id: 'calculadoras', label: 'Calculadoras', icon: 'fa-calculator' }
@@ -288,18 +288,18 @@
 
     function undo() {
         commitHistory();
-        if (!hist.past.length) { UI.toast('No hay nada que deshacer.', 'error'); return; }
+        if (!hist.past.length) { UI.toast('Nothing to undo.', 'error'); return; }
         hist.future.push(hist.committed);
         restore(hist.past.pop());
-        UI.toast('Cambio deshecho', 'ok', { label: 'Rehacer', className: 'toast-undo', onClick: redo });
+        UI.toast('Change undone', 'ok', { label: 'Rehacer', className: 'toast-undo', onClick: redo });
     }
 
     function redo() {
         commitHistory();
-        if (!hist.future.length) { UI.toast('No hay nada que rehacer.', 'error'); return; }
+        if (!hist.future.length) { UI.toast('Nothing to redo.', 'error'); return; }
         hist.past.push(hist.committed);
         restore(hist.future.pop());
-        UI.toast('Cambio rehecho');
+        UI.toast('Change redone');
     }
 
     function renderHistoryButtons() {
@@ -342,7 +342,7 @@
             if (m.done && !got[m.key]) { got[m.key] = first ? seed[m.key] || 'antes' : Engine.isoDate(t); if (!first) fresh.push(m); }
             else if (!m.done && got[m.key]) delete got[m.key];
         });
-        if (fresh.length) setTimeout(() => UI.toast(`🎉 ¡Logro! ${fresh.map(m => m.label).join(' · ')}`, 'ok'), 400);
+        if (fresh.length) setTimeout(() => UI.toast(`🎉 Milestone! ${fresh.map(m => m.label).join(' · ')}`, 'ok'), 400);
     }
 
     function changed(opts = {}) {
@@ -372,12 +372,12 @@
         if (!el) return;
         if (status.error) {
             el.className = 'save-status save-error';
-            el.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i><span class="hidden sm:inline">No se pudo guardar</span>';
+            el.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i><span class="hidden sm:inline">Couldn\'t save</span>';
             el.title = status.error;
         } else if (status.lastSavedAt) {
             el.className = 'save-status';
-            el.innerHTML = '<i class="fa-solid fa-circle-check"></i><span class="hidden sm:inline">Guardado</span>';
-            el.title = 'Guardado automáticamente en este navegador a las ' + status.lastSavedAt.toLocaleTimeString('es-EC');
+            el.innerHTML = '<i class="fa-solid fa-circle-check"></i><span class="hidden sm:inline">Saved</span>';
+            el.title = 'Saved automatically in this browser at ' + status.lastSavedAt.toLocaleTimeString('es-EC');
         }
     }
 
@@ -394,7 +394,7 @@
         'app.redo': () => redo(),
         // Leave the example family for an empty plan of your own (undoable).
         'app.startOwn': async () => {
-            const ok = await UI.confirm({ title: 'Empezar con mis datos', message: 'Se borra la familia de ejemplo y empiezas con un plan vacío. Puedes volver a ver el ejemplo desde Configuración.', confirmText: 'Empezar' });
+            const ok = await UI.confirm({ title: 'Start with my own data', message: 'The example family is removed and you start with an empty plan. You can see the example again from Settings.', confirmText: 'Empezar' });
             if (!ok) return;
             commitHistory();
             Store.reset('empty');
@@ -409,7 +409,7 @@
             const st = Store.state.settings;
             st.movesSnoozed = Object.assign({}, st.movesSnoozed, { [el.dataset.key]: Engine.isoDate(d) });
             changed({ step: true });
-            UI.toast('Listo: te lo recordamos en 2 semanas.', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: undo });
+            UI.toast('Done: we\'ll remind you in 2 weeks.', 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: undo });
         },
         'app.help': () => {
             go('config', { focus: 'cfg-guide' });

@@ -5,23 +5,23 @@
 
     // Ecuador-adapted Baby Steps: what each step means and where in the app you work on it.
     const STEP_INFO = {
-        1: { text: '$1,000 líquidos para imprevistos sin recurrir a tarjetas.', goto: 'futuro/metas', focus: 'metas-ef' },
-        2: { text: 'Elimina las deudas de consumo, de la más pequeña a la más grande.', goto: 'futuro/metas', focus: 'metas-debts' },
-        3: { text: '3–6 meses de gastos esenciales para desempleo o imprevistos que el IESS no cubre.', goto: 'futuro/metas', focus: 'metas-ef' },
-        4: { text: 'Invierte el 15% de tu sueldo en DPF de cooperativas Segmento 1 (COSEDE).', goto: 'futuro/jubilacion' },
-        5: { text: 'Pólizas DPF acumulativas para los estudios de tus hijos.', goto: 'futuro/metas', focus: 'metas-goals' },
-        6: { text: 'Abonos extraordinarios a tu préstamo BIESS o bancario.', goto: 'futuro/hipoteca' },
-        7: { text: 'Libertad financiera: sigue invirtiendo y da con generosidad.', goto: 'patrimonio' }
+        1: { text: '$1,000 in cash for emergencies so you don\'t reach for credit cards.', goto: 'futuro/metas', focus: 'metas-ef' },
+        2: { text: 'Pay off consumer debt, smallest to largest.', goto: 'futuro/metas', focus: 'metas-debts' },
+        3: { text: '3–6 months of essential expenses for job loss or emergencies your insurance doesn\'t cover.', goto: 'futuro/metas', focus: 'metas-ef' },
+        4: { text: 'Invest 15% of your income in your 401(k) and Roth IRA.', goto: 'futuro/jubilacion' },
+        5: { text: 'Save for your kids\' college (529 plan or ESA).', goto: 'futuro/metas', focus: 'metas-goals' },
+        6: { text: 'Extra payments on your mortgage to pay it off sooner.', goto: 'futuro/hipoteca' },
+        7: { text: 'Financial freedom: keep investing and give generously.', goto: 'patrimonio' }
     };
 
     function stepsHTML(ctx, { compact = false } = {}) {
         return ctx.steps.steps.map(s => {
             const info = STEP_INFO[s.n];
             const icon = s.state === 'done' ? '<i class="fa-solid fa-check"></i>' : s.n;
-            const status = s.state === 'done' ? '<span class="badge badge-ok">Completado</span>'
-                : s.state === 'current' ? '<span class="badge badge-info">En curso</span>'
-                : s.n === 7 ? '<span class="badge badge-muted">Meta final</span>'
-                : s.done === null ? '<span class="badge badge-muted">Opcional</span>' : '';
+            const status = s.state === 'done' ? '<span class="badge badge-ok">Completed</span>'
+                : s.state === 'current' ? '<span class="badge badge-info">In progress</span>'
+                : s.n === 7 ? '<span class="badge badge-muted">Target amount</span>'
+                : s.done === null ? '<span class="badge badge-muted">Optional</span>' : '';
             return `
                 <button type="button" class="step ${s.state}" data-goto="${info.goto}" ${info.focus ? `data-focus="${info.focus}"` : ''}>
                     <span class="step-num">${icon}</span>
@@ -39,8 +39,8 @@
         switch (st.kind) {
             case 'unlinked': return '<span class="text-slate-300">—</span>';
             case 'empty': return '<span class="text-slate-400 text-[11px]">$0.00</span>';
-            case 'unbudgeted': return `<span class="badge badge-bad">${money(st.spent)} sin presupuesto</span>`;
-            case 'untouched': return `<span class="badge badge-info" title="Sin transacciones en el período">$0 de ${money0(st.target)}</span>`;
+            case 'unbudgeted': return `<span class="badge badge-bad">${money(st.spent)} without a budget</span>`;
+            case 'untouched': return `<span class="badge badge-info" title="No transactions in the period">$0 de ${money0(st.target)}</span>`;
             case 'over': return `<span class="badge badge-bad">${money(st.spent)} · +${money0(st.over)}</span>`;
             case 'warning': return `<span class="badge badge-warn">${money(st.spent)} (${Math.round(st.ratio * 100)}%)</span>`;
             default: return `<span class="badge badge-ok">${money(st.spent)} (${Math.round(st.ratio * 100)}%)</span>`;
@@ -72,10 +72,10 @@
     // Monthly label with Décimo notes for the budget month picker.
     function monthOptions(yd) {
         const d4 = Engine.d4Month(yd);
-        return [{ value: 'base', label: 'Presupuesto base (todo el año)' }].concat(Engine.MONTHS.map(m => {
+        return [{ value: 'base', label: 'Base budget (whole year)' }].concat(Engine.MONTHS.map(m => {
             let note = '';
-            if (m === '12' && yd.d3) note = ' · + Décimo 3ro';
-            if (m === d4 && yd.d4) note += ' · + Décimo 4to';
+            if (m === '12' && yd.d3) note = ' · + 13th-month bonus';
+            if (m === d4 && yd.d4) note += ' · + 14th-month bonus';
             return { value: m, label: Fmt.MONTH_NAMES[Number(m) - 1] + note };
         }));
     }
@@ -89,43 +89,43 @@
         // In the phone app (js/native.js) there's no file to open and nothing needs internet.
         const app = window.Native && Native.isApp;
         const open = app ? `
-                <div class="section-label"><i class="fa-solid fa-mobile-screen text-emerald-600"></i> En tu teléfono</div>
+                <div class="section-label"><i class="fa-solid fa-mobile-screen text-emerald-600"></i> On your phone</div>
                 <ul class="space-y-2">
-                    ${item('fa-plane', 'Funciona <strong>sin internet</strong>: todo está en tu teléfono. Solo leer un PDF o una foto necesita internet la primera vez.')}
-                    ${item('fa-share-nodes', 'Las copias de respaldo y los reportes se abren con <strong>Compartir</strong>: guárdalos en Google Drive o en Archivos, o envíalos por correo.')}
+                    ${item('fa-plane', 'Works <strong>offline</strong>: everything is on your phone. Only reading a PDF or a photo needs internet the first time.')}
+                    ${item('fa-share-nodes', 'Backups and reports open with <strong>Share</strong>: keep them in Google Drive or Files, or email them.')}
                 </ul>` : `
-                <div class="section-label"><i class="fa-solid fa-folder-open text-emerald-600"></i> Abrir la app</div>
+                <div class="section-label"><i class="fa-solid fa-folder-open text-emerald-600"></i> Open the app</div>
                 <ul class="space-y-2">
-                    ${item('fa-file-code', 'Guarda este archivo en una carpeta fácil de encontrar (por ejemplo <strong>Documentos</strong>) y ábrelo con <strong>doble clic</strong>. Se abre en tu navegador; no hay que instalar nada.')}
-                    ${item('fa-laptop', 'Funciona mejor en un <strong>computador</strong> con Chrome, Edge o Firefox. En el celular muchos teléfonos no abren bien archivos descargados.')}
-                    ${item('fa-wifi', 'Necesitas <strong>internet</strong> al abrirla para ver los estilos y gráficos.')}
+                    ${item('fa-file-code', 'Save this file in a folder that\'s easy to find (for example <strong>Documents</strong>) and open it with <strong>double click</strong>. It opens in your browser; nothing to install.')}
+                    ${item('fa-laptop', 'Works best on a <strong>computer</strong> with Chrome, Edge or Firefox. On a phone, many devices don\'t open downloaded files well.')}
+                    ${item('fa-wifi', 'You need <strong>internet</strong> when you open it to see the styles and charts.')}
                 </ul>`;
         const data = app ? `
-                    ${item('fa-floppy-disk', 'Todo se <strong>guarda solo</strong>, en este teléfono. Tus datos nunca salen de tu equipo.')}
-                    ${item('fa-rotate-left', '¿Te equivocaste? Usa <strong>Deshacer</strong> <i class="fa-solid fa-rotate-left"></i> arriba a la derecha para volver atrás paso a paso.')}
-                    ${item('fa-triangle-exclamation', 'Si desinstalas la app o borras sus datos, <strong>se borra tu plan</strong>.')}
-                    ${item('fa-download', 'Guarda una <strong>copia de respaldo</strong> cada cierto tiempo en <a href="#" class="link" data-goto="config" data-focus="cfg-data">Configuración → Tus Datos</a>. Para pasar a otro teléfono o a un computador, abre la app allí y usa <strong>Cargar copia</strong>.')}` : `
-                    ${item('fa-floppy-disk', 'Todo se <strong>guarda solo</strong>, en este navegador y este computador. Tus datos nunca salen de tu equipo.')}
-                    ${item('fa-rotate-left', '¿Te equivocaste? Usa <strong>Deshacer</strong> <i class="fa-solid fa-rotate-left"></i> arriba a la derecha (o Ctrl+Z) para volver atrás paso a paso, y <strong>Rehacer</strong> <i class="fa-solid fa-rotate-right"></i> si te arrepientes.')}
-                    ${item('fa-triangle-exclamation', 'Si abres la app en <strong>otro navegador u otro computador</strong>, empezará vacía. Si borras el historial o los datos de navegación, <strong>se borra tu plan</strong>.')}
-                    ${item('fa-download', 'Descarga una <strong>copia de respaldo</strong> cada cierto tiempo en <a href="#" class="link" data-goto="config" data-focus="cfg-data">Configuración → Tus Datos</a>. Para pasar a otro equipo, abre la app allí y usa <strong>Cargar copia</strong>.')}`;
+                    ${item('fa-floppy-disk', 'Everything <strong>saves on its own</strong>, on this phone. Your data never leaves your device.')}
+                    ${item('fa-rotate-left', 'Made a mistake? Use <strong>Undo</strong> <i class="fa-solid fa-rotate-left"></i> at the top right to go back step by step.')}
+                    ${item('fa-triangle-exclamation', 'If you uninstall the app or clear its data, <strong>your plan is erased</strong>.')}
+                    ${item('fa-download', 'Save a <strong>backup</strong> every so often in <a href="#" class="link" data-goto="config" data-focus="cfg-data">Settings → Your Data</a>. To move to another phone or a computer, open the app there and use <strong>Load backup</strong>.')}` : `
+                    ${item('fa-floppy-disk', 'Everything <strong>saves on its own</strong>, in this browser on this computer. Your data never leaves your device.')}
+                    ${item('fa-rotate-left', 'Made a mistake? Use <strong>Undo</strong> <i class="fa-solid fa-rotate-left"></i> at the top right (or Ctrl+Z) to go back step by step, and <strong>Redo</strong> <i class="fa-solid fa-rotate-right"></i> in case you change your mind.')}
+                    ${item('fa-triangle-exclamation', 'If you open the app in <strong>another browser or another computer</strong>, it will start empty. If you clear your history or browsing data, <strong>your plan is erased</strong>.')}
+                    ${item('fa-download', 'Download one <strong>backup</strong> every so often in <a href="#" class="link" data-goto="config" data-focus="cfg-data">Settings → Your Data</a>. To move to another device, open the app there and use <strong>Load backup</strong>.')}`;
         return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 text-xs text-slate-700 leading-relaxed">
             <div>${open}
             </div>
             <div>
-                <div class="section-label"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Tus datos</div>
+                <div class="section-label"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Your data</div>
                 <ul class="space-y-2">${data}
                 </ul>
             </div>
             <div>
-                <div class="section-label"><i class="fa-solid fa-flag-checkered text-emerald-600"></i> Primeros pasos</div>
+                <div class="section-label"><i class="fa-solid fa-flag-checkered text-emerald-600"></i> First steps</div>
                 <ol class="space-y-2">
-                    ${step(1, 'presupuesto/ingresos', 'Ingresos e Impuestos', 'tu sueldo y décimos.')}
-                    ${step(2, 'presupuesto/plan', 'Presupuesto del Mes', 'asigna cada dólar a un rubro.')}
-                    ${step(3, 'futuro/metas', 'Deudas y Metas', 'registra tus deudas y metas.')}
-                    ${step(4, 'futuro/polizas', 'Pólizas', 'registra tus DPF.')}
-                    ${step(5, 'patrimonio', 'Patrimonio', 'lo que tienes y lo que debes.')}
-                    ${step(6, 'resumen', 'Resumen', 'te dice cuál es tu siguiente paso.')}
+                    ${step(1, 'presupuesto/ingresos', 'Income & Taxes', 'your salary and bonuses.')}
+                    ${step(2, 'presupuesto/plan', 'Monthly Budget', 'give every dollar a line.')}
+                    ${step(3, 'futuro/metas', 'Debts & Goals', 'add your debts and goals.')}
+                    ${step(4, 'futuro/polizas', 'Pólizas', 'add your CDs.')}
+                    ${step(5, 'patrimonio', 'Patrimonio', 'what you own and what you owe.')}
+                    ${step(6, 'resumen', 'Resumen', 'tells you your next step.')}
                 </ol>
             </div>
         </div>`;
@@ -148,22 +148,22 @@
             const share = b.amount / scale;
             const label = !compact && share >= 0.09 ? `${pct(b.amount)}%` : '';
             return `<span class="dollar-seg" style="flex:${share.toFixed(4)} 1 0;background:${b.color};color:${pal.inkOn(b.color)}" title="${esc(tr(b.label))}: ${money0(b.amount)} (${pct(b.amount)}%)">${label}</span>`;
-        }).join('') + (left ? `<span class="dollar-seg dollar-left" style="flex:${(left / scale).toFixed(4)} 1 0" title="${esc(tr('Por asignar'))}: ${money0(left)} (${pct(left)}%)">${!compact && left / scale >= 0.09 ? `${pct(left)}%` : ''}</span>` : '');
+        }).join('') + (left ? `<span class="dollar-seg dollar-left" style="flex:${(left / scale).toFixed(4)} 1 0" title="${esc(tr('Left to assign'))}: ${money0(left)} (${pct(left)}%)">${!compact && left / scale >= 0.09 ? `${pct(left)}%` : ''}</span>` : '');
         const over = r.left < -0.005;
-        const marker = over ? `<span class="dollar-income" style="left:${(income / scale * 100).toFixed(2)}%" title="${esc(tr('Tu ingreso'))}: ${money0(income)}"></span>` : '';
+        const marker = over ? `<span class="dollar-income" style="left:${(income / scale * 100).toFixed(2)}%" title="${esc(tr('Your income'))}: ${money0(income)}"></span>` : '';
         const item = (color, label, amount, cls = '') => `<li class="${cls}"><i style="background:${color}"></i><span>${esc(label)}</span>${compact ? '' : ` <b>${money0(amount)}</b>`} <span class="dollar-pct">${pct(amount)}%</span></li>`;
-        const legend = segs.map(b => item(b.color, b.label, b.amount)).join('') + (left ? item('', 'Por asignar', left, 'is-left') : '');
+        const legend = segs.map(b => item(b.color, b.label, b.amount)).join('') + (left ? item('', 'Left to assign', left, 'is-left') : '');
         const status = over
-            ? `<p class="dollar-status is-over"><i class="fa-solid fa-triangle-exclamation"></i> Asignaste ${money0(-r.left)} más de lo que ganas: la línea marca tu ingreso.</p>`
-            : left ? `<p class="dollar-status"><i class="fa-solid fa-coins"></i> Te quedan ${money0(left)} por asignar.</p>`
-            : `<p class="dollar-status is-ok"><i class="fa-solid fa-circle-check"></i> Base cero: cada dólar tiene un destino.</p>`;
-        const aria = `${tr('Tu plan del mes por grupo')}: ${segs.map(b => `${tr(b.label)} ${pct(b.amount)}%`).join(', ')}${left ? `, ${tr('Por asignar')} ${pct(left)}%` : ''}`;
+            ? `<p class="dollar-status is-over"><i class="fa-solid fa-triangle-exclamation"></i> You assigned ${money0(-r.left)} more than you earn: the line marks your income.</p>`
+            : left ? `<p class="dollar-status"><i class="fa-solid fa-coins"></i> You have ${money0(left)} left to assign.</p>`
+            : `<p class="dollar-status is-ok"><i class="fa-solid fa-circle-check"></i> Zero-based: every dollar has a job.</p>`;
+        const aria = `${tr('Your plan for the month by group')}: ${segs.map(b => `${tr(b.label)} ${pct(b.amount)}%`).join(', ')}${left ? `, ${tr('Left to assign')} ${pct(left)}%` : ''}`;
         const table = compact ? '' : `<details class="mt-2">
-                <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Ver los números en una tabla</summary>
-                <div class="table-wrap mt-2"><table class="table"${tableId ? ` id="${tableId}"` : ''}><thead><tr><th>Grupo</th><th class="num">Planeado</th><th class="num">% del ingreso</th></tr></thead><tbody>
+                <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> See the numbers in a table</summary>
+                <div class="table-wrap mt-2"><table class="table"${tableId ? ` id="${tableId}"` : ''}><thead><tr><th>Group</th><th class="num">Planned</th><th class="num">% of income</th></tr></thead><tbody>
                 ${r.buckets.map(b => `<tr><td>${esc(b.label)}</td><td class="num">${money0(b.amount)}</td><td class="num">${pct(b.amount)}%</td></tr>`).join('')}
-                <tr class="font-bold"><td>Total asignado</td><td class="num">${money0(r.assigned)}</td><td class="num">${pct(r.assigned)}%</td></tr>
-                <tr><td>${over ? 'Te falta' : 'Por asignar'}</td><td class="num">${money0(r.left)}</td><td class="num">${pct(r.left)}%</td></tr>
+                <tr class="font-bold"><td>Total assigned</td><td class="num">${money0(r.assigned)}</td><td class="num">${pct(r.assigned)}%</td></tr>
+                <tr><td>${over ? 'Missing' : 'Left to assign'}</td><td class="num">${money0(r.left)}</td><td class="num">${pct(r.left)}%</td></tr>
                 <tr><td>Ingreso</td><td class="num">${money0(income)}</td><td class="num">100%</td></tr>
                 </tbody></table></div></details>`;
         return `<div class="dollar-wrap${compact ? ' is-compact' : ''}"><div class="dollar-bar" role="img" aria-label="${esc(aria)}">${bar}${marker}</div>

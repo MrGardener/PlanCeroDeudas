@@ -30,10 +30,10 @@
         const field = (key, label, help, step) => `<label class="field"><span class="field-label">${label}</span><input type="number" class="input" min="0" step="${step}" data-input="prepay.set" data-key="${key}" value="${esc(String(c[key]))}">${help ? `<span class="help">${help}</span>` : ''}</label>`;
         const box = document.getElementById('mort-prepay-in');
         if (box && !box.contains(document.activeElement)) box.innerHTML = `<div class="grid grid-cols-2 ${us ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-3">
-            ${field('extra', 'Dinero extra al mes ($)', '', 10)}
-            ${field('returnPct', 'Rendimiento esperado al invertir (%)', us ? 'Promedio histórico de la bolsa: ~10%, con años malos.' : 'Por ejemplo, la tasa de tus pólizas.', 0.5)}
-            ${field('gainsTax', 'Impuesto sobre la ganancia (%)', us ? 'En una cuenta normal, 15% para la mayoría. 0 en un Roth IRA.' : '', 1)}
-            ${us ? field('deduct', 'Ahorro de impuesto por interés (%)', 'Tu tramo federal si detallas deducciones; 0 si tomas la estándar.', 1) : ''}
+            ${field('extra', 'Extra money per month ($)', '', 10)}
+            ${field('returnPct', 'Expected return when investing (%)', us ? 'Stock market historical average: ~10%, with bad years.' : 'For example, your CDs\' rate.', 0.5)}
+            ${field('gainsTax', 'Tax on the gain (%)', us ? 'In a regular account, 15% for most people. 0 in a Roth IRA.' : '', 1)}
+            ${us ? field('deduct', 'Tax saved on interest (%)', 'Your federal bracket if you itemize; 0 if you take the standard deduction.', 1) : ''}
         </div>`;
         update(ctx);
     }
@@ -47,24 +47,24 @@
         const now = Number((yd.netWorth || {}).mortgage) || 0;
         const balance = now > 0 && now < Number(m.amount) ? now : Number(m.amount) || 0;
         const r = Engine.prepayOrInvest({ balance, ratePct: m.rate, payment, extra: c.extra, returnPct: c.returnPct, gainsTaxPct: c.gainsTax, deductPct: c.deduct });
-        if (!r.wealthPrepay && r.wealthPrepay !== 0) { out.innerHTML = '<p class="help mt-3">Completa el monto, la tasa y el plazo de tu hipoteca arriba.</p>'; return; }
-        if (!(Number(c.extra) > 0)) { out.innerHTML = '<p class="help mt-3">Escribe cuánto dinero extra tendrías cada mes.</p>'; return; }
+        if (!r.wealthPrepay && r.wealthPrepay !== 0) { out.innerHTML = '<p class="help mt-3">Fill in your mortgage\'s amount, rate and term above.</p>'; return; }
+        if (!(Number(c.extra) > 0)) { out.innerHTML = '<p class="help mt-3">Type how much extra money you\'d have each month.</p>'; return; }
         const end = Fmt.monthYear(Engine.addMonths(ctx.today, r.horizon));
         const kpi = (tone, label, value, note) => `<div class="kpi ${tone}"><span class="kpi-label">${label}</span><span class="kpi-value">${value}</span><span class="kpi-note">${note}</span></div>`;
         const win = r.winner;
         const verdict = win === 'invest'
             ? (ctx.budgetYear.country === 'US'
-                ? `<p><strong>Por números, invertir dejaría ${money0(r.diff)} más</strong> si el dinero rinde ${c.returnPct}% cada año. Pero ese rendimiento no está garantizado: hay años en que la bolsa cae. Abonar a la casa es una ganancia segura del ${m.rate}%.</p>`
-                : `<p><strong>Por números, invertir dejaría ${money0(r.diff)} más</strong> si el dinero rinde ${c.returnPct}% cada año durante todo el plazo. Las tasas de las pólizas cambian al renovarlas; abonar a la casa es una ganancia segura del ${m.rate}%.</p>`)
-            : win === 'prepay' ? `<p><strong>Abonar a la casa deja ${money0(-r.diff)} más</strong>, y sin riesgo: con un rendimiento de ${c.returnPct}%, invertir no le gana al ${m.rate}% de la hipoteca.</p>`
+                ? `<p><strong>By the numbers, investing would leave ${money0(r.diff)} more</strong> if the money earns ${c.returnPct}% every year. But that return isn't guaranteed: some years the market falls. Paying down the house is a sure ${m.rate}% return.</p>`
+                : `<p><strong>By the numbers, investing would leave ${money0(r.diff)} more</strong> if the money earns ${c.returnPct}% every year for the whole term. CD rates change when you renew them; paying down the house is a sure ${m.rate}% return.</p>`)
+            : win === 'prepay' ? `<p><strong>Paying down the house leaves ${money0(-r.diff)} more</strong>, with no risk: at a ${c.returnPct}% return, investing doesn't beat the mortgage's ${m.rate}%.</p>`
             : '<p><strong>Quedan casi iguales.</strong></p>';
-        const be = r.breakEven === null ? '' : `<p class="mt-1">Invertir gana solo si rinde más de <strong>${r.breakEven.toFixed(1)}%</strong> al año en promedio durante ${Fmt.monthsAsYears(r.horizon)}.</p>`;
+        const be = r.breakEven === null ? '' : `<p class="mt-1">Investing only wins if it earns more than <strong>${r.breakEven.toFixed(1)}%</strong> a year on average for ${Fmt.monthsAsYears(r.horizon)}.</p>`;
         out.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                ${kpi(win === 'prepay' ? 'tone-emerald' : 'tone-slate', `Abonando ${money0(c.extra)} al mes`, money0(r.wealthPrepay), `Casa pagada ${Fmt.monthsAsYears(r.monthsSooner)} antes, ${money0(r.interestSaved)} menos de interés; luego inviertes la cuota`)}
-                ${kpi(win === 'invest' ? 'tone-emerald' : 'tone-slate', `Invirtiendo ${money0(c.extra)} al mes`, money0(r.wealthInvest), `Invertido en ${end}, cuando la hipoteca termina igual`)}
+                ${kpi(win === 'prepay' ? 'tone-emerald' : 'tone-slate', `Paying ${money0(c.extra)} extra a month`, money0(r.wealthPrepay), `House paid off ${Fmt.monthsAsYears(r.monthsSooner)} sooner, ${money0(r.interestSaved)} less interest; then you invest the payment`)}
+                ${kpi(win === 'invest' ? 'tone-emerald' : 'tone-slate', `Investing ${money0(c.extra)} a month`, money0(r.wealthInvest), `Invested by ${end}, when the mortgage ends anyway`)}
             </div>
             <div class="panel ${win === 'invest' ? 'tone-blue' : 'tone-emerald'} text-xs mt-3">${verdict}${be}</div>
-            <p class="help mt-2"><span>${now > 0 && now < Number(m.amount) ? `Desde tu saldo de hoy (${money0(balance)}).` : 'Desde el monto del préstamo.'}</span>${ctx.state.settings.mortgageSystem === 'aleman' ? ' <span>Se calcula con una cuota fija (sistema francés).</span>' : ''} <span>En los Baby Steps, pagar la casa antes es el paso 6: primero el fondo de emergencia completo, el 15% a la jubilación y la universidad de los hijos. Y una casa pagada da tranquilidad: sin cuota, un mes difícil se lleva mejor.</span></p>`;
+            <p class="help mt-2"><span>${now > 0 && now < Number(m.amount) ? `From your balance today (${money0(balance)}).` : 'From the loan amount.'}</span>${ctx.state.settings.mortgageSystem === 'aleman' ? ' <span>Calculated with a fixed payment (French system).</span>' : ''} <span>In the Baby Steps, paying off the house early is step 6: first the full emergency fund, 15% to retirement and the kids' college. And a paid-off house brings peace: with no payment, a hard month is easier to get through.</span></p>`;
     }
 
     UI.register({

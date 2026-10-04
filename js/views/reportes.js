@@ -3,7 +3,9 @@
     'use strict';
     const { money, money0, esc } = Fmt;
 
-    const BY_LABEL = { category: 'Categoría', sub: 'Subcategoría', line: 'Rubro del presupuesto', member: 'Persona', month: 'Mes', week: 'Semana', store: 'Lugar / comercio', payment: 'Forma de pago' };
+    // File headers in the app's language (the page is translated as it shows; files aren't).
+    const tr = (s) => (window.I18n ? I18n.t(s) : s);
+    const BY_LABEL = { category: 'Categoría', sub: 'Subcategoría', line: 'Budget line', member: 'Persona', month: 'Mes', week: 'Semana', store: 'Place / store', payment: 'Payment method' };
     const opts = () => (Store.ui.report = Object.assign({ range: 'this-month', type: 'Gasto', by: 'category', from: '', to: '' }, Store.ui.report));
 
     // Period presets → [from, to] as ISO dates.
@@ -29,7 +31,7 @@
             if ((t.type || 'Gasto') === 'Ingreso') {
                 const yd = Store.state.years[Number(t.date.slice(0, 4))];
                 const line = t.incomeId && yd && (yd.otherIncomes || []).find(x => x.id === t.incomeId);
-                return line ? line.name : Engine.isPayrollTxn(t) ? 'Sueldo' : 'Ingreso extra';
+                return line ? line.name : Engine.isPayrollTxn(t) ? 'Sueldo' : 'Extra income';
             }
             const y = Number(t.date.slice(0, 4)), m = String(Number(t.date.slice(5, 7)));
             const key = y + '-' + m;
@@ -40,7 +42,7 @@
                 Object.keys(spend.byLine).forEach(id => { const it = items.find(i => String(i.id) === id); spend.byLine[id].txns.forEach(x => { byTxn[x.id] = it ? it.name : id; }); });
                 cache[key] = byTxn;
             }
-            return cache[key][t.id] || 'Sin rubro';
+            return cache[key][t.id] || 'No line';
         };
     }
 
@@ -58,7 +60,7 @@
                 case 'week': return Engine.isoDate(Engine.periodStart(new Date(t.date + 'T00:00:00'), 'week'));
                 case 'store': return (t.store || t.description || '—').trim();
                 case 'payment': return t.paymentType || '—';
-                case 'tag': return (t.tags || []).length ? t.tags.map(g => '#' + g) : 'Sin etiqueta';
+                case 'tag': return (t.tags || []).length ? t.tags.map(g => '#' + g) : 'No tag';
                 default: return t.parentCategory || 'Otros';
             }
         };
@@ -85,7 +87,7 @@
 
     const label = (o, key) => {
         if (o.by === 'month') { const [y, m] = key.split('-'); return `${Fmt.MONTH_NAMES[Number(m) - 1]} ${y}`; }
-        if (o.by === 'week') { const d = new Date(key + 'T00:00:00'); return `Semana del ${d.getDate()} ${Fmt.MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`; }
+        if (o.by === 'week') { const d = new Date(key + 'T00:00:00'); return `Week of ${Fmt.MONTH_SHORT[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}`; }
         return key;
     };
 
@@ -108,7 +110,7 @@
             const nextHas = r.weeks[i + 1] && r.weeks[i + 1].days.some(d => d.date.slice(8) === '01');
             return i === 0 && !nextHas ? Fmt.MONTH_SHORT[Number(w.start.slice(5, 7)) - 1] : '';
         });
-        let html = `<div class="heat" style="--weeks:${r.weeks.length}" role="img" aria-label="${esc(`Gastos por día, últimas 12 semanas: total ${money(r.total)}`)}"><span></span>${heads.map((h, i) => `<span class="heat-m" style="grid-column:${i + 2}">${h}</span>`).join('')}`;
+        let html = `<div class="heat" style="--weeks:${r.weeks.length}" role="img" aria-label="${esc(`Spending per day, last 12 weeks: total ${money(r.total)}`)}"><span></span>${heads.map((h, i) => `<span class="heat-m" style="grid-column:${i + 2}">${h}</span>`).join('')}`;
         for (let d = 0; d < 7; d++) {
             html += `<span class="heat-d" style="grid-row:${d + 2}">${Fmt.DOW_SHORT[d]}</span>`;
             r.weeks.forEach((w, i) => {
@@ -121,14 +123,14 @@
         UI.html('rep-heat', html + '</div>');
         const lo = vals.length ? Math.round(vals[0]) : 0;
         const ranges = cuts.length ? [`${money0(lo)}–${money0(cuts[0])}`].concat(cuts.map((c, i) => (i < cuts.length - 1 ? `${money0(c)}–${money0(cuts[i + 1])}` : `${money0(c)}+`))) : [];
-        UI.html('rep-heat-legend', `<span class="mr-1">Sin gasto</span><i style="background:${pal.seq0}"></i><span class="mx-1">Menos</span>${pal.seq.map((c, i) => `<i style="background:${c}" title="${esc(ranges[i] || '')}"></i>`).join('')}<span class="ml-1">Más</span>`
-            + (cuts.length ? `<span class="w-full mt-1">Cada tono es una quinta parte de tus días con gastos: ${ranges.join(' · ')}.</span>` : ''));
+        UI.html('rep-heat-legend', `<span class="mr-1">No spending</span><i style="background:${pal.seq0}"></i><span class="mx-1">Less</span>${pal.seq.map((c, i) => `<i style="background:${c}" title="${esc(ranges[i] || '')}"></i>`).join('')}<span class="ml-1">More</span>`
+            + (cuts.length ? `<span class="w-full mt-1">Each shade is one fifth of your days with spending: ${ranges.join(' · ')}.</span>` : ''));
         // Average by weekday (past days only), Monday first.
         const avg = Array.from({ length: 7 }, (_, d) => { const days = r.weeks.map(w => w.days[d]).filter(x => !x.future); return days.length ? days.reduce((t, x) => t + x.total, 0) / days.length : 0; });
         const top = Math.max(...avg, 1), peak = avg.indexOf(Math.max(...avg));
         UI.html('rep-heat-dow', avg.map((v, d) => `<div class="grid grid-cols-[5.5rem_1fr_4rem] items-center gap-2"><span class="${d === peak && v > 0 ? 'font-bold text-slate-800' : 'text-slate-600'}">${Fmt.WEEKDAYS[(d + 1) % 7]}</span><div class="mini-bar" style="margin-top:0"><span style="width:${(v / top * 100).toFixed(1)}%;background:${pal.blue}"></span></div><span class="text-right font-semibold">${money0(v)}</span></div>`).join('')
-            + `<p class="help mt-2">Total en 12 semanas: ${money0(r.total)}.${avg[peak] > 0 ? ` Tu día de más gasto: ${Fmt.WEEKDAYS[(peak + 1) % 7]}.` : ''}</p>`);
-        UI.html('rep-heat-head', `<th>Semana del</th>${Fmt.DOW_SHORT.map(x => `<th class="num">${x}</th>`).join('')}<th class="num">Total</th>`);
+            + `<p class="help mt-2">Total in 12 weeks: ${money0(r.total)}.${avg[peak] > 0 ? ` Your biggest spending day: ${Fmt.WEEKDAYS[(peak + 1) % 7]}.` : ''}</p>`);
+        UI.html('rep-heat-head', `<th>Week of</th>${Fmt.DOW_SHORT.map(x => `<th class="num">${x}</th>`).join('')}<th class="num">Total</th>`);
         UI.html('rep-heat-table', r.weeks.slice().reverse().map(w => `<tr><td class="whitespace-nowrap">${Fmt.dayMonth(date(w.start))}</td>${w.days.map(d => `<td class="num">${d.future ? '—' : money0(d.total)}</td>`).join('')}<td class="num font-bold">${money0(w.total)}</td></tr>`).join(''));
     }
 
@@ -143,12 +145,12 @@
         document.getElementById('rep-to').value = o.to;
         const r = build(ctx);
         UI.text('rep-group-head', BY_LABEL[o.by]);
-        const what = o.type === 'Ingreso' ? 'Ingresos' : o.type === 'Gasto' ? 'Gastos' : 'Neto (ingresos − gastos)';
-        const range = o.range === 'all' ? 'todo el historial' : `${r.from} a ${r.to}`;
+        const what = o.type === 'Ingreso' ? 'Ingresos' : o.type === 'Gasto' ? 'Gastos' : 'Net (income − expenses)';
+        const range = o.range === 'all' ? 'the whole history' : `${r.from} a ${r.to}`;
         UI.html('rep-kpis', `
             <div class="kpi tone-slate"><span class="kpi-label">${what}</span><span class="kpi-value">${money(r.total)}</span><span class="kpi-note">${esc(range)}</span></div>
-            <div class="kpi tone-slate"><span class="kpi-label">Movimientos</span><span class="kpi-value">${r.list.length}</span><span class="kpi-note">en ${r.rows.length} grupo${r.rows.length === 1 ? '' : 's'}</span></div>
-            <div class="kpi tone-slate"><span class="kpi-label">Promedio por movimiento</span><span class="kpi-value">${money(r.list.length ? r.total / r.list.length : 0)}</span></div>`);
+            <div class="kpi tone-slate"><span class="kpi-label">Transactions</span><span class="kpi-value">${r.list.length}</span><span class="kpi-note">in ${r.rows.length} group${r.rows.length === 1 ? '' : 's'}</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Average per transaction</span><span class="kpi-value">${money(r.list.length ? r.total / r.list.length : 0)}</span></div>`);
         const max = Math.max(...r.rows.map(x => Math.abs(x.total)), 1);
         UI.show('rep-spark-note', !r.timeBased);
         const pal = UI.palette();
@@ -156,7 +158,7 @@
             if (r.timeBased) return '';
             const v = r.trend.series[g.key] || new Array(12).fill(0);
             const names = r.trend.months.map((k, i) => `${Fmt.MONTH_SHORT[Number(k.slice(5)) - 1]} ${money(v[i])}`);
-            return `<div class="mt-1">${UI.sparkline(v, { width: 96, height: 20, color: pal.blue, partialLast: true, label: `${label(o, g.key)}, últimos 12 meses: ${names.join(', ')}` })}</div>`;
+            return `<div class="mt-1">${UI.sparkline(v, { width: 96, height: 20, color: pal.blue, partialLast: true, label: `${label(o, g.key)}, last 12 months: ${names.join(', ')}` })}</div>`;
         };
         UI.html('rep-body', r.rows.length ? r.rows.map(g => `<tr>
                 <td><span class="font-semibold">${esc(label(o, g.key))}</span>${spark(g)}</td>
@@ -165,12 +167,12 @@
                 <td><div class="flex items-center gap-2"><div class="mini-bar flex-1"><span style="width:${(Math.abs(g.total) / max * 100).toFixed(1)}%;background:#2a78d6"></span></div><span class="text-[11px] text-slate-500 w-9 text-right">${r.absTotal ? Math.round(Math.abs(g.total) / r.absTotal * 100) : 0}%</span></div></td>
                 <td class="num text-xs">${money(g.total / g.count)}</td>
             </tr>`).join('') + `<tr class="font-bold"><td>Total</td><td class="num">${r.list.length}</td><td class="num">${money(r.total)}</td><td></td><td></td></tr>`
-            : '<tr class="empty-row"><td colspan="5">No hay movimientos en este período.</td></tr>');
+            : '<tr class="empty-row"><td colspan="5">No transactions in this period.</td></tr>');
     }
 
     // A download in the browser; the share sheet in the phone app (js/native.js).
     function download(name, text) {
-        Native.saveFile(name, text, 'text/csv;charset=utf-8').catch(e => UI.toast('No se pudo guardar el archivo: ' + (e.message || e), 'error'));
+        Native.saveFile(name, text, 'text/csv;charset=utf-8').catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
     }
 
     UI.register({
@@ -185,7 +187,7 @@
         },
         'rep.csv': () => {
             const r = build(App.buildContext());
-            const rows = [[BY_LABEL[r.o.by], 'Movimientos', 'Total', '% del total', 'Promedio']]
+            const rows = [[BY_LABEL[r.o.by], 'Transactions', 'Total', '% of total', 'Average'].map(tr)]
                 .concat(r.rows.map(g => [label(r.o, g.key), g.count, g.total, r.absTotal ? Math.round(Math.abs(g.total) / r.absTotal * 1000) / 10 : 0, g.total / g.count]))
                 .concat([['Total', r.list.length, r.total, 100, '']]);
             download(`reporte_${r.o.by}_${r.from.replace('0000-01-01', 'inicio')}_${r.to.replace('9999-12-31', 'hoy')}.csv`, Importers.toCSV(rows));
@@ -193,7 +195,7 @@
         'rep.txns': () => {
             const r = build(App.buildContext());
             const members = Store.state.members || [];
-            const rows = [['Fecha', 'Tipo', 'Descripción', 'Lugar', 'Categoría', 'Subcategoría', 'Monto', 'Forma de pago', 'Persona']]
+            const rows = [['Date', 'Type', 'Description', 'Place', 'Category', 'Subcategory', 'Amount', 'Payment method', 'Person'].map(tr)]
                 .concat(r.list.slice().sort((a, b) => a.date.localeCompare(b.date)).map(t => [t.date, t.type || 'Gasto', t.description, t.store || '', t.parentCategory, t.category || '', ((t.type || 'Gasto') === 'Ingreso' ? 1 : -1) * Engine.spendAmount(t), t.paymentType || '', ((members.find(p => p.id === t.memberId) || {}).name) || '']));
             download(`transacciones_${r.from.replace('0000-01-01', 'inicio')}_${r.to.replace('9999-12-31', 'hoy')}.csv`, Importers.toCSV(rows));
         }

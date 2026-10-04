@@ -9,13 +9,13 @@
     const { money, money0, esc } = Fmt;
 
     const GROUPS = [
-        { type: 'Gasto Fijo', label: 'Gastos fijos', icon: 'fa-house' },
-        { type: 'Gasto Variable', label: 'Gastos variables', icon: 'fa-basket-shopping' },
-        { type: 'Deuda', label: 'Pagos de deudas', icon: 'fa-credit-card' },
-        { type: 'Ahorro', label: 'Ahorro e inversión', icon: 'fa-piggy-bank' }
+        { type: 'Gasto Fijo', label: 'Fixed expenses', icon: 'fa-house' },
+        { type: 'Gasto Variable', label: 'Variable expenses', icon: 'fa-basket-shopping' },
+        { type: 'Deuda', label: 'Debt payments', icon: 'fa-credit-card' },
+        { type: 'Ahorro', label: 'Savings & investing', icon: 'fa-piggy-bank' }
     ];
     const MODES = { planned: 'Planeado', spent: 'Gastado', remaining: 'Restante', all: 'Todo' };
-    const INCOME_MODES = { planned: 'Planeado', spent: 'Recibido', remaining: 'Por recibir', all: 'Todo' };
+    const INCOME_MODES = { planned: 'Planeado', spent: 'Recibido', remaining: 'To receive', all: 'Todo' };
 
     // Lines can live in a custom group (item.group); otherwise their type decides.
     const groupOf = (item) => {
@@ -59,17 +59,17 @@
         const id = esc(String(item.id));
         let input = '';
         if (item.sweep) input = '';
-        else if (item.link) input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" aria-label="Planeado para ${esc(item.name)}">`;
-        else input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.set" data-id="${id}" data-field="real" data-sync="prep" aria-label="Planeado para ${esc(item.name)}">`;
+        else if (item.link) input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.setLinked" data-kind="${item.link}" data-ref="${item.refId}" aria-label="Planned for ${esc(item.name)}">`;
+        else input = `<input type="number" class="bs-input" min="0" step="10" value="${Number(item.real) || 0}" data-input="budget.set" data-id="${id}" data-field="real" data-sync="prep" aria-label="Planned for ${esc(item.name)}">`;
         const badge = item.link ? `<a href="#" class="badge ${item.link === 'debt' ? 'badge-bad' : 'badge-purple'}" data-goto="futuro/metas" data-focus="${item.link === 'debt' ? 'metas-debts' : 'metas-goals'}"><i class="fa-solid fa-link"></i> ${item.link === 'debt' ? 'Deuda' : 'Meta'}</a>`
-            : item.sweep ? '<span class="badge badge-ok"><i class="fa-solid fa-wand-magic-sparkles"></i> Automático</span>' : '';
+            : item.sweep ? '<span class="badge badge-ok"><i class="fa-solid fa-wand-magic-sparkles"></i> Automatic</span>' : '';
         const canDue = !item.sweep && item.link !== 'goal';
         return `<div class="bs-row" data-line="${id}">
-                <div class="bs-name">${item.link || item.sweep ? `<span class="bs-label">${esc(item.sweep ? 'Sobrante del mes' : item.name)}</span>`
-                    : `<input class="bs-name-input" value="${esc(item.name)}" data-change="budget.set" data-id="${id}" data-field="name" aria-label="Nombre del rubro">`} ${badge}
-                    ${!item.link && !item.sweep ? `<button type="button" class="row-del bs-del" data-action="budget.delete" data-id="${id}" title="Eliminar rubro" aria-label="Eliminar rubro"><i class="fa-solid fa-trash-can"></i></button>` : ''}
-                    ${canDue ? `<button type="button" class="bs-due" data-action="budget.dueDay" data-id="${id}" data-kind="${item.link || 'line'}" data-ref="${item.refId || ''}" title="Fecha de pago"><i class="fa-regular fa-calendar"></i> <span data-due></span></button>` : ''}
-                    ${item.sweep ? '' : `<button type="button" class="bs-due" data-action="line.detail" data-id="${id}" title="Detalle: historial, transacciones, grupo"><i class="fa-solid fa-chart-simple"></i></button>`}
+                <div class="bs-name">${item.link || item.sweep ? `<span class="bs-label">${esc(item.sweep ? 'Monthly leftover' : item.name)}</span>`
+                    : `<input class="bs-name-input" value="${esc(item.name)}" data-change="budget.set" data-id="${id}" data-field="name" aria-label="Line name">`} ${badge}
+                    ${!item.link && !item.sweep ? `<button type="button" class="row-del bs-del" data-action="budget.delete" data-id="${id}" title="Delete line" aria-label="Delete line"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                    ${canDue ? `<button type="button" class="bs-due" data-action="budget.dueDay" data-id="${id}" data-kind="${item.link || 'line'}" data-ref="${item.refId || ''}" title="Due date"><i class="fa-regular fa-calendar"></i> <span data-due></span></button>` : ''}
+                    ${item.sweep ? '' : `<button type="button" class="bs-due" data-action="line.detail" data-id="${id}" title="Details: history, transactions, group"><i class="fa-solid fa-chart-simple"></i></button>`}
                     <span class="bs-sub" data-sub></span></div>
                 ${valueCell(input)}
                 <div class="bs-bar"><span data-bar></span></div>
@@ -78,24 +78,24 @@
 
     function incomeCard(ctx, m) {
         const rows = [`<div class="bs-row" data-income="salary">
-                <div class="bs-name"><span class="bs-label">Sueldo neto</span> <a href="#" class="badge badge-ok" data-goto="presupuesto/ingresos"><i class="fa-solid fa-link"></i> Tu Sueldo</a><span class="bs-sub" data-sub></span></div>
+                <div class="bs-name"><span class="bs-label">Net salary</span> <a href="#" class="badge badge-ok" data-goto="presupuesto/ingresos"><i class="fa-solid fa-link"></i> Your Salary</a><span class="bs-sub" data-sub></span></div>
                 ${valueCell()}<div class="bs-bar"><span data-bar></span></div></div>`];
         (ctx.year.otherIncomes || []).forEach(src => {
             rows.push(`<div class="bs-row" data-income="${src.id}">
-                <div class="bs-name"><input class="bs-name-input" value="${esc(src.name)}" data-change="income.set" data-id="${src.id}" data-field="name" aria-label="Nombre del ingreso">
-                    <button type="button" class="row-del bs-del" data-action="income.delete" data-id="${src.id}" title="Eliminar ingreso" aria-label="Eliminar ingreso"><i class="fa-solid fa-trash-can"></i></button><span class="bs-sub" data-sub></span></div>
-                ${valueCell(`<input type="number" class="bs-input" min="0" step="10" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Planeado para ${esc(src.name)}">`)}
+                <div class="bs-name"><input class="bs-name-input" value="${esc(src.name)}" data-change="income.set" data-id="${src.id}" data-field="name" aria-label="Income name">
+                    <button type="button" class="row-del bs-del" data-action="income.delete" data-id="${src.id}" title="Delete income" aria-label="Delete income"><i class="fa-solid fa-trash-can"></i></button><span class="bs-sub" data-sub></span></div>
+                ${valueCell(`<input type="number" class="bs-input" min="0" step="10" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Planned for ${esc(src.name)}">`)}
                 <div class="bs-bar"><span data-bar></span></div></div>`);
         });
         m.other.unplanned.forEach(u => {
             rows.push(`<div class="bs-row" data-income="cat:${esc(u.category)}">
-                <div class="bs-name"><span class="bs-label">${esc(u.category)}</span><span class="bs-sub">Registrado: ${esc(u.txns.map(t => t.description).join(', '))} · <button type="button" class="mini-btn" data-action="income.fromCategory" data-category="${esc(u.category)}" data-amount="${u.amount}">Es mensual</button></span></div>
+                <div class="bs-name"><span class="bs-label">${esc(u.category)}</span><span class="bs-sub">Logged: ${esc(u.txns.map(t => t.description).join(', '))} · <button type="button" class="mini-btn" data-action="income.fromCategory" data-category="${esc(u.category)}" data-amount="${u.amount}">It's monthly</button></span></div>
                 ${valueCell()}<div class="bs-bar"><span data-bar></span></div></div>`);
         });
         return `<section class="bs-card" data-group="income">
-                <header class="bs-head"><span class="bs-title"><i class="fa-solid fa-sack-dollar text-emerald-600"></i> Ingresos</span>${colsHTML(INCOME_MODES)}</header>
+                <header class="bs-head"><span class="bs-title"><i class="fa-solid fa-sack-dollar text-emerald-600"></i> Income</span>${colsHTML(INCOME_MODES)}</header>
                 ${rows.join('')}
-                <footer class="bs-foot"><button type="button" class="link" data-action="income.add"><i class="fa-solid fa-plus"></i> Agregar ingreso</button><span class="bs-total" data-total></span></footer>
+                <footer class="bs-foot"><button type="button" class="link" data-action="income.add"><i class="fa-solid fa-plus"></i> Add income</button><span class="bs-total" data-total></span></footer>
             </section>`;
     }
 
@@ -109,13 +109,13 @@
         // Custom groups: the year's list (keeps empty ones) plus any group a line mentions.
         const custom = (ctx.year.groups || []).map(g => g.name);
         // Savings lines say what they're for (emergency money doesn't count toward Step 4).
-        const PURPOSE_LABEL = { emergencia: 'fondo de emergencia', jubilacion: 'jubilación', general: 'ahorro general' };
+        const PURPOSE_LABEL = { emergencia: 'emergency fund', jubilacion: 'jubilación', general: 'general savings' };
         const purposeField = (it, lineId) => {
             if (!Engine.isSavingsItem(it)) return '';
             const auto = PURPOSE_LABEL[Engine.savingsPurpose(Object.assign({}, it, { purpose: '' }))];
-            const opts = [{ value: '', label: `Automático (${auto})` }, { value: 'emergencia', label: 'Fondo de emergencia' }, { value: 'jubilacion', label: 'Jubilación' }, { value: 'general', label: 'Ahorro general' }];
-            return `<label class="field mt-3 max-w-sm"><span class="field-label">¿Para qué es este ahorro?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
-                <span class="help">El fondo de emergencia no cuenta como ahorro para la jubilación (Paso 4).</span></label>`;
+            const opts = [{ value: '', label: `Automatic (${auto})` }, { value: 'emergencia', label: 'Emergency fund' }, { value: 'jubilacion', label: 'Jubilación' }, { value: 'general', label: 'General savings' }];
+            return `<label class="field mt-3 max-w-sm"><span class="field-label">What is this saving for?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
+                <span class="help">The emergency fund doesn't count as retirement saving (Step 4).</span></label>`;
         };
         m.plannedItems.forEach(it => { if (it.group && !it.link && !custom.includes(it.group)) custom.push(it.group); });
         const order = GROUPS.map(g => g.type).concat(custom.map(n => 'g:' + n), Object.keys(byGroup).filter(k => !GROUPS.some(g => g.type === k) && !k.startsWith('g:')));
@@ -126,18 +126,18 @@
             const list = byGroup[g] || [];
             const gdef = (ctx.year.groups || []).find(x => x.name === name);
             const addType = isCustom ? ((gdef && gdef.type) || (list[0] && list[0].type) || 'Gasto Variable') : (g === 'Ahorro' ? 'Ahorro/Inversión' : g);
-            const foot = g === 'Deuda' ? '<a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Agregar deuda</a>'
-                : GROUPS.some(x => x.type === g) || isCustom ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(addType)}" ${isCustom ? `data-group="${esc(name)}"` : ''}><i class="fa-solid fa-plus"></i> Agregar rubro</button>${isCustom && !list.length ? ` <button type="button" class="mini-btn text-red-600 ml-2" data-action="group.delete" data-name="${esc(name)}">Quitar grupo</button>` : ''}` : '<span></span>';
+            const foot = g === 'Deuda' ? '<a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Add debt</a>'
+                : GROUPS.some(x => x.type === g) || isCustom ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(addType)}" ${isCustom ? `data-group="${esc(name)}"` : ''}><i class="fa-solid fa-plus"></i> Add line</button>${isCustom && !list.length ? ` <button type="button" class="mini-btn text-red-600 ml-2" data-action="group.delete" data-name="${esc(name)}">Remove group</button>` : ''}` : '<span></span>';
             return `<section class="bs-card" data-group="${esc(g)}">
                 <header class="bs-head"><span class="bs-title"><i class="fa-solid ${def.icon} text-slate-400"></i> ${esc(def.label)}</span>${colsHTML(MODES)}</header>
-                ${list.map(lineRow).join('') || '<p class="bs-empty">Sin rubros todavía.</p>'}
+                ${list.map(lineRow).join('') || '<p class="bs-empty">No lines yet.</p>'}
                 <footer class="bs-foot">${foot}<span class="bs-total" data-total></span></footer>
             </section>`;
         });
-        cards.push('<button type="button" class="bs-add-group" data-action="group.add"><i class="fa-solid fa-folder-plus"></i> Agregar grupo<span class="block text-[11px] font-normal text-slate-500 mt-1">Ej: Dar, Mascotas, Carro, Hijos</span></button>');
+        cards.push('<button type="button" class="bs-add-group" data-action="group.add"><i class="fa-solid fa-folder-plus"></i> Add group<span class="block text-[11px] font-normal text-slate-500 mt-1">E.g. Giving, Pets, Car, Kids</span></button>');
         host.innerHTML = `
             <div class="bs-toolbar">
-                <div class="segmented bs-modes" role="tablist" aria-label="Qué mostrar">${Object.keys(MODES).map(k => `<button type="button" data-action="budget.mode" data-mode="${k}">${MODES[k]}</button>`).join('')}</div>
+                <div class="segmented bs-modes" role="tablist" aria-label="What to show">${Object.keys(MODES).map(k => `<button type="button" data-action="budget.mode" data-mode="${k}">${MODES[k]}</button>`).join('')}</div>
                 <span class="bs-month" id="bs-month"></span>
             </div>
             <div id="bs-banner" class="bs-banner"></div>
@@ -200,22 +200,22 @@
         const isCurrent = m.sm && ctx.state.activeYear === t.getFullYear() && Number(m.sm) === t.getMonth() + 1;
         const daysLeft = isCurrent ? new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate() - t.getDate() : null;
         UI.html('bs-month', md === 'planned' ? '' : m.sm
-            ? `<i class="fa-regular fa-calendar"></i> ${Store.ui.month === 'base' ? `Gastos de ${monthName} (mes actual)` : `Gastos de ${monthName}`}${daysLeft !== null ? ` · ${daysLeft === 0 ? 'último día del mes' : `quedan ${daysLeft} día${daysLeft === 1 ? '' : 's'}`}` : ''}`
-            : '<span class="text-amber-700">Elige un mes para ver lo gastado.</span>');
+            ? `<i class="fa-regular fa-calendar"></i> ${Store.ui.month === 'base' ? `${monthName} spending (current month)` : `${monthName} spending`}${daysLeft !== null ? ` · ${daysLeft === 0 ? 'last day of the month' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}` : ''}`
+            : '<span class="text-amber-700">Pick a month to see what was spent.</span>');
 
         // Zero-based banner
         const bal = mb.balanceReal;
         const banner = document.getElementById('bs-banner');
         banner.className = `bs-banner ${Math.abs(bal) < 0.005 ? 'ok' : bal > 0 ? 'warn' : 'bad'}`;
-        banner.innerHTML = Math.abs(bal) < 0.005 ? '<i class="fa-regular fa-circle-check"></i> ¡Es un presupuesto base cero! Cada dólar tiene un trabajo.'
-            : bal > 0 ? `<i class="fa-solid fa-circle-info"></i> Aún falta asignar <strong>${money(bal)}</strong>.`
-            : `<i class="fa-solid fa-triangle-exclamation"></i> Planeaste <strong>${money(-bal)}</strong> más de lo que ganas.`;
+        banner.innerHTML = Math.abs(bal) < 0.005 ? '<i class="fa-regular fa-circle-check"></i> It\'s a zero-based budget! Every dollar has a job.'
+            : bal > 0 ? `<i class="fa-solid fa-circle-info"></i> Still to assign: <strong>${money(bal)}</strong>.`
+            : `<i class="fa-solid fa-triangle-exclamation"></i> You planned <strong>${money(-bal)}</strong> more than you earn.`;
 
         // Income
         const salaryRow = host.querySelector('[data-income="salary"]');
         setRow(salaryRow, {
             value: md === 'remaining' ? Math.max(0, mb.salary - m.salaryReceived) : pick(mb.salary, m.salaryReceived), planned: mb.salary, spent: m.salaryReceived, invert: true, progress: mb.salary > 0 ? m.salaryReceived / mb.salary : 0,
-            sub: md === 'planned' ? 'Calculado de tu sueldo bruto' : m.salaryReceived > 0 ? 'Registrado en Transacciones' : 'Regístralo como Sueldo/Salario para verlo recibido'
+            sub: md === 'planned' ? 'Calculated from your gross salary' : m.salaryReceived > 0 ? 'Logged in Transactions' : 'Log it as Salary/Wages to see it received'
         });
         m.other.sources.forEach(src => {
             const pl = (m.planned.sources.find(x => x.id === src.id) || src).planned;
@@ -240,11 +240,11 @@
             const planned = Number(it.real) || 0;
             const s = spentOf(it.id);
             const subParts = [];
-            if (it.link === 'debt') subParts.push(planned + 0.005 >= it.minPayment ? `Cubre el mínimo (${money0(it.minPayment)})` : `<span class="text-red-600">Mínimo ${money0(it.minPayment)}</span>`);
+            if (it.link === 'debt') subParts.push(planned + 0.005 >= it.minPayment ? `Covers the minimum (${money0(it.minPayment)})` : `<span class="text-red-600">Minimum ${money0(it.minPayment)}</span>`);
             if (it.link === 'goal') {
                 const g = ctx.state.goals.find(x => x.id === it.refId) || {};
                 const r = Engine.goalMonths(g);
-                subParts.push(r.status === 'reached' ? '¡Meta alcanzada!' : r.status === 'never' ? '<span class="text-red-600">Sin aporte: nunca llega</span>' : `Lista en ${Fmt.monthYear(Engine.addMonths(today, r.months))}`);
+                subParts.push(r.status === 'reached' ? 'Goal reached!' : r.status === 'never' ? '<span class="text-red-600">No contribution: never gets there</span>' : `Ready in ${Fmt.monthYear(Engine.addMonths(today, r.months))}`);
             }
             if (md !== 'planned' && s.txns.length) subParts.push(`${s.txns.length} transacci${s.txns.length === 1 ? 'ón' : 'ones'}`);
             setRow(row, {
@@ -256,7 +256,7 @@
             if (due) due.textContent = Number(it.dueDay) >= 1 ? `día ${it.dueDay}` : '';
         });
         const sweepRow = host.querySelector('[data-line="sweep"]');
-        if (sweepRow) setRow(sweepRow, { value: md === 'spent' ? 0 : mb.sweep, planned: mb.sweep, spent: 0, progress: 0, sub: mb.sweep > 0 ? 'Pásalo a tu cuenta de ahorro o póliza' : 'No sobra nada' });
+        if (sweepRow) setRow(sweepRow, { value: md === 'spent' ? 0 : mb.sweep, planned: mb.sweep, spent: 0, progress: 0, sub: mb.sweep > 0 ? 'Move it to your savings account or CD' : 'Nothing left over' });
 
         // Card totals
         UI.$$('#bud-simple .bs-card[data-group]').forEach(c => {
@@ -277,11 +277,11 @@
         un.classList.toggle('hidden', !show);
         if (show) {
             const options = lineOptions(Engine.monthItems(ctx.budgetYear, m.sm));
-            un.innerHTML = `<header class="bs-head"><span class="bs-title text-amber-800"><i class="fa-solid fa-triangle-exclamation"></i> Gastos sin rubro en ${monthName}</span><span class="bs-total">${money(m.spend.unassignedTotal)}</span></header>
-                <p class="bs-sub mb-2">No cuentan en ningún rubro. Arrástralos a un rubro de arriba (o elígelo en la lista) para que tu presupuesto refleje lo que gastaste.</p>
-                ${m.spend.unassigned.map(t => `<div class="bs-row bs-txn" draggable="true" data-txn="${t.id}" title="Arrástralo a un rubro, o elige el rubro a la derecha"><div class="bs-name"><span class="bs-label">${esc(t.description)}</span><span class="bs-sub">${esc(t.date)} · ${esc(t.parentCategory)}</span></div>
+            un.innerHTML = `<header class="bs-head"><span class="bs-title text-amber-800"><i class="fa-solid fa-triangle-exclamation"></i> Expenses without a line in ${monthName}</span><span class="bs-total">${money(m.spend.unassignedTotal)}</span></header>
+                <p class="bs-sub mb-2">They don't count in any line. Drag them onto a line above (or pick it in the list) so your budget reflects what you spent.</p>
+                ${m.spend.unassigned.map(t => `<div class="bs-row bs-txn" draggable="true" data-txn="${t.id}" title="Drag it onto a line, or pick the line on the right"><div class="bs-name"><span class="bs-label">${esc(t.description)}</span><span class="bs-sub">${esc(t.date)} · ${esc(t.parentCategory)}</span></div>
                     <div class="bs-val"><span class="bs-num">${money(t.amount)}</span></div>
-                    <select class="chip-select empty" data-change="txn.assignLine" data-id="${t.id}" aria-label="Asignar a un rubro"><option value="">+ Asignar a un rubro</option>${options}</select></div>`).join('')}`;
+                    <select class="chip-select empty" data-change="txn.assignLine" data-id="${t.id}" aria-label="Assign to a line"><option value="">+ Assign to a line</option>${options}</select></div>`).join('')}`;
         }
     }
 
@@ -329,7 +329,7 @@
         App.changed({ structural: true, step: true });
         if (lineId) {
             const item = Engine.monthItems(Store.effective(Number(t.date.slice(0, 4))), String(Number(t.date.slice(5, 7)))).find(i => String(i.id) === String(lineId));
-            UI.toast(`"${t.description}" ahora cuenta en «${item ? item.name : lineId}».`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
+            UI.toast(`"${t.description}" now counts in «${item ? item.name : lineId}».`, 'ok', { label: 'Deshacer', className: 'toast-undo', onClick: () => App.undo() });
         }
     }
 
@@ -362,31 +362,31 @@
         const over = hist.filter(h => h.planned > 0 && h.spent > h.planned + 0.005).length;
         const custom = (ctx.year.groups || []).map(g => g.name);
         // Savings lines say what they're for (emergency money doesn't count toward Step 4).
-        const PURPOSE_LABEL = { emergencia: 'fondo de emergencia', jubilacion: 'jubilación', general: 'ahorro general' };
+        const PURPOSE_LABEL = { emergencia: 'emergency fund', jubilacion: 'jubilación', general: 'general savings' };
         const purposeField = (it, lineId) => {
             if (!Engine.isSavingsItem(it)) return '';
             const auto = PURPOSE_LABEL[Engine.savingsPurpose(Object.assign({}, it, { purpose: '' }))];
-            const opts = [{ value: '', label: `Automático (${auto})` }, { value: 'emergencia', label: 'Fondo de emergencia' }, { value: 'jubilacion', label: 'Jubilación' }, { value: 'general', label: 'Ahorro general' }];
-            return `<label class="field mt-3 max-w-sm"><span class="field-label">¿Para qué es este ahorro?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
-                <span class="help">El fondo de emergencia no cuenta como ahorro para la jubilación (Paso 4).</span></label>`;
+            const opts = [{ value: '', label: `Automatic (${auto})` }, { value: 'emergencia', label: 'Emergency fund' }, { value: 'jubilacion', label: 'Jubilación' }, { value: 'general', label: 'General savings' }];
+            return `<label class="field mt-3 max-w-sm"><span class="field-label">What is this saving for?</span><select class="input" data-change="line.setPurpose" data-id="${esc(String(lineId))}">${Views.selectOptions(opts, it.purpose || '')}</select>
+                <span class="help">The emergency fund doesn't count as retirement saving (Step 4).</span></label>`;
         };
-        const settings = item.link ? `<p class="help">Es la línea de ${item.link === 'debt' ? 'una deuda' : 'una meta'}: se edita en <a href="#" class="link" data-goto="futuro/metas">Deudas y Metas</a>.</p>` : `
+        const settings = item.link ? `<p class="help">It's ${item.link === 'debt' ? 'a debt' : 'a goal'}'s line: edit it in <a href="#" class="link" data-goto="futuro/metas">Debts & Goals</a>.</p>` : `
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label class="field"><span class="field-label">Grupo</span><select class="input" data-change="line.setGroup" data-id="${esc(String(id))}"><option value="">Según su tipo</option>${custom.map(n => `<option ${n === item.group ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
-                <label class="field"><span class="field-label">Tipo</span><select class="input" data-change="line.setType" data-id="${esc(String(id))}">${Views.selectOptions(Defaults.BUDGET_TYPES, item.type)}</select></label>
-                <label class="field"><span class="field-label">Categoría vinculada</span><select class="input" data-change="line.setCategory" data-id="${esc(String(id))}">${Views.selectOptions([{ value: 'none', label: 'Sin vincular' }].concat(Object.keys(s.taxonomy.expense).map(c => ({ value: c, label: c }))), item.linkedCategory || 'none')}</select></label>
+                <label class="field"><span class="field-label">Group</span><select class="input" data-change="line.setGroup" data-id="${esc(String(id))}"><option value="">By its type</option>${custom.map(n => `<option ${n === item.group ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+                <label class="field"><span class="field-label">Type</span><select class="input" data-change="line.setType" data-id="${esc(String(id))}">${Views.selectOptions(Defaults.BUDGET_TYPES, item.type)}</select></label>
+                <label class="field"><span class="field-label">Linked category</span><select class="input" data-change="line.setCategory" data-id="${esc(String(id))}">${Views.selectOptions([{ value: 'none', label: 'Not linked' }].concat(Object.keys(s.taxonomy.expense).map(c => ({ value: c, label: c }))), item.linkedCategory || 'none')}</select></label>
             </div>${purposeField(item, id)}`;
         const sheet = UI.sheet({ title: item.name, icon: 'fa-chart-simple', wide: true, html: `
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                 <div class="kpi tone-slate"><span class="kpi-label">Planeado · ${Fmt.MONTH_NAMES[sm - 1]}</span><span class="kpi-value">${money(cur.planned)}</span></div>
-                <div class="kpi tone-slate"><span class="kpi-label">Gastado</span><span class="kpi-value">${money(cur.spent)}</span></div>
-                <div class="kpi ${cur.planned - cur.spent < -0.005 ? 'tone-red' : 'tone-emerald'}"><span class="kpi-label">Restante</span><span class="kpi-value">${money(cur.planned - cur.spent)}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">Spent</span><span class="kpi-value">${money(cur.spent)}</span></div>
+                <div class="kpi ${cur.planned - cur.spent < -0.005 ? 'tone-red' : 'tone-emerald'}"><span class="kpi-label">Remaining</span><span class="kpi-value">${money(cur.planned - cur.spent)}</span></div>
             </div>
             <div class="chart-box" style="height:13rem"><canvas id="line-detail-chart"></canvas></div>
-            <p class="help mb-3">Promedio gastado: <strong>${money(avg)}</strong>/mes en los meses con gastos · Te pasaste en ${over} de los últimos 12 meses.</p>
+            <p class="help mb-3">Average spent: <strong>${money(avg)}</strong>/mo in months with spending · You went over in ${over} of the last 12 months.</p>
             ${settings}
-            <div class="section-label mt-4">Transacciones de ${Fmt.MONTH_NAMES[sm - 1]}</div>
-            ${cur.txns.length ? `<div class="space-y-1 text-xs">${cur.txns.map(x => `<div class="flex justify-between gap-2 bg-slate-50 rounded-lg px-2 py-1.5"><span class="truncate">${esc(x.date)} · <strong>${esc(x.description)}</strong>${Array.isArray(x.splits) && x.splits.length ? ' <span class="badge badge-muted">dividida</span>' : ''}</span><span class="font-bold whitespace-nowrap">${money(x.amount)}</span></div>`).join('')}</div>` : '<p class="help">Sin transacciones este mes.</p>'}` });
+            <div class="section-label mt-4">${Fmt.MONTH_NAMES[sm - 1]} transactions</div>
+            ${cur.txns.length ? `<div class="space-y-1 text-xs">${cur.txns.map(x => `<div class="flex justify-between gap-2 bg-slate-50 rounded-lg px-2 py-1.5"><span class="truncate">${esc(x.date)} · <strong>${esc(x.description)}</strong>${Array.isArray(x.splits) && x.splits.length ? ' <span class="badge badge-muted">dividida</span>' : ''}</span><span class="font-bold whitespace-nowrap">${money(x.amount)}</span></div>`).join('')}</div>` : '<p class="help">No transactions this month.</p>'}` });
         UI.chart('line-detail-chart', {
             type: 'line',
             data: { labels: hist.map(h => h.label), datasets: [
@@ -406,16 +406,16 @@
         const cur = Array.isArray(t.splits) ? t.splits : [];
         const fields = [];
         for (let k = 0; k < 3; k++) {
-            fields.push({ name: 'line' + k, label: `Rubro ${k + 1}`, options, value: cur[k] ? String(cur[k].line) : '' });
-            fields.push({ name: 'amt' + k, label: `Monto ${k + 1}`, type: 'number', min: 0, step: '0.01', value: cur[k] ? cur[k].amount : '' });
+            fields.push({ name: 'line' + k, label: `Line ${k + 1}`, options, value: cur[k] ? String(cur[k].line) : '' });
+            fields.push({ name: 'amt' + k, label: `Amount ${k + 1}`, type: 'number', min: 0, step: '0.01', value: cur[k] ? cur[k].amount : '' });
         }
-        const r = await UI.form({ title: `Dividir "${t.description}" (${money(t.amount)})`, message: 'Reparte el monto entre rubros. Lo que no repartas cuenta como siempre (según su categoría).', fields, confirmText: 'Guardar',
-            validate: v => { const tot = [0, 1, 2].reduce((a, k) => a + (v['line' + k] ? Number(v['amt' + k]) || 0 : 0), 0); return tot > Number(t.amount) + 0.005 ? `Repartiste ${money(tot)}, más que ${money(t.amount)}.` : null; } });
+        const r = await UI.form({ title: `Dividir "${t.description}" (${money(t.amount)})`, message: 'Split the amount across lines. Whatever you don\'t split counts as usual (by its category).', fields, confirmText: 'Guardar',
+            validate: v => { const tot = [0, 1, 2].reduce((a, k) => a + (v['line' + k] ? Number(v['amt' + k]) || 0 : 0), 0); return tot > Number(t.amount) + 0.005 ? `You split ${money(tot)}, more than ${money(t.amount)}.` : null; } });
         if (!r) return;
         const splits = [0, 1, 2].map(k => ({ line: r['line' + k], amount: Math.round((Number(r['amt' + k]) || 0) * 100) / 100 })).filter(x => x.line && x.amount > 0);
         if (splits.length) { t.splits = splits; delete t.budgetLine; } else delete t.splits;
         App.changed({ structural: true, step: true });
-        UI.toast(splits.length ? `"${t.description}" dividida entre ${splits.length} rubro${splits.length === 1 ? '' : 's'}.` : 'División quitada.');
+        UI.toast(splits.length ? `"${t.description}" split across ${splits.length} line${splits.length === 1 ? '' : 's'}.` : 'Split removed.');
     }
 
     UI.register({
@@ -447,15 +447,15 @@
             openDetail(el.dataset.id);
         },
         'group.add': async () => {
-            const r = await UI.form({ title: 'Nuevo grupo', fields: [
-                { name: 'name', label: 'Nombre del grupo', placeholder: 'Ej: Dar, Mascotas, Carro' },
-                { name: 'type', label: '¿Qué tipo de dinero es?', options: [{ value: 'Gasto Variable', label: 'Gastos que varían' }, { value: 'Gasto Fijo', label: 'Gastos fijos' }, { value: 'Ahorro/Inversión', label: 'Ahorro' }] }
-            ], confirmText: 'Crear', validate: v => !v.name.trim() ? 'Escribe un nombre.' : (Store.active().groups || []).some(g => g.name === v.name.trim()) ? 'Ya existe un grupo con ese nombre.' : null });
+            const r = await UI.form({ title: 'New group', fields: [
+                { name: 'name', label: 'Group name', placeholder: 'E.g. Giving, Pets, Car' },
+                { name: 'type', label: 'What kind of money is it?', options: [{ value: 'Gasto Variable', label: 'Expenses that vary' }, { value: 'Gasto Fijo', label: 'Fixed expenses' }, { value: 'Ahorro/Inversión', label: 'Ahorro' }] }
+            ], confirmText: 'Crear', validate: v => !v.name.trim() ? 'Type a name.' : (Store.active().groups || []).some(g => g.name === v.name.trim()) ? 'There\'s already a group with that name.' : null });
             if (!r) return;
             const yd = Store.active();
             (yd.groups || (yd.groups = [])).push({ name: r.name.trim().slice(0, 40), type: r.type });
             App.changed({ structural: true, step: true });
-            UI.toast(`Grupo "${r.name.trim()}" creado. Agrégale rubros o mueve uno desde su detalle (ícono de gráfico).`);
+            UI.toast(`Group "${r.name.trim()}" created. Add lines to it or move one from its detail (chart icon).`);
         },
         'group.delete': (el) => {
             const yd = Store.active();

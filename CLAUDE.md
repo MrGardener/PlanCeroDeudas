@@ -17,7 +17,7 @@ Plain HTML/CSS/JS, no framework, no server. Everything runs in the browser; data
 - `js/defaults.js` (Ecuador) / `js/defaults-us.js` (US) — country packs: taxonomy, tax tables, new-state shape.
 - `js/sample.js` — the example families (US: the Millers, Grand Rapids; Ecuador). Deterministic.
 - `js/views/*.js` — one file per screen or card. `js/ui/core.js` — UI helpers. `js/app.js` — routing, undo.
-- `js/i18n.js` + `js/i18n/en.js` (+ `us.js`) — translation (see below).
+- `js/i18n.js` + `js/i18n/es.js` (+ `ec.js`, `en.js`, `us.js`) — translation (see below).
 - `mobile/` — Capacitor app; `mobile/build-www.js` builds `mobile/www` (offline, US edition).
 - `tests/*.test.js` — unit tests (node:test). `tests/e2e/` — browser suites (Playwright). `tests/fixtures/` — invented test files.
 - `docs/ROADMAP.md` — feature log and plans. `docs/MOBILE.md` — phone app build/install.
@@ -43,11 +43,17 @@ While developing, run `npm test` and the one suite you touched; run `npm run che
 - Category / type / payment names in data are **Spanish identifiers** (`'Gasto'`, `'Alimentación'`,
   `'Sueldo/Salario'`). They are saved in people's data: never rename them; they're shown translated.
 
-## Translation (current state — will change, see "Plan")
-- Spanish is the source text in the code; `js/i18n/en.js` maps Spanish → English at runtime
-  (`I18n.add('en', {...})`). `tests/i18n.test.js` fails when a Spanish text has no English entry.
-- `${…}` in a template becomes `{0}`, `{1}`… in the key. Plurals: `transacci${n===1?'ón':'ones'}` and
-  in English `{1|s}` prints "s" only when that piece is non-empty.
+## Translation
+- The code is written in **US English**. `js/i18n/es.js` maps English → Spanish (`I18n.add('es', {...})`).
+  New work goes in English only; `npm run i18n:missing` lists English text without Spanish yet
+  (a report, not a test). Add the real ones to `es.js` in batches.
+- `js/i18n/ec.js`: the Ecuador edition's own wording (IESS, DPF, cooperativas…) for English text,
+  in English and Spanish (`I18n.override('EC', 'en'|'es', {...})`). Checked first.
+- Saved data stays Spanish (`'Gasto'`, `'Alimentación'`, CD modalities…) and some older code is still
+  Spanish: `js/i18n/en.js` (Spanish → English) and `us.js` (Ecuador → US Spanish wording) handle those.
+  `tests/i18n.test.js` fails when Spanish text in the code has no English entry.
+- `${…}` in a template becomes `{0}`, `{1}`… in the key. Plurals: `day${n === 1 ? '' : 's'}` and in
+  Spanish `día{1|s|}` (`{n|a|b}`: a when that piece is non-empty, else b).
 - Avoid several placeholders side by side (`{2}{3}`): matching becomes ambiguous. Build messages from
   short sentences and translate each (`parts.map(I18n.t).join(' · ')`).
 - The runtime splits text on " · " and " + "; a `<strong>` inside a sentence splits it into pieces.
@@ -69,7 +75,7 @@ While developing, run `npm test` and the one suite you touched; run `npm run che
 
 ## Plan (agreed 2026-10-04)
 1. ✅ Tests in the repo + CI, this file, PR #1 merged.
-2. Flip the source language to English: a script inverts `en.js` into `es.js`, English text goes in the
-   code; Spanish identifiers in data stay. One-time; verified by all suites.
+2. ✅ Source language flipped to English: English text in the code, `es.js` for Spanish, `ec.js` for
+   Ecuador wording; Spanish identifiers in data stay.
 3. Then: new work in English only; Spanish catches up in batches (`npm run i18n:missing` lists what's
    pending). The Ecuador edition may show some English between batches.

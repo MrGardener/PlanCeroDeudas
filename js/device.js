@@ -30,7 +30,7 @@
         const b = document.getElementById('theme-toggle');
         if (b) {
             b.innerHTML = `<i class="fa-solid ${dark ? 'fa-sun' : 'fa-moon'}"></i>`;
-            b.title = dark ? 'Usar tema claro' : 'Usar tema oscuro';
+            b.title = dark ? 'Use light theme' : 'Use dark theme';
         }
         const sel = document.getElementById('cfg-theme');
         if (sel) sel.value = t;
@@ -53,7 +53,7 @@
     const getLang = () => read().lang || defaultLang();
     function applyLang() {
         if (!root.I18n) return;
-        if (root.APP_EDITION && APP_EDITION.country !== 'EC') I18n.setCountry(APP_EDITION.country);
+        I18n.setCountry((root.APP_EDITION && APP_EDITION.country) || 'EC');
         I18n.setLang(getLang());
         const b = document.getElementById('lang-toggle');
         if (b) { b.textContent = getLang() === 'en' ? 'ES' : 'EN'; b.title = getLang() === 'en' ? 'Cambiar a español' : 'Switch to English'; }
@@ -102,11 +102,11 @@
             <form class="lock-box" autocomplete="off">
                 <div class="brand-logo mx-auto mb-3"><i class="fa-solid fa-lock"></i></div>
                 <div class="lock-title" data-i18n-skip>${(root.APP_EDITION && APP_EDITION.appName) || 'Plan Financiero Ecuador'}</div>
-                <p class="lock-sub">Escribe tu PIN para entrar.</p>
+                <p class="lock-sub">Type your PIN to get in.</p>
                 <input id="lock-pin" class="lock-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" aria-label="PIN" autofocus>
                 <p id="lock-msg" class="lock-msg" role="alert"></p>
-                <button type="submit" class="btn btn-primary w-full justify-center">Entrar</button>
-                <button type="button" class="lock-forgot" id="lock-forgot">Olvidé mi PIN</button>
+                <button type="submit" class="btn btn-primary w-full justify-center">Enter</button>
+                <button type="button" class="lock-forgot" id="lock-forgot">I forgot my PIN</button>
             </form>`;
         document.body.appendChild(el);
         // Shown before the app starts translating the page: translate it here, in the device's language.
@@ -117,7 +117,7 @@
         setTimeout(() => input.focus(), 30);
         el.querySelector('form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (Date.now() < waitUntil) { say(`Demasiados intentos. Espera ${Math.ceil((waitUntil - Date.now()) / 1000)} segundos.`); return; }
+            if (Date.now() < waitUntil) { say(`Too many tries. Wait ${Math.ceil((waitUntil - Date.now()) / 1000)} seconds.`); return; }
             const lock = read().lock;
             if (lock && await hashPin(input.value, lock.salt) === lock.hash) {
                 tries = 0;
@@ -128,8 +128,8 @@
             }
             tries++;
             input.value = '';
-            if (tries >= MAX_TRIES) { tries = 0; waitUntil = Date.now() + WAIT_MS; say('PIN incorrecto. Espera 30 segundos para volver a intentar.'); }
-            else say(`PIN incorrecto. Te quedan ${MAX_TRIES - tries} intentos.`);
+            if (tries >= MAX_TRIES) { tries = 0; waitUntil = Date.now() + WAIT_MS; say('Wrong PIN. Wait 30 seconds to try again.'); }
+            else say(`Wrong PIN. ${MAX_TRIES - tries} tries left.`);
             input.focus();
         });
         el.querySelector('#lock-forgot').addEventListener('click', () => {
@@ -137,10 +137,10 @@
             // brings the data back (backups never contain the PIN).
             const box = el.querySelector('.lock-box');
             box.innerHTML = `
-                <div class="lock-title">¿Olvidaste tu PIN?</div>
-                <p class="lock-sub">El PIN no se puede recuperar. Para volver a entrar hay que <b>borrar los datos de este navegador</b>. Después puedes cargar tu copia de respaldo (.json) desde Configuración.</p>
-                <button type="button" class="btn btn-danger w-full justify-center mt-3" id="lock-wipe">Borrar los datos y quitar el PIN</button>
-                <button type="button" class="lock-forgot" id="lock-back">Volver</button>`;
+                <div class="lock-title">Forgot your PIN?</div>
+                <p class="lock-sub">The PIN can't be recovered. To get back in you need to <b>erase this browser's data</b>. Then you can load your backup (.json) from Settings.</p>
+                <button type="button" class="btn btn-danger w-full justify-center mt-3" id="lock-wipe">Erase the data and remove the PIN</button>
+                <button type="button" class="lock-forgot" id="lock-back">Back</button>`;
             tr(box);
             box.querySelector('#lock-back').addEventListener('click', () => { el.remove(); showLock(); });
             box.querySelector('#lock-wipe').addEventListener('click', () => {

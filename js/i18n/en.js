@@ -1,4 +1,5 @@
-/* English translations, keyed by the Spanish text the app shows (see js/i18n.js).
+/* English for text that is still Spanish: saved data (categories, types…) and older code.
+   The app's own text is English now (see js/i18n.js); this dictionary shrinks over time.
    {n} = a value filled in at runtime; {n|s} prints "s" only when that value isn't empty. */
 I18n.add('en', {
 "\"{0}\" ahora cuenta como ingreso de todos los meses.": "\"{0}\" now counts as income every month.",

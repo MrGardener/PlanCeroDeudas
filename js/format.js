@@ -8,20 +8,20 @@
     // Display currency. Ecuador uses the US dollar, but amounts can be shown in another
     // currency's symbol and number style (display only: nothing is converted).
     const CURRENCIES = [
-        { code: 'USD', label: 'Dólar estadounidense (USD) — Ecuador', symbol: '$', locale: 'en-US', decimals: 2 },
+        { code: 'USD', label: 'US dollar (USD)', symbol: '$', locale: 'en-US', decimals: 2 },
         { code: 'EUR', label: 'Euro (EUR)', symbol: '€', locale: 'es-ES', decimals: 2, after: true },
-        { code: 'COP', label: 'Peso colombiano (COP)', symbol: 'COP $', locale: 'es-CO', decimals: 0 },
-        { code: 'PEN', label: 'Sol peruano (PEN)', symbol: 'S/', locale: 'es-PE', decimals: 2 },
-        { code: 'MXN', label: 'Peso mexicano (MXN)', symbol: 'MX$', locale: 'es-MX', decimals: 2 },
-        { code: 'CLP', label: 'Peso chileno (CLP)', symbol: 'CLP $', locale: 'es-CL', decimals: 0 },
-        { code: 'ARS', label: 'Peso argentino (ARS)', symbol: 'ARS $', locale: 'es-AR', decimals: 2 },
+        { code: 'COP', label: 'Colombian peso (COP)', symbol: 'COP $', locale: 'es-CO', decimals: 0 },
+        { code: 'PEN', label: 'Peruvian sol (PEN)', symbol: 'S/', locale: 'es-PE', decimals: 2 },
+        { code: 'MXN', label: 'Mexican peso (MXN)', symbol: 'MX$', locale: 'es-MX', decimals: 2 },
+        { code: 'CLP', label: 'Chilean peso (CLP)', symbol: 'CLP $', locale: 'es-CL', decimals: 0 },
+        { code: 'ARS', label: 'Argentine peso (ARS)', symbol: 'ARS $', locale: 'es-AR', decimals: 2 },
         { code: 'BOB', label: 'Boliviano (BOB)', symbol: 'Bs', locale: 'es-BO', decimals: 2 },
         { code: 'GTQ', label: 'Quetzal (GTQ)', symbol: 'Q', locale: 'es-GT', decimals: 2 },
-        { code: 'DOP', label: 'Peso dominicano (DOP)', symbol: 'RD$', locale: 'es-DO', decimals: 2 },
-        { code: 'BRL', label: 'Real brasileño (BRL)', symbol: 'R$', locale: 'pt-BR', decimals: 2 },
-        { code: 'GBP', label: 'Libra esterlina (GBP)', symbol: '£', locale: 'en-GB', decimals: 2 },
-        { code: 'CAD', label: 'Dólar canadiense (CAD)', symbol: 'CA$', locale: 'en-CA', decimals: 2 },
-        { code: 'INR', label: 'Rupia india (INR)', symbol: '₹', locale: 'en-IN', decimals: 2 }
+        { code: 'DOP', label: 'Dominican peso (DOP)', symbol: 'RD$', locale: 'es-DO', decimals: 2 },
+        { code: 'BRL', label: 'Brazilian real (BRL)', symbol: 'R$', locale: 'pt-BR', decimals: 2 },
+        { code: 'GBP', label: 'Pound sterling (GBP)', symbol: '£', locale: 'en-GB', decimals: 2 },
+        { code: 'CAD', label: 'Canadian dollar (CAD)', symbol: 'CA$', locale: 'en-CA', decimals: 2 },
+        { code: 'INR', label: 'Indian rupee (INR)', symbol: '₹', locale: 'en-IN', decimals: 2 }
     ];
     let cur = CURRENCIES[0];
     const setCurrency = (code) => { cur = CURRENCIES.find(c => c.code === code) || CURRENCIES[0]; return cur; };

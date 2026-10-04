@@ -1,18 +1,23 @@
-// Lists every piece of Spanish text the app can show, as translation keys:
-//   static text            → "Ingreso neto mensual"
-//   text with values in it → "Te quedan {0} para {1} día{2}." ({n} = a value filled in at runtime)
-// Usage: node scripts/i18n-extract.js > /tmp/keys.json        (no dependencies)
-// The keys are what js/i18n/en.js translates; scripts/i18n-check.js reports the missing ones.
+// Lists the pieces of text the app can show, as translation keys:
+//   static text            → "Monthly net income"
+//   text with values in it → "{0} left for {1} day{2}." ({n} = a value filled in at runtime)
+// Usage: node scripts/i18n-extract.js [--english] > /tmp/keys.json        (no dependencies)
+// By default it lists the text that is still Spanish (js/i18n/en.js translates it; tests/i18n.test.js
+// checks). With --english it lists the English text (js/i18n/es.js translates it; see
+// scripts/i18n-missing.js).
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 
-const SPANISH = /[áéíóúñ¿¡]|\b(de|del|la|las|el|los|tu|tus|que|para|con|por|sin|una?|mes|meses|año|años|día|días|hoy|cada|cuánto|qué|más|menos|aquí|ver|agregar|guardar|cancelar|quitar|eliminar|nueva?|nuevo|gasto|gastos|ingresos?|deudas?|ahorros?|cuentas?|presupuesto|sueldo|pago|pagos|monto|fecha|descripción|categoría|rubro|meta|metas|resumen|total|saldo|neto|bruto|semana|semanas|todos?|todas?|solo|también|aún|ya|si|no|es|son|está|están|tiene|tienes|puedes|hay|cuando|como|cómo|desde|hasta|entre|sobre|bajo|tipo|lugar|forma|persona|personas|hogar|regla|reglas|y|en|al|o|curso|valor|balance|cierre|vencimiento|fuentes|aportes|pensiones|ninguno|tomar|elegir|escanear|enlazado|lista|grupos|impuestos|viajes|ropa|libros|salidas|remesas?|regalos|financiero|suscripciones|entretenimiento)\b/i;
+// Spanish: accents or Spanish words that aren't also English ("no", "total", "balance" are both).
+const SPANISH = /[áéíóúñ¿¡]|\b(de|del|la|las|el|los|tu|tus|que|para|con|por|sin|una?|mes|meses|año|años|día|días|hoy|cada|cuánto|qué|más|menos|aquí|ver|agregar|guardar|cancelar|quitar|eliminar|nueva?|nuevo|gasto|gastos|ingresos?|deudas?|ahorros?|cuentas?|presupuesto|sueldo|pago|pagos|monto|fecha|descripción|categoría|rubro|metas|resumen|saldo|neto|bruto|semana|semanas|todos?|todas?|también|aún|ya|si|es|está|están|tiene|tienes|puedes|hay|cuando|como|cómo|desde|hasta|entre|sobre|bajo|tipo|lugar|forma|hogar|regla|reglas|y|en|al|o|valor|cierre|vencimiento|fuentes|aportes|pensiones|ninguno|tomar|elegir|escanear|enlazado|lista|grupos|impuestos|viajes|ropa|libros|salidas|remesas?|regalos|financiero|suscripciones|entretenimiento)\b/i;
+const ENGLISH_MODE = process.argv.includes('--english');
 // Natural-language text: words, not code (ids, classes, actions, CSS, URLs, file names).
 const CODE = /^[a-z0-9]+([.\-_/:#][a-z0-9]+)+$|^[a-z]+[A-Z]\w*$|^[.#\[]|^https?:|\.(js|css|json|png|csv|xml|html)$|^fa-|^(btn|text|bg|card|input|cell|badge|tone|link|row|kpi|field|help|modal|chip|bs|txn|cal|safe|wi|pay|ded|imp|rule|acct|hold|nw|cfg|dash|bud|inc|ret|pol|road|metas|ahorro|presupuesto|hipoteca|jubilacion|patrimonio|config|resumen)[-_.\w]*$/;
 const WORDY = /^[¿¡"«(]?[A-Za-zÁÉÍÓÚÑáéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñü]+/;
 const isText = (s) => {
     if (!/[A-Za-zÁÉÍÓÚáéíóúñÑ]{2}/.test(s) || CODE.test(s.trim())) return false;
+    if (ENGLISH_MODE) return !SPANISH.test(s) && (/[A-Za-z]{2,}\s+[A-Za-z]/.test(s) || /^[A-Z][a-z]+[.:!?…]?$/.test(s.trim()));
     if (SPANISH.test(s)) return true;
     // Single words and short labels in Spanish without accents ("Hipoteca", "Guardado").
     return ALL && WORDY.test(s.trim()) && !/[{}=;]|=>|\(\)/.test(s);
