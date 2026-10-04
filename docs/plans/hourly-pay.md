@@ -1,6 +1,6 @@
 # Plan: hourly pay, overtime and bonuses (US edition)
 
-Agreed 2026-10-04. One PR per phase; each ends with `npm run check` green.
+Agreed 2026-10-04. One PR per phase; each ends with `npm run check` green. **Done: phases 1–4 (PRs #4–#7).**
 Ask: **"Do phase N of docs/plans/hourly-pay.md. Open a PR, merge when CI is green, report in 5 lines."**
 
 ## Why

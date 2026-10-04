@@ -242,3 +242,16 @@ DATA:OFXSGML
     assert.equal(r.account, '•••••6789');
     assert.equal(I.parseOFX('date,amount\n'), null);
 });
+
+test('pay stub earnings (US): rate × hours in either column order, overtime and a bonus line', () => {
+    const a = I.parsePaystub('Pay Period: 09/14/2026 - 09/27/2026  Pay Date: 10/02/2026\nEarnings Rate Hours Current YTD\nRegular 25.0000 80.00 2,000.00 38,000.00\nOvertime 37.5000 6.00 225.00 1,125.00\nBonus 500.00 500.00\nGross Pay 2,725.00\nFederal Income Tax 250.00\nNet Pay 2,100.00');
+    assert.deepEqual([a.earnings.regular.rate, a.earnings.regular.hours, a.earnings.regular.amount], [25, 80, 2000]);
+    assert.deepEqual([a.earnings.overtime.rate, a.earnings.overtime.hours], [37.5, 6]);
+    assert.equal(a.earnings.bonus.amount, 500);
+    assert.equal(a.gross, 2725);
+    assert.deepEqual(a.deductions.map(d => d.label), ['Federal Income Tax']);     // earnings aren't deductions
+    const b = I.parsePaystub('Description Hours Rate Amount\nRegular Pay 80.00 25.00 2,000.00\nOT 4.00 37.50 150.00\nNet Pay 1,700.00');
+    assert.deepEqual([b.earnings.regular.hours, b.earnings.regular.rate, b.earnings.overtime.hours], [80, 25, 4]);   // header: hours first
+    const c = I.parsePaystub('Regular Salary 2,307.69 46,153.80\nNet Pay 1,700.00');
+    assert.deepEqual([c.earnings.regular.amount, c.earnings.regular.rate], [2307.69, undefined]);                  // salaried: no rate
+});

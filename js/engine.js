@@ -207,15 +207,18 @@
     // Refund or owe: the year's federal tax for the household against what will have been withheld
     // (so far this year + per paycheck × paychecks left), and the W-4 change that evens it out —
     // extra withholding per paycheck (Step 4(c)) when you'd owe, less when the refund is large.
-    function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0, stdExtra = 0 }) {
+    // Bonuses still to come this year are withheld apart from the paychecks, usually at a flat 22%
+    // federal (supplemental wages): bonusesLeft (gross) adds that to the year's withholding.
+    function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0, stdExtra = 0, bonusesLeft = 0 }) {
         const t = yd.usTax || {};
         const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
         const income = Math.max(0, num(wagesIncome) + num(otherWages) + num(untaxedIncome));
         const f = usFederalTax({ income, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, stdExtra, t });
-        const withheld = num(withheldYtd) + num(perCheck) * Math.max(0, num(checksLeft)) + num(otherWithheld);
+        const supplemental = (num(t.supplementalRate) || 22) / 100;
+        const withheld = num(withheldYtd) + num(perCheck) * Math.max(0, num(checksLeft)) + num(otherWithheld) + Math.max(0, num(bonusesLeft)) * supplemental;
         const diff = withheld - f.tax;        // > 0 refund, < 0 owe
         const n = Math.max(1, Math.round(num(checksLeft)));
-        return Object.assign({}, f, { income: cents(income), withheld: cents(withheld), diff: cents(diff), refund: diff > 0, adjustPerCheck: num(checksLeft) > 0 ? cents(-diff / n) : null,
+        return Object.assign({}, f, { income: cents(income), withheld: cents(withheld), bonusWithheld: cents(Math.max(0, num(bonusesLeft)) * supplemental), diff: cents(diff), refund: diff > 0, adjustPerCheck: num(checksLeft) > 0 ? cents(-diff / n) : null,
             // Owing $1,000+ (after withholding) can bring an underpayment penalty unless withholding covers 90% of this year's tax or 100% of last year's.
             penaltyRisk: diff < -1000 && withheld < f.tax * 0.9 });
     }

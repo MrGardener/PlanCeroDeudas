@@ -735,6 +735,15 @@ test('US pay: bonuses are taxed with the year; a planned one counts in its month
     assert.ok(E.payroll(unplanned).netoM < E.payroll(usYear({})).netoM);
 });
 
+test('refund estimate: bonuses still to come are withheld at 22% federal', () => {
+    const yd = usYear({});
+    const base = E.usRefundEstimate({ yd, wagesIncome: 66000, withheldYtd: 3000, perCheck: 200, checksLeft: 8 });
+    const withBonus = E.usRefundEstimate({ yd, wagesIncome: 66000, withheldYtd: 3000, perCheck: 200, checksLeft: 8, bonusesLeft: 6000 });
+    near(withBonus.withheld - base.withheld, 1320, '22% of $6,000');
+    near(withBonus.bonusWithheld, 1320, 'shown apart');
+    near(withBonus.diff - base.diff, 1320, 'the refund grows by it');
+});
+
 test('extra paychecks: every 2 weeks gives two months with a 3rd; weekly, four with a 5th', () => {
     const bi = { freq: 'weekly', weekday: 5, interval: 2, anchor: '2026-01-02' };
     const p = E.extraPaycheckMonths(bi, 2026);

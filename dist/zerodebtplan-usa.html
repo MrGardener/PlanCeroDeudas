@@ -5353,6 +5353,12 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Bonus": "Bono",
+    "Leave it unchecked if overtime comes and goes.": "Déjalo sin marcar si las horas extra van y vienen.",
+    "Paid by the hour: {0} an hour, {1} hours a week": "Pago por hora: {0} la hora, {1} horas por semana",
+    "This overtime is usual: {0} hours a week at {1}×": "Estas horas extra son habituales: {0} horas por semana a {1}×",
+    "Add this {0} bonus to this year's bonuses (already paid)": "Agregar este bono de {0} a los bonos de este año (ya pagado)",
+    "Includes {0} withheld from bonuses (22%)": "Incluye {0} retenidos de bonos (22%)",
     "About {0}. Budget on your usual paychecks so it's real extra money, then send it to {1}.": "Unos {0}. Presupuesta con tus pagos de siempre para que sea dinero extra de verdad, y mándalo a {1}.",
     "About {0} on top of your usual pay. Give it a job before it arrives: {1}.": "Unos {0} además de tu pago de siempre. Dale un trabajo antes de que llegue: {1}.",
     "{0} brings an extra paycheck": "{0} trae un pago extra",
@@ -8690,7 +8696,9 @@ I18n.override('EC', 'es', {
         // Contribution limits (for warnings)
         limit401k: 24500, catchUp401k: 8000, limitIRA: 7500, limitHSA: { self: 4400, family: 8750 },
         // Social Security benefit formula (PIA bend points, full retirement age 67)
-        ssBend1: 1286, ssBend2: 7749, ssFullAge: 67
+        ssBend1: 1286, ssBend2: 7749, ssFullAge: 67,
+        // Bonuses and other supplemental wages: employers usually withhold a flat 22% federal.
+        supplementalRate: 22
     });
 
     // ------------------------------------------------------------------ states
@@ -10199,15 +10207,18 @@ I18n.override('EC', 'es', {
     // Refund or owe: the year's federal tax for the household against what will have been withheld
     // (so far this year + per paycheck × paychecks left), and the W-4 change that evens it out —
     // extra withholding per paycheck (Step 4(c)) when you'd owe, less when the refund is large.
-    function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0, stdExtra = 0 }) {
+    // Bonuses still to come this year are withheld apart from the paychecks, usually at a flat 22%
+    // federal (supplemental wages): bonusesLeft (gross) adds that to the year's withholding.
+    function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0, stdExtra = 0, bonusesLeft = 0 }) {
         const t = yd.usTax || {};
         const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
         const income = Math.max(0, num(wagesIncome) + num(otherWages) + num(untaxedIncome));
         const f = usFederalTax({ income, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, stdExtra, t });
-        const withheld = num(withheldYtd) + num(perCheck) * Math.max(0, num(checksLeft)) + num(otherWithheld);
+        const supplemental = (num(t.supplementalRate) || 22) / 100;
+        const withheld = num(withheldYtd) + num(perCheck) * Math.max(0, num(checksLeft)) + num(otherWithheld) + Math.max(0, num(bonusesLeft)) * supplemental;
         const diff = withheld - f.tax;        // > 0 refund, < 0 owe
         const n = Math.max(1, Math.round(num(checksLeft)));
-        return Object.assign({}, f, { income: cents(income), withheld: cents(withheld), diff: cents(diff), refund: diff > 0, adjustPerCheck: num(checksLeft) > 0 ? cents(-diff / n) : null,
+        return Object.assign({}, f, { income: cents(income), withheld: cents(withheld), bonusWithheld: cents(Math.max(0, num(bonusesLeft)) * supplemental), diff: cents(diff), refund: diff > 0, adjustPerCheck: num(checksLeft) > 0 ? cents(-diff / n) : null,
             // Owing $1,000+ (after withholding) can bring an underpayment penalty unless withholding covers 90% of this year's tax or 100% of last year's.
             penaltyRisk: diff < -1000 && withheld < f.tax * 0.9 });
     }
@@ -12733,8 +12744,28 @@ I18n.override('EC', 'es', {
     // Returns { gross, net, totalDeductions, deductions: [{ label, amount, ytd, group, kind, pretax }],
     // periodStart, periodEnd, periodDays, payDate }. No names or ID numbers are returned.
     const MONEY = /\(?-?\$?\s?\d{1,3}(?:[.,\s]\d{3})*[.,]\d{2}\)?(?!\d)|\(?-?\$?\s?\d+[.,]\d{2}\)?(?!\d)/g;
+    // US earnings lines: "Regular  25.0000  80.00  2,000.00  24,000.00" (rate, hours, this
+    // paycheck, year to date — some stubs put hours first), "Overtime 37.50 5.00 187.50", "Bonus 500.00".
+    const EARNINGS = [[/^(regular|reg|reg pay|regular pay|regular earnings|regular hours|hourly|hourly pay|straight time)\b/, 'regular'],
+        [/^(overtime|ot|o\/t|overtime pay|overtime 1\.5x?)\b/, 'overtime'], [/^(bonus|commission|incentive|spot award)/, 'bonus']];
+    function earningsLine(n, line, hoursFirst) {
+        const kind = (EARNINGS.find(([re]) => re.test(n)) || [])[1];
+        if (!kind) return null;
+        const rest = line.replace(/^[^\d$]*/, '');
+        const nums = (rest.match(/\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?/g) || []).map(x => ({ v: Number(x.replace(/,/g, '')), dec: (x.split('.')[1] || '').length }));
+        if (!nums.length) return null;
+        if (kind === 'bonus') return { kind, amount: nums[0].v };
+        // Rate × hours = this paycheck's amount.
+        const [a, b, c] = nums;
+        if (c && Math.abs(a.v * b.v - c.v) <= Math.max(0.02, c.v * 0.005)) {
+            const rateFirst = a.dec > 2 ? true : b.dec > 2 ? false : !hoursFirst;
+            return { kind, rate: rateFirst ? a.v : b.v, hours: rateFirst ? b.v : a.v, amount: c.v };
+        }
+        return { kind, amount: nums[0].v };
+    }
     function parsePaystub(text) {
-        const out = { gross: null, net: null, totalDeductions: null, deductions: [], periodStart: null, periodEnd: null, periodDays: null, payDate: null };
+        const out = { gross: null, net: null, totalDeductions: null, deductions: [], periodStart: null, periodEnd: null, periodDays: null, payDate: null, earnings: { regular: null, overtime: null, bonus: null } };
+        let hoursFirst = false;
         const seen = new Set();
         // Day-first (Ecuador) or month-first (US) dates, decided once for the whole stub.
         const all = String(text || '').match(/\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b/g) || [];
@@ -12750,6 +12781,10 @@ I18n.override('EC', 'es', {
                 out.periodDays = Math.round((Date.parse(dates[1]) - Date.parse(dates[0])) / 86400000) + 1;
             }
             if (/pay date|check date|fecha de pago|advice date|deposit date/.test(n) && dates.length && !out.payDate) out.payDate = dates[dates.length - 1];
+            // A column header says whether hours come before the rate.
+            if (/\bhours\b/.test(n) && /\brate\b/.test(n) && !/\d/.test(n)) hoursFirst = n.indexOf('hours') < n.indexOf('rate');
+            const earn = earningsLine(n, line, hoursFirst);
+            if (earn) { if (!out.earnings[earn.kind]) out.earnings[earn.kind] = earn; return; }
             // Rates like "9,45%" are not money.
             const body = line.replace(/\d+(?:[.,]\d+)?\s?%/g, ' ');
             const amounts = (body.match(MONEY) || []).map(a => Math.abs(parseAmount(a.replace(/\s/g, ''))));
@@ -16698,7 +16733,9 @@ I18n.override('EC', 'es', {
         const box = document.getElementById('inc-refund-in');
         if (box && !box.contains(document.activeElement)) UI.html('inc-refund-in', inputs);
         if (!per && !Number(c.ytd)) { UI.html('inc-refund', '<p class="text-xs mt-3"><i class="fa-solid fa-circle-info text-blue-600"></i> Enter the federal withholding from your latest pay stub to see whether you\'ll get a refund or owe.</p>'); return; }
-        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: c.spouseWages, otherWithheld: c.spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left, stdExtra: window.Itemize ? Itemize.giftsOffStandard(ctx) : 0 });
+        // Bonuses still to come this year (the income already counts them): withheld apart, at 22%.
+        const bonusesLeft = (yd.bonuses || []).filter(b => Number(b.month) > ctx.today.getMonth() + 1).reduce((a, b) => a + (Number(b.amount) || 0), 0);
+        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: c.spouseWages, otherWithheld: c.spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left, stdExtra: window.Itemize ? Itemize.giftsOffStandard(ctx) : 0, bonusesLeft });
         const big = Math.abs(r.diff) >= 500;
         const tone = r.diff >= 0 && r.diff < 1500 ? 'tone-emerald' : r.diff >= 0 ? 'tone-amber' : 'tone-red';
         const w4 = r.adjustPerCheck === null ? '' : r.diff < -100
@@ -16707,7 +16744,7 @@ I18n.override('EC', 'es', {
             : '<p class="text-xs mt-2 text-emerald-700"><i class="fa-solid fa-circle-check"></i> Your withholding is well tuned.</p>';
         UI.html('inc-refund', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
                 <div class="kpi tone-slate"><span class="kpi-label">Federal tax for the year</span><span class="kpi-value">${money0(r.tax)}</span><span class="kpi-note">on ${money0(r.income)}, minus ${money0(r.dedApplied)} deduction${r.credits ? ` and ${money0(r.credits)} in credits` : ''}</span></div>
-                <div class="kpi tone-slate"><span class="kpi-label">Withheld for the year</span><span class="kpi-value">${money0(r.withheld)}</span><span class="kpi-note">${money0(ytd)} so far + ${k.left} paychecks${k.assumed ? ' (every 2 weeks)' : ''}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">Withheld for the year</span><span class="kpi-value">${money0(r.withheld)}</span><span class="kpi-note">${money0(ytd)} so far + ${k.left} paychecks${k.assumed ? ' (every 2 weeks)' : ''}</span>${r.bonusWithheld > 0 ? `<span class="kpi-note">Includes ${money0(r.bonusWithheld)} withheld from bonuses (22%)</span>` : ''}</div>
                 <div class="kpi ${tone}"><span class="kpi-label">${r.diff >= 0 ? 'Your refund would be' : 'You\'d owe'}</span><span class="kpi-value">${money0(Math.abs(r.diff))}</span><span class="kpi-note">${big ? (r.diff >= 0 ? 'in April' : 'when you file in April') : 'close to zero'}</span></div>
             </div>${w4}
             <p class="help mt-2">An estimate of federal tax on wages only (not state, nor special credits). For an exact W-4, use the IRS Tax Withholding Estimator.</p>`);
@@ -17198,7 +17235,26 @@ I18n.override('EC', 'es', {
         const ppy = Importers.paysPerYearFromPeriod(p.periodDays) || (schedule ? Math.round(Engine.nominalPaymentsPerYear(schedule)) : 12);
         draft = { stub: p, ppy: [52, 26, 24, 12].includes(ppy) ? ppy : 12, useGross: false, rows: p.deductions.map(d => ({ label: d.label, group: d.group, kind: d.kind, pretax: d.pretax, amount: d.amount, ytd: d.ytd, include: !COMPUTED[d.kind] })) };
         draft.useGross = p.gross > 0 && Math.abs(p.gross * draft.ppy / 12 - (Number(yd().sueldo) || 0)) > 1;
+        // US stubs: hourly pay (rate × hours), overtime and a bonus line (docs/plans/hourly-pay.md, phase 4).
+        const e = (Store.COUNTRY === 'US' && p.earnings) || {}, cur = yd(), h = cur.hourly || {};
+        draft.reg = e.regular && e.regular.rate > 0 && e.regular.hours > 0 ? e.regular : null;
+        draft.ot = draft.reg && e.overtime && e.overtime.hours > 0 ? e.overtime : null;
+        draft.bonus = e.bonus && e.bonus.amount > 0 ? Object.assign({ month: String(Number((p.payDate || Engine.isoDate(new Date())).slice(5, 7))) }, e.bonus) : null;
+        draft.useHourly = !!draft.reg && !(cur.payType === 'hourly' && Math.abs(Number(h.rate) - draft.reg.rate) < 0.005 && Math.abs(Number(h.hours) - weekly(draft.reg.hours)) < 0.05);
+        draft.useOt = false;
+        draft.addBonus = !!draft.bonus && !(cur.bonuses || []).some(b => Math.abs(Number(b.amount) - draft.bonus.amount) < 0.005 && String(b.month) === draft.bonus.month);
+        if (draft.reg) draft.useGross = false;
         sheet = UI.sheet({ title: 'Review your pay stub', icon: 'fa-file-invoice-dollar', wide: true, html: reviewHTML(), onClose: () => { draft = null; sheet = null; } });
+    }
+
+    // Hours on the stub (for its pay period) → hours a week.
+    const weekly = (hours) => Math.round(hours * (draft ? draft.ppy : 26) / 52 * 100) / 100;
+    const otMultiple = () => (draft.ot.rate > 0 ? Math.round(draft.ot.rate / draft.reg.rate * 20) / 20 : 1.5);
+    // The hourly setup the stub gives (what "Use" saves).
+    function stubHourly(y) {
+        const out = Object.assign({ rate: 0, hours: 40, otHours: 0, otRate: 1.5, otInBudget: false }, y.hourly || {}, { rate: draft.reg.rate, hours: weekly(draft.reg.hours) });
+        if (draft.useOt && draft.ot) Object.assign(out, { otHours: weekly(draft.ot.hours), otRate: otMultiple() });
+        return out;
     }
 
     function reviewHTML() {
@@ -17207,7 +17263,8 @@ I18n.override('EC', 'es', {
         const extra = d.rows.filter(r => r.include && r.group !== 'employer').reduce((a, r) => a + r.amount * f, 0);
         const gross = d.useGross && stub.gross ? stub.gross * f : p.sueldo;
         // Net with this gross (IESS and income tax recomputed) minus the checked deductions.
-        const est = Math.max(0, Engine.payroll(Object.assign({}, Store.effective(Store.state.activeYear), { sueldo: gross, payDeductions: [] })).netoAntesM - extra);
+        const eff = Store.effective(Store.state.activeYear);
+        const est = Math.max(0, Engine.payroll(Object.assign({}, eff, { sueldo: gross, payDeductions: [] }, d.useHourly && d.reg ? { payType: 'hourly', hourly: stubHourly(eff) } : {})).netoAntesM - extra);
         const stubMonthly = stub.net ? stub.net * f : null;
         return `<div class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
                 <div class="kpi tone-slate"><span class="kpi-label">Gross on the stub</span><span class="kpi-value">${stub.gross ? money(stub.gross) : '—'}</span></div>
@@ -17225,7 +17282,10 @@ I18n.override('EC', 'es', {
                     <td class="text-[11px] text-slate-500">${COMPUTED[r.kind] ? `The app already calculates it: ${money(COMPUTED[r.kind](p) / f)} per paycheck` : r.ytd ? `Year to date: ${money(r.ytd)}` : ''}</td>
                 </tr>`).join('')}
             </tbody></table></div>
-            ${stub.gross ? `<label class="check mt-3"><input type="checkbox" id="scan-gross" data-change="scan.field" ${d.useGross ? 'checked' : ''}> Use the stub's gross as my monthly gross pay (${money(stub.gross * f)}; today you have ${money(p.sueldo)})</label>` : ''}
+            ${stub.gross && !d.reg ? `<label class="check mt-3"><input type="checkbox" id="scan-gross" data-change="scan.field" ${d.useGross ? 'checked' : ''}> Use the stub's gross as my monthly gross pay (${money(stub.gross * f)}; today you have ${money(p.sueldo)})</label>` : ''}
+            ${d.reg ? `<label class="check mt-3"><input type="checkbox" id="scan-hourly" data-change="scan.field" ${d.useHourly ? 'checked' : ''}><span>Paid by the hour: ${money(d.reg.rate)} an hour, ${weekly(d.reg.hours)} hours a week</span></label>` : ''}
+            ${d.reg && d.ot ? `<label class="check mt-1"><input type="checkbox" id="scan-ot" data-change="scan.field" ${d.useOt ? 'checked' : ''}><span>This overtime is usual: ${weekly(d.ot.hours)} hours a week at ${otMultiple()}× <span class="block text-[11px] font-normal text-slate-500">Leave it unchecked if overtime comes and goes.</span></span></label>` : ''}
+            ${d.bonus ? `<label class="check mt-1"><input type="checkbox" id="scan-bonus" data-change="scan.field" ${d.addBonus ? 'checked' : ''}><span>Add this ${money(d.bonus.amount)} bonus to this year's bonuses (already paid)</span></label>` : ''}
             <div class="bs-banner ${stubMonthly === null || Math.abs(stubMonthly - est) < 1 ? 'ok' : 'warn'} mt-3" id="scan-check">${stubMonthly === null ? `With these deductions you'd receive ≈ ${money(est)} a month.` : `Your stub: ≈ ${money(stubMonthly)} a month. With these deductions the app calculates ≈ ${money(est)}.${Math.abs(stubMonthly - est) < 1 ? ' They match!' : ' Check the checked amounts.'}`}</div>
             <p class="help mt-2">The file was read on this device and isn't saved. Only the deduction names and amounts are kept.</p>
             <div class="flex justify-end gap-2 mt-3"><button type="button" class="btn btn-secondary" data-action="scan.cancel">Cancel</button><button type="button" class="btn btn-primary" data-action="scan.save" id="scan-save"><i class="fa-solid fa-check"></i> Save deductions</button></div>`;
@@ -17240,6 +17300,7 @@ I18n.override('EC', 'es', {
         UI.$$('.scan-amount').forEach(el => { draft.rows[el.dataset.i].amount = Math.max(0, Fmt.parseNum(el.value, 0)); });
         const g = document.getElementById('scan-gross');
         if (g) draft.useGross = g.checked;
+        [['scan-hourly', 'useHourly'], ['scan-ot', 'useOt'], ['scan-bonus', 'addBonus']].forEach(([id, k]) => { const el = document.getElementById(id); if (el) draft[k] = el.checked; });
     }
 
     UI.register({
@@ -17311,7 +17372,15 @@ I18n.override('EC', 'es', {
                 if (same) { Object.assign(same, { group: r.group, monthly, perPay: r.amount, paysPerYear: draft.ppy }); updated++; }
                 else { list().push({ id: Store.nextId(list()), name: r.label, group: r.group, kind: r.kind, pretax: !!r.pretax, monthly, perPay: r.amount, paysPerYear: draft.ppy }); added++; }
             });
-            if (draft.useGross && draft.stub.gross) y.sueldo = Math.round(draft.stub.gross * f * 100) / 100;
+            if (draft.useHourly && draft.reg) {
+                y.payType = 'hourly';
+                y.hourly = stubHourly(y);
+                y.sueldo = Math.round(Engine.usGrossPay(y).baseM * 100) / 100;
+            } else if (draft.useGross && draft.stub.gross) y.sueldo = Math.round(draft.stub.gross * f * 100) / 100;
+            if (draft.addBonus && draft.bonus) {
+                y.bonuses = y.bonuses || [];
+                y.bonuses.push({ id: Store.nextId(y.bonuses), name: window.I18n ? I18n.t('Bonus') : 'Bonus', amount: draft.bonus.amount, month: draft.bonus.month, inBudget: false });
+            }
             if (draft.stub.net) y.lastPaystub = { payDate: draft.stub.payDate, net: draft.stub.net, gross: draft.stub.gross, ppy: draft.ppy };
             sheet.close();
             App.changed({ structural: true, step: true });
