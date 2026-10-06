@@ -856,3 +856,12 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .hub-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hub-name small { font-size: .7rem; color: var(--muted); font-weight: 400; }
 .hub-amt { font-weight: 700; font-variant-numeric: tabular-nums; font-size: .9rem; }
+/* Account details sheet. */
+.acd-head { display: flex; align-items: center; gap: .75rem; }
+.acd-bal { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.acd-fields { display: flex; flex-direction: column; }
+.acd-field { display: grid; grid-template-columns: 9.5rem 1fr; align-items: center; gap: .75rem; padding: .45rem 0; border-bottom: 1px solid var(--line-soft); font-size: .8rem; font-weight: 600; color: var(--ink-2); }
+@media (max-width: 420px) { .acd-field { grid-template-columns: 1fr; gap: .25rem; } }
+.acd-txns { border-top: 1px solid var(--line); }
+.acd-txn { display: grid; grid-template-columns: 4.6rem 1fr auto; align-items: center; gap: .6rem; padding: .5rem .1rem; border-bottom: 1px solid var(--line-soft); font-size: .82rem; }
+@media (max-width: 480px) { .acd-bal { font-size: 1.25rem; } }

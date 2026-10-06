@@ -2169,6 +2169,25 @@
         return { groups, assets: assetsTotal, liabilities: owedTotal, net: assetsTotal - owedTotal };
     }
 
+    // One account's money in and out per month (the last `months` up to `end`) and its
+    // transactions, newest first: for the account details "Activity" tab. Income and refunds are
+    // money in; spending is money out; a transfer goes by its sign (`signed`), if known.
+    function accountActivity(transactions, accountId, { end, months = 12 } = {}) {
+        const e = end instanceof Date ? end : new Date(end);
+        const keys = Array.from({ length: months }, (_, i) => { const d = new Date(e.getFullYear(), e.getMonth() - months + 1 + i, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; });
+        const at = {}; keys.forEach((k, i) => { at[k] = i; });
+        const inn = new Array(months).fill(0), out = new Array(months).fill(0);
+        const list = (transactions || []).filter(t => accountId !== null && accountId !== undefined && String(t.accountId) === String(accountId));
+        list.forEach(t => {
+            const i = t.date ? at[t.date.slice(0, 7)] : undefined;
+            if (i === undefined) return;
+            const a = Math.abs(num(t.amount));
+            const dir = txnType(t) === 'Ingreso' ? 1 : txnType(t) === 'Transferencia' ? Math.sign(num(t.signed)) : (t.refund ? 1 : -1);
+            if (dir > 0) inn[i] += a; else if (dir < 0) out[i] += a;
+        });
+        return { months: keys, in: inn, out, txns: list.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))) };
+    }
+
     // ---------------------------------------------------- emergency fund & steps
 
     // What a pot of savings is for: 'emergencia', 'jubilacion' or 'general'. The person can set
@@ -2496,7 +2515,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, accountsHub, HUB_GROUPS, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, accountsHub, HUB_GROUPS, accountActivity, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

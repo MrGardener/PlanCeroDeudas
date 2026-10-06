@@ -2,6 +2,23 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "\"{0}\" added to your debts": "\"{0}\" agregada a tus deudas",
+    "Account details": "Detalles de la cuenta",
+    "Activity": "Actividad",
+    "Add it to my debts": "Agregarla a mis deudas",
+    "Changes here are the same debt your snowball plan uses.": "Los cambios aquí son la misma deuda que usa tu plan bola de nieve.",
+    "Credit limit": "Límite de crédito",
+    "Day of the month (1–31)": "Día del mes (1–31)",
+    "Interest rate (APR %)": "Tasa de interés (TAE %)",
+    "Interest rate (APY %)": "Tasa de interés (rendimiento anual %)",
+    "Money out and money in, month by month": "Dinero que sale y que entra, mes a mes",
+    "Original balance": "Saldo original",
+    "Payment due day": "Día de vencimiento del pago",
+    "The 50 most recent of {0}.": "Las 50 más recientes de {0}.",
+    "This account has no transactions yet. Import a statement into it, or pick it when you log one.": "Esta cuenta aún no tiene transacciones. Importa un estado de cuenta en ella, o elígela al registrar una.",
+    "This card isn't in your debt plan yet.": "Esta tarjeta aún no está en tu plan de deudas.",
+    "What you owe": "Lo que debes",
+    "so the snowball pays it off.": "para que la bola de nieve la pague.",
     "Account added: {0}": "Cuenta agregada: {0}",
     "Account type": "Tipo de cuenta",
     "Account types": "Tipos de cuenta",

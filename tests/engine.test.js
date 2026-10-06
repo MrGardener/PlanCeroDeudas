@@ -1506,3 +1506,17 @@ test('accountsHub: everything by type, a linked card once, totals', () => {
     assert.equal(r.liabilities, 150 + 800 + 12000 + 180000);
     assert.equal(r.net, r.assets - r.liabilities);
 });
+
+test('accountActivity: one account\'s money in and out by month, newest first', () => {
+    const txns = [
+        { id: 1, accountId: 3, date: '2026-09-05', type: 'Gasto', amount: 40 }, { id: 2, accountId: 3, date: '2026-10-02', type: 'Gasto', amount: 25 },
+        { id: 3, accountId: 3, date: '2026-10-03', type: 'Gasto', amount: 10, refund: true }, { id: 4, accountId: 3, date: '2026-10-04', type: 'Transferencia', amount: 120, signed: 120 },
+        { id: 5, accountId: 3, date: '2026-10-05', type: 'Ingreso', amount: 1000 }, { id: 6, accountId: 4, date: '2026-10-05', type: 'Gasto', amount: 99 },
+        { id: 7, accountId: 3, date: '2025-01-01', type: 'Gasto', amount: 5 }
+    ];
+    const r = E.accountActivity(txns, 3, { end: new Date(2026, 9, 6), months: 2 });
+    assert.deepEqual(r.months, ['2026-09', '2026-10']);
+    assert.deepEqual(r.out, [40, 25]);
+    assert.deepEqual(r.in, [0, 1130]);
+    assert.deepEqual(r.txns.map(t => t.id), [5, 4, 3, 2, 1, 7]);
+});
