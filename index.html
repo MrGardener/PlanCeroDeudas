@@ -1019,9 +1019,11 @@
                 <div class="section-label mt-4"><i class="fa-solid fa-chart-area text-blue-600"></i> What you owe, month by month</div>
                 <div class="chart-box"><canvas id="debt-owed-chart" role="img" aria-label="Total you owe with your plan and with minimums only"></canvas></div>
                 <p class="help mt-1" id="debt-owed-note"></p>
+                <div class="section-label mt-4"><i class="fa-solid fa-layer-group text-blue-600"></i> Each debt, month by month</div>
+                <div class="chart-box"><canvas id="debt-stack-chart" role="img" aria-label="What you owe on each debt, stacked, until you're debt-free"></canvas></div>
                 <details class="mt-2">
                     <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> See the numbers in a table</summary>
-                    <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Deuda</th><th class="num">Balance today</th><th>Gets the snowball</th><th>Paid off</th></tr></thead><tbody id="debt-ladder-table"></tbody></table></div>
+                    <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Deuda</th><th class="num">Balance today</th><th class="num">Rate</th><th class="num">Payment</th><th>Gets the snowball</th><th>Paid off</th></tr></thead><tbody id="debt-ladder-table"></tbody></table></div>
                     <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Date</th><th class="num">With your plan</th><th class="num">Minimums only</th></tr></thead><tbody id="debt-owed-table"></tbody></table></div>
                 </details>
             </div>
