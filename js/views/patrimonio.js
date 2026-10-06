@@ -114,6 +114,7 @@
     }
 
     function update(ctx) {
+        if (window.AccountsHub) AccountsHub.update(ctx);
         updateHoldings(ctx);
         progress(ctx);
         if (window.Checklists) Checklists.render();

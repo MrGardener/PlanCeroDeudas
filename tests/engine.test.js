@@ -1482,3 +1482,27 @@ test('debtPayoff: each debt\'s balance month by month adds up to the total', () 
     assert.ok(p.byDebt[1][first - 2] > 0);
     assert.equal(p.byDebt[2][p.months - 1], 0);
 });
+
+test('accountsHub: everything by type, a linked card once, totals', () => {
+    const r = E.accountsHub({
+        accounts: [{ id: 1, name: 'Checking', kind: 'corriente', balance: 1200 }, { id: 2, name: 'Savings', kind: 'ahorros', balance: 5000 },
+            { id: 3, name: 'Visa', kind: 'tarjeta', balance: -800, debtId: 9 }, { id: 4, name: 'Store card', kind: 'tarjeta', balance: -150 },
+            { id: 5, name: '401k', kind: 'retiro', balance: 20000 }, { id: 6, name: 'Wallet', kind: 'efectivo', balance: 60 }],
+        holdings: [], polizas: [{ id: 1, coopName: 'Bank CD', number: 'A1', amount: 3000 }],
+        assets: [{ id: 1, name: 'House', category: 'Bienes Raíces', purchaseYear: 2020, purchaseValue: 250000, status: 'Activo', valuesByYear: {} },
+            { id: 2, name: 'Old car', category: 'Vehículo', purchaseYear: 2015, purchaseValue: 9000, status: 'Vendido', saleYear: 2024, valuesByYear: {} }],
+        debts: [{ id: 9, name: 'Visa debt', kind: 'tarjeta', balance: 800 }, { id: 10, name: 'Car loan', kind: 'vehicular', balance: 12000 }, { id: 11, name: 'Paid', kind: 'personal', balance: 0 }],
+        years: { 2026: { netWorth: { mortgage: 180000 }, netWorthTouched: { mortgage: true } } }, year: 2026
+    });
+    const g = Object.fromEntries(r.groups.map(x => [x.key, x]));
+    assert.deepEqual(g.checking.rows.map(x => x.name), ['Checking']);
+    assert.equal(g.cash.total, 60);
+    assert.equal(g.investment.total, 23000);
+    assert.deepEqual(g.property.rows.map(x => x.name), ['House']);
+    assert.deepEqual(g.card.rows.map(x => [x.name, x.balance, x.ref.type]), [['Store card', 150, 'account'], ['Visa', 800, 'debt']]);
+    assert.deepEqual(g.loan.rows.map(x => x.name), ['Car loan']);
+    assert.equal(g.mortgage.total, 180000);
+    assert.equal(r.assets, 1200 + 5000 + 60 + 23000 + 250000);
+    assert.equal(r.liabilities, 150 + 800 + 12000 + 180000);
+    assert.equal(r.net, r.assets - r.liabilities);
+});

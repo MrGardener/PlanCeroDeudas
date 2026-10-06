@@ -6,7 +6,7 @@
 
     // [key, icon, title, where it opens (goto, focus), how-to sentences]
     const TOPICS = [
-        ['accounts', 'fa-wallet', 'Accounts', ['patrimonio', 'nw-accounts'], [
+        ['accounts', 'fa-wallet', 'Accounts', ['patrimonio', 'acct-hub'], [
             'Add each checking, savings and credit card account with today\'s balance.',
             'Importing a statement into an account keeps its balance up to date; a card\'s balance is what you owe.']],
         ['transactions', 'fa-list-ul', 'Transactions', ['transacciones/lista', ''], [
