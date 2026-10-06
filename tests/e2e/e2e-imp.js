@@ -41,8 +41,13 @@ module.exports = async function run(page, ok) {
   const gx = s.rows.filter(r => r.d === 'Globex'), ac = s.rows.filter(r => r.d === 'Acme Tools');
   ok(gx.every(r => r.m === 2 && r.nl === 'Globex' && r.x) && ac.every(r => r.m === 1 && !r.x && !r.nl), 'streams: whose paycheck, main vs. a new budget income', [gx[0], ac[0]]);
   ok(s.sugg.includes('Globex') && s.sugg.includes('Acme Tools'), 'rules suggested for the payers', s.sugg);
+  // Which account the file is from (step 6): a new checking account.
+  await page.selectOption('#imp-ofx-account select', 'new:corriente');
+  await page.waitForTimeout(150);
   await page.click('[data-action="imp.commit"]');
   await page.waitForTimeout(400);
+  const acct = await page.evaluate(() => { const a = Store.state.accounts.find(x => x.kind === 'corriente'); return { a, n: Store.state.transactions.filter(t => t.accountId === a.id).length, rows: ImportSession.get() }; });
+  ok(acct.a && acct.n > 100 && Number.isFinite(acct.a.balance), 'imported into a new checking account: every transaction remembers it, the account has a balance', acct.a);
   const after = await page.evaluate(() => ({ n: Store.state.transactions.length, rules: Store.state.rules.map(r => ({ c: r.contains, m: r.memberId, mode: r.incomeMode, inc: r.incomeId })), lines: Store.active().otherIncomes.map(l => [l.id, l.name, l.amount]), y: String(Store.state.activeYear),
     gx: Store.state.transactions.filter(t => t.description === 'Globex').map(t => [t.date.slice(0, 4), t.incomeId, t.countAsExtra, t.memberId]), fid: Store.state.transactions.find(t => t.description === 'Fidelity' && t.category === '401(k) / IRA'), sub: Store.state.taxonomy.expense['Ahorro e Inversión'].includes('Inversiones (bolsa)'), toast: [...document.querySelectorAll('.toast')].map(t => t.textContent).join('|') }));
   const line = after.lines.find(l => l[1] === 'Globex');
@@ -68,7 +73,13 @@ module.exports = async function run(page, ok) {
     meijer: rs.filter(r => r.description === 'Meijer').map(r => r.sub), payments: rs.filter(r => /Credit Card Payment/.test(r.description)).every(r => r.type === 'Transferencia') }; });
   ok(ph.over <= 0 && ph.row === 'grid', 'phone: review rows are cards, no sideways scroll', ph.over);
   ok(ph.amazon && ph.prime && ph.meijer.includes('Mercado/Supermercado') && ph.meijer.includes('Gasolina/Diesel') && ph.payments, 'card file: Amazon asks (Prime Video is streaming), Meijer groceries vs. gas by category code, payments are transfers', ph);
-  await page.click('[data-action="imp.cancel"]');
+  // The card file goes into a new credit card: what you owe is below $0, purchases are card payments.
+  await page.selectOption('#imp-ofx-account select', 'new:tarjeta');
+  await page.waitForTimeout(150);
+  await page.click('[data-action="imp.commit"]');
+  await page.waitForTimeout(400);
+  const card = await page.evaluate(() => { const a = Store.state.accounts.find(x => x.kind === 'tarjeta'); const ts = Store.state.transactions.filter(t => t.accountId === a.id); return { bal: a.balance, n: ts.length, pay: ts.filter(t => t.type === 'Gasto').every(t => t.paymentType === 'Tarjeta de Crédito') }; });
+  ok(card.bal < 0 && card.n > 10 && card.pay, 'card statement into a new credit card: balance owed below $0, its purchases paid by card', card);
   await page.setViewportSize({ width: 1366, height: 900 });
 };
 

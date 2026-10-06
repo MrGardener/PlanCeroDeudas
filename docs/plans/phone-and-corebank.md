@@ -26,7 +26,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
    default to Household; "no one" stays for "not set".
 
 ## B. Imports, accounts and reconciling
-6. **Import into an account** — every import asks which account the file is from: checking, savings or
+6. ✅ **Import into an account** — every import asks which account the file is from: checking, savings or
    **credit card** (new account kind, its balance is what you owe). Transactions remember their account;
    a card payment from checking becomes a transfer between the two (not spending twice). Each account
    keeps a balance: from the file's balance column, or opening balance + transactions. "Accounts" lists

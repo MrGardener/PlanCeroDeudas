@@ -2005,6 +2005,10 @@
             DEBT_KINDS.forEach(k => { out[k.netWorthField] = 0; });
             debts.forEach(d => { const k = DEBT_KINDS.find(x => x.id === d.kind) || DEBT_KINDS[4]; out[k.netWorthField] += Math.max(0, num(d.balance)); });
         }
+        // Credit card accounts (balance below zero = owed) count once: through their debt when
+        // linked to one, else here.
+        const cards = accounts.filter(a => a.kind === 'tarjeta' && !(a.debtId && debts.some(d => d.id === a.debtId)));
+        if (cards.length) out.creditCards = (out.creditCards || 0) + sum(cards, a => Math.max(0, -num(a.balance)));
         return out;
     }
 
@@ -2174,6 +2178,16 @@
 
     // Account kinds: cash you can spend (checking, cash), savings, retirement (401(k)/IRA).
     const isCashAccount = (a) => !a.kind || a.kind === 'corriente' || a.kind === 'efectivo';
+    // An account's balance after importing rows into it (no balance column in the file): money in
+    // adds, money out subtracts; transfers keep the file's sign (a card payment lowers what's owed).
+    function balanceAfterRows(balance, rows) {
+        return Math.round((num(balance) + sum(rows || [], r => {
+            const a = Math.abs(num(r.amount));
+            if (r.type === 'Ingreso') return a;
+            if (r.type === 'Transferencia') return r.signed !== undefined && r.signed !== null && num(r.signed) !== 0 ? Math.sign(num(r.signed)) * a : 0;
+            return -a;
+        })) * 100) / 100;
+    }
     const accountTotal = (accounts, kinds) => sum((accounts || []).filter(a => (kinds === 'cash' ? isCashAccount(a) : a.kind === kinds)), a => num(a.balance));
     function cashNow(accounts, transactions, today) {
         const cash = (accounts || []).filter(isCashAccount);
@@ -2359,7 +2373,7 @@
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
         occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear, nominalPaymentsPerYear, extraPaycheckMonths, paycheckSalary,
-        savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
+        savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
         DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,

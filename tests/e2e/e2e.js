@@ -354,7 +354,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   await page.click('#imp-rows input[data-i="4"]');
   ok((await page.textContent('#imp-summary')).includes('4 para importar'), 'rows can be left out');
   const acctsBefore = await page.evaluate(() => (Store.state.accounts || []).length);
-  await page.selectOption('select[data-change="imp.account"]', 'new');
+  await page.selectOption('select[data-change="imp.account"]', 'new:ahorros');
   await page.click('#imp-commit');
   const newAcct = await page.evaluate(() => Store.state.accounts[Store.state.accounts.length - 1]);
   ok(await page.evaluate(() => Store.state.accounts.length) === acctsBefore + 1 && newAcct.balance === 1337.1 && newAcct.updatedAt.endsWith('-09-07'), 'the Saldo column updates an account with the latest balance', newAcct);

@@ -111,6 +111,8 @@
         s.mapping = Object.assign({ dateFormat: 'auto', decimal: 'auto', expensesAre: 'negative' }, Importers.guessMapping(s.headers), saved ? saved.mapping : {});
         s.catMap = Object.assign({}, saved ? saved.catMap : {});
         s.fromProfile = !!saved;
+        // The account files like this one come from (checking, card…), remembered from last time.
+        if (saved && saved.account && (Store.state.accounts || []).some(a => String(a.id) === String(saved.account))) s.account = String(saved.account);
         // What was applied to every row last time (e.g. "Luz eléctrica" → Servicios básicos).
         s.defaults = saved && saved.defaults ? Object.assign({}, saved.defaults) : null;
         recompute();
@@ -260,7 +262,6 @@
             m.mode === 'single' ? sel('expensesAre', 'In that column expenses are…', [['negative', 'Negative (−45.50)'], ['positive', 'Positive (everything is an expense)']]) : '',
             sel('dateFormat', 'Date format', [['auto', order === 'mdy' ? 'Detect (month first)' : 'Detect (day first)'], ['dmy', 'Day/Month/Year'], ['mdy', 'Month/Day/Year'], ['ymd', 'Year-Month-Day']]),
             sel('decimal', 'Decimal separator', [['auto', `Detectar (${{ '.': 'punto', ',': 'coma' }[detectedDecimal(s)] || 'row by row'})`], ['.', 'Dot (1,234.50)'], [',', 'Comma (1.234,50)']]),
-            m.balance >= 0 ? `<label class="field"><span class="field-label">Update the balance of</span><select class="input" data-change="imp.account">${[['', 'Don\'t update any account'], ['new', 'A new account']].concat((Store.state.accounts || []).map(a => [String(a.id), a.name])).map(([v, l]) => `<option value="${v}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>` : ''
         ].join(''));
         // First rows as they are in the file, so the columns are easy to recognize.
         UI.html('imp-raw', `<thead><tr>${s.headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${s.table.slice(0, 4).map(r => `<tr>${s.headers.map((_, i) => `<td class="text-xs" data-i18n-skip>${esc(r[i] || '').replace(/&lt;br\s*\/?&gt;/gi, '<br>')}</td>`).join('')}</tr>`).join('')}</tbody>`);
@@ -288,12 +289,7 @@
         UI.show(ms, members.length > 0);
         if (members.length && !ms.options.length) ms.innerHTML = Views.whoOptions('', 'Whose? (no one)');
         renderBulk(ok.length);
-        // OFX files carry the account's balance: offer to update one of yours with it.
-        const ab = document.getElementById('imp-ofx-account');
-        if (ab) {
-            ab.classList.toggle('hidden', !(s.source === 'ofx' && s.ofxBalance));
-            if (s.source === 'ofx' && s.ofxBalance) ab.innerHTML = `<label class="field max-w-md"><span class="field-label">Update the balance of (${money(s.ofxBalance.balance)} as of ${esc(s.ofxBalance.date || '')})</span><select class="input" data-change="imp.account">${[['', 'Don\'t update any account'], ['new', 'A new account']].concat((Store.state.accounts || []).map(a => [String(a.id), a.name])).map(([v, l]) => `<option value="${v}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
-        }
+        renderAccountPick(s);
         renderStreams();
         renderSuggest();
         const opt = (list, sel) => list.map(x => { const v = typeof x === 'string' ? x : x.value, l = typeof x === 'string' ? x : x.label; return `<option value="${esc(v)}" ${v === sel ? 'selected' : ''}>${esc(l)}</option>`; }).join('');
@@ -398,6 +394,26 @@
         UI.text('imp-file-name', 'Your bank only gives Excel (.xlsx)? Open it and use "Save as → CSV".');
     }
 
+    // ------------------------------------------------------------------ account
+    // Which account the file is from: each transaction remembers it, and its balance follows the
+    // file (its balance column) or the imported amounts. A card's balance is what you owe (below 0).
+    const ACCOUNT_KINDS = { corriente: 'Checking', ahorros: 'Savings', efectivo: 'Cash', retiro: 'Retirement', tarjeta: 'Credit card' };
+    function fileBalance(s) { return s.source === 'csv' ? Importers.latestBalance(s.rows) : s.source === 'ofx' ? s.ofxBalance : null; }
+    function renderAccountPick(s) {
+        const el = document.getElementById('imp-ofx-account');
+        if (!el) return;
+        el.classList.toggle('hidden', s.source === 'xml');
+        if (s.source === 'xml') return;
+        const accts = Store.state.accounts || [];
+        const opts = [['', 'No account (don\'t track a balance)']].concat(accts.map(a => [String(a.id), `${a.name} · ${ACCOUNT_KINDS[a.kind] || ACCOUNT_KINDS.corriente}`]),
+            [['new:corriente', '+ New checking account'], ['new:ahorros', '+ New savings account'], ['new:tarjeta', '+ New credit card']]);
+        const lb = fileBalance(s);
+        const ok = s.rows.filter(r => r.include);
+        const net = Engine.balanceAfterRows(0, ok);
+        el.innerHTML = `<label class="field max-w-md"><span class="field-label">Which account is this file from?</span><select class="input" data-change="imp.account">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+            <span class="help">${!s.account ? 'Pick it to keep its balance and know where each transaction was made (your card or your checking).' : lb ? `The file's balance (${money(lb.balance)} as of ${esc(lb.date || '')}) becomes the account's balance.` : `No balance in the file: the account's balance moves by what you import (${(net >= 0 ? '+' : '−') + money(Math.abs(net))}).`}</span></label>`;
+    }
+
     // ------------------------------------------------------------------ rules
     function renderRules() {
         const rules = Store.state.rules || [];
@@ -486,7 +502,7 @@
             if (el.value) session.catMap[el.dataset.value] = el.value; else delete session.catMap[el.dataset.value];
             recompute();
         },
-        'imp.account': (el) => { if (session) session.account = el.value; },
+        'imp.account': (el) => { if (session) { session.account = el.value; renderAccountPick(session); } },
         'imp.cat': (el) => { if (!session) return; editRow(Number(el.dataset.i), { category: el.value, sub: undefined }); recompute(); },
         'imp.sub': (el) => { if (!session) return; const i = Number(el.dataset.i); editRow(i, { category: session.rows[i].category, sub: el.value }); recompute(); },
         'imp.type': (el) => { if (!session) return; editRow(Number(el.dataset.i), { type: el.value, category: undefined, sub: undefined }); recompute(); },
@@ -583,6 +599,14 @@
                 const st = (s.streams || {})[Categorize.norm(n.name)];
                 if (st && st.mode === 'new') Object.assign(st, { mode: 'line', lineId: line.id });
             });
+            // The account the file is from (created now if new).
+            const accts = Store.state.accounts || (Store.state.accounts = []);
+            let acct = null;
+            if (s.account && s.account.startsWith('new:')) {
+                const kind = s.account.slice(4);
+                acct = { id: Store.nextId(accts), name: (s.name || '').replace(/\.[^.]+$/, '').slice(0, 40) || ACCOUNT_KINDS[kind], kind, balance: 0, updatedAt: Engine.isoDate(new Date()) };
+                accts.push(acct);
+            } else if (s.account) acct = accts.find(a => String(a.id) === String(s.account)) || null;
             const year = String(Store.state.activeYear);
             rows.forEach(r => {
                 const desc = r.description && r.description !== NO_DESC ? r.description : (r.store || r.category || r.type);
@@ -590,6 +614,7 @@
                 const t = { id: id++, type: r.type, description: firstLine(desc).slice(0, 120), store: (r.store || '').slice(0, 80), parentCategory: tr ? 'Transferencia' : r.category, category: tr ? '' : r.sub || '', amount: r.amount, date: r.date,
                     paymentType: tr ? 'Transferencia' : r.payment || (r.isCard ? 'Tarjeta de Crédito' : 'Transferencia'), source: s.source };
                 if (r.budgetLine && r.type === 'Gasto') t.budgetLine = String(r.budgetLine);
+                if (acct) { t.accountId = acct.id; if (acct.kind === 'tarjeta' && !tr) t.paymentType = 'Tarjeta de Crédito'; }
                 if (r.invoice) t.invoice = r.invoice;
                 if (r.ref) t.importRef = r.ref;
                 if (r.type === 'Ingreso') {
@@ -629,18 +654,20 @@
                 const prev = profiles[s.signature];
                 const defaults = s.remember ? (s.bulk ? Object.assign({}, s.defaults || {}, s.bulk) : s.defaults) : null;
                 profiles[s.signature] = { mapping: { date, description, amount, debit, credit, store, category, mode, dateFormat, decimal, expensesAre }, catMap: s.catMap, name: s.name, savedAt: new Date().toISOString().slice(0, 10) };
+                if (acct) profiles[s.signature].account = acct.id;
                 if (defaults && Object.keys(defaults).length) profiles[s.signature].defaults = defaults;
                 else if (prev && prev.defaults && s.remember && !s.bulk) profiles[s.signature].defaults = prev.defaults;
             }
-            // The statement's running balance updates the chosen account.
+            // The account's balance: the statement's own (a card statement's is what you owe), or
+            // moved by what came in and went out. A card linked to a debt keeps that debt in step.
             let balanceNote = '';
-            const lb = s.account ? (s.source === 'csv' ? Importers.latestBalance(s.rows) : s.source === 'ofx' ? s.ofxBalance : null) : null;
-            if (lb) {
-                const accts = Store.state.accounts || (Store.state.accounts = []);
-                let a = accts.find(x => String(x.id) === String(s.account));
-                if (!a) { a = { id: Store.nextId(accts), name: s.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Account', kind: 'ahorros', balance: 0 }; accts.push(a); }
-                a.balance = lb.balance; a.updatedAt = lb.date;
-                balanceNote = ` "${a.name}" balance: ${money(lb.balance)} (${lb.date}).`;
+            if (acct) {
+                const lb = fileBalance(s);
+                if (lb) { acct.balance = acct.kind === 'tarjeta' ? -Math.abs(lb.balance) : lb.balance; acct.updatedAt = lb.date || acct.updatedAt; }
+                else if (rows.length) { acct.balance = Engine.balanceAfterRows(acct.balance, rows); acct.updatedAt = rows.reduce((d, r) => (r.date > d ? r.date : d), acct.updatedAt || ''); }
+                const debt = acct.kind === 'tarjeta' && acct.debtId ? (Store.state.debts || []).find(d => d.id === acct.debtId) : null;
+                if (debt) debt.balance = Math.max(0, -acct.balance);
+                balanceNote = ` "${acct.name}" balance: ${acct.balance < 0 ? '−' : ''}${money(Math.abs(acct.balance))}.`;
             }
             // Rows that are the same money as a hand-typed transaction: nothing new is added, but the
             // manual one remembers the bank row so the next statement recognizes it right away.
