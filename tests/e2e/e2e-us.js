@@ -425,6 +425,25 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   const tr3 = await page.evaluate(() => { const c = UI.chartInstance('trends-chart'); return c.data.datasets.map(d => d.label + ':' + d.data.reduce((a, v) => a + v, 0)); });
   ok(tr3.length === 2 && /:33$/.test(tr3[0]) && tr3[1] === 'Income:0', 'trends: one account', tr3);
   await page.evaluate(() => { Store.state.transactions = Store.state.transactions.filter(t => t.id !== 999001); Store.ui.trends = null; App.update(); });
+  // Budget bubbles: one per category, sized by plan, colored by share spent; tap → its lines.
+  await page.evaluate(() => { Store.reset('example'); Store.ui.month = 'base'; Store.ui.budgetBubbles = false; App.changed({ structural: true }); App.go('presupuesto/plan'); });
+  await page.waitForTimeout(300);
+  await page.click('[data-action="budget.bubbles"]');
+  await page.waitForTimeout(200);
+  const bub = await page.evaluate(() => { const b = [...document.querySelectorAll('#bs-bubbles .bubble')]; const sizes = b.map(x => x.offsetWidth); return { n: b.length, grid: document.querySelector('#bud-simple .bs-grid').classList.contains('hidden'), first: b[0] && b[0].textContent.replace(/\s+/g, ' '), desc: sizes.every((v, i) => !i || v <= sizes[i - 1]), states: new Set(b.map(x => x.className.match(/is-(\w+)/)[1])).size, pressed: document.querySelector('[data-action="budget.bubbles"]').getAttribute('aria-pressed') }; });
+  ok(bub.n >= 5 && bub.grid && /Housing/.test(bub.first) && bub.desc && bub.states >= 2 && bub.pressed === 'true', 'bubbles: one per category, biggest plan first, colored by spending', bub);
+  await page.click('#bs-bubbles .bubble >> nth=0');
+  await page.waitForTimeout(200);
+  const bsheet = await page.evaluate(() => { const m = document.querySelector('.modal-backdrop.sheet'); return m ? { title: m.querySelector('.modal-title').textContent, rows: m.querySelectorAll('tbody tr').length } : null; });
+  ok(bsheet && /Housing/.test(bsheet.title) && bsheet.rows >= 1, 'bubbles: tapping one lists its lines', bsheet);
+  await page.click('.modal-backdrop.sheet [data-action="budget.bubbleLine"] >> nth=0');
+  await page.waitForTimeout(250);
+  ok(await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').length === 1 && !document.querySelector('[data-action="budget.bubbleLine"]')), 'bubbles: a line opens its details');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
+  await page.click('[data-action="budget.bubbles"]');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => !document.querySelector('#bud-simple .bs-grid').classList.contains('hidden') && document.getElementById('bs-bubbles').classList.contains('hidden')), 'bubbles: back to cards');
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

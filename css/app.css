@@ -798,3 +798,18 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .spend-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .spend-pct { color: var(--muted); font-size: .72rem; }
 .spend-amt { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Budget bubbles: area = money planned; green / yellow / red = how much of it is spent. */
+.bubbles { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .4rem; padding: .25rem 0 .5rem; }
+.bubble { border-radius: 9999px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; padding: .4rem; text-align: center; border: 2px solid; color: var(--ink); line-height: 1.15; transition: transform var(--dur) var(--ease); }
+.bubble:hover, .bubble:focus-visible { transform: scale(1.04); }
+.bubble-name { font-size: 1em; font-weight: 700; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; hyphens: auto; overflow-wrap: break-word; }
+.bubble-pct { font-size: 1em; font-weight: 800; white-space: nowrap; }
+.bubble-amt { font-size: .85em; color: var(--muted); white-space: nowrap; }
+.bubble.is-ok { background: rgba(27, 175, 122, .16); border-color: #1baf7a; }
+.bubble.is-warn { background: rgba(237, 161, 0, .2); border-color: #eda100; }
+.bubble.is-over { background: rgba(208, 59, 59, .16); border-color: #d03b3b; }
+.bubble-key { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem 1rem; font-size: .72rem; color: var(--muted); margin-top: .5rem; }
+.bubble-key .is-ok i { color: #1baf7a; } .bubble-key .is-warn i { color: #c98500; } .bubble-key .is-over i { color: #d03b3b; }
+.bubble.is-ok .bubble-pct i { color: #128a5f; } .bubble.is-warn .bubble-pct i { color: #a86f00; } .bubble.is-over .bubble-pct i { color: #d03b3b; }
+.bs-view.active { background: var(--surface-3); }
