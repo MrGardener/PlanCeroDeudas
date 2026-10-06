@@ -924,3 +924,10 @@ button.sheet-row:hover { background: var(--surface-3); }
 .hub-section, .sheet-section { display: flex; justify-content: space-between; align-items: baseline; margin: .9rem 0 .25rem; padding: .3rem .25rem; font-size: .72rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); background: var(--surface-3); border-radius: .4rem; }
 .hub-list > .hub-section:first-child, .sheet-section:first-of-type { margin-top: .25rem; }
 .hub-retirement { background: #1baf7a; } .hub-health { background: #0f8a8a; } .hub-realestate { background: #8a6d00; } .hub-vehicle { background: #6b5a1f; } .hub-valuables { background: #9a3d7a; }
+/* Trends: the tapped band's months (like the bank's card, but under the chart). */
+.trend-months { display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; margin-top: .5rem; }
+.trend-months > div { display: flex; flex-direction: column; align-items: center; padding: .35rem; border-radius: .5rem; border: 1px solid var(--line-soft); }
+.trend-months > div.is-now { border-color: var(--brand); background: var(--brand-soft); }
+.trend-months span { font-size: .68rem; color: var(--muted); }
+.trend-months strong { font-size: .9rem; font-variant-numeric: tabular-nums; }
+@media (min-width: 640px) { .trend-months { grid-template-columns: repeat(6, 1fr); } }
