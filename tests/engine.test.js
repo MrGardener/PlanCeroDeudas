@@ -1565,3 +1565,19 @@ test('monthVsAverage: one month of a trend vs the period average', () => {
     const r = E.monthVsAverage(tr, 2);
     assert.deepEqual(r.map(x => [x.key, x.value, x.avg, x.diff]), [['A', 300, 200, 100], ['B', 0, 30, -30]]);
 });
+
+test('debtPayoff schedule: $10,000 at 5% paying $200 matches a standard amortization table', () => {
+    const p = E.debtPayoff([{ id: 1, name: 'Loan', balance: 10000, rate: 5, minPayment: 200, monthly: 200 }], 'snowball', 0);
+    const rows = p.schedule[1].filter(r => r.payment > 0);
+    const c = (v) => Math.round(v * 100) / 100;
+    // Month 1: interest 41.67, principal 158.33, balance 9,841.67; month 2: 41.01 / 158.99 / 9,682.68.
+    assert.deepEqual([c(rows[0].interest), c(rows[0].payment - rows[0].interest), c(rows[0].balance)], [41.67, 158.33, 9841.67]);
+    assert.deepEqual([c(rows[1].interest), c(rows[1].payment - rows[1].interest), c(rows[1].balance)], [41.01, 158.99, 9682.68]);
+    // A standard table (interest rounded to the cent each month) pays it off in 57 payments.
+    let bal = 10000, n = 0, interest = 0;
+    while (bal > 0.005) { const i = Math.round(bal * 0.05 / 12 * 100) / 100; interest += i; bal = Math.round((bal + i - Math.min(200, bal + i)) * 100) / 100; n++; }
+    assert.equal(rows.length, n);
+    assert.equal(n, 57);
+    assert.ok(Math.abs(p.totalInterest - interest) < 0.10, `${p.totalInterest} vs ${interest}`);
+    assert.equal(c(rows.reduce((t, r) => t + r.payment, 0)), c(10000 + p.totalInterest));
+});

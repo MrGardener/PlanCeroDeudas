@@ -61,7 +61,7 @@ on top of that: one way in to every tool, and the drill-downs (level 1 → 4).
    its subcategories; tap one: its transactions.
 
 ## E. Plans (tools 6–9)
-9. **Debt payoff controls** — an "extra each month" slider that moves the debt-free date and interest saved
+9. ✅ **Debt payoff controls** — an "extra each month" slider that moves the debt-free date and interest saved
    as you drag; tap a debt: its schedule (month, payment, interest, principal, balance). Unit test:
    $10,000 at 5% paying $200 matches a standard amortization table to the cent.
 10. **Balance sheet** — Net Worth: what you own vs what you owe, by type, each with its total; tap a type to

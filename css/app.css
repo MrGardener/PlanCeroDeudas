@@ -892,3 +892,4 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .pace-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 9999px; background: #1baf7a; }
 .pace-fill.is-fast { background: #eda100; } .pace-fill.is-over { background: #d03b3b; }
 .pace-mark { position: absolute; top: -.25rem; bottom: -.25rem; width: 2px; background: var(--ink); border-radius: 1px; }
+.range-slider { width: 100%; margin-top: .4rem; accent-color: var(--brand); }

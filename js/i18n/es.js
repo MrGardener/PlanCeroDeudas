@@ -2,6 +2,20 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Add it to my budget": "Agregarlo a mi presupuesto",
+    "Debt snowball (extra)": "Bola de nieve de deudas (extra)",
+    "Debt-free in {0}": "Libre de deudas en {0}",
+    "Debt-free in {0}. Slide to see what an extra amount each month does.": "Libre de deudas en {0}. Desliza para ver qué hace un monto extra cada mes.",
+    "Extra each month": "Extra cada mes",
+    "Month by month: payment, interest, principal and balance": "Mes a mes: pago, interés, capital y saldo",
+    "Not paid off within 30 years with this plan.": "No se paga en 30 años con este plan.",
+    "Still not enough to pay them off.": "Aún no alcanza para pagarlas.",
+    "What if I add more each month?": "¿Y si agrego más cada mes?",
+    "With your plan the debts are never paid off: try some extra.": "Con tu plan las deudas nunca se pagan: prueba con algo extra.",
+    "{0} sooner": "{0} antes",
+    "{0} less interest": "{0} menos de interés",
+    "{0} more a month for your debts, in the budget": "{0} más al mes para tus deudas, en el presupuesto",
+    "Paid off in {0} ({1} payment{2}), {3} of interest.": "Pagada en {0} ({1} pago{2|s|}), {3} de interés.",
     "No spending that month.": "Sin gastos ese mes.",
     "No transactions.": "Sin transacciones.",
     "Tap a month on the chart to see what changed.": "Toca un mes en el gráfico para ver qué cambió.",
