@@ -358,5 +358,16 @@
         return { monthly, assumed: ev.assumed, events: ev.list.filter(e => e.amount > 0 && (e.kind === 'payday' || e.kind === 'income')), months: ev.months };
     }
 
-    window.Cash = { forecastInputs, paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar, renderFlow };
+    // The next `days` days of the cash flow (for alerts): null without a checking or cash account.
+    function flowForecast(today = new Date(), days = 30) {
+        const s = Store.state, t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const cash = Engine.cashNow(s.accounts, s.transactions, t);
+        if (!cash) return null;
+        const end = new Date(t.getFullYear(), t.getMonth(), t.getDate() + days - 1);
+        const ev = events(iso(new Date(t.getFullYear(), t.getMonth(), 1)), iso(end), { assume: true });
+        const buffer = Math.max(0, Number(s.settings.cashBuffer) || 0);
+        return { days: Engine.cashForecast({ from: iso(t), to: iso(end), start: cash.total, events: ev.list, dailyByMonth: dailyByMonth(ev.months, t), buffer }), events: ev.list, buffer };
+    }
+
+    window.Cash = { forecastInputs, paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar, renderFlow, flowForecast };
 })();

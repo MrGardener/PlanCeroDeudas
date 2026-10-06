@@ -144,6 +144,7 @@
         Cash.renderSafe(t);
         Cash.renderCalendar(t);
         Cash.renderFlow(t);
+        if (window.Tools) Tools.updateBadge();
         const txns = s.transactions;
         const items = Engine.monthItems(Store.effective(y), m);
         // Everything the plan sends out this month (spending, savings, debt payments) — the same

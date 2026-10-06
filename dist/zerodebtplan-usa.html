@@ -933,6 +933,14 @@ button.sheet-row:hover { background: var(--surface-3); }
 .flow-dots { display: flex; gap: 3px; min-height: 8px; }
 .flow-dots i { width: 7px; height: 7px; border-radius: 9999px; display: inline-block; }
 .flow-dots i.in { background: #1baf7a; } .flow-dots i.out { background: #d03b3b; }
+/* Alerts: the bell's count, and the inbox. */
+.tools-badge { position: absolute; top: .2rem; right: calc(50% - 1.35rem); min-width: 1.1rem; height: 1.1rem; padding: 0 .25rem; border-radius: 9999px; background: #d03b3b; color: #fff; font-size: .62rem; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.tools-badge.hidden { display: none; }
+.alert-list { display: flex; flex-direction: column; }
+.alert-row { display: grid; grid-template-columns: 1.25rem 1fr auto; gap: .6rem; align-items: start; padding: .65rem .15rem; border-bottom: 1px solid var(--line-soft); }
+.alert-row > i { margin-top: .2rem; }
+.alert-text { text-align: left; font-size: .88rem; color: var(--ink); }
+.alert-text:hover { text-decoration: underline; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -986,6 +994,7 @@ button.sheet-row:hover { background: var(--surface-3); }
         <a href="#" data-goto="futuro/metas" data-focus="metas-goals"><i class="fa-solid fa-bullseye"></i><span>Goals</span></a>
         <a href="#" data-goto="patrimonio" data-focus="nw-holdings"><i class="fa-solid fa-chart-column"></i><span>Investments</span></a>
         <a href="#" data-goto="resumen" data-focus="dash-flow-card"><i class="fa-regular fa-calendar-days"></i><span>Cash Flow</span></a>
+        <button type="button" data-action="tools.alerts" class="relative"><i class="fa-solid fa-bell"></i><span>Alerts</span><b class="tools-badge hidden" id="alerts-badge"></b></button>
         <button type="button" data-action="tools.help" aria-label="Help"><i class="fa-solid fa-circle-question"></i><span>Help</span></button>
     </nav>
     <div id="dash-hero" class="hero"></div>
@@ -5655,6 +5664,16 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "All clear: nothing needs a look right now.": "Todo en orden: nada necesita atención ahora.",
+    "Dismiss": "Descartar",
+    "Dismissed alerts don't come back. Alerts stay in the app: nothing is sent anywhere.": "Las alertas descartadas no vuelven. Las alertas se quedan en la app: nada se envía a ningún lado.",
+    "The bell lists what needs a look: your balance going below $0 in the next 30 days, bills due in 3 days, budget lines over plan and unusually large purchases.": "La campana muestra lo que necesita atención: tu saldo bajando de $0 en los próximos 30 días, pagos que vencen en 3 días, líneas del presupuesto pasadas y compras inusualmente grandes.",
+    "Dismiss one with × and it won't come back; nothing is sent anywhere.": "Descarta una con × y no volverá; nada se envía a ningún lado.",
+    "Your balance would go below $0 on {0} ({1}).": "Tu saldo bajaría de $0 el {0} ({1}).",
+    "Your balance would drop under your cushion on {0} ({1}).": "Tu saldo bajaría de tu colchón el {0} ({1}).",
+    "{0} is due {1}: {2}.": "{0} vence el {1}: {2}.",
+    "{0} is over budget by {1} this month.": "{0} está {1} sobre el presupuesto este mes.",
+    "{0}: {1} on {2}, about {3}× your usual in its category.": "{0}: {1} el {2}, unas {3}× lo usual en su categoría.",
     "Add expected transaction": "Agregar transacción esperada",
     "Calendar": "Calendario",
     "Change repeating transactions": "Cambiar transacciones que se repiten",
@@ -9202,7 +9221,7 @@ I18n.override('EC', 'es', {
                 { id: 3, type: 'Ingreso', description: 'Remesa mensual de mi hermano', store: 'Western Union', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: iso, paymentType: 'Tarjeta de Débito' }
             ],
             taxonomy: { expense: clone(EXPENSE_TAXONOMY), income: clone(INCOME_TAXONOMY) },
-            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', paydays: [], paySchedule: null, cashBuffer: 0 },
+            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', paydays: [], paySchedule: null, cashBuffer: 0, alertsDismissed: {} },
             // "Description contains X → category / budget line", used on import and new transactions.
             rules: [],
             // Investments: { id, ticker, name, kind, shares, price, priceAt, auto }
@@ -12634,6 +12653,41 @@ I18n.override('EC', 'es', {
         return { months: keys, values, average: sum(values, v => v) / months };
     }
 
+    // Alerts (an inbox in the app, no push): the balance going below $0 or the cushion in the
+    // forecast, bills due within 3 days, budget lines over plan this month, and unusually large
+    // purchases of the last 2 weeks (3× the usual in its category, $100 or more). Each has a stable
+    // key so it can be dismissed. forecast: cashForecast() days; bills: cash events of kind 'bill';
+    // lines: [{ id, name, planned, spent }] for this month.
+    function buildAlerts({ today, forecast = [], buffer = 0, bills = [], lines = [], transactions = [] }) {
+        const t = isoDate(new Date(today)), month = t.slice(0, 7), out = [];
+        const short = forecast.find(d => d.balance < 0), low = !short && num(buffer) > 0 && forecast.find(d => d.balance < num(buffer));
+        if (short) out.push({ key: 'short-' + short.date, kind: 'short', level: 'bad', date: short.date, amount: short.balance });
+        else if (low) out.push({ key: 'low-' + low.date, kind: 'low', level: 'warn', date: low.date, amount: low.balance });
+        const soon = isoDate(new Date(parseISO(t).getTime() + 3 * 86400000));
+        bills.filter(b => b.kind === 'bill' && !b.paid && b.amount < 0 && b.date >= t && b.date <= soon)
+            .forEach(b => out.push({ key: `bill-${b.lineId}-${b.date}`, kind: 'bill', level: 'warn', date: b.date, name: b.name, amount: -b.amount }));
+        lines.filter(l => num(l.planned) > 0 && num(l.spent) > num(l.planned) + 0.5)
+            .forEach(l => out.push({ key: `over-${l.id}-${month}`, kind: 'over', level: 'bad', name: l.name, amount: num(l.spent) - num(l.planned) }));
+        const since = isoDate(new Date(parseISO(t).getTime() - 14 * 86400000)), before = isoDate(new Date(parseISO(t).getTime() - 180 * 86400000));
+        const median = (xs) => { const a = xs.slice().sort((x, y) => x - y); const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+        const byCat = {}, seen = {};
+        const payee = (x) => String(x.description || '').trim().toLowerCase();
+        (transactions || []).forEach(x => {
+            if (txnType(x) !== 'Gasto' || x.refund || x.date < before || x.date >= since) return;
+            (byCat[x.parentCategory] = byCat[x.parentCategory] || []).push(num(x.amount));
+            (seen[payee(x)] = seen[payee(x)] || []).push(num(x.amount));
+        });
+        (transactions || []).forEach(x => {
+            if (txnType(x) !== 'Gasto' || x.refund || x.recurringId || !x.date || x.date < since || x.date > t) return;
+            // A payee already paid about this much (a bill, the mortgage) isn't unusual.
+            if ((seen[payee(x)] || []).some(v => v >= num(x.amount) * 0.7)) return;
+            const hist = byCat[x.parentCategory] || [];
+            if (hist.length >= 5 && num(x.amount) >= 100 && num(x.amount) >= 3 * median(hist)) out.push({ key: 'big-' + x.id, kind: 'big', level: 'info', date: x.date, name: x.description, amount: num(x.amount), usual: median(hist) });
+        });
+        const rank = { bad: 0, warn: 1, info: 2 };
+        return out.sort((a, b) => rank[a.level] - rank[b.level]);
+    }
+
     // ----------------------------------------------------------------- mortgage
 
     function frenchPayment(principal, annualRatePct, months) {
@@ -13265,7 +13319,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, suggestBudget, spendPace, monthVsAverage, goalStatus, goalVelocity, accountsHub, HUB_GROUPS, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, suggestBudget, spendPace, monthVsAverage, goalStatus, goalVelocity, buildAlerts, accountsHub, HUB_GROUPS, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -15688,6 +15742,7 @@ I18n.override('EC', 'es', {
         Cash.renderSafe(t);
         Cash.renderCalendar(t);
         Cash.renderFlow(t);
+        if (window.Tools) Tools.updateBadge();
         const txns = s.transactions;
         const items = Engine.monthItems(Store.effective(y), m);
         // Everything the plan sends out this month (spending, savings, debt payments) — the same
@@ -21589,7 +21644,18 @@ I18n.override('EC', 'es', {
         return { monthly, assumed: ev.assumed, events: ev.list.filter(e => e.amount > 0 && (e.kind === 'payday' || e.kind === 'income')), months: ev.months };
     }
 
-    window.Cash = { forecastInputs, paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar, renderFlow };
+    // The next `days` days of the cash flow (for alerts): null without a checking or cash account.
+    function flowForecast(today = new Date(), days = 30) {
+        const s = Store.state, t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const cash = Engine.cashNow(s.accounts, s.transactions, t);
+        if (!cash) return null;
+        const end = new Date(t.getFullYear(), t.getMonth(), t.getDate() + days - 1);
+        const ev = events(iso(new Date(t.getFullYear(), t.getMonth(), 1)), iso(end), { assume: true });
+        const buffer = Math.max(0, Number(s.settings.cashBuffer) || 0);
+        return { days: Engine.cashForecast({ from: iso(t), to: iso(end), start: cash.total, events: ev.list, dailyByMonth: dailyByMonth(ev.months, t), buffer }), events: ev.list, buffer };
+    }
+
+    window.Cash = { forecastInputs, paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar, renderFlow, flowForecast };
 })();
 </script>
 <script>/* js/views/whatif.js */
@@ -24336,8 +24402,9 @@ I18n.override('EC', 'es', {
         ['cashflow', 'fa-calendar-days', 'Cash Flow', ['resumen', 'dash-flow-card'], [
             'Your balance day by day for the next 30, 60 or 90 days: pay, bills and everyday spending.',
             'Add one-off money coming in or going out; red means you\'d go below $0.']],
-        ['alerts', 'fa-bell', 'Alerts', ['resumen', ''], [
-            'The Overview warns you about bills due soon, days you\'d run short and lines over budget.']],
+        ['alerts', 'fa-bell', 'Alerts', ['resumen', 'tools-bar'], [
+            'The bell lists what needs a look: your balance going below $0 in the next 30 days, bills due in 3 days, budget lines over plan and unusually large purchases.',
+            'Dismiss one with × and it won\'t come back; nothing is sent anywhere.']],
         ['general', 'fa-circle-info', 'General', ['config', 'cfg-guide'], [
             'Everything stays on this device: nothing is sent to a server.',
             'Download a backup now and then (Settings), and use Undo if you change something by mistake.']],
@@ -24361,7 +24428,69 @@ I18n.override('EC', 'es', {
             <button type="button" class="btn btn-primary" data-action="tools.go" data-key="${t[0]}"><i class="fa-solid ${t[1]}"></i> Open</button></div>`;
     }
 
+    // ------------------------------------------------------------------ alerts
+    // What needs a look now (Engine.buildAlerts), minus the ones dismissed (settings.alertsDismissed).
+    function alerts() {
+        const s = Store.state, t = new Date();
+        const ff = window.Cash && Cash.flowForecast(t, 30);
+        const y = t.getFullYear(), m = String(t.getMonth() + 1);
+        let lines = [];
+        if (s.years[y]) {
+            const items = Engine.monthItems(Store.effective(y), m), sp = Engine.lineSpend(items, s.transactions, y, m);
+            lines = items.filter(i => !i.sweep && i.type !== 'Ingreso').map(i => ({ id: i.id, name: i.name, planned: Number(i.real) || 0, spent: (sp.byLine[String(i.id)] || { spent: 0 }).spent }));
+        }
+        const all = Engine.buildAlerts({ today: t, forecast: ff ? ff.days : [], buffer: ff ? ff.buffer : 0, bills: ff ? ff.events : [], lines, transactions: s.transactions });
+        const gone = (s.settings && s.settings.alertsDismissed) || {};
+        return all.filter(a => !gone[a.key]);
+    }
+    function updateBadge() {
+        const n = alerts().length, b = document.getElementById('alerts-badge');
+        if (!b) return;
+        b.textContent = n > 9 ? '9+' : String(n);
+        b.classList.toggle('hidden', n === 0);
+    }
+    const ALERT_ICON = { short: 'fa-triangle-exclamation text-red-600', low: 'fa-circle-exclamation text-amber-600', bill: 'fa-calendar-day text-amber-600', over: 'fa-chart-pie text-red-600', big: 'fa-magnifying-glass-dollar text-blue-600' };
+    function alertText(a) {
+        const day = (d) => esc(Fmt.dayMonth(new Date(d + 'T00:00:00')));
+        switch (a.kind) {
+            case 'short': return `Your balance would go below $0 on ${day(a.date)} (${Fmt.money0(a.amount)}).`;
+            case 'low': return `Your balance would drop under your cushion on ${day(a.date)} (${Fmt.money0(a.amount)}).`;
+            case 'bill': return `${esc(I18n.t(a.name))} is due ${day(a.date)}: ${Fmt.money(a.amount)}.`;
+            case 'over': return `${esc(I18n.t(a.name))} is over budget by ${Fmt.money(a.amount)} this month.`;
+            default: return `${esc(a.name || '')}: ${Fmt.money(a.amount)} on ${day(a.date)}, about ${Math.round(a.amount / a.usual)}× your usual in its category.`;
+        }
+    }
+    const ALERT_GO = { short: ['resumen', 'dash-flow-card'], low: ['resumen', 'dash-flow-card'], bill: ['presupuesto/plan', ''], over: ['presupuesto/plan', ''], big: ['transacciones/lista', ''] };
+    let alertSheet = null, alertList = [];
+    function openAlerts() {
+        alertList = alerts();
+        alertSheet = UI.sheet({ title: 'Alerts', icon: 'fa-bell', html: alertList.length ? `<div class="alert-list">${alertList.map((a, i) => `<div class="alert-row" data-key="${esc(a.key)}">
+                <i class="fa-solid ${ALERT_ICON[a.kind]}"></i>
+                <button type="button" class="alert-text" data-action="tools.alertGo" data-i="${i}">${alertText(a)}</button>
+                <button type="button" class="row-del" data-action="tools.alertDismiss" data-i="${i}" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button></div>`).join('')}</div>
+                <p class="help mt-2">Dismissed alerts don't come back. Alerts stay in the app: nothing is sent anywhere.</p>`
+            : '<p class="text-sm"><i class="fa-solid fa-circle-check text-emerald-600"></i> All clear: nothing needs a look right now.</p>' });
+    }
+
     UI.register({
+        'tools.alerts': () => openAlerts(),
+        'tools.alertGo': (el) => {
+            const a = alertList[Number(el.dataset.i)];
+            if (!a) return;
+            if (alertSheet) { alertSheet.close(); alertSheet = null; }
+            const g = ALERT_GO[a.kind];
+            App.go(g[0], g[1] ? { focus: g[1] } : {});
+            if (a.kind === 'big' && window.TxnDetails) TxnDetails.open(Number(a.key.slice(4)));
+        },
+        'tools.alertDismiss': (el) => {
+            const a = alertList[Number(el.dataset.i)];
+            if (!a) return;
+            const st = Store.state.settings;
+            st.alertsDismissed = Object.assign({}, st.alertsDismissed, { [a.key]: Engine.isoDate(new Date()) });
+            Store.scheduleSave();
+            const row = el.closest('.alert-row'); if (row) row.remove();
+            updateBadge();
+        },
         'tools.help': (el) => {
             if (el && el.dataset && el.dataset.back && current) { current.close(); }
             openHelp();
@@ -24374,7 +24503,7 @@ I18n.override('EC', 'es', {
         }
     });
 
-    window.Tools = { openHelp, TOPICS };
+    window.Tools = { openHelp, TOPICS, alerts, updateBadge };
 })();
 </script>
 </body>

@@ -1602,3 +1602,21 @@ test('goalStatus and goalVelocity: on track or behind for the date, monthly amou
     assert.deepEqual(v.values, [0, 300, 450]);
     assert.equal(v.average, 250);
 });
+
+test('buildAlerts: below $0 ahead, bills due soon, lines over, unusually large purchases', () => {
+    const today = new Date(2026, 9, 6);
+    const forecast = [{ date: '2026-10-06', balance: 800 }, { date: '2026-10-07', balance: 300 }, { date: '2026-10-09', balance: -40 }];
+    const bills = [{ kind: 'bill', name: 'Rent', amount: -1200, date: '2026-10-08', lineId: '2' }, { kind: 'bill', name: 'Gym', amount: -40, date: '2026-10-20', lineId: '7' }, { kind: 'bill', name: 'Phone', amount: -60, date: '2026-10-07', lineId: '3', paid: true }];
+    const lines = [{ id: 5, name: 'Dining out', planned: 200, spent: 260 }, { id: 6, name: 'Groceries', planned: 600, spent: 590 }];
+    const txns = [10, 12, 9, 11, 13].map((a, i) => ({ id: i + 1, date: `2026-0${6 + (i % 3)}-1${i}`, type: 'Gasto', parentCategory: 'Ocio', amount: a * 10 }))
+        .concat([{ id: 50, date: '2026-10-03', type: 'Gasto', parentCategory: 'Ocio', description: 'Concert tickets', amount: 480 }, { id: 51, date: '2026-10-04', type: 'Gasto', parentCategory: 'Ocio', amount: 90 },
+            // A payee paid about as much before (a yearly membership) isn't unusual.
+            { id: 52, date: '2026-05-02', type: 'Gasto', parentCategory: 'Ocio', description: 'Club membership', amount: 400 }, { id: 53, date: '2026-10-02', type: 'Gasto', parentCategory: 'Ocio', description: 'Club membership', amount: 420 }]);
+    const a = E.buildAlerts({ today, forecast, buffer: 500, bills, lines, transactions: txns });
+    assert.deepEqual(a.map(x => x.key), ['short-2026-10-09', 'over-5-2026-10', 'bill-2-2026-10-08', 'big-50']);
+    assert.equal(a[1].amount, 60);
+    assert.equal(a[3].usual, 115);
+    // No shortfall: the first day under the cushion is a warning instead.
+    const b = E.buildAlerts({ today, forecast: forecast.slice(0, 2), buffer: 500 });
+    assert.deepEqual(b.map(x => [x.kind, x.date]), [['low', '2026-10-07']]);
+});

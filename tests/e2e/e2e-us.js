@@ -745,6 +745,28 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('[data-action="flow.view"][data-view="chart"]');
   await page.waitForTimeout(150);
   ok(await page.evaluate(() => !document.getElementById('flow-chart-box').classList.contains('hidden') && document.getElementById('flow-cal').classList.contains('hidden')), 'cash flow calendar: back to the chart');
+  // Alerts: the bell's count, the inbox, open one, dismiss one (it doesn't come back).
+  await page.evaluate(() => { Store.reset('example'); const s = Store.state; s.transactions.push({ id: 990001, date: Engine.isoDate(new Date()), type: 'Gasto', parentCategory: 'Entretenimiento y Ocio', category: '', description: 'Big screen TV', amount: 1899 }); App.changed({ structural: true }); App.go('resumen'); });
+  await page.waitForTimeout(300);
+  const al1 = await page.evaluate(() => ({ badge: document.getElementById('alerts-badge').textContent, keys: Tools.alerts().map(a => a.key) }));
+  ok(al1.keys.includes('big-990001') && al1.badge === String(al1.keys.length), 'alerts: the bell counts what needs a look', al1);
+  await page.click('[data-action="tools.alerts"]');
+  await page.waitForTimeout(200);
+  const alertRows = await page.$$eval('.alert-row', r => r.map(x => x.textContent.trim()));
+  ok(alertRows.length === al1.keys.length && alertRows.some(r => /Big screen TV/.test(r) && /your usual/.test(r)), 'alerts: the inbox explains each one', alertRows);
+  const bigIdx = al1.keys.indexOf('big-990001');
+  await page.click(`[data-action="tools.alertDismiss"][data-i="${bigIdx}"]`);
+  await page.waitForTimeout(150);
+  const al2 = await page.evaluate(() => ({ badge: document.getElementById('alerts-badge').textContent, keys: Tools.alerts().map(a => a.key), saved: !!Store.state.settings.alertsDismissed['big-990001'] }));
+  ok(!al2.keys.includes('big-990001') && al2.saved && al2.keys.length === al1.keys.length - 1, 'alerts: dismissed for good', al2);
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
+  if (al2.keys.length) {
+    await page.click('[data-action="tools.alerts"]');
+    await page.click('[data-action="tools.alertGo"] >> nth=0');
+    await page.waitForTimeout(250);
+    ok(await page.evaluate(() => !document.querySelector('.alert-row')), 'alerts: tapping one goes to it');
+    await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
+  }
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');
