@@ -403,7 +403,16 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   ok(sp.chart && sp.rows === sp.n && sp.n <= 7 && sp.center.includes(sp.total), 'spending: donut, total in the middle, one row per slice', sp);
   await page.click('#spend-legend .spend-row >> nth=0');
   await page.waitForTimeout(150);
-  ok(/Housing/.test(await text(page, 'spend-detail')) && await page.$$eval('#spend-detail tr', r => r.length) > 0, 'spending: a row lists its transactions', await text(page, 'spend-detail'));
+  const lvl2 = await page.evaluate(() => ({ cat: Store.ui.spending.cat, banner: document.getElementById('spend-detail').textContent, center: document.getElementById('spend-center').textContent, rows: document.querySelectorAll('#spend-legend .spend-row').length, back: !!document.querySelector('[data-action="spend.back"]') }));
+  ok(lvl2.cat === 'Vivienda' && /Housing/.test(lvl2.banner) && /of all spending/.test(lvl2.banner) && /period before/.test(lvl2.banner) && /Housing/.test(lvl2.center) && lvl2.rows >= 1 && lvl2.back, 'spending: a category opens its subcategories with a banner', lvl2);
+  await page.click('#spend-legend .spend-row >> nth=0');
+  await page.click('[data-action="spend.txns"]');
+  await page.waitForTimeout(150);
+  const lvl3 = await page.evaluate(() => ({ sub: Store.ui.spending.sub, payees: document.querySelectorAll('#spend-detail .acd-txn').length }));
+  ok(!!lvl3.sub && lvl3.payees >= 1, 'spending: a subcategory and its transactions by payee', lvl3);
+  await page.click('[data-action="spend.back"]');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => !Store.ui.spending.cat && document.getElementById('spend-detail').textContent === ''), 'spending: back to all categories');
   await page.click('[data-action="spend.range"][data-range="6m"]');
   await page.selectOption('#spend-who', String(-1));
   await page.waitForTimeout(150);
