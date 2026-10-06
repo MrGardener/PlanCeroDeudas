@@ -1446,3 +1446,17 @@ test('categoryTrend: spending by category per month, income line, account and ca
     const f = E.categoryTrend(['A', 'B', 'C'].map((c, i) => t('2026-10-01', c, 30 - i)), { end: new Date(2026, 9, 6), months: 1, max: 2 });
     assert.deepEqual(f.series.map(x => [x.key, x.values[0]]), [['A', 30], [null, 57]]);
 });
+
+test('budgetBubbles: lines grouped by category, planned vs spent, state by share spent', () => {
+    const items = [
+        { id: 1, name: 'Rent', real: 1000, linkedCategory: 'Vivienda' }, { id: 2, name: 'Repairs', real: 100, linkedCategory: 'Vivienda' },
+        { id: 3, name: 'Groceries', real: 500, linkedCategory: 'Alimentación' }, { id: 4, name: 'Fun', real: 50, linkedCategory: 'Entretenimiento y Ocio' },
+        { id: 5, name: 'Nothing', real: 0, linkedCategory: 'Mascotas' }, { id: 6, name: 'Unplanned', real: 0 }
+    ];
+    const spent = { 1: 1000, 2: 0, 3: 200, 4: 80, 5: 0, 6: 15 };
+    const r = E.budgetBubbles(items, id => spent[id]);
+    assert.deepEqual(r.map(b => [b.category, b.planned, b.spent, b.state]), [
+        ['Vivienda', 1100, 1000, 'warn'], ['Alimentación', 500, 200, 'ok'], ['Entretenimiento y Ocio', 50, 80, 'over'], ['Otros', 0, 15, 'over']]);
+    assert.deepEqual(r[0].lines.map(l => l.name), ['Rent', 'Repairs']);
+    assert.equal(r[3].share, null);
+});

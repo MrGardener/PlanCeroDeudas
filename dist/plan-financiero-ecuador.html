@@ -819,6 +819,21 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .spend-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .spend-pct { color: var(--muted); font-size: .72rem; }
 .spend-amt { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Budget bubbles: area = money planned; green / yellow / red = how much of it is spent. */
+.bubbles { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .4rem; padding: .25rem 0 .5rem; }
+.bubble { border-radius: 9999px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; padding: .4rem; text-align: center; border: 2px solid; color: var(--ink); line-height: 1.15; transition: transform var(--dur) var(--ease); }
+.bubble:hover, .bubble:focus-visible { transform: scale(1.04); }
+.bubble-name { font-size: 1em; font-weight: 700; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; hyphens: auto; overflow-wrap: break-word; }
+.bubble-pct { font-size: 1em; font-weight: 800; white-space: nowrap; }
+.bubble-amt { font-size: .85em; color: var(--muted); white-space: nowrap; }
+.bubble.is-ok { background: rgba(27, 175, 122, .16); border-color: #1baf7a; }
+.bubble.is-warn { background: rgba(237, 161, 0, .2); border-color: #eda100; }
+.bubble.is-over { background: rgba(208, 59, 59, .16); border-color: #d03b3b; }
+.bubble-key { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem 1rem; font-size: .72rem; color: var(--muted); margin-top: .5rem; }
+.bubble-key .is-ok i { color: #1baf7a; } .bubble-key .is-warn i { color: #c98500; } .bubble-key .is-over i { color: #d03b3b; }
+.bubble.is-ok .bubble-pct i { color: #128a5f; } .bubble.is-warn .bubble-pct i { color: #a86f00; } .bubble.is-over .bubble-pct i { color: #d03b3b; }
+.bs-view.active { background: var(--surface-3); }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -5443,6 +5458,16 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "{0} spent of {1} planned.": "{0} gastado de {1} planificado.",
+    "Almost spent": "Casi gastado",
+    "Bubbles": "Burbujas",
+    "Budget lines as bubbles": "Líneas del presupuesto como burbujas",
+    "Cards": "Tarjetas",
+    "Details": "Detalles",
+    "No lines with money planned yet.": "Aún no hay líneas con dinero planificado.",
+    "Over budget": "Sobre el presupuesto",
+    "Size: money planned": "Tamaño: dinero planificado",
+    "Under 80% spent, 80–100%, or over. Tap a bubble to see its lines.": "Menos del 80 % gastado, 80–100 % o más. Toca una burbuja para ver sus líneas.",
     "All accounts": "Todas las cuentas",
     "No account": "Sin cuenta",
     "No spending in these months.": "Sin gastos en estos meses.",
@@ -11303,6 +11328,25 @@ I18n.override('EC', 'es', {
         return { months: keys, series, income: category ? null : income, spend };
     }
 
+    // Budget bubbles: a month's expense lines grouped by category (linkedCategory), with what's
+    // planned and spent and a state: 'ok' under 80% spent, 'warn' 80–100%, 'over' past the plan.
+    // spentOf(id) → amount spent on that line. Biggest plan first.
+    function budgetBubbles(items, spentOf) {
+        const by = {};
+        (items || []).forEach(it => {
+            const planned = num(it.real), spent = num(spentOf(it.id));
+            if (planned <= 0.005 && spent <= 0.005) return;
+            const k = it.linkedCategory && it.linkedCategory !== 'none' ? it.linkedCategory : 'Otros';
+            const b = by[k] || (by[k] = { category: k, planned: 0, spent: 0, lines: [] });
+            b.planned += planned; b.spent += spent;
+            b.lines.push({ id: it.id, name: it.name, planned, spent });
+        });
+        return Object.values(by).map(b => Object.assign(b, {
+            share: b.planned > 0 ? b.spent / b.planned : null,
+            state: b.spent > b.planned + 0.005 ? 'over' : b.planned > 0 && b.spent / b.planned >= 0.8 ? 'warn' : 'ok'
+        })).sort((a, b) => b.planned - a.planned || b.spent - a.spent);
+    }
+
     // ------------------------------------------------------------ recurring
     // A repeating transaction: { frequency: 'weekly'|'biweekly'|'monthly'|'yearly',
     // startDate, endDate?, lastPosted? }. Monthly/yearly keep the start's day of month
@@ -12639,7 +12683,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -15507,8 +15551,10 @@ I18n.override('EC', 'es', {
         host.innerHTML = `
             <div class="bs-toolbar">
                 <div class="segmented bs-modes" role="tablist" aria-label="What to show">${Object.keys(MODES).map(k => `<button type="button" data-action="budget.mode" data-mode="${k}">${MODES[k]}</button>`).join('')}</div>
+                <button type="button" class="btn btn-secondary bs-view" data-action="budget.bubbles" aria-pressed="false"><i class="fa-solid fa-circle-nodes"></i> <span>Bubbles</span></button>
                 <span class="bs-month" id="bs-month"></span>
             </div>
+            <section class="bs-card hidden" id="bs-bubbles" aria-label="Budget lines as bubbles"></section>
             <div id="bs-banner" class="bs-banner"></div>
             <section class="bs-card bs-unassigned hidden" id="bs-unassigned"></section>
             <div class="bs-grid">${incomeCard(ctx, m)}${cards.join('')}</div>`;
@@ -15640,6 +15686,8 @@ I18n.override('EC', 'es', {
             el.classList.toggle('text-red-600', md === 'remaining' && v < -0.005);
         });
 
+        bubbles(ctx, m, spentOf);
+
         // Spending that isn't on any line yet
         const un = document.getElementById('bs-unassigned');
         const show = md !== 'planned' && m.spend.unassigned.length > 0;
@@ -15653,6 +15701,51 @@ I18n.override('EC', 'es', {
                     <select class="chip-select empty" data-change="txn.assignLine" data-id="${t.id}" aria-label="Assign to a line"><option value="">+ Assign to a line</option>${options}</select></div>`).join('')}`;
         }
     }
+
+    // Bubbles: one per category, sized by what's planned (area), colored by how much of it is
+    // spent — under 80%, 80–100%, over — with an icon and a word too, never color alone. Tap one to
+    // see its lines. Another way to read the same cards; the toggle sits next to the modes.
+    const BUBBLE_STATE = { ok: { icon: 'fa-circle-check', label: 'On track' }, warn: { icon: 'fa-circle-exclamation', label: 'Almost spent' }, over: { icon: 'fa-triangle-exclamation', label: 'Over budget' } };
+    let lastBubbles = [];
+    function bubbles(ctx, m, spentOf) {
+        const on = !!Store.ui.budgetBubbles;
+        const box = document.getElementById('bs-bubbles');
+        const btn = document.querySelector('#bud-simple [data-action="budget.bubbles"]');
+        if (btn) { btn.setAttribute('aria-pressed', String(on)); btn.classList.toggle('active', on); btn.querySelector('span').textContent = I18n.t(on ? 'Cards' : 'Bubbles'); btn.querySelector('i').className = `fa-solid ${on ? 'fa-table-list' : 'fa-circle-nodes'}`; }
+        UI.$$('#bud-simple .bs-grid').forEach(g => g.classList.toggle('hidden', on));
+        if (!box) return;
+        box.classList.toggle('hidden', !on);
+        if (!on) return;
+        if (!m.sm) { box.innerHTML = '<p class="bs-empty">Pick a month to see what was spent.</p>'; return; }
+        const list = lastBubbles = Engine.budgetBubbles(m.plannedItems, id => spentOf(id).spent);
+        if (!list.length) { box.innerHTML = '<p class="bs-empty">No lines with money planned yet.</p>'; return; }
+        const top = Math.max(...list.map(x => x.planned), 1);
+        const small = window.innerWidth < 640, minD = small ? 52 : 64, maxD = small ? 150 : 190;
+        box.innerHTML = `<div class="bubbles">${list.map((x, i) => {
+            const d = Math.round(minD + (maxD - minD) * Math.sqrt(Math.max(0, x.planned) / top)), info = BUBBLE_STATE[x.state];
+            const pct = x.share === null ? money0(x.spent) : Math.round(x.share * 100) + '%';
+            const name = I18n.t(x.category);
+            return `<button type="button" class="bubble is-${x.state}" style="width:${d}px;height:${d}px;font-size:${Math.max(8.5, Math.min(12, d / 11)).toFixed(1)}px" data-action="budget.bubble" data-index="${i}"
+                aria-label="${esc(`${name}: ${money0(x.spent)} / ${money0(x.planned)} · ${I18n.t(info.label)}`)}">
+                <span class="bubble-name" data-i18n-skip>${esc(name)}</span>
+                <span class="bubble-pct"><i class="fa-solid ${info.icon}"></i> ${pct}</span>
+                ${d >= 96 ? `<span class="bubble-amt">${money0(x.spent)} / ${money0(x.planned)}</span>` : ''}</button>`;
+        }).join('')}</div>
+            <p class="bubble-key">${Object.keys(BUBBLE_STATE).map(k => `<span class="is-${k}"><i class="fa-solid ${BUBBLE_STATE[k].icon}"></i> ${BUBBLE_STATE[k].label}</span>`).join('')}<span>Size: money planned</span></p>
+            <p class="help">Under 80% spent, 80–100%, or over. Tap a bubble to see its lines.</p>`;
+    }
+    // A category's lines: planned, spent, and a link to each line's details.
+    function openBubble(i) {
+        const b = lastBubbles[i];
+        if (!b) return;
+        const sheet = UI.sheet({ title: I18n.t(b.category), icon: 'fa-circle-nodes', html: `
+            <p class="text-sm mb-2">${money(b.spent)} spent of ${money(b.planned)} planned.</p>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Line</th><th class="num">Planned</th><th class="num">Spent</th><th></th></tr></thead><tbody>
+            ${b.lines.map(l => `<tr><td data-i18n-skip>${esc(I18n.t(l.name))}</td><td class="num">${money(l.planned)}</td><td class="num ${l.spent > l.planned + 0.005 ? 'text-red-600 font-bold' : ''}">${money(l.spent)}</td>
+                <td><button type="button" class="mini-btn" data-action="budget.bubbleLine" data-id="${esc(String(l.id))}">Details</button></td></tr>`).join('')}</tbody></table></div>` });
+        bubbleSheet = sheet;
+    }
+    let bubbleSheet = null;
 
     // <option>s for every expense line of a month's budget, grouped.
     function lineOptions(items, selected) {
@@ -15831,6 +15924,9 @@ I18n.override('EC', 'es', {
             App.undoable(`Grupo "${el.dataset.name}" quitado`, () => { yd.groups = (yd.groups || []).filter(g => g.name !== el.dataset.name); });
         },
         'budget.mode': (el) => { Store.ui.budgetMode = el.dataset.mode; App.update(); },
+        'budget.bubbles': () => { Store.ui.budgetBubbles = !Store.ui.budgetBubbles; App.update(); },
+        'budget.bubble': (el) => openBubble(Number(el.dataset.index)),
+        'budget.bubbleLine': (el) => { if (bubbleSheet) bubbleSheet.close(); bubbleSheet = null; openDetail(el.dataset.id); },
         'budget.layout': (el) => { Store.ui.budgetLayout = el.dataset.layout; App.render(); }
     });
 

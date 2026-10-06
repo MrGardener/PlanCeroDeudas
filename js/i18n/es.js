@@ -2,6 +2,16 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "{0} spent of {1} planned.": "{0} gastado de {1} planificado.",
+    "Almost spent": "Casi gastado",
+    "Bubbles": "Burbujas",
+    "Budget lines as bubbles": "Líneas del presupuesto como burbujas",
+    "Cards": "Tarjetas",
+    "Details": "Detalles",
+    "No lines with money planned yet.": "Aún no hay líneas con dinero planificado.",
+    "Over budget": "Sobre el presupuesto",
+    "Size: money planned": "Tamaño: dinero planificado",
+    "Under 80% spent, 80–100%, or over. Tap a bubble to see its lines.": "Menos del 80 % gastado, 80–100 % o más. Toca una burbuja para ver sus líneas.",
     "All accounts": "Todas las cuentas",
     "No account": "Sin cuenta",
     "No spending in these months.": "Sin gastos en estos meses.",

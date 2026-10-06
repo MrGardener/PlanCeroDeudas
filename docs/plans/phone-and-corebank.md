@@ -48,7 +48,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
     its transactions; per person or household.
 11. ✅ **Trends** — stacked areas by category per month with an income line; 3M / 6M / 9M / 1Y; all
     categories or one; filter by account.
-12. **Budget bubbles** — a bubble per category sized by budget, colored green / yellow / red by how much
+12. ✅ **Budget bubbles** — a bubble per category sized by budget, colored green / yellow / red by how much
     is spent; tap to see the line. A toggle next to the current table view.
 13. **Cash flow** — daily balance for the next 30/60/90 days with a "today" line and the area below $0
     in red; **cash events** (one-off bills or deposits you add) show on it.

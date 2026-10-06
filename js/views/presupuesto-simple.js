@@ -138,8 +138,10 @@
         host.innerHTML = `
             <div class="bs-toolbar">
                 <div class="segmented bs-modes" role="tablist" aria-label="What to show">${Object.keys(MODES).map(k => `<button type="button" data-action="budget.mode" data-mode="${k}">${MODES[k]}</button>`).join('')}</div>
+                <button type="button" class="btn btn-secondary bs-view" data-action="budget.bubbles" aria-pressed="false"><i class="fa-solid fa-circle-nodes"></i> <span>Bubbles</span></button>
                 <span class="bs-month" id="bs-month"></span>
             </div>
+            <section class="bs-card hidden" id="bs-bubbles" aria-label="Budget lines as bubbles"></section>
             <div id="bs-banner" class="bs-banner"></div>
             <section class="bs-card bs-unassigned hidden" id="bs-unassigned"></section>
             <div class="bs-grid">${incomeCard(ctx, m)}${cards.join('')}</div>`;
@@ -271,6 +273,8 @@
             el.classList.toggle('text-red-600', md === 'remaining' && v < -0.005);
         });
 
+        bubbles(ctx, m, spentOf);
+
         // Spending that isn't on any line yet
         const un = document.getElementById('bs-unassigned');
         const show = md !== 'planned' && m.spend.unassigned.length > 0;
@@ -284,6 +288,51 @@
                     <select class="chip-select empty" data-change="txn.assignLine" data-id="${t.id}" aria-label="Assign to a line"><option value="">+ Assign to a line</option>${options}</select></div>`).join('')}`;
         }
     }
+
+    // Bubbles: one per category, sized by what's planned (area), colored by how much of it is
+    // spent — under 80%, 80–100%, over — with an icon and a word too, never color alone. Tap one to
+    // see its lines. Another way to read the same cards; the toggle sits next to the modes.
+    const BUBBLE_STATE = { ok: { icon: 'fa-circle-check', label: 'On track' }, warn: { icon: 'fa-circle-exclamation', label: 'Almost spent' }, over: { icon: 'fa-triangle-exclamation', label: 'Over budget' } };
+    let lastBubbles = [];
+    function bubbles(ctx, m, spentOf) {
+        const on = !!Store.ui.budgetBubbles;
+        const box = document.getElementById('bs-bubbles');
+        const btn = document.querySelector('#bud-simple [data-action="budget.bubbles"]');
+        if (btn) { btn.setAttribute('aria-pressed', String(on)); btn.classList.toggle('active', on); btn.querySelector('span').textContent = I18n.t(on ? 'Cards' : 'Bubbles'); btn.querySelector('i').className = `fa-solid ${on ? 'fa-table-list' : 'fa-circle-nodes'}`; }
+        UI.$$('#bud-simple .bs-grid').forEach(g => g.classList.toggle('hidden', on));
+        if (!box) return;
+        box.classList.toggle('hidden', !on);
+        if (!on) return;
+        if (!m.sm) { box.innerHTML = '<p class="bs-empty">Pick a month to see what was spent.</p>'; return; }
+        const list = lastBubbles = Engine.budgetBubbles(m.plannedItems, id => spentOf(id).spent);
+        if (!list.length) { box.innerHTML = '<p class="bs-empty">No lines with money planned yet.</p>'; return; }
+        const top = Math.max(...list.map(x => x.planned), 1);
+        const small = window.innerWidth < 640, minD = small ? 52 : 64, maxD = small ? 150 : 190;
+        box.innerHTML = `<div class="bubbles">${list.map((x, i) => {
+            const d = Math.round(minD + (maxD - minD) * Math.sqrt(Math.max(0, x.planned) / top)), info = BUBBLE_STATE[x.state];
+            const pct = x.share === null ? money0(x.spent) : Math.round(x.share * 100) + '%';
+            const name = I18n.t(x.category);
+            return `<button type="button" class="bubble is-${x.state}" style="width:${d}px;height:${d}px;font-size:${Math.max(8.5, Math.min(12, d / 11)).toFixed(1)}px" data-action="budget.bubble" data-index="${i}"
+                aria-label="${esc(`${name}: ${money0(x.spent)} / ${money0(x.planned)} · ${I18n.t(info.label)}`)}">
+                <span class="bubble-name" data-i18n-skip>${esc(name)}</span>
+                <span class="bubble-pct"><i class="fa-solid ${info.icon}"></i> ${pct}</span>
+                ${d >= 96 ? `<span class="bubble-amt">${money0(x.spent)} / ${money0(x.planned)}</span>` : ''}</button>`;
+        }).join('')}</div>
+            <p class="bubble-key">${Object.keys(BUBBLE_STATE).map(k => `<span class="is-${k}"><i class="fa-solid ${BUBBLE_STATE[k].icon}"></i> ${BUBBLE_STATE[k].label}</span>`).join('')}<span>Size: money planned</span></p>
+            <p class="help">Under 80% spent, 80–100%, or over. Tap a bubble to see its lines.</p>`;
+    }
+    // A category's lines: planned, spent, and a link to each line's details.
+    function openBubble(i) {
+        const b = lastBubbles[i];
+        if (!b) return;
+        const sheet = UI.sheet({ title: I18n.t(b.category), icon: 'fa-circle-nodes', html: `
+            <p class="text-sm mb-2">${money(b.spent)} spent of ${money(b.planned)} planned.</p>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Line</th><th class="num">Planned</th><th class="num">Spent</th><th></th></tr></thead><tbody>
+            ${b.lines.map(l => `<tr><td data-i18n-skip>${esc(I18n.t(l.name))}</td><td class="num">${money(l.planned)}</td><td class="num ${l.spent > l.planned + 0.005 ? 'text-red-600 font-bold' : ''}">${money(l.spent)}</td>
+                <td><button type="button" class="mini-btn" data-action="budget.bubbleLine" data-id="${esc(String(l.id))}">Details</button></td></tr>`).join('')}</tbody></table></div>` });
+        bubbleSheet = sheet;
+    }
+    let bubbleSheet = null;
 
     // <option>s for every expense line of a month's budget, grouped.
     function lineOptions(items, selected) {
@@ -462,6 +511,9 @@
             App.undoable(`Grupo "${el.dataset.name}" quitado`, () => { yd.groups = (yd.groups || []).filter(g => g.name !== el.dataset.name); });
         },
         'budget.mode': (el) => { Store.ui.budgetMode = el.dataset.mode; App.update(); },
+        'budget.bubbles': () => { Store.ui.budgetBubbles = !Store.ui.budgetBubbles; App.update(); },
+        'budget.bubble': (el) => openBubble(Number(el.dataset.index)),
+        'budget.bubbleLine': (el) => { if (bubbleSheet) bubbleSheet.close(); bubbleSheet = null; openDetail(el.dataset.id); },
         'budget.layout': (el) => { Store.ui.budgetLayout = el.dataset.layout; App.render(); }
     });
 
