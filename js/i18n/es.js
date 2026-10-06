@@ -2,6 +2,11 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Back to all categories": "Volver a todas las categorías",
+    "Back to the chart": "Volver al gráfico",
+    "End of the list": "Fin de la lista",
+    "Transactions in {0}": "Transacciones en {0}",
+    "Open {0}": "Abrir {0}",
     "Brokerage": "Corretaje (bolsa)",
     "Credit Cards": "Tarjetas de crédito",
     "Jewelry": "Joyas",

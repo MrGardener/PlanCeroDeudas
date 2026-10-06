@@ -87,6 +87,8 @@
         const o = topts(), pal = UI.palette(), s = ctx.state;
         const r = Engine.categoryTrend(s.transactions, { end: ctx.today, months: o.months, account: o.account, category: o.category });
         UI.$$('[data-action="trends.months"]').forEach(b => b.classList.toggle('active', Number(b.dataset.months) === o.months));
+        const back = document.getElementById('trends-back');
+        if (back) back.style.display = o.category ? '' : 'none';
         UI.html('trends-category', Views.selectOptions([{ value: '', label: 'All categories' }].concat(Object.keys(s.taxonomy.expense).map(c => ({ value: c, label: c }))), o.category));
         const accts = s.accounts || [];
         UI.html('trends-account', Views.selectOptions([{ value: '', label: 'All accounts' }].concat(accts.map(a => ({ value: String(a.id), label: a.name })), [{ value: 'none', label: 'No account' }]), o.account));
@@ -97,19 +99,90 @@
         const label = (k) => { const [y, m] = k.split('-'); return `${Fmt.MONTH_SHORT[Number(m) - 1]}${r.months.some(x => x.slice(0, 4) !== y) ? ' ' + y.slice(2) : ''}`; };
         const name = (x) => (x.key === null ? (o.category ? 'Other subcategories' : 'Other categories') : x.key);
         const color = (x, i) => (x.key === null ? pal.muted : pal.series[i % pal.series.length]);
-        const datasets = r.series.map((x, i) => ({ label: name(x), data: x.values.map(v => Math.round(v * 100) / 100), stack: 'spend', fill: i === 0 ? 'origin' : '-1', backgroundColor: color(x, i) + 'cc', borderColor: color(x, i), borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.25 }));
-        if (r.income) datasets.push({ label: 'Income', data: r.income.map(v => Math.round(v * 100) / 100), stack: 'income', fill: false, borderColor: pal.text, backgroundColor: pal.text, borderWidth: 2, borderDash: [5, 4], pointRadius: 3, tension: 0.25 });
+        // The focused band (tapped) stays strong; the others step back.
+        const fkey = (x) => (x.key === null ? '__other' : x.key);
+        if (o.focus && !(o.focus === '__income' && r.income) && !r.series.some(x => fkey(x) === o.focus)) o.focus = null;
+        const dim = (x) => o.focus && fkey(x) !== o.focus;
+        const datasets = r.series.map((x, i) => ({ label: name(x), data: x.values.map(v => Math.round(v * 100) / 100), stack: 'spend', fill: i === 0 ? 'origin' : '-1',
+            backgroundColor: color(x, i) + (dim(x) ? '40' : 'b3'), borderColor: color(x, i) + (dim(x) ? '66' : ''), borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
+            pointBackgroundColor: pal.surface, pointBorderColor: color(x, i), pointBorderWidth: 2, tension: 0.4 }));
+        if (r.income) datasets.push({ label: 'Income', data: r.income.map(v => Math.round(v * 100) / 100), stack: 'income', fill: false, borderColor: pal.text, backgroundColor: pal.text, borderWidth: 3, pointRadius: 3, pointBackgroundColor: pal.surface, pointBorderWidth: 2, tension: 0.4 });
         UI.chart('trends-chart', {
             type: 'line',
             data: { labels: r.months.map(label), datasets },
             options: { scales: { y: { stacked: true } }, plugins: { legend: { position: 'bottom' } },
-                onClick: (e, els) => { if (!els.length) return; const k = r.months[els[0].index]; o.drill = o.drill && o.drill.month === k && !o.drill.cat ? null : { month: k, cat: null, sub: null }; App.update(); } }
+                // Tap a band: its months in a card; tap it again (or "Open") to see its subcategories.
+                // Tap above the bands: that month's breakdown.
+                onClick: (e, els, chart) => {
+                    const i = els.length ? els[0].index : Math.round(chart.scales.x.getValueForPixel(e.x));
+                    if (!(i >= 0 && i < r.months.length)) return;
+                    const k = r.months[i];
+                    // On (or near) the income line: its card.
+                    const inc = r.income ? chart.getDatasetMeta(chart.data.datasets.length - 1).data[i] : null;
+                    if (inc && Math.abs(e.y - inc.y) <= 14) { o.focus = '__income'; o.focusMonth = k; App.update(); return; }
+                    const band = Engine.bandAt(r.series.map(x => x.values), i, chart.scales.y.getValueForPixel(e.y));
+                    if (band === null) { o.focus = null; o.drill = o.drill && o.drill.month === k && !o.drill.cat ? null : { month: k, cat: null, sub: null }; App.update(); return; }
+                    const x = r.series[band], key = fkey(x);
+                    if (o.focus === key && o.focusMonth === k) {
+                        if (!o.category && x.key !== null) { openCategory(x.key); return; }
+                        if (o.category) { openTxns(o, x, k, label); return; }
+                    }
+                    o.focus = key; o.focusMonth = k; o.drill = { month: k, cat: null, sub: null };
+                    App.update();
+                } }
         });
+        focusCard(o, r, label, name, color, fkey);
         drill(ctx, o, r, label);
         const now = Engine.isoDate(ctx.today).slice(0, 7);
         UI.text('trends-note', r.months[r.months.length - 1] === now ? 'This month isn\'t over yet.' : '');
         UI.html('trends-head', `<tr><th>Month</th><th class="num">Spending</th>${r.income ? '<th class="num">Income</th><th class="num">Left over</th>' : ''}</tr>`);
         UI.html('trends-table', r.months.map((k, i) => `<tr><td>${esc(label(k))}</td><td class="num">${money(r.spend[i])}</td>${r.income ? `<td class="num">${money(r.income[i])}</td><td class="num ${r.income[i] - r.spend[i] < 0 ? 'text-red-600' : ''}">${money(r.income[i] - r.spend[i])}</td>` : ''}</tr>`).join(''));
+    }
+
+    // The tapped band's card: its amount each month (the tapped month marked), and "Open" to see
+    // a category's subcategories.
+    function focusCard(o, r, label, name, color, fkey) {
+        const host = document.getElementById('trends-focus');
+        if (!host) return;
+        const pal = UI.palette();
+        const income = o.focus === '__income' && r.income ? { key: '__income', values: r.income } : null;
+        const i = income ? -1 : r.series.findIndex(x => fkey(x) === o.focus);
+        if (i < 0 && !income) { host.innerHTML = ''; return; }
+        const x = income || r.series[i];
+        if (income) { name = () => 'Income'; color = () => pal.text; }
+        host.innerHTML = `<div class="spend-banner">
+            <div class="flex items-center justify-between gap-2"><strong><i class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:${color(x, i)}"></i> ${esc(I18n.t(name(x)))}</strong>
+                <button type="button" class="row-del" data-action="trends.unfocus" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
+            <div class="trend-months">${r.months.map((k, j) => `<div class="${k === o.focusMonth ? 'is-now' : ''}"><span>${esc(label(k))}</span><strong>${money0(x.values[j])}</strong></div>`).join('')}</div>
+            ${income ? '' : !o.category && x.key !== null ? `<button type="button" class="btn btn-secondary btn-sm mt-2 self-start" data-action="trends.open" data-key="${esc(x.key)}">Open ${esc(I18n.t(x.key))} <i class="fa-solid fa-arrow-right"></i></button>`
+                : o.category ? `<button type="button" class="btn btn-secondary btn-sm mt-2 self-start" data-action="trends.txns"><i class="fa-solid fa-list-ul"></i> Transactions in ${esc(label(o.focusMonth))}</button>` : ''}
+        </div>`;
+    }
+    // A subcategory's transactions in one month (inside a category's view), in a sheet with a back
+    // arrow to the chart. "Other subcategories" lists all the folded ones.
+    let txnSheet = null;
+    function openTxns(o, x, monthKey, label) {
+        const [y, m] = monthKey.split('-').map(Number), from = `${monthKey}-01`, to = Engine.isoDate(new Date(y, m, 0));
+        const subs = x.key === null ? x.other : [x.key], accts = Store.state.accounts || [];
+        const list = Store.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && t.date >= from && t.date <= to && (t.parentCategory || 'Otros') === o.category
+            && subs.includes(t.category || o.category) && (!o.account || (o.account === 'none' ? !t.accountId : String(t.accountId) === String(o.account))))
+            .sort((a, b) => b.date.localeCompare(a.date));
+        const title = `${I18n.t(x.key === null ? 'Other subcategories' : x.key)} · ${label(monthKey)}`;
+        txnSheet = UI.sheet({ title: 'Transactions', icon: 'fa-list-ul', wide: true, html: `
+            <div class="flex items-center gap-2 mb-2"><button type="button" class="icon-btn icon-btn-light" data-action="trends.txnsBack" aria-label="Back to the chart"><i class="fa-solid fa-arrow-left"></i></button><strong data-i18n-skip>${esc(title)}</strong></div>
+            <div class="acd-txns">${list.map(t => { const a = accts.find(z => z.id === t.accountId); return `<button type="button" class="acd-txn w-full text-left" style="grid-template-columns:4.6rem 1fr auto" data-action="trends.txnOpen" data-id="${t.id}">
+                <span class="text-xs text-slate-500 whitespace-nowrap">${esc(Fmt.dayMonth(new Date(t.date + 'T00:00:00')))}</span>
+                <span class="min-w-0"><span class="block truncate font-semibold" data-i18n-skip>${esc(t.description || '—')}</span><span class="block truncate text-[11px] text-slate-500"><span>${esc(I18n.t(t.category || t.parentCategory || ''))}</span>${a ? ` · <span data-i18n-skip>${esc(a.name)}</span>` : ''}</span></span>
+                <span class="font-semibold whitespace-nowrap">${money(Engine.spendAmount(t))}</span></button>`; }).join('')}</div>
+            <p class="text-center text-xs text-slate-400 mt-3">${list.length ? 'End of the list' : 'No transactions.'}</p>` });
+    }
+
+    function openCategory(key) {
+        const o = topts();
+        o.category = key; o.focus = null; o.drill = null;
+        App.update();
+        const card = document.getElementById('trends-card');
+        if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
 
     // Level 1 → a category; level 2 → a subcategory (tap again to unpick).
@@ -154,10 +227,22 @@
         'spend.pick': (el) => pick(el.dataset.key || null),
         'spend.back': () => pick(null),
         'spend.txns': () => { const o = opts(); o.txns = !o.txns; App.update(); },
+        'trends.open': (el) => openCategory(el.dataset.key),
+        'trends.txns': () => {
+            const o = topts(), ctx = App.buildContext();
+            const r = Engine.categoryTrend(ctx.state.transactions, { end: ctx.today, months: o.months, account: o.account, category: o.category });
+            const x = r.series.find(z => (z.key === null ? '__other' : z.key) === o.focus);
+            const label = (k) => { const [y, m] = k.split('-'); return `${Fmt.MONTH_SHORT[Number(m) - 1]}${r.months.some(z => z.slice(0, 4) !== y) ? ' ' + y.slice(2) : ''}`; };
+            if (x && o.focusMonth) openTxns(o, x, o.focusMonth, label);
+        },
+        'trends.txnsBack': () => { if (txnSheet) { txnSheet.close(); txnSheet = null; } },
+        'trends.txnOpen': (el) => { if (txnSheet) { txnSheet.close(); txnSheet = null; } if (window.TxnDetails) TxnDetails.open(Number(el.dataset.id)); },
+        'trends.back': () => { const o = topts(); o.category = ''; o.focus = null; o.drill = null; App.update(); },
+        'trends.unfocus': () => { topts().focus = null; App.update(); },
         'trends.drill': (el) => { const o = topts(); if (!o.drill) return; if (o.category || o.drill.cat) o.drill.sub = el.dataset.key; else o.drill.cat = el.dataset.key; App.update(); },
         'trends.up': () => { const o = topts(); if (!o.drill) return; if (o.drill.sub) o.drill.sub = null; else o.drill.cat = null; App.update(); },
         'trends.months': (el) => { topts().months = Math.max(1, Math.min(12, Number(el.dataset.months) || 6)); App.update(); },
-        'trends.category': (el) => { topts().category = el.value; App.update(); },
+        'trends.category': (el) => { const o = topts(); o.category = el.value; o.focus = null; o.drill = null; App.update(); },
         'trends.account': (el) => { topts().account = el.value; App.update(); }
     });
 

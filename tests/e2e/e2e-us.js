@@ -787,6 +787,41 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
   const bsec = await page.evaluate(() => [...document.querySelectorAll('#nw-sheet-body .sheet-section')].map(x => x.textContent.replace(/\s+/g, ' ').trim().split('$')[0]));
   ok(bsec.join('|') === 'Cash & bank|Investments & retirement|Property', 'balance sheet: sections with subtotals', bsec);
+  // Trends like the bank's: tap a band → its months; tap again → the category with its subcategories
+  // (← back); tap a subcategory twice → its transactions that month in a sheet (← back to the chart).
+  await page.evaluate(() => { Store.reset('example'); Store.ui.trends = { months: 6, category: '', account: '' }; App.changed({ structural: true }); App.go('transacciones/reportes'); });
+  await page.waitForTimeout(300);
+  const tapBand = async (name, i) => {
+    const pt = await page.evaluate(([name, i]) => { const ch = UI.chartInstance('trends-chart'); const k = ch.data.datasets.findIndex(d => d.label === name); const top = ch.getDatasetMeta(k).data[i].y, bottom = k ? ch.getDatasetMeta(k - 1).data[i].y : ch.scales.y.getPixelForValue(0); const r = ch.canvas.getBoundingClientRect(); return { x: r.x + ch.getDatasetMeta(k).data[i].x, y: r.y + (top + bottom) / 2 }; }, [name, i]);
+    await page.mouse.click(pt.x, pt.y); await page.waitForTimeout(250);
+  };
+  await page.evaluate(() => document.getElementById('trends-chart').scrollIntoView({ block: 'center' }));
+  ok(await page.evaluate(() => getComputedStyle(document.getElementById('trends-back')).display === 'none'), 'trends: no back arrow at the top level');
+  await tapBand('Food', 3);
+  const tb1 = await page.evaluate(() => ({ focus: Store.ui.trends.focus, card: document.getElementById('trends-focus').textContent.replace(/\s+/g, ' '), months: document.querySelectorAll('#trends-focus .trend-months > div').length }));
+  ok(tb1.focus === 'Alimentación' && /Food/.test(tb1.card) && tb1.months === 6 && /Open Food/.test(tb1.card), 'trends: tapping a band shows its months', tb1);
+  await page.evaluate(() => document.getElementById('trends-chart').scrollIntoView({ block: 'center' }));
+  await tapBand('Food', 3);
+  const tb2 = await page.evaluate(() => ({ cat: Store.ui.trends.category, sets: UI.chartInstance('trends-chart').data.datasets.map(d => d.label), back: getComputedStyle(document.getElementById('trends-back')).display !== 'none' }));
+  ok(tb2.cat === 'Alimentación' && tb2.sets.includes('Groceries') && !tb2.sets.includes('Income') && tb2.back, 'trends: tapping it again opens the category with its subcategories', tb2);
+  await page.evaluate(() => document.getElementById('trends-chart').scrollIntoView({ block: 'center' }));
+  await tapBand('Groceries', 3);
+  await page.evaluate(() => document.getElementById('trends-chart').scrollIntoView({ block: 'center' }));
+  await tapBand('Groceries', 3);
+  const tb3 = await page.evaluate(() => { const m = document.querySelector('.modal-backdrop.sheet'); return m && { title: m.querySelector('.modal-title').textContent, rows: m.querySelectorAll('.acd-txn').length, head: m.querySelector('strong').textContent, end: /End of the list/.test(m.textContent) }; });
+  ok(tb3 && /Transactions/.test(tb3.title) && tb3.rows >= 1 && /Groceries/.test(tb3.head) && tb3.end, 'trends: a subcategory opens its transactions that month', tb3);
+  await page.click('[data-action="trends.txnsBack"]');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => !document.querySelector('.modal-backdrop.sheet') && Store.ui.trends.category === 'Alimentación'), 'trends: ← goes back to the chart');
+  await page.click('#trends-back');
+  await page.waitForTimeout(200);
+  ok(await page.evaluate(() => !Store.ui.trends.category && UI.chartInstance('trends-chart').data.datasets.some(d => d.label === 'Income')), 'trends: ← back to all categories');
+  await page.evaluate(() => document.getElementById('trends-chart').scrollIntoView({ block: 'center' }));
+  const ip = await page.evaluate(() => { const ch = UI.chartInstance('trends-chart'), p = ch.getDatasetMeta(ch.data.datasets.length - 1).data[2], r = ch.canvas.getBoundingClientRect(); return { x: r.x + p.x, y: r.y + p.y }; });
+  await page.mouse.click(ip.x, ip.y);
+  await page.waitForTimeout(200);
+  const tbi = await page.evaluate(() => ({ focus: Store.ui.trends.focus, card: document.getElementById('trends-focus').textContent.replace(/\s+/g, ' ') }));
+  ok(tbi.focus === '__income' && /Income/.test(tbi.card) && !/Open/.test(tbi.card), 'trends: tapping the income line shows its months', tbi);
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

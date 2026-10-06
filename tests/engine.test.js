@@ -1646,3 +1646,13 @@ test('accountsHub: retirement, health and investment subtypes; mortgages as acco
     assert.equal(E.netWorthFromSources({ accounts }).mortgage, 210000);
     assert.equal(accounts.filter(E.isRetirementMoney).reduce((t, a) => t + a.balance, 0), 50000 + 4000 + 12000 + 9000);
 });
+
+test('bandAt: which stacked band a tap lands in', () => {
+    const vals = [[100, 120], [0, 50], [30, 30]];
+    assert.equal(E.bandAt(vals, 0, 50), 0);
+    assert.equal(E.bandAt(vals, 0, 110), 2);          // the empty band (0) is skipped
+    assert.equal(E.bandAt(vals, 1, 150), 1);
+    assert.equal(E.bandAt(vals, 1, 199), 2);
+    assert.equal(E.bandAt(vals, 1, 250), null);       // above the stack
+    assert.equal(E.bandAt(vals, 0, -5), null);
+});
