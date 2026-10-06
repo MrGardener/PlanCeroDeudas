@@ -1348,3 +1348,28 @@ test('rate sensitivity: a loan at ±1 point, certificates renewing 1 point lower
     assert.equal(r.nextRenewal, '2026-11-20');
     assert.equal(E.cdRenewalRisk([], 'EC').loss, 0);
 });
+
+test('renaming a category or subcategory carries the new name everywhere it is saved', () => {
+    const st = {
+        taxonomy: { expense: { 'Alimentación': ['Mercado/Supermercado', 'Restaurantes'], 'Hogar': ['Muebles'] }, income: { 'Ingresos Laborales': ['Sueldo/Salario'] } },
+        transactions: [{ type: 'Gasto', parentCategory: 'Alimentación', category: 'Restaurantes' }, { type: 'Ingreso', parentCategory: 'Alimentación', category: 'x' }, { parentCategory: 'Hogar', category: 'Muebles' }],
+        recurring: [{ type: 'Gasto', parentCategory: 'Alimentación', category: 'Mercado/Supermercado' }],
+        rules: [{ contains: 'kroger', category: 'Alimentación', sub: 'Mercado/Supermercado' }, { contains: 'xfer', type: 'Transferencia', category: '' }],
+        years: { 2026: { budgetBase: [{ linkedCategory: 'Alimentación' }], monthOverrides: { 3: [{ linkedCategory: 'Alimentación' }] }, otherIncomes: [] } },
+        settings: {}
+    };
+    assert.equal(E.renameCategory(st, { kind: 'expense', category: 'Alimentación', to: 'Food' }), 5);
+    assert.deepEqual(Object.keys(st.taxonomy.expense), ['Food', 'Hogar']);                 // same place in the list
+    assert.deepEqual([st.transactions[0].parentCategory, st.transactions[1].parentCategory], ['Food', 'Alimentación']);   // income untouched
+    assert.equal(st.rules[0].category, 'Food');
+    assert.equal(st.years[2026].monthOverrides[3][0].linkedCategory, 'Food');
+    assert.equal(E.renameCategory(st, { kind: 'expense', category: 'Food', sub: 'Restaurantes', to: 'Eating out' }), 1);
+    assert.deepEqual(st.taxonomy.expense.Food, ['Mercado/Supermercado', 'Eating out']);
+    assert.equal(st.transactions[0].category, 'Eating out');
+    assert.equal(E.renameCategory(st, { kind: 'expense', category: 'Food', to: 'Hogar' }), 0);   // name taken
+    // The statement reader still guesses with the original names: they follow the renames.
+    assert.deepEqual(E.renamedCategory(st.settings, 'expense', 'Alimentación', 'Restaurantes'), { category: 'Food', sub: 'Eating out' });
+    assert.deepEqual(E.renamedCategory(st.settings, 'expense', 'Alimentación', 'Mercado/Supermercado'), { category: 'Food', sub: 'Mercado/Supermercado' });
+    E.renameCategory(st, { kind: 'expense', category: 'Food', to: 'Groceries & dining' });
+    assert.equal(E.renamedCategory(st.settings, 'expense', 'Alimentación').category, 'Groceries & dining');
+});

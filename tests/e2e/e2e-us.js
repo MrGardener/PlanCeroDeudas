@@ -167,6 +167,23 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(250);
   const ru = await page.evaluate(() => ({ r: Store.state.rules[0], row: document.getElementById('rule-body').textContent }));
   ok(preset === 'G|Alimentación|Mercado/Supermercado' && ru.r.contains === 'STARBUCKS' && ru.r.rename === 'Starbucks' && ru.r.sub === 'Restaurantes' && ru.r.type === 'Gasto' && /STARBUCKS/.test(ru.row), 'a rule can be edited: text, name, category and subcategory', ru);
+  // Categories live in Settings: rename (carried to transactions) and add a subcategory (step 4).
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('config'); document.getElementById('cfg-categories').open = true; });
+  await page.waitForTimeout(250);
+  const catBefore = await page.evaluate(() => Store.state.transactions.filter(t => t.parentCategory === 'Alimentación').length);
+  await page.click('[data-action="cat.rename"][data-parent="Alimentación"]');
+  await page.waitForSelector('.modal-backdrop:not(.hidden) [data-dialog-ok]');
+  const shown = await page.inputValue('.modal input[name="name"]');
+  await page.fill('.modal input[name="name"]', 'Groceries & Dining');
+  await page.click('[data-dialog-ok]');
+  await page.waitForTimeout(250);
+  await page.click('[data-action="cat.addSub"][data-parent="Groceries & Dining"]');
+  await page.waitForSelector('.modal-backdrop:not(.hidden) [data-dialog-ok]');
+  await page.fill('.modal input[name="name"]', 'Coffee');
+  await page.click('[data-dialog-ok]');
+  await page.waitForTimeout(250);
+  const cr = await page.evaluate(() => ({ n: Store.state.transactions.filter(t => t.parentCategory === 'Groceries & Dining').length, old: Store.state.transactions.filter(t => t.parentCategory === 'Alimentación').length, subs: Store.state.taxonomy.expense['Groceries & Dining'], list: document.getElementById('cat-list').textContent }));
+  ok(shown === 'Food' && catBefore > 0 && cr.n === catBefore && cr.old === 0 && cr.subs.includes('Coffee') && /Groceries & Dining/.test(cr.list), 'Settings → Categories: rename carries to transactions; add a subcategory', [shown, catBefore, cr.n, cr.old]);
   // Hourly pay, overtime and bonuses (docs/plans/hourly-pay.md, phase 2).
   await page.evaluate(() => { Store.reset('example'); Store.active().sueldo = 5000; Store.active().payDeductions = []; App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
   await page.waitForTimeout(200);

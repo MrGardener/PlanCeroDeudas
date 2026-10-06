@@ -43,7 +43,9 @@
         if (g) {
             if (g.type === 'Transferencia') return { type: 'Transferencia', category: '', sub: '', why: g.why, conf: g.confidence };
             const gt = taxFor(g.type);
-            if (gt[g.category]) return { type: g.type, category: g.category, sub: g.sub || firstSub(gt, g.category), why: g.why, conf: g.confidence, ask: g.ask };
+            // The engine guesses with the original names: follow any rename.
+            const n = Engine.renamedCategory(Store.state.settings, g.type === 'Ingreso' ? 'income' : 'expense', g.category, g.sub);
+            if (gt[n.category]) return { type: g.type, category: n.category, sub: n.sub && (gt[n.category] || []).includes(n.sub) ? n.sub : firstSub(gt, n.category), why: g.why, conf: g.confidence, ask: g.ask };
         }
         const fb = fallbackCat(row.type);
         return { type: row.type, category: fb, sub: firstSub(tax, fb), why: '', conf: 'low' };

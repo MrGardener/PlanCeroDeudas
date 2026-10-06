@@ -2,6 +2,19 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "(add, rename or delete them in Settings)": "(agrégalas, renómbralas o bórralas en Configuración)",
+    "Add, rename or delete them. A rename carries over to your transactions, rules, repeating transactions and budget lines.": "Agrégalas, renómbralas o bórralas. Un nombre nuevo pasa a tus transacciones, reglas, transacciones repetidas y rubros del presupuesto.",
+    "Categories and subcategories": "Categorías y subcategorías",
+    "New name": "Nombre nuevo",
+    "Rename category": "Renombrar categoría",
+    "Rename subcategory": "Renombrar subcategoría",
+    "Renamed to \"{0}\"": "Renombrada a \"{0}\"",
+    "That name is already used.": "Ese nombre ya existe.",
+    "Which categories": "Qué categorías",
+    "+ Subcategory": "+ Subcategoría",
+    "Category \"{0}\" created": "Categoría \"{0}\" creada",
+    "Subcategory \"{0}\" created": "Subcategoría \"{0}\" creada",
+    "{0} item{1} updated with the new name.": "{0} elemento{1|s|} actualizado{1|s|} con el nombre nuevo.",
     "Edit rule": "Editar regla",
     "Rule updated": "Regla actualizada",
     "{0} › {1} (income)": "{0} › {1} (ingreso)",

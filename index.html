@@ -560,20 +560,7 @@
                     </div>
                 </div>
             </div>
-            <details class="mt-4 panel tone-slate">
-                <summary class="text-xs font-bold text-slate-700 cursor-pointer"><i class="fa-solid fa-tags text-blue-600"></i> Manage categories and subcategories</summary>
-                <div class="mt-3">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="field-label mb-0">Viewing:</span>
-                        <select id="cat-type" class="cell-input" style="width:auto" data-change="txn.renderCategories">
-                            <option value="Gasto">Expense categories</option>
-                            <option value="Ingreso">Income categories</option>
-                        </select>
-                    </div>
-                    <p class="help mb-3">Deleting a category doesn't change transactions already logged with it; it just stops showing up for new ones.</p>
-                    <div id="cat-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
-                </div>
-            </details>
+            <p class="text-xs mt-3"><a href="#" class="link" data-goto="config" data-focus="cfg-categories"><i class="fa-solid fa-tags"></i> Manage categories and subcategories</a> <span class="text-slate-500">(add, rename or delete them in Settings)</span></p>
         </details>
 
         <div class="card">
@@ -1477,6 +1464,26 @@
             </div>
         </div>
     </details>
+    <details class="card group-card" id="cfg-categories">
+        <summary class="card-head cursor-pointer">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-tags text-blue-600"></i> Categories and subcategories</div>
+                <div class="card-sub">Add, rename or delete them. A rename carries over to your transactions, rules, repeating transactions and budget lines.</div>
+            </div>
+        </summary>
+        <div class="mt-4">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+                <select id="cat-type" class="input" style="width:auto" data-change="txn.renderCategories" aria-label="Which categories">
+                    <option value="Gasto">Expense categories</option>
+                    <option value="Ingreso">Income categories</option>
+                </select>
+                <button type="button" class="btn btn-secondary btn-sm" data-action="cat.addParent"><i class="fa-solid fa-plus"></i> New category</button>
+            </div>
+            <p class="help mb-3">Deleting a category doesn't change transactions already logged with it; it just stops showing up for new ones.</p>
+            <div id="cat-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+        </div>
+    </details>
+
     <details class="card group-card" id="cfg-guide">
         <summary class="flex items-center justify-between gap-3">
             <div><div class="card-title"><i class="fa-solid fa-circle-question text-emerald-600"></i> How to Use the App</div><div class="card-sub">Where your data is stored, how to back it up and where to start.</div></div>

@@ -1347,20 +1347,7 @@ html.kb-open.is-native body { padding-bottom: 0; }
                     </div>
                 </div>
             </div>
-            <details class="mt-4 panel tone-slate">
-                <summary class="text-xs font-bold text-slate-700 cursor-pointer"><i class="fa-solid fa-tags text-blue-600"></i> Manage categories and subcategories</summary>
-                <div class="mt-3">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="field-label mb-0">Viewing:</span>
-                        <select id="cat-type" class="cell-input" style="width:auto" data-change="txn.renderCategories">
-                            <option value="Gasto">Expense categories</option>
-                            <option value="Ingreso">Income categories</option>
-                        </select>
-                    </div>
-                    <p class="help mb-3">Deleting a category doesn't change transactions already logged with it; it just stops showing up for new ones.</p>
-                    <div id="cat-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
-                </div>
-            </details>
+            <p class="text-xs mt-3"><a href="#" class="link" data-goto="config" data-focus="cfg-categories"><i class="fa-solid fa-tags"></i> Manage categories and subcategories</a> <span class="text-slate-500">(add, rename or delete them in Settings)</span></p>
         </details>
 
         <div class="card">
@@ -2264,6 +2251,26 @@ html.kb-open.is-native body { padding-bottom: 0; }
             </div>
         </div>
     </details>
+    <details class="card group-card" id="cfg-categories">
+        <summary class="card-head cursor-pointer">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-tags text-blue-600"></i> Categories and subcategories</div>
+                <div class="card-sub">Add, rename or delete them. A rename carries over to your transactions, rules, repeating transactions and budget lines.</div>
+            </div>
+        </summary>
+        <div class="mt-4">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+                <select id="cat-type" class="input" style="width:auto" data-change="txn.renderCategories" aria-label="Which categories">
+                    <option value="Gasto">Expense categories</option>
+                    <option value="Ingreso">Income categories</option>
+                </select>
+                <button type="button" class="btn btn-secondary btn-sm" data-action="cat.addParent"><i class="fa-solid fa-plus"></i> New category</button>
+            </div>
+            <p class="help mb-3">Deleting a category doesn't change transactions already logged with it; it just stops showing up for new ones.</p>
+            <div id="cat-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+        </div>
+    </details>
+
     <details class="card group-card" id="cfg-guide">
         <summary class="flex items-center justify-between gap-3">
             <div><div class="card-title"><i class="fa-solid fa-circle-question text-emerald-600"></i> How to Use the App</div><div class="card-sub">Where your data is stored, how to back it up and where to start.</div></div>
@@ -5366,6 +5373,19 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "(add, rename or delete them in Settings)": "(agrégalas, renómbralas o bórralas en Configuración)",
+    "Add, rename or delete them. A rename carries over to your transactions, rules, repeating transactions and budget lines.": "Agrégalas, renómbralas o bórralas. Un nombre nuevo pasa a tus transacciones, reglas, transacciones repetidas y rubros del presupuesto.",
+    "Categories and subcategories": "Categorías y subcategorías",
+    "New name": "Nombre nuevo",
+    "Rename category": "Renombrar categoría",
+    "Rename subcategory": "Renombrar subcategoría",
+    "Renamed to \"{0}\"": "Renombrada a \"{0}\"",
+    "That name is already used.": "Ese nombre ya existe.",
+    "Which categories": "Qué categorías",
+    "+ Subcategory": "+ Subcategoría",
+    "Category \"{0}\" created": "Categoría \"{0}\" creada",
+    "Subcategory \"{0}\" created": "Subcategoría \"{0}\" creada",
+    "{0} item{1} updated with the new name.": "{0} elemento{1|s|} actualizado{1|s|} con el nombre nuevo.",
     "Edit rule": "Editar regla",
     "Rule updated": "Regla actualizada",
     "{0} › {1} (income)": "{0} › {1} (ingreso)",
@@ -10405,6 +10425,53 @@ I18n.override('EC', 'es', {
     // Transactions labelled as the salary itself (Sueldo/Salario, décimos) aren't added: the
     // salary already comes from "Tu Sueldo". The person can mark one as extra (t.countAsExtra).
     const PAYROLL_SUBCATEGORIES = ['Sueldo/Salario', 'Décimo Tercero', 'Décimo Cuarto'];
+
+    // Rename a category, or one of its subcategories (sub = the subcategory's current name), in
+    // everything that saves it: the list, transactions, scheduled transactions, rules, budget lines
+    // and income lines of every year. kind: 'expense' | 'income'. Returns how many items changed.
+    // settings.renamed remembers it, so the statement reader's guesses (which use the original
+    // names) still land in the renamed category.
+    function renameCategory(state, { kind, category, sub, to }) {
+        const tax = state.taxonomy && state.taxonomy[kind];
+        to = String(to || '').trim();
+        if (!tax || !tax[category] || !to) return 0;
+        const isKind = (type) => (kind === 'income') === (type === 'Ingreso');
+        let n = 0;
+        const fix = (o, catKey, subKey) => {
+            if (!o || o[catKey] !== category) return;
+            if (sub === undefined) { o[catKey] = to; n++; }
+            else if (subKey && o[subKey] === sub) { o[subKey] = to; n++; }
+        };
+        if (sub === undefined) {
+            if (tax[to]) return 0;
+            Object.keys(tax).forEach(k => { const v = tax[k]; delete tax[k]; tax[k === category ? to : k] = v; });
+        } else {
+            if (!tax[category].includes(sub) || tax[category].includes(to)) return 0;
+            tax[category] = tax[category].map(s => (s === sub ? to : s));
+        }
+        (state.transactions || []).concat(state.recurring || []).forEach(t => { if (isKind(t.type || 'Gasto')) fix(t, 'parentCategory', 'category'); });
+        (state.rules || []).forEach(r => { if (r.type !== 'Transferencia') fix(r, 'category', 'sub'); });
+        Object.values(state.years || {}).forEach(y => {
+            if (kind === 'expense') {
+                (y.budgetBase || []).forEach(i => fix(i, 'linkedCategory'));
+                Object.values(y.monthOverrides || {}).forEach(list => (list || []).forEach(i => fix(i, 'linkedCategory')));
+            } else (y.otherIncomes || []).forEach(l => fix(l, 'category'));
+        });
+        const s = state.settings || (state.settings = {});
+        const renamed = s.renamed || (s.renamed = {});
+        // Keyed by the original name, so a second rename still points the guesses at the right place.
+        const orig = Object.keys(renamed).find(k => renamed[k] === `${kind}|${category}${sub !== undefined ? '|' + sub : ''}`);
+        renamed[orig || `${kind}|${category}${sub !== undefined ? '|' + sub : ''}`] = `${kind}|${sub !== undefined ? category + '|' + to : to}`;
+        return n;
+    }
+    // Where an original category (and subcategory) lives now, after renames.
+    function renamedCategory(settings, kind, category, sub) {
+        const r = (settings && settings.renamed) || {};
+        const parent = r[`${kind}|${category}`];
+        const cat = parent ? parent.split('|')[1] : category;
+        const s = sub ? r[`${kind}|${category}|${sub}`] || r[`${kind}|${cat}|${sub}`] : null;
+        return { category: cat, sub: s ? s.split('|')[2] : sub };
+    }
     const isPayrollTxn = (t) => PAYROLL_SUBCATEGORIES.includes(t.category) && !t.countAsExtra;
 
     // Income transactions of one year, by month: { '9': { txns: [txn], payroll: [txn] } }.
@@ -12325,7 +12392,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -17647,13 +17714,17 @@ I18n.override('EC', 'es', {
         const parents = Object.keys(tax);
         UI.html('cat-list', parents.length ? parents.map(p => `
             <div class="panel tone-slate bg-white">
-                <div class="flex items-center justify-between mb-1.5">
+                <div class="flex items-center justify-between gap-2 mb-1.5">
                     <span class="font-bold text-slate-800 text-xs">${esc(p)}</span>
-                    <button class="row-del" data-action="cat.deleteParent" data-parent="${esc(p)}" title="Delete category"><i class="fa-solid fa-trash-can"></i></button>
+                    <span class="flex items-center shrink-0">
+                        <button class="row-edit" data-action="cat.rename" data-parent="${esc(p)}" title="Rename category" aria-label="Rename category"><i class="fa-solid fa-pen"></i></button>
+                        <button class="row-del" data-action="cat.deleteParent" data-parent="${esc(p)}" title="Delete category" aria-label="Delete category"><i class="fa-solid fa-trash-can"></i></button>
+                    </span>
                 </div>
                 <div class="flex flex-wrap gap-1.5">${tax[p].map(s => `
-                    <span class="inline-flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-full pl-2 pr-1 py-0.5 text-[11px]">${esc(s)}
-                        <button class="text-red-400 hover:text-red-700 font-bold px-1" data-action="cat.deleteSub" data-parent="${esc(p)}" data-sub="${esc(s)}" title="Delete subcategory">×</button></span>`).join('') || '<span class="text-slate-400 text-[11px]">(no subcategories)</span>'}
+                    <span class="inline-flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-full pl-2 pr-1 py-0.5 text-[11px]"><button type="button" class="hover:underline" data-action="cat.renameSub" data-parent="${esc(p)}" data-sub="${esc(s)}" title="Rename subcategory">${esc(s)}</button>
+                        <button class="text-red-400 hover:text-red-700 font-bold px-1" data-action="cat.deleteSub" data-parent="${esc(p)}" data-sub="${esc(s)}" title="Delete subcategory" aria-label="Delete subcategory">×</button></span>`).join('') || '<span class="text-slate-400 text-[11px]">(no subcategories)</span>'}
+                    <button type="button" class="mini-btn" data-action="cat.addSub" data-parent="${esc(p)}">+ Subcategory</button>
                 </div>
             </div>`).join('') : '<p class="help">No categories. Add one with "+ New".</p>');
     }
@@ -18593,6 +18664,24 @@ I18n.override('EC', 'es', {
             fillSubSelect(r.name.trim());
             renderCategories();
         },
+        // From Settings → Categories: new category, rename (carried everywhere), new subcategory.
+        'cat.addParent': async () => {
+            const type = document.getElementById('cat-type').value, tax = taxonomyFor(type);
+            const r = await UI.form({ title: `New ${type === 'Ingreso' ? 'income' : 'expense'} category`, fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Sports' }], confirmText: 'Create',
+                validate: v => !v.name.trim() ? 'Type a name.' : tax[v.name.trim()] ? 'That category already exists.' : null });
+            if (!r) return;
+            App.undoable(`Category "${r.name.trim()}" created`, () => { tax[r.name.trim()] = []; });
+        },
+        'cat.addSub': async (el) => {
+            const tax = taxonomyFor(document.getElementById('cat-type').value), parent = el.dataset.parent;
+            if (!tax[parent]) return;
+            const r = await UI.form({ title: `New subcategory of "${parent}"`, fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Gym' }], confirmText: 'Create',
+                validate: v => !v.name.trim() ? 'Type a name.' : tax[parent].includes(v.name.trim()) ? 'That subcategory already exists.' : null });
+            if (!r) return;
+            App.undoable(`Subcategory "${r.name.trim()}" created`, () => { tax[parent].push(r.name.trim()); });
+        },
+        'cat.rename': async (el) => renameCat(el.dataset.parent),
+        'cat.renameSub': async (el) => renameCat(el.dataset.parent, el.dataset.sub),
         'cat.deleteParent': (el) => {
             const tax = taxonomyFor(document.getElementById('cat-type').value);
             const p = el.dataset.parent;
@@ -18605,6 +18694,22 @@ I18n.override('EC', 'es', {
             App.undoable(`"${sub}" eliminada`, () => { tax[parent] = tax[parent].filter(s => s !== sub); });
         }
     });
+
+    async function renameCat(category, sub) {
+        const type = document.getElementById('cat-type').value, tax = taxonomyFor(type);
+        const current = sub === undefined ? category : sub;
+        const taken = (name) => (sub === undefined ? !!tax[name] : tax[category].includes(name));
+        // Built-in names are saved in Spanish and shown translated: start from what the person sees.
+        const shown = window.I18n ? I18n.t(current) : current;
+        const r = await UI.form({ title: sub === undefined ? 'Rename category' : 'Rename subcategory', fields: [{ name: 'name', label: 'New name', value: shown }], confirmText: 'Rename',
+            validate: v => !v.name.trim() ? 'Type a name.' : v.name.trim() !== shown && taken(v.name.trim()) ? 'That name is already used.' : null });
+        if (!r || r.name.trim() === shown || r.name.trim() === current) return;
+        const to = r.name.trim().slice(0, 60);
+        let n = 0;
+        App.undoable(`Renamed to "${to}"`, () => { n = Engine.renameCategory(Store.state, { kind: type === 'Ingreso' ? 'income' : 'expense', category, sub, to }); });
+        if (n) UI.toast(`${n} item${n === 1 ? '' : 's'} updated with the new name.`, 'ok');
+    }
+    window.Categories = { render: renderCategories };
 
     App.defineView('transacciones/lista', { render, update });
 })();
@@ -18655,7 +18760,9 @@ I18n.override('EC', 'es', {
         if (g) {
             if (g.type === 'Transferencia') return { type: 'Transferencia', category: '', sub: '', why: g.why, conf: g.confidence };
             const gt = taxFor(g.type);
-            if (gt[g.category]) return { type: g.type, category: g.category, sub: g.sub || firstSub(gt, g.category), why: g.why, conf: g.confidence, ask: g.ask };
+            // The engine guesses with the original names: follow any rename.
+            const n = Engine.renamedCategory(Store.state.settings, g.type === 'Ingreso' ? 'income' : 'expense', g.category, g.sub);
+            if (gt[n.category]) return { type: g.type, category: n.category, sub: n.sub && (gt[n.category] || []).includes(n.sub) ? n.sub : firstSub(gt, n.category), why: g.why, conf: g.confidence, ask: g.ask };
         }
         const fb = fallbackCat(row.type);
         return { type: row.type, category: fb, sub: firstSub(tax, fb), why: '', conf: 'low' };
@@ -21720,6 +21827,7 @@ I18n.override('EC', 'es', {
     function render(ctx) {
         const s = ctx.state, yd = ctx.year;
         UI.html('cfg-guide-body', Views.guideHTML());
+        if (window.Categories) Categories.render();
         renderMembers();
         renderDevice();
         const curSel = document.getElementById('cfg-currency');

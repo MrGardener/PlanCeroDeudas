@@ -17,7 +17,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
    the values of the tapped point; a thin vertical marker on the chart shows where it is.
 3. ✅ **Edit a rule** — rules can only be deleted. Tap a rule to edit everything it does (text, name,
    type, category, subcategory, person, income link) with the same form used to create it.
-4. **Categories you can find and change** — "Manage categories" is buried in Transactions. Move it to
+4. ✅ **Categories you can find and change** — "Manage categories" is buried in Transactions. Move it to
    Settings (plus a link from the category picker), add **rename** (category and subcategory, carried to
    transactions, rules, budget lines and the list) and **add subcategory**. Saved names stay as they are
    unless you rename them.
