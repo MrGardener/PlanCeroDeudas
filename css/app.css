@@ -912,3 +912,11 @@ button.sheet-row:hover { background: var(--surface-3); }
 .flow-dots { display: flex; gap: 3px; min-height: 8px; }
 .flow-dots i { width: 7px; height: 7px; border-radius: 9999px; display: inline-block; }
 .flow-dots i.in { background: #1baf7a; } .flow-dots i.out { background: #d03b3b; }
+/* Alerts: the bell's count, and the inbox. */
+.tools-badge { position: absolute; top: .2rem; right: calc(50% - 1.35rem); min-width: 1.1rem; height: 1.1rem; padding: 0 .25rem; border-radius: 9999px; background: #d03b3b; color: #fff; font-size: .62rem; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.tools-badge.hidden { display: none; }
+.alert-list { display: flex; flex-direction: column; }
+.alert-row { display: grid; grid-template-columns: 1.25rem 1fr auto; gap: .6rem; align-items: start; padding: .65rem .15rem; border-bottom: 1px solid var(--line-soft); }
+.alert-row > i { margin-top: .2rem; }
+.alert-text { text-align: left; font-size: .88rem; color: var(--ink); }
+.alert-text:hover { text-decoration: underline; }

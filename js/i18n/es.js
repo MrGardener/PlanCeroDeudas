@@ -2,6 +2,16 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "All clear: nothing needs a look right now.": "Todo en orden: nada necesita atención ahora.",
+    "Dismiss": "Descartar",
+    "Dismissed alerts don't come back. Alerts stay in the app: nothing is sent anywhere.": "Las alertas descartadas no vuelven. Las alertas se quedan en la app: nada se envía a ningún lado.",
+    "The bell lists what needs a look: your balance going below $0 in the next 30 days, bills due in 3 days, budget lines over plan and unusually large purchases.": "La campana muestra lo que necesita atención: tu saldo bajando de $0 en los próximos 30 días, pagos que vencen en 3 días, líneas del presupuesto pasadas y compras inusualmente grandes.",
+    "Dismiss one with × and it won't come back; nothing is sent anywhere.": "Descarta una con × y no volverá; nada se envía a ningún lado.",
+    "Your balance would go below $0 on {0} ({1}).": "Tu saldo bajaría de $0 el {0} ({1}).",
+    "Your balance would drop under your cushion on {0} ({1}).": "Tu saldo bajaría de tu colchón el {0} ({1}).",
+    "{0} is due {1}: {2}.": "{0} vence el {1}: {2}.",
+    "{0} is over budget by {1} this month.": "{0} está {1} sobre el presupuesto este mes.",
+    "{0}: {1} on {2}, about {3}× your usual in its category.": "{0}: {1} el {2}, unas {3}× lo usual en su categoría.",
     "Add expected transaction": "Agregar transacción esperada",
     "Calendar": "Calendario",
     "Change repeating transactions": "Cambiar transacciones que se repiten",

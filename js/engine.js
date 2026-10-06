@@ -1977,6 +1977,41 @@
         return { months: keys, values, average: sum(values, v => v) / months };
     }
 
+    // Alerts (an inbox in the app, no push): the balance going below $0 or the cushion in the
+    // forecast, bills due within 3 days, budget lines over plan this month, and unusually large
+    // purchases of the last 2 weeks (3× the usual in its category, $100 or more). Each has a stable
+    // key so it can be dismissed. forecast: cashForecast() days; bills: cash events of kind 'bill';
+    // lines: [{ id, name, planned, spent }] for this month.
+    function buildAlerts({ today, forecast = [], buffer = 0, bills = [], lines = [], transactions = [] }) {
+        const t = isoDate(new Date(today)), month = t.slice(0, 7), out = [];
+        const short = forecast.find(d => d.balance < 0), low = !short && num(buffer) > 0 && forecast.find(d => d.balance < num(buffer));
+        if (short) out.push({ key: 'short-' + short.date, kind: 'short', level: 'bad', date: short.date, amount: short.balance });
+        else if (low) out.push({ key: 'low-' + low.date, kind: 'low', level: 'warn', date: low.date, amount: low.balance });
+        const soon = isoDate(new Date(parseISO(t).getTime() + 3 * 86400000));
+        bills.filter(b => b.kind === 'bill' && !b.paid && b.amount < 0 && b.date >= t && b.date <= soon)
+            .forEach(b => out.push({ key: `bill-${b.lineId}-${b.date}`, kind: 'bill', level: 'warn', date: b.date, name: b.name, amount: -b.amount }));
+        lines.filter(l => num(l.planned) > 0 && num(l.spent) > num(l.planned) + 0.5)
+            .forEach(l => out.push({ key: `over-${l.id}-${month}`, kind: 'over', level: 'bad', name: l.name, amount: num(l.spent) - num(l.planned) }));
+        const since = isoDate(new Date(parseISO(t).getTime() - 14 * 86400000)), before = isoDate(new Date(parseISO(t).getTime() - 180 * 86400000));
+        const median = (xs) => { const a = xs.slice().sort((x, y) => x - y); const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+        const byCat = {}, seen = {};
+        const payee = (x) => String(x.description || '').trim().toLowerCase();
+        (transactions || []).forEach(x => {
+            if (txnType(x) !== 'Gasto' || x.refund || x.date < before || x.date >= since) return;
+            (byCat[x.parentCategory] = byCat[x.parentCategory] || []).push(num(x.amount));
+            (seen[payee(x)] = seen[payee(x)] || []).push(num(x.amount));
+        });
+        (transactions || []).forEach(x => {
+            if (txnType(x) !== 'Gasto' || x.refund || x.recurringId || !x.date || x.date < since || x.date > t) return;
+            // A payee already paid about this much (a bill, the mortgage) isn't unusual.
+            if ((seen[payee(x)] || []).some(v => v >= num(x.amount) * 0.7)) return;
+            const hist = byCat[x.parentCategory] || [];
+            if (hist.length >= 5 && num(x.amount) >= 100 && num(x.amount) >= 3 * median(hist)) out.push({ key: 'big-' + x.id, kind: 'big', level: 'info', date: x.date, name: x.description, amount: num(x.amount), usual: median(hist) });
+        });
+        const rank = { bad: 0, warn: 1, info: 2 };
+        return out.sort((a, b) => rank[a.level] - rank[b.level]);
+    }
+
     // ----------------------------------------------------------------- mortgage
 
     function frenchPayment(principal, annualRatePct, months) {
@@ -2608,7 +2643,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, suggestBudget, spendPace, monthVsAverage, goalStatus, goalVelocity, accountsHub, HUB_GROUPS, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, suggestBudget, spendPace, monthVsAverage, goalStatus, goalVelocity, buildAlerts, accountsHub, HUB_GROUPS, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

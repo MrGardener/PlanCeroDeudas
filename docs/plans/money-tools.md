@@ -73,7 +73,7 @@ on top of that: one way in to every tool, and the drill-downs (level 1 → 4).
     the balance, "+ Add expected transaction" for that day; list of repeating items with their next date.
 
 ## F. Later
-13. **Alerts** — an inbox with a badge: balance going below $0 (or your cushion), a budget line over, a bill
+13. ✅ **Alerts** — an inbox with a badge: balance going below $0 (or your cushion), a budget line over, a bill
     due in 3 days, an unusually large transaction. In the app only (no push).
 
 ## Notes

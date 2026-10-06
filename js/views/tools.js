@@ -32,8 +32,9 @@
         ['cashflow', 'fa-calendar-days', 'Cash Flow', ['resumen', 'dash-flow-card'], [
             'Your balance day by day for the next 30, 60 or 90 days: pay, bills and everyday spending.',
             'Add one-off money coming in or going out; red means you\'d go below $0.']],
-        ['alerts', 'fa-bell', 'Alerts', ['resumen', ''], [
-            'The Overview warns you about bills due soon, days you\'d run short and lines over budget.']],
+        ['alerts', 'fa-bell', 'Alerts', ['resumen', 'tools-bar'], [
+            'The bell lists what needs a look: your balance going below $0 in the next 30 days, bills due in 3 days, budget lines over plan and unusually large purchases.',
+            'Dismiss one with × and it won\'t come back; nothing is sent anywhere.']],
         ['general', 'fa-circle-info', 'General', ['config', 'cfg-guide'], [
             'Everything stays on this device: nothing is sent to a server.',
             'Download a backup now and then (Settings), and use Undo if you change something by mistake.']],
@@ -57,7 +58,69 @@
             <button type="button" class="btn btn-primary" data-action="tools.go" data-key="${t[0]}"><i class="fa-solid ${t[1]}"></i> Open</button></div>`;
     }
 
+    // ------------------------------------------------------------------ alerts
+    // What needs a look now (Engine.buildAlerts), minus the ones dismissed (settings.alertsDismissed).
+    function alerts() {
+        const s = Store.state, t = new Date();
+        const ff = window.Cash && Cash.flowForecast(t, 30);
+        const y = t.getFullYear(), m = String(t.getMonth() + 1);
+        let lines = [];
+        if (s.years[y]) {
+            const items = Engine.monthItems(Store.effective(y), m), sp = Engine.lineSpend(items, s.transactions, y, m);
+            lines = items.filter(i => !i.sweep && i.type !== 'Ingreso').map(i => ({ id: i.id, name: i.name, planned: Number(i.real) || 0, spent: (sp.byLine[String(i.id)] || { spent: 0 }).spent }));
+        }
+        const all = Engine.buildAlerts({ today: t, forecast: ff ? ff.days : [], buffer: ff ? ff.buffer : 0, bills: ff ? ff.events : [], lines, transactions: s.transactions });
+        const gone = (s.settings && s.settings.alertsDismissed) || {};
+        return all.filter(a => !gone[a.key]);
+    }
+    function updateBadge() {
+        const n = alerts().length, b = document.getElementById('alerts-badge');
+        if (!b) return;
+        b.textContent = n > 9 ? '9+' : String(n);
+        b.classList.toggle('hidden', n === 0);
+    }
+    const ALERT_ICON = { short: 'fa-triangle-exclamation text-red-600', low: 'fa-circle-exclamation text-amber-600', bill: 'fa-calendar-day text-amber-600', over: 'fa-chart-pie text-red-600', big: 'fa-magnifying-glass-dollar text-blue-600' };
+    function alertText(a) {
+        const day = (d) => esc(Fmt.dayMonth(new Date(d + 'T00:00:00')));
+        switch (a.kind) {
+            case 'short': return `Your balance would go below $0 on ${day(a.date)} (${Fmt.money0(a.amount)}).`;
+            case 'low': return `Your balance would drop under your cushion on ${day(a.date)} (${Fmt.money0(a.amount)}).`;
+            case 'bill': return `${esc(I18n.t(a.name))} is due ${day(a.date)}: ${Fmt.money(a.amount)}.`;
+            case 'over': return `${esc(I18n.t(a.name))} is over budget by ${Fmt.money(a.amount)} this month.`;
+            default: return `${esc(a.name || '')}: ${Fmt.money(a.amount)} on ${day(a.date)}, about ${Math.round(a.amount / a.usual)}× your usual in its category.`;
+        }
+    }
+    const ALERT_GO = { short: ['resumen', 'dash-flow-card'], low: ['resumen', 'dash-flow-card'], bill: ['presupuesto/plan', ''], over: ['presupuesto/plan', ''], big: ['transacciones/lista', ''] };
+    let alertSheet = null, alertList = [];
+    function openAlerts() {
+        alertList = alerts();
+        alertSheet = UI.sheet({ title: 'Alerts', icon: 'fa-bell', html: alertList.length ? `<div class="alert-list">${alertList.map((a, i) => `<div class="alert-row" data-key="${esc(a.key)}">
+                <i class="fa-solid ${ALERT_ICON[a.kind]}"></i>
+                <button type="button" class="alert-text" data-action="tools.alertGo" data-i="${i}">${alertText(a)}</button>
+                <button type="button" class="row-del" data-action="tools.alertDismiss" data-i="${i}" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button></div>`).join('')}</div>
+                <p class="help mt-2">Dismissed alerts don't come back. Alerts stay in the app: nothing is sent anywhere.</p>`
+            : '<p class="text-sm"><i class="fa-solid fa-circle-check text-emerald-600"></i> All clear: nothing needs a look right now.</p>' });
+    }
+
     UI.register({
+        'tools.alerts': () => openAlerts(),
+        'tools.alertGo': (el) => {
+            const a = alertList[Number(el.dataset.i)];
+            if (!a) return;
+            if (alertSheet) { alertSheet.close(); alertSheet = null; }
+            const g = ALERT_GO[a.kind];
+            App.go(g[0], g[1] ? { focus: g[1] } : {});
+            if (a.kind === 'big' && window.TxnDetails) TxnDetails.open(Number(a.key.slice(4)));
+        },
+        'tools.alertDismiss': (el) => {
+            const a = alertList[Number(el.dataset.i)];
+            if (!a) return;
+            const st = Store.state.settings;
+            st.alertsDismissed = Object.assign({}, st.alertsDismissed, { [a.key]: Engine.isoDate(new Date()) });
+            Store.scheduleSave();
+            const row = el.closest('.alert-row'); if (row) row.remove();
+            updateBadge();
+        },
         'tools.help': (el) => {
             if (el && el.dataset && el.dataset.back && current) { current.close(); }
             openHelp();
@@ -70,5 +133,5 @@
         }
     });
 
-    window.Tools = { openHelp, TOPICS };
+    window.Tools = { openHelp, TOPICS, alerts, updateBadge };
 })();
