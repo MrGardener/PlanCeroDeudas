@@ -31,7 +31,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
    a card payment from checking becomes a transfer between the two (not spending twice). Each account
    keeps a balance: from the file's balance column, or opening balance + transactions. "Accounts" lists
    them all in one place with totals (cash, credit, loans, investments).
-7. **Last import marker** — each account remembers the date of the last imported transaction. Next time,
+7. ✅ **Last import marker** — each account remembers the date of the last imported transaction. Next time,
    rows on or before it are flagged "before your last import" and unchecked; a banner says from which
    date the new ones start. Can be moved back by hand.
 8. **Manual vs. imported** — transactions show where they came from (typed / imported / scheduled).

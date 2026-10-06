@@ -190,7 +190,7 @@
             <td><input class="cell-input font-semibold" value="${esc(a.name)}" data-change="acct.set" data-id="${a.id}" data-field="name" aria-label="Account name"></td>
             <td><select class="cell-input" data-change="acct.set" data-id="${a.id}" data-field="kind">${Views.selectOptions(ACCT_KINDS, a.kind)}</select>${a.kind === 'tarjeta' ? `<select class="cell-input text-[11px] mt-1" data-change="acct.set" data-id="${a.id}" data-field="debtId" aria-label="Its debt in your plan">${Views.selectOptions([{ value: '', label: 'Not in my debts' }].concat((ctx.state.debts || []).map(d => ({ value: String(d.id), label: `Debt: ${d.name}` }))), a.debtId ? String(a.debtId) : '')}</select>` : ''}</td>
             <td><input type="number" class="cell-input num money" step="any" value="${Number(a.balance) || 0}" data-input="acct.set" data-id="${a.id}" data-field="balance" aria-label="Balance"></td>
-            <td class="text-[11px] text-slate-500" data-cell="when">${a.updatedAt ? esc(a.updatedAt) : '—'}</td>
+            <td class="text-[11px] text-slate-500"><span data-cell="when">${a.updatedAt ? esc(a.updatedAt) : '—'}</span>${a.lastImport ? `<div title="Rows on or before this date start unchecked when you import this account again"><i class="fa-solid fa-lock text-amber-600"></i> <span>Imported up to ${esc(a.lastImport)}</span> <button type="button" class="link" data-action="acct.clearImport" data-id="${a.id}" aria-label="Forget the last import date">×</button></div>` : ''}</td>
             <td class="text-center"><button class="row-del" data-action="acct.delete" data-id="${a.id}" title="Delete account" aria-label="Delete account"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`).join('') : `<tr class="empty-row"><td colspan="5">${Views.emptyState('fa-building-columns', 'Add your accounts (checking, savings, cash, 401(k)…) to see your money at a glance.')}</td></tr>`);
         UI.text('acct-total', money(availableTotal(list)));
@@ -290,6 +290,10 @@
             if (debt && (f === 'balance' || f === 'debtId')) debt.balance = Math.max(0, -(Number(a.balance) || 0));
             App.changed({ structural: f === 'kind' || f === 'debtId' });
             UI.text('acct-total', money(availableTotal(Store.state.accounts || [])));
+        },
+        'acct.clearImport': (el) => {
+            const a = (Store.state.accounts || []).find(x => x.id === Number(el.dataset.id));
+            if (a) App.undoable('Last import date cleared', () => { delete a.lastImport; });
         },
         'acct.delete': (el) => {
             const id = Number(el.dataset.id);

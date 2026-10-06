@@ -5375,6 +5375,18 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Before last import": "Antes de la última importación",
+    "Everything in this file is newer.": "Todo lo de este archivo es más reciente.",
+    "Forget the last import date": "Olvidar la fecha de la última importación",
+    "Imported up to {0}": "Importado hasta el {0}",
+    "Include them anyway": "Incluirlas de todos modos",
+    "Last import date cleared": "Fecha de la última importación borrada",
+    "Last import into this account: {0}.": "Última importación a esta cuenta: {0}.",
+    "On or before the last import into this account": "El día de la última importación a esta cuenta o antes",
+    "Rows before it are treated like the others.": "Las filas anteriores se tratan como las demás.",
+    "Rows on or before this date start unchecked when you import this account again": "Las filas de esta fecha o antes empiezan sin marcar cuando vuelvas a importar esta cuenta",
+    "Uncheck them again": "Desmarcarlas otra vez",
+    "{0} row{1} on or before that date start unchecked.": "{0} fila{1|s|} de esa fecha o antes empieza{1|n|} sin marcar.",
     "+ New checking account": "+ Cuenta corriente nueva",
     "+ New credit card": "+ Tarjeta de crédito nueva",
     "+ New savings account": "+ Cuenta de ahorros nueva",
@@ -18894,6 +18906,7 @@ I18n.override('EC', 'es', {
     }
 
     function recompute() {
+        const cutoff = lastImportOf(session);
         const s = session;
         let rows;
         if (s.source === 'csv') rows = Importers.buildRows(s.table, Object.assign({ dateDefault: Store.COUNTRY === 'US' ? 'mdy' : 'dmy' }, s.mapping));
@@ -18952,8 +18965,10 @@ I18n.override('EC', 'es', {
                 const m = Importers.findMatch(out, manual, { exclude: used });
                 if (m) { used.add(m.txn.id); match = { id: m.txn.id, description: m.txn.description, date: m.txn.date, days: m.days }; }
             }
-            const include = s.include[i] !== undefined ? s.include[i] : !r.error && !dup && !match;
-            return Object.assign(out, { dup, match, include: !r.error && include, isCard: !!(info && info.isCard) });
+            // On or before the account's last import: most likely already in (start unchecked).
+            const before = !!(cutoff && r.date && r.date <= cutoff);
+            const include = s.include[i] !== undefined ? s.include[i] : !r.error && !dup && !match && !before;
+            return Object.assign(out, { dup, match, before, include: !r.error && include, isCard: !!(info && info.isCard) });
         });
         applyStreams(s, members);
         s.suggest = suggestions(s);
@@ -19083,7 +19098,7 @@ I18n.override('EC', 'es', {
                 </div>${r.why ? `<div class="text-[11px] text-slate-400">${conf(r)}${esc(r.why)}</div>` : conf(r) ? `<div class="text-[11px]">${conf(r)}</div>` : ''}${incomeNote(r)}${r.budgetLine && r.type === 'Gasto' ? `<div class="text-[11px] text-blue-600">Line: ${esc(lineName(r.budgetLine))}</div>` : ''}`}</td>
                 <td data-label="Whose?">${r.error ? '' : `<select class="cell-input text-xs" data-change="imp.who" data-i="${i}" aria-label="Whose">${whoOptions(r)}</select>`}</td>
                 <td class="num font-bold ${r.type === 'Ingreso' ? 'text-emerald-700' : ''}" data-label="Amount">${r.error ? '' : (r.type === 'Ingreso' ? '+' : r.type === 'Transferencia' ? '' : '−') + money(r.amount)}</td>
-                <td class="text-xs" data-label="Status">${r.error ? `<span class="badge badge-bad">${esc(r.error)}</span>` : r.dup ? '<span class="badge badge-warn">Already exists</span>' : r.match ? matchCell(r, i) : '<span class="badge badge-ok">New</span>'}</td>
+                <td class="text-xs" data-label="Status">${r.error ? `<span class="badge badge-bad">${esc(r.error)}</span>` : r.dup ? '<span class="badge badge-warn">Already exists</span>' : r.match ? matchCell(r, i) : r.before && !r.include ? '<span class="badge badge-info" title="On or before the last import into this account">Before last import</span>' : '<span class="badge badge-ok">New</span>'}</td>
             </tr>`).join('') + (s.rows.length > 500 ? `<tr><td colspan="7" class="text-xs text-slate-500">Showing 500 of ${s.rows.length}; all checked rows are imported.</td></tr>` : ''));
     }
 
@@ -19172,6 +19187,12 @@ I18n.override('EC', 'es', {
     // Which account the file is from: each transaction remembers it, and its balance follows the
     // file (its balance column) or the imported amounts. A card's balance is what you owe (below 0).
     const ACCOUNT_KINDS = { corriente: 'Checking', ahorros: 'Savings', efectivo: 'Cash', retiro: 'Retirement', tarjeta: 'Credit card' };
+    // The date of the last import into the chosen account (unless "include them anyway").
+    function lastImportOf(s) {
+        if (!s || !s.account || s.ignoreLast) return '';
+        const a = (Store.state.accounts || []).find(x => String(x.id) === String(s.account));
+        return (a && a.lastImport) || '';
+    }
     function fileBalance(s) { return s.source === 'csv' ? Importers.latestBalance(s.rows) : s.source === 'ofx' ? s.ofxBalance : null; }
     function renderAccountPick(s) {
         const el = document.getElementById('imp-ofx-account');
@@ -19184,8 +19205,13 @@ I18n.override('EC', 'es', {
         const lb = fileBalance(s);
         const ok = s.rows.filter(r => r.include);
         const net = Engine.balanceAfterRows(0, ok);
+        const acct = accts.find(a => String(a.id) === String(s.account));
+        const before = s.rows.filter(r => r.before).length;
+        const last = acct && acct.lastImport ? (s.ignoreLast
+            ? `<p class="text-xs mt-2"><i class="fa-solid fa-circle-info text-blue-600"></i> <span>Last import into this account: ${esc(acct.lastImport)}.</span> <span>Rows before it are treated like the others.</span> <button type="button" class="link" data-action="imp.useLast">Uncheck them again</button></p>`
+            : `<p class="text-xs mt-2"><i class="fa-solid fa-lock text-amber-600"></i> <span>Last import into this account: ${esc(acct.lastImport)}.</span> ${before ? `<span>${before} row${before === 1 ? '' : 's'} on or before that date start unchecked.</span> <button type="button" class="link" data-action="imp.ignoreLast">Include them anyway</button>` : '<span>Everything in this file is newer.</span>'}</p>`) : '';
         el.innerHTML = `<label class="field max-w-md"><span class="field-label">Which account is this file from?</span><select class="input" data-change="imp.account">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
-            <span class="help">${!s.account ? 'Pick it to keep its balance and know where each transaction was made (your card or your checking).' : lb ? `The file's balance (${money(lb.balance)} as of ${esc(lb.date || '')}) becomes the account's balance.` : `No balance in the file: the account's balance moves by what you import (${(net >= 0 ? '+' : '−') + money(Math.abs(net))}).`}</span></label>`;
+            ${last}<span class="help">${!s.account ? 'Pick it to keep its balance and know where each transaction was made (your card or your checking).' : lb ? `The file's balance (${money(lb.balance)} as of ${esc(lb.date || '')}) becomes the account's balance.` : `No balance in the file: the account's balance moves by what you import (${(net >= 0 ? '+' : '−') + money(Math.abs(net))}).`}</span></label>`;
     }
 
     // ------------------------------------------------------------------ rules
@@ -19276,7 +19302,10 @@ I18n.override('EC', 'es', {
             if (el.value) session.catMap[el.dataset.value] = el.value; else delete session.catMap[el.dataset.value];
             recompute();
         },
-        'imp.account': (el) => { if (session) { session.account = el.value; renderAccountPick(session); } },
+        // Rows you checked or unchecked yourself keep your choice; the others follow the account.
+        'imp.account': (el) => { if (session) { session.account = el.value; recompute(); } },
+        'imp.ignoreLast': () => { if (session) { session.ignoreLast = true; recompute(); } },
+        'imp.useLast': () => { if (session) { session.ignoreLast = false; recompute(); } },
         'imp.cat': (el) => { if (!session) return; editRow(Number(el.dataset.i), { category: el.value, sub: undefined }); recompute(); },
         'imp.sub': (el) => { if (!session) return; const i = Number(el.dataset.i); editRow(i, { category: session.rows[i].category, sub: el.value }); recompute(); },
         'imp.type': (el) => { if (!session) return; editRow(Number(el.dataset.i), { type: el.value, category: undefined, sub: undefined }); recompute(); },
@@ -19441,6 +19470,9 @@ I18n.override('EC', 'es', {
                 else if (rows.length) { acct.balance = Engine.balanceAfterRows(acct.balance, rows); acct.updatedAt = rows.reduce((d, r) => (r.date > d ? r.date : d), acct.updatedAt || ''); }
                 const debt = acct.kind === 'tarjeta' && acct.debtId ? (Store.state.debts || []).find(d => d.id === acct.debtId) : null;
                 if (debt) debt.balance = Math.max(0, -acct.balance);
+                // The newest imported date: next time, rows up to it start unchecked.
+                const newest = rows.reduce((d, r) => (r.date > d ? r.date : d), '');
+                if (newest && newest > (acct.lastImport || '')) acct.lastImport = newest;
                 balanceNote = ` "${acct.name}" balance: ${acct.balance < 0 ? '−' : ''}${money(Math.abs(acct.balance))}.`;
             }
             // Rows that are the same money as a hand-typed transaction: nothing new is added, but the
@@ -21652,7 +21684,7 @@ I18n.override('EC', 'es', {
             <td><input class="cell-input font-semibold" value="${esc(a.name)}" data-change="acct.set" data-id="${a.id}" data-field="name" aria-label="Account name"></td>
             <td><select class="cell-input" data-change="acct.set" data-id="${a.id}" data-field="kind">${Views.selectOptions(ACCT_KINDS, a.kind)}</select>${a.kind === 'tarjeta' ? `<select class="cell-input text-[11px] mt-1" data-change="acct.set" data-id="${a.id}" data-field="debtId" aria-label="Its debt in your plan">${Views.selectOptions([{ value: '', label: 'Not in my debts' }].concat((ctx.state.debts || []).map(d => ({ value: String(d.id), label: `Debt: ${d.name}` }))), a.debtId ? String(a.debtId) : '')}</select>` : ''}</td>
             <td><input type="number" class="cell-input num money" step="any" value="${Number(a.balance) || 0}" data-input="acct.set" data-id="${a.id}" data-field="balance" aria-label="Balance"></td>
-            <td class="text-[11px] text-slate-500" data-cell="when">${a.updatedAt ? esc(a.updatedAt) : '—'}</td>
+            <td class="text-[11px] text-slate-500"><span data-cell="when">${a.updatedAt ? esc(a.updatedAt) : '—'}</span>${a.lastImport ? `<div title="Rows on or before this date start unchecked when you import this account again"><i class="fa-solid fa-lock text-amber-600"></i> <span>Imported up to ${esc(a.lastImport)}</span> <button type="button" class="link" data-action="acct.clearImport" data-id="${a.id}" aria-label="Forget the last import date">×</button></div>` : ''}</td>
             <td class="text-center"><button class="row-del" data-action="acct.delete" data-id="${a.id}" title="Delete account" aria-label="Delete account"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`).join('') : `<tr class="empty-row"><td colspan="5">${Views.emptyState('fa-building-columns', 'Add your accounts (checking, savings, cash, 401(k)…) to see your money at a glance.')}</td></tr>`);
         UI.text('acct-total', money(availableTotal(list)));
@@ -21752,6 +21784,10 @@ I18n.override('EC', 'es', {
             if (debt && (f === 'balance' || f === 'debtId')) debt.balance = Math.max(0, -(Number(a.balance) || 0));
             App.changed({ structural: f === 'kind' || f === 'debtId' });
             UI.text('acct-total', money(availableTotal(Store.state.accounts || [])));
+        },
+        'acct.clearImport': (el) => {
+            const a = (Store.state.accounts || []).find(x => x.id === Number(el.dataset.id));
+            if (a) App.undoable('Last import date cleared', () => { delete a.lastImport; });
         },
         'acct.delete': (el) => {
             const id = Number(el.dataset.id);

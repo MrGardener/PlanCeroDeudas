@@ -366,7 +366,9 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   await page.setInputFiles('#imp-file', path.join(ROOT, 'tests/fixtures/pichincha.csv'));
   await page.waitForTimeout(200);
   ok((await page.textContent('#imp-profile-note')).includes('guardaste'), 'same kind of file reuses the saved mapping');
-  ok((await page.textContent('#imp-summary')).includes('1 para importar') && (await page.textContent('#imp-rows')).includes('Ya existe'), 'already-imported rows are flagged and unchecked', await page.textContent('#imp-summary'));
+  // The file goes to the same account (remembered); the row left out last time is older than that
+  // import, so it also starts unchecked ("before last import").
+  ok((await page.textContent('#imp-summary')).includes('0 para importar') && (await page.textContent('#imp-rows')).includes('Ya existe') && (await page.textContent('#imp-rows')).includes('Antes de la última importación'), 'already-imported rows are flagged and unchecked; older ones too', await page.textContent('#imp-summary'));
   await page.click('[data-action="imp.cancel"]');
   ok(await page.isHidden('#imp-preview-card'), 'cancel discards the file');
   await page.click('#hist-undo');
