@@ -54,7 +54,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
     in red; **cash events** (one-off bills or deposits you add) show on it.
 14. ✅ **Debts chart** — stacked areas of each debt paying down to the debt-free date, with the table (APR,
     payment, payoff date) — check what Debts & Goals already shows and add only what's missing.
-15. **Net worth over time** — line of net worth by month with assets and liabilities, from the monthly
+15. ✅ **Net worth over time** — line of net worth by month with assets and liabilities, from the monthly
     snapshots already saved — again, only what's missing.
 
 ## Notes

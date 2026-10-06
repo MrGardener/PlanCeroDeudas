@@ -1394,7 +1394,22 @@
         </div>
         <div class="section-label"><i class="fa-solid fa-chart-line text-blue-600"></i> Net worth month by month</div>
         <div id="nw-month-empty" class="help hidden"></div>
-        <div class="chart-box" id="nw-month-box"><canvas id="nw-month-chart"></canvas></div>
+        <div id="nw-month-wrap">
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+                <div class="segmented" role="tablist" aria-label="Period">
+                    <button type="button" data-action="nw.range" data-months="6">6M</button>
+                    <button type="button" data-action="nw.range" data-months="12">1Y</button>
+                    <button type="button" data-action="nw.range" data-months="0">All</button>
+                </div>
+                <span class="text-sm font-semibold" id="nw-month-change"></span>
+            </div>
+            <div class="chart-box tall" id="nw-month-box"><canvas id="nw-month-chart" aria-label="Net worth, what you own and what you owe, month by month"></canvas></div>
+            <p class="help mt-1">Bars: what you own (up) and what you owe (down). Line: your net worth, the difference.</p>
+            <details class="mt-2">
+                <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> See the numbers in a table</summary>
+                <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Month</th><th class="num">Assets</th><th class="num">Liabilities</th><th class="num">Net worth</th></tr></thead><tbody id="nw-month-table"></tbody></table></div>
+            </details>
+        </div>
         <div class="section-label mt-5"><i class="fa-solid fa-medal text-amber-500"></i> Milestones</div>
         <div id="nw-milestones" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
     </div>

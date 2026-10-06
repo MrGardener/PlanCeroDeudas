@@ -358,7 +358,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await go(page, 'patrimonio');
   await page.waitForTimeout(200);
   const prog = await page.evaluate(() => ({ points: (UI.chartInstance('nw-month-chart') || { data: { datasets: [{ data: [] }] } }).data.datasets[0].data.length, txt: document.getElementById('nw-milestones').textContent, hist: Store.state.netWorthHistory.length }));
-  ok(prog.points >= 12 && prog.points === prog.hist, 'the example shows net worth month by month', prog.points);
+  ok(prog.points === Math.min(12, prog.hist) && prog.hist >= 12, 'the example shows net worth month by month', prog.points);
   ok(/Reached \(\d+\)/.test(prog.txt) && /Up next/.test(prog.txt) && /Net worth of \$/.test(prog.txt), 'milestones: reached and up next', prog.txt.slice(0, 160));
   const er = await page.evaluate(() => Store.state.debts.find(d => /ER bill/.test(d.name)));
   await go(page, 'futuro/metas');
@@ -468,6 +468,17 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(300);
   const ds = await page.evaluate(() => { const c = UI.chartInstance('debt-stack-chart'), p = App.buildContext().debts; const sets = c.data.datasets; const last = c.data.labels.length - 1; return { n: sets.length, debts: Store.state.debts.filter(d => d.balance > 0).length, stacked: c.options.scales.y.stacked, len: c.data.labels.length, months: p.months, endZero: sets.every(d => d.data[last] === 0), start: Math.round(sets.reduce((t, d) => t + d.data[0], 0)), total: Math.round(Store.state.debts.reduce((t, d) => t + (Number(d.balance) || 0), 0)), head: [...document.querySelectorAll('#debt-ladder-table')].length && document.querySelector('#debt-ladder-table').closest('table').querySelector('thead').textContent, row: document.querySelector('#debt-ladder-table tr').textContent }; });
   ok(ds.n === ds.debts && ds.stacked && ds.len === ds.months + 1 && ds.endZero && Math.abs(ds.start - ds.total) <= ds.n && /Rate/.test(ds.head) && /Payment/.test(ds.head) && /%/.test(ds.row), 'debts: stacked per debt to debt-free, table with rate and payment', ds);
+  // Net worth over time: assets up, liabilities down, the net worth line; 6M / 1Y / All; table.
+  await page.evaluate(() => { Store.reset('example'); Store.ui.nwRange = 12; App.changed({ structural: true }); App.go('patrimonio'); });
+  await page.waitForTimeout(300);
+  const nwm = await page.evaluate(() => { const c = UI.chartInstance('nw-month-chart'), h = Store.state.netWorthHistory.slice(-12), [line, a, l] = c.data.datasets; return { n: c.data.labels.length, line: line.type === 'line' && line.data.at(-1) === h.at(-1).value, a: a.data.at(-1) === h.at(-1).assets, l: l.data.at(-1) === -h.at(-1).liabilities, rows: document.querySelectorAll('#nw-month-table tr').length, change: document.getElementById('nw-month-change').textContent }; });
+  ok(nwm.n === 12 && nwm.line && nwm.a && nwm.l && nwm.rows === 12 && /since/.test(nwm.change), 'net worth: assets, liabilities and the line, 1 year', nwm);
+  await page.click('[data-action="nw.range"][data-months="6"]');
+  await page.waitForTimeout(150);
+  const n6 = await page.evaluate(() => UI.chartInstance('nw-month-chart').data.labels.length);
+  await page.click('[data-action="nw.range"][data-months="0"]');
+  await page.waitForTimeout(150);
+  ok(n6 === 6 && await page.evaluate(() => UI.chartInstance('nw-month-chart').data.labels.length === Store.state.netWorthHistory.length), 'net worth: 6M and All', n6);
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');
