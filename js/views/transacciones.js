@@ -143,6 +143,7 @@
         UI.html('txn-f-year', Views.selectOptions([{ value: 'all', label: 'Every year' }].concat([...years].sort().map(y => ({ value: y, label: y }))), f.year));
         UI.html('txn-f-month', Views.selectOptions([{ value: 'all', label: 'Every month' }].concat(Fmt.MONTH_NAMES.map((n, i) => ({ value: i + 1, label: n }))), f.month));
         document.getElementById('txn-f-type').value = f.type;
+        const of = document.getElementById('txn-f-origin'); if (of) of.value = f.origin || 'all';
         // Categories already used by past transactions stay filterable even if deleted.
         const cats = new Set([...Object.keys(ctx.state.taxonomy.expense), ...Object.keys(ctx.state.taxonomy.income), ...ctx.state.transactions.map(t => t.parentCategory)]);
         UI.html('txn-f-category', Views.selectOptions([{ value: 'all', label: 'All categories' }].concat([...cats].sort().map(c => ({ value: c, label: c }))), f.category));
@@ -249,6 +250,10 @@
         if (inc && t.incomeId) notes.push(incomeLabel(t));
         if (t.refund) notes.push('<span class="text-emerald-700"><i class="fa-solid fa-rotate-left"></i> Refund: lowers what you spent</span>');
         if (tr) notes.push('<span class="text-slate-500">Transfer: not income or spending</span>');
+        // Typed by hand (and whether a statement confirmed it), imported (into which account), scheduled.
+        const origin = Engine.txnOrigin(t), acct = t.accountId && (Store.state.accounts || []).find(a => a.id === t.accountId);
+        if (origin === 'typed') notes.push(Engine.isReconciled(t) ? '<span class="text-emerald-700" title="An imported statement row matched it"><i class="fa-solid fa-circle-check"></i> Typed · confirmed by a statement</span>' : '<span class="text-slate-500" title="Not matched by an imported statement yet"><i class="fa-solid fa-pen"></i> Typed</span>');
+        else if (origin === 'imported') notes.push(`<span class="text-slate-400"><i class="fa-solid fa-file-import"></i> <span>Imported</span>${acct ? ` · <span data-i18n-skip>${esc(acct.name)}</span>` : ''}</span>`);
         if ((t.tags || []).length) notes.push(t.tags.map(g => `<button type="button" class="tag-chip" data-action="txn.tagFilter" data-tag="${esc(g)}" title="See everything with this tag" data-i18n-skip>#${esc(g)}</button>`).join(''));
         const picking = !!Store.ui.txnSelecting;
         const on = picking && selected.has(t.id);
@@ -276,7 +281,8 @@
         UI.show(mf, members.length > 0);
         if (members.length) mf.innerHTML = Views.selectOptions([{ value: 'all', label: 'Everyone' }, { value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name })), [{ value: 'none', label: 'No person' }]), f.member || 'all');
         const byMember = (t) => !f.member || f.member === 'all' || (f.member === 'none' ? !t.memberId : String(t.memberId) === f.member);
-        const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q) && byMember(t))
+        const byOrigin = (t) => !f.origin || f.origin === 'all' || (f.origin === 'unreconciled' ? Engine.txnOrigin(t) === 'typed' && !Engine.isReconciled(t) && !Engine.isTransfer(t) : Engine.txnOrigin(t) === f.origin);
+        const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q) && byMember(t) && byOrigin(t))
             .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
         const assignOf = assignments(ctx);
         lastList = list;
@@ -947,7 +953,8 @@
                 month: document.getElementById('txn-f-month').value,
                 type: document.getElementById('txn-f-type').value,
                 category: document.getElementById('txn-f-category').value,
-                member: document.getElementById('txn-f-member').value || 'all'
+                member: document.getElementById('txn-f-member').value || 'all',
+                origin: document.getElementById('txn-f-origin').value || 'all'
             };
             App.update();
         },

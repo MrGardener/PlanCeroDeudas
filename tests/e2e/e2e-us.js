@@ -200,6 +200,21 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.selectOption('#rep-by', 'member');
   await page.waitForTimeout(200);
   ok(/Household/.test(await page.textContent('#rep-body')), 'reports by person show the household as its own row');
+  // Typed vs. imported; typed ones not on a statement yet (step 8).
+  await page.evaluate(() => { const d = Engine.isoDate(new Date()); Store.reset('empty'); Store.state.transactions = [
+    { id: 1, type: 'Gasto', description: 'Typed coffee', parentCategory: 'Alimentación', category: 'Restaurantes', amount: 4, date: d, createdAt: d },
+    { id: 2, type: 'Gasto', description: 'Typed and matched', parentCategory: 'Alimentación', category: 'Restaurantes', amount: 9, date: d, importRef: 'r1' },
+    { id: 3, type: 'Gasto', description: 'From the bank', parentCategory: 'Alimentación', category: 'Restaurantes', amount: 12, date: d, source: 'csv', importRef: 'r2' }];
+    App.changed({ structural: true }); App.go('transacciones/lista'); });
+  await page.waitForTimeout(250);
+  await page.selectOption('#txn-f-origin', 'unreconciled');
+  await page.waitForTimeout(200);
+  const rec = await page.evaluate(() => ({ list: document.getElementById('txn-body').textContent }));
+  ok(/Typed coffee/.test(rec.list) && !/Typed and matched/.test(rec.list) && !/From the bank/.test(rec.list) && /Typed/.test(rec.list), 'filter: typed transactions no statement has confirmed yet', rec.list.slice(0, 200));
+  await page.selectOption('#txn-f-origin', 'all');
+  await page.waitForTimeout(200);
+  const all = await page.evaluate(() => document.getElementById('txn-body').textContent);
+  ok(/confirmed by a statement/.test(all) && /Imported/.test(all), 'each transaction says where it came from', all.slice(0, 300));
   // Hourly pay, overtime and bonuses (docs/plans/hourly-pay.md, phase 2).
   await page.evaluate(() => { Store.reset('example'); Store.active().sueldo = 5000; Store.active().payDeductions = []; App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
   await page.waitForTimeout(200);

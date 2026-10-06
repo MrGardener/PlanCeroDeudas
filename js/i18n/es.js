@@ -2,6 +2,17 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "An imported statement row matched it": "Una fila de un estado de cuenta importado coincidió",
+    "Imported": "Importada",
+    "Not matched by an imported statement yet": "Aún no coincide con un estado de cuenta importado",
+    "Typed": "Anotada a mano",
+    "Typed and imported": "Anotadas e importadas",
+    "Typed by hand": "Anotadas a mano",
+    "Typed · confirmed by a statement": "Anotada a mano · confirmada por un estado de cuenta",
+    "confirmed by a statement": "confirmada por un estado de cuenta",
+    "Typed, not on a statement yet": "Anotadas, aún sin estado de cuenta",
+    "Where it came from": "De dónde viene",
+    "Repeating (scheduled)": "Repetidas (programadas)",
     "Before last import": "Antes de la última importación",
     "Everything in this file is newer.": "Todo lo de este archivo es más reciente.",
     "Forget the last import date": "Olvidar la fecha de la última importación",

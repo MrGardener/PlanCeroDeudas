@@ -34,7 +34,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
 7. ✅ **Last import marker** — each account remembers the date of the last imported transaction. Next time,
    rows on or before it are flagged "before your last import" and unchecked; a banner says from which
    date the new ones start. Can be moved back by hand.
-8. **Manual vs. imported** — transactions show where they came from (typed / imported / scheduled).
+8. ✅ **Manual vs. imported** — transactions show where they came from (typed / imported / scheduled).
    Importing matches typed ones (already exists) and marks them **reconciled**; a "Not reconciled" filter
    lists typed transactions no statement has confirmed yet, per account.
 

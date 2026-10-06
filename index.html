@@ -575,6 +575,9 @@
                     </select>
                     <select id="txn-f-category" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-member" class="cell-input hidden" style="width:auto" data-change="txn.filter" aria-label="Person"></select>
+                    <select id="txn-f-origin" class="cell-input" style="width:auto" data-change="txn.filter" aria-label="Where it came from">
+                        <option value="all">Typed and imported</option><option value="typed">Typed by hand</option><option value="unreconciled">Typed, not on a statement yet</option><option value="imported">Imported</option><option value="scheduled">Repeating (scheduled)</option>
+                    </select>
                     <button type="button" id="txn-select-toggle" class="btn btn-secondary btn-sm" data-action="txn.selectMode" aria-pressed="false"><i class="fa-regular fa-square-check"></i> Select</button>
                 </div>
             </div>
