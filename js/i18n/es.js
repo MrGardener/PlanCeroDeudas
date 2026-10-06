@@ -2,6 +2,11 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "No spending that month.": "Sin gastos ese mes.",
+    "No transactions.": "Sin transacciones.",
+    "Tap a month on the chart to see what changed.": "Toca un mes en el gráfico para ver qué cambió.",
+    "= avg": "= prom.",
+    "{0} {1} vs avg": "{0} {1} vs prom.",
     "By today: {0}": "A hoy: {0}",
     "Check at least one line.": "Marca al menos una línea.",
     "No spending in the last 3 months yet: log or import a few months first.": "Aún no hay gastos en los últimos 3 meses: registra o importa algunos meses primero.",

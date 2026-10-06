@@ -57,7 +57,7 @@ on top of that: one way in to every tool, and the drill-downs (level 1 → 4).
 7. ✅ **Smart budget** — "Suggest from my last 90 days": average monthly spending per line, rounded, in a
    preview where you accept line by line. In the bubble sheet: a slider to change the target and a pace bar
    (where spending should be by today, what's left per day).
-8. **Trends drill-down** — tap a month: its categories vs the period's average (up / down); tap a category:
+8. ✅ **Trends drill-down** — tap a month: its categories vs the period's average (up / down); tap a category:
    its subcategories; tap one: its transactions.
 
 ## E. Plans (tools 6–9)

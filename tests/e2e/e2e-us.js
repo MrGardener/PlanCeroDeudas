@@ -657,6 +657,27 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   ok(applied === want.sugg, 'smart budget: the checked line takes the suggestion', { want, applied });
   await page.evaluate(() => App.undo());
   await page.waitForTimeout(150);
+  // Trends drill-down: tap a month → categories vs average → subcategories → transactions.
+  await page.evaluate(() => { Store.reset('example'); Store.ui.trends = { months: 6, category: '', account: '' }; App.changed({ structural: true }); App.go('transacciones/reportes'); });
+  await page.waitForTimeout(300);
+  ok(/Tap a month/.test(await text(page, 'trends-drill')), 'trends drill: a hint before tapping');
+  const tc = await page.$('#trends-chart'); await tc.scrollIntoViewIfNeeded(); const tb = await tc.boundingBox();
+  await page.mouse.click(tb.x + tb.width * 0.5, tb.y + tb.height * 0.5);
+  await page.waitForTimeout(250);
+  const d1 = await page.evaluate(() => ({ month: (Store.ui.trends.drill || {}).month, rows: document.querySelectorAll('#trends-drill .spend-row').length, avg: /vs avg|= avg/.test(document.getElementById('trends-drill').textContent) }));
+  ok(!!d1.month && d1.rows >= 3 && d1.avg, 'trends drill: a month shows its categories vs the average', d1);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('#trends-drill .spend-row')].find(x => x.dataset.key === 'Alimentación'); b.click(); });
+  await page.waitForTimeout(200);
+  const d2 = await page.evaluate(() => ({ cat: Store.ui.trends.drill.cat, head: document.querySelector('#trends-drill strong').textContent, rows: document.querySelectorAll('#trends-drill .spend-row').length }));
+  ok(d2.cat === 'Alimentación' && /Food/.test(d2.head) && d2.rows >= 2, 'trends drill: a category shows its subcategories', d2);
+  await page.click('#trends-drill .spend-row >> nth=0');
+  await page.waitForTimeout(200);
+  const d3 = await page.evaluate(() => ({ sub: Store.ui.trends.drill.sub, txns: document.querySelectorAll('#trends-drill .acd-txn').length }));
+  ok(!!d3.sub && d3.txns >= 1, 'trends drill: a subcategory lists its transactions', d3);
+  await page.click('[data-action="trends.up"]');
+  await page.click('[data-action="trends.up"]');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => !Store.ui.trends.drill.cat && !Store.ui.trends.drill.sub), 'trends drill: back up to the month');
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

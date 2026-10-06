@@ -1559,3 +1559,9 @@ test('suggestBudget: average of the last months per everyday line, rounded; spen
     assert.equal(E.spendPace({ planned: 600, spent: 700, day: 20, daysInMonth: 30 }).state, 'over');
     assert.equal(E.spendPace({ planned: 600, spent: 250, day: 15, daysInMonth: 30 }).state, 'ok');
 });
+
+test('monthVsAverage: one month of a trend vs the period average', () => {
+    const tr = { months: ['2026-08', '2026-09', '2026-10'], series: [{ key: 'A', values: [100, 200, 300], total: 600 }, { key: 'B', values: [90, 0, 0], total: 90 }, { key: 'C', values: [0, 0, 0], total: 0 }] };
+    const r = E.monthVsAverage(tr, 2);
+    assert.deepEqual(r.map(x => [x.key, x.value, x.avg, x.diff]), [['A', 300, 200, 100], ['B', 0, 30, -30]]);
+});
