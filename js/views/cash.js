@@ -48,7 +48,7 @@
         const pay = {}, base = {};
         months.forEach(d => { const k = `${d.year}-${String(d.month).padStart(2, '0')}`; pay[k] = d.pay; base[k] = d.payBase; });
         const schedule = paySchedule() || (opts.assume ? Engine.normalizeSchedule(ASSUMED_SCHEDULE) : null);
-        return { months, assumed: !paySchedule() && !!opts.assume, list: Engine.cashEvents({ from: fromISO, to: toISO, months, recurring: s.recurring, schedule, payPerMonth: pay, payBase: base }) };
+        return { months, assumed: !paySchedule() && !!opts.assume, list: Engine.cashEvents({ from: fromISO, to: toISO, months, recurring: s.recurring, schedule, payPerMonth: pay, payBase: base, oneOff: s.cashEvents || [] }) };
     }
 
     // Savings and goal lines of this month: what they still need.
@@ -207,6 +207,81 @@
         'safe.buffer': (el) => { Store.state.settings.cashBuffer = Math.max(0, Fmt.parseNum(el.value, 0)); App.changed({ structural: true, step: true }); }
     });
 
+    // ------------------------------------------------------------------ cash flow
+    // The money calendar's balance as one line for the next 30/60/90 days, red below $0, with
+    // the cash events you added marked on it (and listed under it to remove).
+    function renderFlow(today) {
+        const canvas = document.getElementById('flow-chart');
+        if (!canvas) return;
+        const s = Store.state, pal = UI.palette();
+        const days = [30, 60, 90].includes(Number(Store.ui.flowDays)) ? Number(Store.ui.flowDays) : 30;
+        UI.$$('[data-action="flow.days"]').forEach(b => b.classList.toggle('active', Number(b.dataset.days) === days));
+        const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const end = new Date(t.getFullYear(), t.getMonth(), t.getDate() + days - 1);
+        const dateEl = document.getElementById('flow-date');
+        if (dateEl && !dateEl.value) dateEl.value = iso(new Date(t.getFullYear(), t.getMonth(), t.getDate() + 7));
+        const upcoming = (s.cashEvents || []).filter(e => e.date >= iso(t)).sort((a, b) => a.date.localeCompare(b.date));
+        UI.html('flow-events', upcoming.length ? upcoming.map(e => `<div class="flex items-center justify-between gap-2 text-sm"><span><span class="text-slate-500">${esc(Fmt.dayMonth(new Date(e.date + 'T00:00:00')))}</span> · <span data-i18n-skip>${esc(e.name || '—')}</span></span>
+                <span class="flex items-center gap-1"><strong class="${e.amount < 0 ? 'text-red-600' : 'text-emerald-700'}">${e.amount < 0 ? '−' : '+'}${money(Math.abs(e.amount))}</strong><button type="button" class="row-del" data-action="flow.del" data-id="${e.id}" aria-label="Remove"><i class="fa-solid fa-xmark"></i></button></span></div>`).join('')
+            : '<p class="text-xs text-slate-400">None yet.</p>');
+        const cash = Engine.cashNow(s.accounts, s.transactions, t);
+        UI.show('flow-body', !!cash);
+        if (!cash) { UI.html('flow-note', '<p class="help mb-3">Add your checking account balance (Net Worth → Accounts) to see your cash flow.</p>'); return; }
+        const ev = events(iso(new Date(t.getFullYear(), t.getMonth(), 1)), iso(end), { assume: true });
+        const buffer = Math.max(0, Number(s.settings.cashBuffer) || 0);
+        const f = Engine.cashForecast({ from: iso(t), to: iso(end), start: cash.total, events: ev.list, dailyByMonth: dailyByMonth(ev.months, t), buffer });
+        const worst = f.reduce((a, d) => (d.balance < a.balance ? d : a), f[0]);
+        const day = (d) => Fmt.dayMonth(new Date(d.date + 'T00:00:00'));
+        const firstShort = f.find(d => d.balance < 0);
+        UI.html('flow-note', `<div class="bs-banner ${firstShort ? 'bad' : worst.balance < buffer ? 'warn' : 'ok'} mb-3">${firstShort
+            ? `<i class="fa-solid fa-triangle-exclamation"></i> Below $0 on ${day(firstShort)}. Lowest: ${money0(worst.balance)} on ${day(worst)}.`
+            : `<i class="fa-solid fa-circle-check"></i> Your lowest point: ${money0(worst.balance)} on ${day(worst)}.`}</div>`
+            + (ev.assumed ? '<p class="help mb-2">Pay assumed on the last day of each month: <a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-schedule">set your paydays</a>.</p>' : ''));
+        const oneOff = (d) => d.events.filter(e => e.kind === 'oneoff');
+        const red = pal.neg, blue = pal.series[0];
+        UI.chart('flow-chart', {
+            type: 'line',
+            data: {
+                labels: f.map(d => `${Fmt.MONTH_SHORT[Number(d.date.slice(5, 7)) - 1]} ${Number(d.date.slice(8))}`),
+                datasets: [{
+                    label: 'Balance', data: f.map(d => Math.round(d.balance * 100) / 100), borderColor: blue, borderWidth: 2, tension: 0.15,
+                    fill: { target: 'origin', above: blue + '22', below: red + '55' },
+                    segment: { borderColor: (c) => (c.p0.parsed.y < 0 || c.p1.parsed.y < 0 ? red : undefined) },
+                    pointRadius: f.map(d => (oneOff(d).length ? 6 : 0)), pointHoverRadius: 5,
+                    pointBackgroundColor: f.map(d => (!oneOff(d).length ? blue : oneOff(d).some(e => e.amount < 0) ? red : pal.series[2])), pointBorderColor: pal.surface, pointBorderWidth: 2
+                }]
+            },
+            options: {
+                scales: { y: { beginAtZero: false, grid: { color: (c) => (c.tick && c.tick.value === 0 ? pal.text2 : 'rgba(148,163,184,.18)') } } },
+                plugins: {
+                    legend: { display: false },
+                    todayLine: { index: 0, label: 'Today' },
+                    tooltip: { callbacks: { label: (c) => { const d = f[c.dataIndex]; return [`${I18n.t('Balance')}: ${money(d.balance)}`].concat(d.events.map(e => `${e.amount < 0 ? '−' : '+'}${money(Math.abs(e.amount))} ${I18n.t(e.name)}`)).join(' · '); } } }
+                }
+            }
+        });
+    }
+
+    UI.register({
+        'flow.days': (el) => { Store.ui.flowDays = Number(el.dataset.days); renderFlow(new Date()); },
+        'flow.add': () => {
+            const date = (document.getElementById('flow-date') || {}).value, name = ((document.getElementById('flow-name') || {}).value || '').trim();
+            const amount = Math.abs(Fmt.parseNum((document.getElementById('flow-amount') || {}).value, 0));
+            if (!date || !(amount > 0)) { UI.toast('Type a date and an amount.', 'error'); return; }
+            const dir = (document.getElementById('flow-dir') || {}).value === 'in' ? 1 : -1;
+            App.undoable(`Cash event added: ${name || money(amount)}`, () => {
+                const list = Store.state.cashEvents || (Store.state.cashEvents = []);
+                list.push({ id: Store.nextId(list), date, name: name.slice(0, 40), amount: dir * amount });
+            });
+            ['flow-name', 'flow-amount'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        },
+        'flow.del': (el) => {
+            const id = Number(el.dataset.id), e = (Store.state.cashEvents || []).find(x => x.id === id);
+            if (!e) return;
+            App.undoable(`Cash event removed: ${e.name || money(Math.abs(e.amount))}`, () => { Store.state.cashEvents = Store.state.cashEvents.filter(x => x.id !== id); });
+        }
+    });
+
     // ------------------------------------------------------------------ forecast
     // What the plan says will come in and go out between two dates: dated paydays and repeating
     // income, plus each month's budget (other incomes, spending, savings, debt payments).
@@ -227,5 +302,5 @@
         return { monthly, assumed: ev.assumed, events: ev.list.filter(e => e.amount > 0 && (e.kind === 'payday' || e.kind === 'income')), months: ev.months };
     }
 
-    window.Cash = { forecastInputs, paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar };
+    window.Cash = { forecastInputs, paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar, renderFlow };
 })();

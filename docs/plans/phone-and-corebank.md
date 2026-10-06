@@ -50,7 +50,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
     categories or one; filter by account.
 12. ✅ **Budget bubbles** — a bubble per category sized by budget, colored green / yellow / red by how much
     is spent; tap to see the line. A toggle next to the current table view.
-13. **Cash flow** — daily balance for the next 30/60/90 days with a "today" line and the area below $0
+13. ✅ **Cash flow** — daily balance for the next 30/60/90 days with a "today" line and the area below $0
     in red; **cash events** (one-off bills or deposits you add) show on it.
 14. **Debts chart** — stacked areas of each debt paying down to the debt-free date, with the table (APR,
     payment, payoff date) — check what Debts & Goals already shows and add only what's missing.

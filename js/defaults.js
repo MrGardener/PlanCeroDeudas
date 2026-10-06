@@ -165,6 +165,9 @@
             holdings: [],
             // Household members: { id, name, color }. Transactions can say who (memberId).
             members: [],
+            // One-off money you know is coming in or going out: { id, date, name, amount } (+ in,
+            // − out). Shown on the cash flow chart and the money calendar.
+            cashEvents: [],
             // Repeating / scheduled transactions (posted automatically when due).
             recurring: [],
             // Deleted transactions, restorable for 60 days.
