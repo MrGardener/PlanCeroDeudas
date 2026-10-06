@@ -2123,7 +2123,9 @@ html.kb-open.is-native body { padding-bottom: 0; }
         </div>
         <div class="table-wrap"><table class="table"><thead><tr><th>Account</th><th>Type</th><th style="width:9rem">Balance (<span class="cur">$</span>)</th><th>Updated</th><th></th></tr></thead>
             <tbody id="acct-body"></tbody>
-            <tfoot><tr><td colspan="2">Available money (not counting retirement)</td><td class="num" id="acct-total"></td><td colspan="2"></td></tr></tfoot></table></div>
+            <tfoot><tr><td colspan="2">Available money (not counting retirement or cards)</td><td class="num" id="acct-total"></td><td colspan="2"></td></tr></tfoot></table></div>
+        <p class="text-xs mt-2" id="acct-types"></p>
+        <p class="help mt-1">A credit card's balance is what you owe (below $0). Link it to its debt and importing its statement keeps the debt's balance up to date.</p>
     </div>
     <div class="card" id="nw-holdings">
         <div class="card-head">
@@ -5373,6 +5375,25 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "+ New checking account": "+ Cuenta corriente nueva",
+    "+ New credit card": "+ Tarjeta de crédito nueva",
+    "+ New savings account": "+ Cuenta de ahorros nueva",
+    "A credit card's balance is what you owe (below $0). Link it to its debt and importing its statement keeps the debt's balance up to date.": "El saldo de una tarjeta es lo que debes (bajo $0). Vincúlala a su deuda y al importar su estado de cuenta el saldo de la deuda se actualiza.",
+    "Available money (not counting retirement or cards)": "Dinero disponible (sin jubilación ni tarjetas)",
+    "Cash": "Efectivo",
+    "Cash and bank": "Efectivo y banco",
+    "Checking": "Corriente",
+    "Credit card": "Tarjeta de crédito",
+    "Its debt in your plan": "Su deuda en tu plan",
+    "No account (don't track a balance)": "Ninguna cuenta (sin llevar saldo)",
+    "No balance in the file: the account's balance moves by what you import ({0}).": "El archivo no trae saldo: el saldo de la cuenta cambia con lo que importas ({0}).",
+    "Not in my debts": "No está en mis deudas",
+    "Pick it to keep its balance and know where each transaction was made (your card or your checking).": "Elígela para llevar su saldo y saber dónde se hizo cada transacción (tu tarjeta o tu cuenta corriente).",
+    "Savings": "Ahorros",
+    "Which account is this file from?": "¿De qué cuenta es este archivo?",
+    "Debt: {0}": "Deuda: {0}",
+    "\"{0}\" balance: {1}.": "Saldo de \"{0}\": {1}.",
+    "The file's balance ({0} as of {1}) becomes the account's balance.": "El saldo del archivo ({0} al {1}) pasa a ser el saldo de la cuenta.",
     "Household (shared)": "Hogar (compartido)",
     "Household": "Hogar",
     "(add, rename or delete them in Settings)": "(agrégalas, renómbralas o bórralas en Configuración)",
@@ -12044,6 +12065,10 @@ I18n.override('EC', 'es', {
             DEBT_KINDS.forEach(k => { out[k.netWorthField] = 0; });
             debts.forEach(d => { const k = DEBT_KINDS.find(x => x.id === d.kind) || DEBT_KINDS[4]; out[k.netWorthField] += Math.max(0, num(d.balance)); });
         }
+        // Credit card accounts (balance below zero = owed) count once: through their debt when
+        // linked to one, else here.
+        const cards = accounts.filter(a => a.kind === 'tarjeta' && !(a.debtId && debts.some(d => d.id === a.debtId)));
+        if (cards.length) out.creditCards = (out.creditCards || 0) + sum(cards, a => Math.max(0, -num(a.balance)));
         return out;
     }
 
@@ -12213,6 +12238,16 @@ I18n.override('EC', 'es', {
 
     // Account kinds: cash you can spend (checking, cash), savings, retirement (401(k)/IRA).
     const isCashAccount = (a) => !a.kind || a.kind === 'corriente' || a.kind === 'efectivo';
+    // An account's balance after importing rows into it (no balance column in the file): money in
+    // adds, money out subtracts; transfers keep the file's sign (a card payment lowers what's owed).
+    function balanceAfterRows(balance, rows) {
+        return Math.round((num(balance) + sum(rows || [], r => {
+            const a = Math.abs(num(r.amount));
+            if (r.type === 'Ingreso') return a;
+            if (r.type === 'Transferencia') return r.signed !== undefined && r.signed !== null && num(r.signed) !== 0 ? Math.sign(num(r.signed)) * a : 0;
+            return -a;
+        })) * 100) / 100;
+    }
     const accountTotal = (accounts, kinds) => sum((accounts || []).filter(a => (kinds === 'cash' ? isCashAccount(a) : a.kind === kinds)), a => num(a.balance));
     function cashNow(accounts, transactions, today) {
         const cash = (accounts || []).filter(isCashAccount);
@@ -12398,7 +12433,7 @@ I18n.override('EC', 'es', {
         MONTHS, MODALITIES, DEBT_KINDS, NET_WORTH_FIELDS, NW_ASSET_FIELDS, NW_LIABILITY_FIELDS, ASSET_CATEGORIES,
         num, monthItems, isSavingsItem, isEssentialItem, annualDeductibles,
         occurrences, dueOccurrences, nextOccurrence, monthlyCost, normalizeSchedule, payDates, paymentsPerYear, nominalPaymentsPerYear, extraPaycheckMonths, paycheckSalary,
-        savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
+        savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
         DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
@@ -18850,6 +18885,8 @@ I18n.override('EC', 'es', {
         s.mapping = Object.assign({ dateFormat: 'auto', decimal: 'auto', expensesAre: 'negative' }, Importers.guessMapping(s.headers), saved ? saved.mapping : {});
         s.catMap = Object.assign({}, saved ? saved.catMap : {});
         s.fromProfile = !!saved;
+        // The account files like this one come from (checking, card…), remembered from last time.
+        if (saved && saved.account && (Store.state.accounts || []).some(a => String(a.id) === String(saved.account))) s.account = String(saved.account);
         // What was applied to every row last time (e.g. "Luz eléctrica" → Servicios básicos).
         s.defaults = saved && saved.defaults ? Object.assign({}, saved.defaults) : null;
         recompute();
@@ -18999,7 +19036,6 @@ I18n.override('EC', 'es', {
             m.mode === 'single' ? sel('expensesAre', 'In that column expenses are…', [['negative', 'Negative (−45.50)'], ['positive', 'Positive (everything is an expense)']]) : '',
             sel('dateFormat', 'Date format', [['auto', order === 'mdy' ? 'Detect (month first)' : 'Detect (day first)'], ['dmy', 'Day/Month/Year'], ['mdy', 'Month/Day/Year'], ['ymd', 'Year-Month-Day']]),
             sel('decimal', 'Decimal separator', [['auto', `Detectar (${{ '.': 'punto', ',': 'coma' }[detectedDecimal(s)] || 'row by row'})`], ['.', 'Dot (1,234.50)'], [',', 'Comma (1.234,50)']]),
-            m.balance >= 0 ? `<label class="field"><span class="field-label">Update the balance of</span><select class="input" data-change="imp.account">${[['', 'Don\'t update any account'], ['new', 'A new account']].concat((Store.state.accounts || []).map(a => [String(a.id), a.name])).map(([v, l]) => `<option value="${v}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>` : ''
         ].join(''));
         // First rows as they are in the file, so the columns are easy to recognize.
         UI.html('imp-raw', `<thead><tr>${s.headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${s.table.slice(0, 4).map(r => `<tr>${s.headers.map((_, i) => `<td class="text-xs" data-i18n-skip>${esc(r[i] || '').replace(/&lt;br\s*\/?&gt;/gi, '<br>')}</td>`).join('')}</tr>`).join('')}</tbody>`);
@@ -19027,12 +19063,7 @@ I18n.override('EC', 'es', {
         UI.show(ms, members.length > 0);
         if (members.length && !ms.options.length) ms.innerHTML = Views.whoOptions('', 'Whose? (no one)');
         renderBulk(ok.length);
-        // OFX files carry the account's balance: offer to update one of yours with it.
-        const ab = document.getElementById('imp-ofx-account');
-        if (ab) {
-            ab.classList.toggle('hidden', !(s.source === 'ofx' && s.ofxBalance));
-            if (s.source === 'ofx' && s.ofxBalance) ab.innerHTML = `<label class="field max-w-md"><span class="field-label">Update the balance of (${money(s.ofxBalance.balance)} as of ${esc(s.ofxBalance.date || '')})</span><select class="input" data-change="imp.account">${[['', 'Don\'t update any account'], ['new', 'A new account']].concat((Store.state.accounts || []).map(a => [String(a.id), a.name])).map(([v, l]) => `<option value="${v}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
-        }
+        renderAccountPick(s);
         renderStreams();
         renderSuggest();
         const opt = (list, sel) => list.map(x => { const v = typeof x === 'string' ? x : x.value, l = typeof x === 'string' ? x : x.label; return `<option value="${esc(v)}" ${v === sel ? 'selected' : ''}>${esc(l)}</option>`; }).join('');
@@ -19137,6 +19168,26 @@ I18n.override('EC', 'es', {
         UI.text('imp-file-name', 'Your bank only gives Excel (.xlsx)? Open it and use "Save as → CSV".');
     }
 
+    // ------------------------------------------------------------------ account
+    // Which account the file is from: each transaction remembers it, and its balance follows the
+    // file (its balance column) or the imported amounts. A card's balance is what you owe (below 0).
+    const ACCOUNT_KINDS = { corriente: 'Checking', ahorros: 'Savings', efectivo: 'Cash', retiro: 'Retirement', tarjeta: 'Credit card' };
+    function fileBalance(s) { return s.source === 'csv' ? Importers.latestBalance(s.rows) : s.source === 'ofx' ? s.ofxBalance : null; }
+    function renderAccountPick(s) {
+        const el = document.getElementById('imp-ofx-account');
+        if (!el) return;
+        el.classList.toggle('hidden', s.source === 'xml');
+        if (s.source === 'xml') return;
+        const accts = Store.state.accounts || [];
+        const opts = [['', 'No account (don\'t track a balance)']].concat(accts.map(a => [String(a.id), `${a.name} · ${ACCOUNT_KINDS[a.kind] || ACCOUNT_KINDS.corriente}`]),
+            [['new:corriente', '+ New checking account'], ['new:ahorros', '+ New savings account'], ['new:tarjeta', '+ New credit card']]);
+        const lb = fileBalance(s);
+        const ok = s.rows.filter(r => r.include);
+        const net = Engine.balanceAfterRows(0, ok);
+        el.innerHTML = `<label class="field max-w-md"><span class="field-label">Which account is this file from?</span><select class="input" data-change="imp.account">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+            <span class="help">${!s.account ? 'Pick it to keep its balance and know where each transaction was made (your card or your checking).' : lb ? `The file's balance (${money(lb.balance)} as of ${esc(lb.date || '')}) becomes the account's balance.` : `No balance in the file: the account's balance moves by what you import (${(net >= 0 ? '+' : '−') + money(Math.abs(net))}).`}</span></label>`;
+    }
+
     // ------------------------------------------------------------------ rules
     function renderRules() {
         const rules = Store.state.rules || [];
@@ -19225,7 +19276,7 @@ I18n.override('EC', 'es', {
             if (el.value) session.catMap[el.dataset.value] = el.value; else delete session.catMap[el.dataset.value];
             recompute();
         },
-        'imp.account': (el) => { if (session) session.account = el.value; },
+        'imp.account': (el) => { if (session) { session.account = el.value; renderAccountPick(session); } },
         'imp.cat': (el) => { if (!session) return; editRow(Number(el.dataset.i), { category: el.value, sub: undefined }); recompute(); },
         'imp.sub': (el) => { if (!session) return; const i = Number(el.dataset.i); editRow(i, { category: session.rows[i].category, sub: el.value }); recompute(); },
         'imp.type': (el) => { if (!session) return; editRow(Number(el.dataset.i), { type: el.value, category: undefined, sub: undefined }); recompute(); },
@@ -19322,6 +19373,14 @@ I18n.override('EC', 'es', {
                 const st = (s.streams || {})[Categorize.norm(n.name)];
                 if (st && st.mode === 'new') Object.assign(st, { mode: 'line', lineId: line.id });
             });
+            // The account the file is from (created now if new).
+            const accts = Store.state.accounts || (Store.state.accounts = []);
+            let acct = null;
+            if (s.account && s.account.startsWith('new:')) {
+                const kind = s.account.slice(4);
+                acct = { id: Store.nextId(accts), name: (s.name || '').replace(/\.[^.]+$/, '').slice(0, 40) || ACCOUNT_KINDS[kind], kind, balance: 0, updatedAt: Engine.isoDate(new Date()) };
+                accts.push(acct);
+            } else if (s.account) acct = accts.find(a => String(a.id) === String(s.account)) || null;
             const year = String(Store.state.activeYear);
             rows.forEach(r => {
                 const desc = r.description && r.description !== NO_DESC ? r.description : (r.store || r.category || r.type);
@@ -19329,6 +19388,7 @@ I18n.override('EC', 'es', {
                 const t = { id: id++, type: r.type, description: firstLine(desc).slice(0, 120), store: (r.store || '').slice(0, 80), parentCategory: tr ? 'Transferencia' : r.category, category: tr ? '' : r.sub || '', amount: r.amount, date: r.date,
                     paymentType: tr ? 'Transferencia' : r.payment || (r.isCard ? 'Tarjeta de Crédito' : 'Transferencia'), source: s.source };
                 if (r.budgetLine && r.type === 'Gasto') t.budgetLine = String(r.budgetLine);
+                if (acct) { t.accountId = acct.id; if (acct.kind === 'tarjeta' && !tr) t.paymentType = 'Tarjeta de Crédito'; }
                 if (r.invoice) t.invoice = r.invoice;
                 if (r.ref) t.importRef = r.ref;
                 if (r.type === 'Ingreso') {
@@ -19368,18 +19428,20 @@ I18n.override('EC', 'es', {
                 const prev = profiles[s.signature];
                 const defaults = s.remember ? (s.bulk ? Object.assign({}, s.defaults || {}, s.bulk) : s.defaults) : null;
                 profiles[s.signature] = { mapping: { date, description, amount, debit, credit, store, category, mode, dateFormat, decimal, expensesAre }, catMap: s.catMap, name: s.name, savedAt: new Date().toISOString().slice(0, 10) };
+                if (acct) profiles[s.signature].account = acct.id;
                 if (defaults && Object.keys(defaults).length) profiles[s.signature].defaults = defaults;
                 else if (prev && prev.defaults && s.remember && !s.bulk) profiles[s.signature].defaults = prev.defaults;
             }
-            // The statement's running balance updates the chosen account.
+            // The account's balance: the statement's own (a card statement's is what you owe), or
+            // moved by what came in and went out. A card linked to a debt keeps that debt in step.
             let balanceNote = '';
-            const lb = s.account ? (s.source === 'csv' ? Importers.latestBalance(s.rows) : s.source === 'ofx' ? s.ofxBalance : null) : null;
-            if (lb) {
-                const accts = Store.state.accounts || (Store.state.accounts = []);
-                let a = accts.find(x => String(x.id) === String(s.account));
-                if (!a) { a = { id: Store.nextId(accts), name: s.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Account', kind: 'ahorros', balance: 0 }; accts.push(a); }
-                a.balance = lb.balance; a.updatedAt = lb.date;
-                balanceNote = ` "${a.name}" balance: ${money(lb.balance)} (${lb.date}).`;
+            if (acct) {
+                const lb = fileBalance(s);
+                if (lb) { acct.balance = acct.kind === 'tarjeta' ? -Math.abs(lb.balance) : lb.balance; acct.updatedAt = lb.date || acct.updatedAt; }
+                else if (rows.length) { acct.balance = Engine.balanceAfterRows(acct.balance, rows); acct.updatedAt = rows.reduce((d, r) => (r.date > d ? r.date : d), acct.updatedAt || ''); }
+                const debt = acct.kind === 'tarjeta' && acct.debtId ? (Store.state.debts || []).find(d => d.id === acct.debtId) : null;
+                if (debt) debt.balance = Math.max(0, -acct.balance);
+                balanceNote = ` "${acct.name}" balance: ${acct.balance < 0 ? '−' : ''}${money(Math.abs(acct.balance))}.`;
             }
             // Rows that are the same money as a hand-typed transaction: nothing new is added, but the
             // manual one remembers the bank row so the next statement recognizes it right away.
@@ -21574,18 +21636,27 @@ I18n.override('EC', 'es', {
 
     // ------------------------------------------------------------ accounts
     // Money you can use: everything but retirement accounts (401(k)/IRA).
-    const availableTotal = (list) => list.filter(a => a.kind !== 'retiro').reduce((t, a) => t + (Number(a.balance) || 0), 0);
-    const ACCT_KINDS = [{ value: 'corriente', label: 'Checking account' }, { value: 'ahorros', label: 'Savings account' }, { value: 'efectivo', label: 'Efectivo' }, { value: 'retiro', label: 'Retirement (401(k) / IRA)' }];
+    // Cards aren't available money: their balance (below 0) is what you owe.
+    const availableTotal = (list) => list.filter(a => a.kind !== 'retiro' && a.kind !== 'tarjeta').reduce((t, a) => t + (Number(a.balance) || 0), 0);
+    const ACCT_KINDS = [{ value: 'corriente', label: 'Checking account' }, { value: 'ahorros', label: 'Savings account' }, { value: 'efectivo', label: 'Efectivo' }, { value: 'tarjeta', label: 'Credit card' }, { value: 'retiro', label: 'Retirement (401(k) / IRA)' }];
+    // All accounts in one place: totals by type.
+    function accountTypesHTML(list) {
+        const tot = (f) => list.filter(f).reduce((t, a) => t + (Number(a.balance) || 0), 0);
+        const parts = [['Cash and bank', tot(a => !['tarjeta', 'retiro'].includes(a.kind))], ['Credit cards', tot(a => a.kind === 'tarjeta')], ['Retirement', tot(a => a.kind === 'retiro')]]
+            .filter((_, i) => i === 0 || list.some(a => a.kind === (i === 1 ? 'tarjeta' : 'retiro')));
+        return parts.map(([l, v]) => `<span><span>${l}</span>: <strong class="${v < 0 ? 'text-red-700' : ''}">${v < 0 ? '−' : ''}${money(Math.abs(v))}</strong></span>`).join(' · ');
+    }
     function renderAccounts(ctx) {
         const list = ctx.state.accounts || [];
         UI.html('acct-body', list.length ? list.map(a => `<tr data-row="${a.id}">
             <td><input class="cell-input font-semibold" value="${esc(a.name)}" data-change="acct.set" data-id="${a.id}" data-field="name" aria-label="Account name"></td>
-            <td><select class="cell-input" data-change="acct.set" data-id="${a.id}" data-field="kind">${Views.selectOptions(ACCT_KINDS, a.kind)}</select></td>
+            <td><select class="cell-input" data-change="acct.set" data-id="${a.id}" data-field="kind">${Views.selectOptions(ACCT_KINDS, a.kind)}</select>${a.kind === 'tarjeta' ? `<select class="cell-input text-[11px] mt-1" data-change="acct.set" data-id="${a.id}" data-field="debtId" aria-label="Its debt in your plan">${Views.selectOptions([{ value: '', label: 'Not in my debts' }].concat((ctx.state.debts || []).map(d => ({ value: String(d.id), label: `Debt: ${d.name}` }))), a.debtId ? String(a.debtId) : '')}</select>` : ''}</td>
             <td><input type="number" class="cell-input num money" step="any" value="${Number(a.balance) || 0}" data-input="acct.set" data-id="${a.id}" data-field="balance" aria-label="Balance"></td>
             <td class="text-[11px] text-slate-500" data-cell="when">${a.updatedAt ? esc(a.updatedAt) : '—'}</td>
             <td class="text-center"><button class="row-del" data-action="acct.delete" data-id="${a.id}" title="Delete account" aria-label="Delete account"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`).join('') : `<tr class="empty-row"><td colspan="5">${Views.emptyState('fa-building-columns', 'Add your accounts (checking, savings, cash, 401(k)…) to see your money at a glance.')}</td></tr>`);
         UI.text('acct-total', money(availableTotal(list)));
+        UI.html('acct-types', list.length ? accountTypesHTML(list) : '');
     }
 
     // ------------------------------------------------------------ investments
@@ -21673,9 +21744,13 @@ I18n.override('EC', 'es', {
             const a = (Store.state.accounts || []).find(x => x.id === Number(el.dataset.id));
             if (!a) return;
             const f = el.dataset.field;
-            a[f] = f === 'balance' ? parseNum(el.value, 0) : el.value;
+            if (f === 'debtId') { if (el.value) a.debtId = Number(el.value); else delete a.debtId; }
+            else a[f] = f === 'balance' ? parseNum(el.value, 0) : el.value;
             if (f === 'balance') a.updatedAt = Engine.isoDate(new Date());
-            App.changed();
+            // A card linked to a debt keeps that debt's balance (what's owed) in step.
+            const debt = a.kind === 'tarjeta' && a.debtId ? (Store.state.debts || []).find(d => d.id === a.debtId) : null;
+            if (debt && (f === 'balance' || f === 'debtId')) debt.balance = Math.max(0, -(Number(a.balance) || 0));
+            App.changed({ structural: f === 'kind' || f === 'debtId' });
             UI.text('acct-total', money(availableTotal(Store.state.accounts || [])));
         },
         'acct.delete': (el) => {

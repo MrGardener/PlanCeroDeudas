@@ -174,18 +174,27 @@
 
     // ------------------------------------------------------------ accounts
     // Money you can use: everything but retirement accounts (401(k)/IRA).
-    const availableTotal = (list) => list.filter(a => a.kind !== 'retiro').reduce((t, a) => t + (Number(a.balance) || 0), 0);
-    const ACCT_KINDS = [{ value: 'corriente', label: 'Checking account' }, { value: 'ahorros', label: 'Savings account' }, { value: 'efectivo', label: 'Efectivo' }, { value: 'retiro', label: 'Retirement (401(k) / IRA)' }];
+    // Cards aren't available money: their balance (below 0) is what you owe.
+    const availableTotal = (list) => list.filter(a => a.kind !== 'retiro' && a.kind !== 'tarjeta').reduce((t, a) => t + (Number(a.balance) || 0), 0);
+    const ACCT_KINDS = [{ value: 'corriente', label: 'Checking account' }, { value: 'ahorros', label: 'Savings account' }, { value: 'efectivo', label: 'Efectivo' }, { value: 'tarjeta', label: 'Credit card' }, { value: 'retiro', label: 'Retirement (401(k) / IRA)' }];
+    // All accounts in one place: totals by type.
+    function accountTypesHTML(list) {
+        const tot = (f) => list.filter(f).reduce((t, a) => t + (Number(a.balance) || 0), 0);
+        const parts = [['Cash and bank', tot(a => !['tarjeta', 'retiro'].includes(a.kind))], ['Credit cards', tot(a => a.kind === 'tarjeta')], ['Retirement', tot(a => a.kind === 'retiro')]]
+            .filter((_, i) => i === 0 || list.some(a => a.kind === (i === 1 ? 'tarjeta' : 'retiro')));
+        return parts.map(([l, v]) => `<span><span>${l}</span>: <strong class="${v < 0 ? 'text-red-700' : ''}">${v < 0 ? '−' : ''}${money(Math.abs(v))}</strong></span>`).join(' · ');
+    }
     function renderAccounts(ctx) {
         const list = ctx.state.accounts || [];
         UI.html('acct-body', list.length ? list.map(a => `<tr data-row="${a.id}">
             <td><input class="cell-input font-semibold" value="${esc(a.name)}" data-change="acct.set" data-id="${a.id}" data-field="name" aria-label="Account name"></td>
-            <td><select class="cell-input" data-change="acct.set" data-id="${a.id}" data-field="kind">${Views.selectOptions(ACCT_KINDS, a.kind)}</select></td>
+            <td><select class="cell-input" data-change="acct.set" data-id="${a.id}" data-field="kind">${Views.selectOptions(ACCT_KINDS, a.kind)}</select>${a.kind === 'tarjeta' ? `<select class="cell-input text-[11px] mt-1" data-change="acct.set" data-id="${a.id}" data-field="debtId" aria-label="Its debt in your plan">${Views.selectOptions([{ value: '', label: 'Not in my debts' }].concat((ctx.state.debts || []).map(d => ({ value: String(d.id), label: `Debt: ${d.name}` }))), a.debtId ? String(a.debtId) : '')}</select>` : ''}</td>
             <td><input type="number" class="cell-input num money" step="any" value="${Number(a.balance) || 0}" data-input="acct.set" data-id="${a.id}" data-field="balance" aria-label="Balance"></td>
             <td class="text-[11px] text-slate-500" data-cell="when">${a.updatedAt ? esc(a.updatedAt) : '—'}</td>
             <td class="text-center"><button class="row-del" data-action="acct.delete" data-id="${a.id}" title="Delete account" aria-label="Delete account"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`).join('') : `<tr class="empty-row"><td colspan="5">${Views.emptyState('fa-building-columns', 'Add your accounts (checking, savings, cash, 401(k)…) to see your money at a glance.')}</td></tr>`);
         UI.text('acct-total', money(availableTotal(list)));
+        UI.html('acct-types', list.length ? accountTypesHTML(list) : '');
     }
 
     // ------------------------------------------------------------ investments
@@ -273,9 +282,13 @@
             const a = (Store.state.accounts || []).find(x => x.id === Number(el.dataset.id));
             if (!a) return;
             const f = el.dataset.field;
-            a[f] = f === 'balance' ? parseNum(el.value, 0) : el.value;
+            if (f === 'debtId') { if (el.value) a.debtId = Number(el.value); else delete a.debtId; }
+            else a[f] = f === 'balance' ? parseNum(el.value, 0) : el.value;
             if (f === 'balance') a.updatedAt = Engine.isoDate(new Date());
-            App.changed();
+            // A card linked to a debt keeps that debt's balance (what's owed) in step.
+            const debt = a.kind === 'tarjeta' && a.debtId ? (Store.state.debts || []).find(d => d.id === a.debtId) : null;
+            if (debt && (f === 'balance' || f === 'debtId')) debt.balance = Math.max(0, -(Number(a.balance) || 0));
+            App.changed({ structural: f === 'kind' || f === 'debtId' });
             UI.text('acct-total', money(availableTotal(Store.state.accounts || [])));
         },
         'acct.delete': (el) => {

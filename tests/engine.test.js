@@ -1380,3 +1380,13 @@ test('household (shared) is its own row in the member totals', () => {
     assert.deepEqual(r.rows.map(x => [x.name, x.expense, x.income]), [['Ana', 100, 0], ['Luis', 0, 3000], ['Household', 1500, 0], ['Sin asignar', 20, 0]]);
     assert.ok(E.HOUSEHOLD_CATEGORIES.includes('Vivienda'));
 });
+
+test('accounts: a balance follows the imported rows; cards count as owed once', () => {
+    const rows = [{ type: 'Gasto', amount: 50 }, { type: 'Ingreso', amount: 1000 }, { type: 'Transferencia', amount: 300, signed: -300 }, { type: 'Transferencia', amount: 20 }];
+    assert.equal(E.balanceAfterRows(100, rows), 750);                       // −50 +1000 −300; a transfer with no sign doesn't move it
+    assert.equal(E.balanceAfterRows(-200, [{ type: 'Gasto', amount: 80 }, { type: 'Transferencia', amount: 200, signed: 200 }]), -80);   // card: spend, then a payment
+    const accounts = [{ id: 1, kind: 'corriente', balance: 900 }, { id: 2, kind: 'tarjeta', balance: -350 }, { id: 3, kind: 'tarjeta', balance: -1000, debtId: 7 }];
+    const nw = E.netWorthFromSources({ accounts, debts: [{ id: 7, kind: 'tarjeta', balance: 1000 }] });
+    assert.equal(nw.checking, 900);
+    assert.equal(nw.creditCards, 1350);                                     // 1,000 through its debt + 350 unlinked
+});

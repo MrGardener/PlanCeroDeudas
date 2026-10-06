@@ -63,7 +63,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.setInputFiles('#imp-file', path.join(ROOT, 'tests/fixtures/chase.ofx'));
   await page.waitForTimeout(250);
   ok((await page.textContent('#imp-summary')).includes('3 to import'), 'OFX rows read', await page.textContent('#imp-summary'));
-  await page.selectOption('#imp-ofx-account select', 'new');
+  await page.selectOption('#imp-ofx-account select', 'new:ahorros');
   await page.click('#imp-commit');
   const acct = await page.evaluate(() => Store.state.accounts[Store.state.accounts.length - 1]);
   ok(await page.evaluate(() => Store.state.transactions.length) === n0 + 3 && acct && acct.balance === 2340.55, 'OFX imported and the account balance updated', acct);
