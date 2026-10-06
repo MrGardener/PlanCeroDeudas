@@ -1313,6 +1313,35 @@
         return { level, ratio, pace, elapsed };
     }
 
+    // Date ranges for the transactions list: a preset → { from, to } (ISO; null = no limit), and
+    // stepping a range back or forward: whole months move by months, anything else by its length.
+    const RANGE_PRESETS = ['all', 'today', 'this-month', 'last-month', '7d', '30d', '90d', 'this-year'];
+    function rangeFor(key, today) {
+        const t = today instanceof Date ? today : new Date(today), y = t.getFullYear(), m = t.getMonth(), d = t.getDate();
+        const iso = (yy, mm, dd) => isoDate(new Date(yy, mm, dd));
+        switch (key) {
+            case 'today': return { from: iso(y, m, d), to: iso(y, m, d) };
+            case 'this-month': return { from: iso(y, m, 1), to: iso(y, m + 1, 0) };
+            case 'last-month': return { from: iso(y, m - 1, 1), to: iso(y, m, 0) };
+            case '7d': return { from: iso(y, m, d - 6), to: iso(y, m, d) };
+            case '30d': return { from: iso(y, m, d - 29), to: iso(y, m, d) };
+            case '90d': return { from: iso(y, m, d - 89), to: iso(y, m, d) };
+            case 'this-year': return { from: `${y}-01-01`, to: `${y}-12-31` };
+            default: return { from: null, to: null };
+        }
+    }
+    function shiftRange(from, to, dir) {
+        if (!from || !to) return { from, to };
+        const a = parseISO(from), b = parseISO(to), step = dir < 0 ? -1 : 1;
+        const lastOf = (x) => new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate();
+        if (a.getDate() === 1 && b.getDate() === lastOf(b)) {
+            const months = (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth() + 1;
+            return { from: isoDate(new Date(a.getFullYear(), a.getMonth() + step * months, 1)), to: isoDate(new Date(b.getFullYear(), b.getMonth() + step * months + 1, 0)) };
+        }
+        const days = Math.round((b - a) / 86400000) + 1;
+        return { from: isoDate(new Date(a.getFullYear(), a.getMonth(), a.getDate() + step * days)), to: isoDate(new Date(b.getFullYear(), b.getMonth(), b.getDate() + step * days)) };
+    }
+
     function filterTransactions(transactions, { year = 'all', month = 'all', type = 'all', category = 'all' } = {}) {
         return (transactions || []).filter(t => {
             const d = txnDate(t);
@@ -2515,7 +2544,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, accountsHub, HUB_GROUPS, accountActivity, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, accountsHub, HUB_GROUPS, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

@@ -865,3 +865,12 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .acd-txns { border-top: 1px solid var(--line); }
 .acd-txn { display: grid; grid-template-columns: 4.6rem 1fr auto; align-items: center; gap: .6rem; padding: .5rem .1rem; border-bottom: 1px solid var(--line-soft); font-size: .82rem; }
 @media (max-width: 480px) { .acd-bal { font-size: 1.25rem; } }
+/* Transactions: date range with ‹ ›, and the range picker's presets. */
+.txn-range { display: inline-flex; align-items: stretch; border: 1px solid var(--line-strong); border-radius: .6rem; overflow: hidden; background: var(--surface); }
+.txn-range-step { padding: 0 .6rem; color: var(--muted); }
+.txn-range-step:disabled { opacity: .35; }
+.txn-range-pick { padding: .35rem .6rem; font-size: .78rem; font-weight: 700; color: var(--ink); border-left: 1px solid var(--line); border-right: 1px solid var(--line); white-space: nowrap; }
+.range-list { display: flex; flex-direction: column; }
+.range-list button { display: flex; align-items: center; gap: .6rem; padding: .6rem .25rem; border-bottom: 1px solid var(--line-soft); font-size: .88rem; text-align: left; color: var(--ink); }
+.range-list button i { color: var(--muted); }
+.range-list button.active { font-weight: 700; } .range-list button.active i { color: var(--brand); }

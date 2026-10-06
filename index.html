@@ -611,8 +611,13 @@
                 <div class="card-title"><i class="fa-solid fa-list text-blue-600"></i> History</div>
                 <div class="flex flex-wrap gap-2">
                     <label class="txn-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="txn-search" placeholder="Search description, place or amount" data-input="txn.search" aria-label="Search transactions"></label>
-                    <select id="txn-f-year" class="cell-input" style="width:auto" data-change="txn.filter"></select>
-                    <select id="txn-f-month" class="cell-input" style="width:auto" data-change="txn.filter"></select>
+                    <div class="txn-range" role="group" aria-label="Dates">
+                        <button type="button" class="txn-range-step" data-action="txn.rangeStep" data-dir="-1" aria-label="Earlier"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button type="button" class="txn-range-pick" data-action="txn.rangePick"><i class="fa-regular fa-calendar"></i> <span id="txn-range-label" data-i18n-skip>All dates</span> <i class="fa-solid fa-chevron-down text-[10px]"></i></button>
+                        <button type="button" class="txn-range-step" data-action="txn.rangeStep" data-dir="1" aria-label="Later"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" data-action="txn.accounts"><i class="fa-solid fa-building-columns"></i> <span id="txn-accts-label" data-i18n-skip>All accounts</span></button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-action="txn.download" title="Download what's shown (CSV)" aria-label="Download what's shown (CSV)"><i class="fa-solid fa-download"></i></button>
                     <select id="txn-f-type" class="cell-input" style="width:auto" data-change="txn.filter">
                         <option value="all">All</option><option value="Ingreso">Income only</option><option value="Gasto">Expenses only</option><option value="Transferencia">Transfers only</option>
                     </select>

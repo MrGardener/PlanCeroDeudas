@@ -547,6 +547,37 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(200);
   ok(await page.evaluate(() => { const a = Store.state.accounts.find(x => x.id === 99), d = Store.state.debts.find(x => x.id === a.debtId); return !!d && d.balance === 420 && d.kind === 'tarjeta' && AccountsHub.last.groups.find(g => g.key === 'card').rows.filter(r => r.name === 'Store card').length === 1; }), 'account details: add an unlinked card to the debts, counted once');
   await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
+  // Transactions toolbar: date range presets, ‹ › stepping, accounts, download.
+  await page.evaluate(() => { Store.reset('example'); Store.ui.txnFilters = { year: 'all', month: 'all', type: 'all', category: 'all' }; Store.ui.txnLimit = 5000; App.changed({ structural: true }); App.go('transacciones/lista'); });
+  await page.waitForTimeout(250);
+  const rows = () => page.evaluate(() => [...document.querySelectorAll('#txn-body .txn-item')].map(r => { const t = Store.state.transactions.find(x => x.id === Number(r.dataset.row)); return { d: t.date, a: t.accountId || null }; }));
+  await page.click('[data-action="txn.rangePick"]');
+  await page.click('[data-action="txn.rangeSet"][data-range="last-month"]');
+  await page.waitForTimeout(200);
+  const lm = await page.evaluate(() => Engine.rangeFor('last-month', new Date()));
+  let r1 = await rows();
+  ok(r1.length > 20 && r1.every(r => r.d >= lm.from && r.d <= lm.to) && await page.textContent('#txn-range-label') === 'Last month', 'transactions: last month', r1.length);
+  await page.click('[data-action="txn.rangeStep"][data-dir="-1"]');
+  await page.waitForTimeout(200);
+  const prev = await page.evaluate((lm) => Engine.shiftRange(lm.from, lm.to, -1), lm);
+  r1 = await rows();
+  ok(r1.length > 20 && r1.every(r => r.d >= prev.from && r.d <= prev.to) && /–/.test(await page.textContent('#txn-range-label')), 'transactions: ‹ steps a month back', prev);
+  await page.click('[data-action="txn.accounts"]');
+  await page.waitForTimeout(150);
+  await page.evaluate(() => { const w = Store.state.accounts.find(a => a.kind === 'efectivo'); document.querySelectorAll('.acct-pick').forEach(c => { c.checked = c.value === String(w.id); }); });
+  await page.click('[data-action="txn.acctApply"]');
+  await page.waitForTimeout(200);
+  const wallet = await page.evaluate(() => Store.state.accounts.find(a => a.kind === 'efectivo').id);
+  r1 = await rows();
+  ok(r1.length > 0 && r1.every(r => r.a === wallet) && await page.textContent('#txn-accts-label') === '1 account', 'transactions: one account', r1.length);
+  const csv = await page.evaluate(async () => { let got = null; const keep = Native.saveFile; Native.saveFile = (name, text) => { got = { name, text }; return Promise.resolve('saved'); }; UI.run('txn.download', {}); Native.saveFile = keep; return got; });
+  ok(csv && /^transactions_\d{4}-\d\d-01_/.test(csv.name) && csv.text.trim().split('\n').length === r1.length + 1 && /Date,Payee,Category/.test(csv.text), 'transactions: download what is shown', csv && csv.name);
+  // A Month close link (year + month) still works: it becomes that month.
+  await page.evaluate(() => { Store.ui.txnFilters = { year: '2026', month: '3', type: 'Gasto', category: 'all', member: 'all' }; App.update(); });
+  await page.waitForTimeout(150);
+  r1 = await rows();
+  ok(r1.length > 0 && r1.every(r => r.d.startsWith('2026-03')), 'transactions: an old year/month filter becomes a range');
+  await page.evaluate(() => { Store.ui.txnFilters = { year: 'all', month: 'all', type: 'all', category: 'all' }; Store.ui.txnLimit = null; App.update(); });
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

@@ -1520,3 +1520,18 @@ test('accountActivity: one account\'s money in and out by month, newest first', 
     assert.deepEqual(r.in, [0, 1130]);
     assert.deepEqual(r.txns.map(t => t.id), [5, 4, 3, 2, 1, 7]);
 });
+
+test('rangeFor and shiftRange: presets and stepping back and forward', () => {
+    const today = new Date(2026, 9, 6);
+    assert.deepEqual(E.rangeFor('this-month', today), { from: '2026-10-01', to: '2026-10-31' });
+    assert.deepEqual(E.rangeFor('last-month', today), { from: '2026-09-01', to: '2026-09-30' });
+    assert.deepEqual(E.rangeFor('7d', today), { from: '2026-09-30', to: '2026-10-06' });
+    assert.deepEqual(E.rangeFor('90d', today), { from: '2026-07-09', to: '2026-10-06' });
+    assert.deepEqual(E.rangeFor('all', today), { from: null, to: null });
+    // Whole months move by months (a quarter by a quarter), other spans by their length.
+    assert.deepEqual(E.shiftRange('2026-10-01', '2026-10-31', -1), { from: '2026-09-01', to: '2026-09-30' });
+    assert.deepEqual(E.shiftRange('2026-01-01', '2026-03-31', 1), { from: '2026-04-01', to: '2026-06-30' });
+    assert.deepEqual(E.shiftRange('2026-02-01', '2026-02-28', 1), { from: '2026-03-01', to: '2026-03-31' });
+    assert.deepEqual(E.shiftRange('2026-09-30', '2026-10-06', -1), { from: '2026-09-23', to: '2026-09-29' });
+    assert.deepEqual(E.shiftRange(null, null, 1), { from: null, to: null });
+});

@@ -140,8 +140,6 @@
         const f = Store.ui.txnFilters;
         const years = new Set(ctx.state.transactions.map(t => Number(t.date.slice(0, 4))));
         years.add(ctx.today.getFullYear());
-        UI.html('txn-f-year', Views.selectOptions([{ value: 'all', label: 'Every year' }].concat([...years].sort().map(y => ({ value: y, label: y }))), f.year));
-        UI.html('txn-f-month', Views.selectOptions([{ value: 'all', label: 'Every month' }].concat(Fmt.MONTH_NAMES.map((n, i) => ({ value: i + 1, label: n }))), f.month));
         document.getElementById('txn-f-type').value = f.type;
         const of = document.getElementById('txn-f-origin'); if (of) of.value = f.origin || 'all';
         // Categories already used by past transactions stay filterable even if deleted.
@@ -271,6 +269,70 @@
             </div>`;
     }
 
+    // ------------------------------------------------------------------ dates and accounts
+    // The list shows a date range (a preset like "This month", or from–to) and some accounts.
+    // Older links set a year and month (Month close): they become the same range.
+    const RANGE_LABELS = { all: 'All dates', today: 'Today', 'this-month': 'This month', 'last-month': 'Last month', '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', 'this-year': 'This year' };
+    function normalizeRange(f, today) {
+        if (f.year && f.year !== 'all') {
+            const y = Number(f.year), m = f.month && f.month !== 'all' ? Number(f.month) : null;
+            f.from = m ? Engine.isoDate(new Date(y, m - 1, 1)) : `${y}-01-01`;
+            f.to = m ? Engine.isoDate(new Date(y, m, 0)) : `${y}-12-31`;
+            f.range = 'custom'; f.year = 'all'; f.month = 'all';
+        }
+        if (f.range && f.range !== 'custom' && f.range !== 'all' && !f.from) Object.assign(f, Engine.rangeFor(f.range, today));
+    }
+    const dayLabel = (iso) => { const d = new Date(iso + 'T00:00:00'); return `${Fmt.dayMonth(d)}, ${d.getFullYear()}`; };
+    function rangeLabel(f) {
+        if (!f.from && !f.to) return I18n.t('All dates');
+        if (f.range && f.range !== 'custom') return I18n.t(RANGE_LABELS[f.range]);
+        return f.from === f.to ? dayLabel(f.from) : `${f.from ? dayLabel(f.from) : '…'} – ${f.to ? dayLabel(f.to) : '…'}`;
+    }
+
+    function pickRange() {
+        const f = Store.ui.txnFilters;
+        const sheet = UI.sheet({ title: 'Select a range', icon: 'fa-calendar', html: `
+            <div class="range-list">${Object.keys(RANGE_LABELS).map(k => `<button type="button" class="${(f.range || 'all') === k ? 'active' : ''}" data-action="txn.rangeSet" data-range="${k}">${(f.range || 'all') === k ? '<i class="fa-solid fa-circle-check"></i>' : '<i class="fa-regular fa-circle"></i>'} ${RANGE_LABELS[k]}</button>`).join('')}</div>
+            <div class="grid grid-cols-2 gap-3 mt-3">
+                <label class="field"><span class="field-label">From</span><input type="date" id="txn-range-from" class="input" value="${esc(f.from || '')}"></label>
+                <label class="field"><span class="field-label">To</span><input type="date" id="txn-range-to" class="input" value="${esc(f.to || '')}"></label>
+            </div>
+            <div class="flex justify-end mt-3"><button type="button" class="btn btn-primary" data-action="txn.rangeCustom">Show these dates</button></div>` });
+        rangeSheet = sheet;
+    }
+    let rangeSheet = null, acctSheet = null;
+    function setRange(patch) {
+        Store.ui.txnFilters = Object.assign({}, Store.ui.txnFilters, { year: 'all', month: 'all' }, patch);
+        Store.ui.txnLimit = PAGE;
+        if (rangeSheet) { rangeSheet.close(); rangeSheet = null; }
+        App.update();
+    }
+
+    // Accounts, grouped by type, each with a checkbox; "All" switches them all.
+    const ACCT_GROUPS = [['corriente', 'Checking'], ['ahorros', 'Savings'], ['efectivo', 'Cash'], ['tarjeta', 'Credit Card'], ['retiro', 'Retirement']];
+    function pickAccounts() {
+        const f = Store.ui.txnFilters, accts = Store.state.accounts || [];
+        const on = (v) => !f.accounts || f.accounts.includes(v);
+        const box = (v, label, skip) => `<label class="check-row"><input type="checkbox" class="acct-pick" value="${esc(v)}" ${on(v) ? 'checked' : ''}> <span ${skip ? 'data-i18n-skip' : ''}>${esc(label)}</span></label>`;
+        const groups = ACCT_GROUPS.map(([k, label]) => { const list = accts.filter(a => (a.kind || 'corriente') === k); return list.length ? `<div class="section-label mt-3">${label}</div>${list.map(a => box(String(a.id), a.name, true)).join('')}` : ''; }).join('');
+        acctSheet = UI.sheet({ title: 'Accounts', icon: 'fa-building-columns', html: `
+            <label class="check-row font-bold"><input type="checkbox" id="acct-pick-all" data-change="txn.acctAll" ${!f.accounts ? 'checked' : ''}> <span>All</span></label>
+            ${groups}<div class="section-label mt-3">Other</div>${box('none', I18n.t('No account (typed by hand)'))}
+            <div class="flex justify-end mt-3"><button type="button" class="btn btn-primary" data-action="txn.acctApply">Show these accounts</button></div>` });
+    }
+
+    // What's shown, as a CSV file (date, payee, category, account, amount: money in positive).
+    function download() {
+        const accts = Store.state.accounts || [], tr = (x) => I18n.t(x);
+        const rows = [['Date', 'Payee', 'Category', 'Subcategory', 'Account', 'Amount', 'Person', 'Tags'].map(tr)].concat(lastList.map(t => {
+            const inn = (t.type || 'Gasto') === 'Ingreso' || t.refund;
+            const sign = (t.type === 'Transferencia') ? (Number(t.signed) < 0 ? -1 : 1) : inn ? 1 : -1;
+            return [t.date, t.description || '', tr(t.parentCategory || ''), tr(t.category || ''), ((accts.find(a => a.id === t.accountId) || {}).name) || '', sign * Math.abs(Number(t.amount) || 0), Views.whoName(t.memberId) || '', (t.tags || []).map(g => '#' + g).join(' ')];
+        }));
+        const f = Store.ui.txnFilters;
+        Native.saveFile(`transactions_${f.from || 'start'}_${f.to || 'today'}.csv`, Importers.toCSV(rows), 'text/csv;charset=utf-8').catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
+    }
+
     function update(ctx) {
         const f = Store.ui.txnFilters;
         const q = (Store.ui.txnSearch || '').trim();
@@ -282,7 +344,13 @@
         if (members.length) mf.innerHTML = Views.selectOptions([{ value: 'all', label: 'Everyone' }, { value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name })), [{ value: 'none', label: 'No person' }]), f.member || 'all');
         const byMember = (t) => !f.member || f.member === 'all' || (f.member === 'none' ? !t.memberId : String(t.memberId) === f.member);
         const byOrigin = (t) => !f.origin || f.origin === 'all' || (f.origin === 'unreconciled' ? Engine.txnOrigin(t) === 'typed' && !Engine.isReconciled(t) && !Engine.isTransfer(t) : Engine.txnOrigin(t) === f.origin);
-        const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q) && byMember(t) && byOrigin(t))
+        normalizeRange(f, ctx.today);
+        const byDate = (t) => (!f.from || t.date >= f.from) && (!f.to || t.date <= f.to);
+        const byAccount = (t) => !f.accounts || f.accounts.includes(t.accountId ? String(t.accountId) : 'none');
+        UI.text('txn-range-label', rangeLabel(f));
+        UI.text('txn-accts-label', !f.accounts ? I18n.t('All accounts') : I18n.t(`${f.accounts.length} account${f.accounts.length === 1 ? '' : 's'}`));
+        UI.$$('[data-action="txn.rangeStep"]').forEach(b => { b.disabled = !f.from; });
+        const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => byDate(t) && byAccount(t) && matchesSearch(t, q) && byMember(t) && byOrigin(t))
             .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
         const assignOf = assignments(ctx);
         lastList = list;
@@ -946,11 +1014,30 @@
         },
         'txn.subChanged': () => payrollHint(),
         'txn.dateChanged': () => fillLineSelect(),
+        'txn.rangePick': () => pickRange(),
+        'txn.rangeSet': (el) => { const k = el.dataset.range; setRange(Object.assign({ range: k }, Engine.rangeFor(k, new Date()))); },
+        'txn.rangeCustom': () => {
+            const from = (document.getElementById('txn-range-from') || {}).value || null, to = (document.getElementById('txn-range-to') || {}).value || null;
+            if (from && to && from > to) { UI.toast('"From" is after "To".', 'error'); return; }
+            setRange({ range: from || to ? 'custom' : 'all', from, to });
+        },
+        'txn.rangeStep': (el) => { const f = Store.ui.txnFilters; if (!f.from || !f.to) return; setRange(Object.assign({ range: 'custom' }, Engine.shiftRange(f.from, f.to, Number(el.dataset.dir)))); },
+        'txn.accounts': () => pickAccounts(),
+        'txn.acctAll': (el) => { UI.$$('.acct-pick').forEach(c => { c.checked = el.checked; }); },
+        'txn.acctApply': () => {
+            const boxes = UI.$$('.acct-pick'), picked = boxes.filter(c => c.checked).map(c => c.value);
+            if (!picked.length) { UI.toast('Pick at least one account.', 'error'); return; }
+            Store.ui.txnFilters = Object.assign({}, Store.ui.txnFilters, { accounts: picked.length === boxes.length ? null : picked });
+            Store.ui.txnLimit = PAGE;
+            if (acctSheet) { acctSheet.close(); acctSheet = null; }
+            App.update();
+        },
+        'txn.download': () => download(),
         'txn.filter': () => {
             Store.ui.txnLimit = PAGE;
+            const prev = Store.ui.txnFilters || {};
             Store.ui.txnFilters = {
-                year: document.getElementById('txn-f-year').value,
-                month: document.getElementById('txn-f-month').value,
+                year: 'all', month: 'all', range: prev.range, from: prev.from, to: prev.to, accounts: prev.accounts,
                 type: document.getElementById('txn-f-type').value,
                 category: document.getElementById('txn-f-category').value,
                 member: document.getElementById('txn-f-member').value || 'all',
