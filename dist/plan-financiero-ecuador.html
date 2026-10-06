@@ -941,6 +941,10 @@ button.sheet-row:hover { background: var(--surface-3); }
 .alert-row > i { margin-top: .2rem; }
 .alert-text { text-align: left; font-size: .88rem; color: var(--ink); }
 .alert-text:hover { text-decoration: underline; }
+/* Account sections (cash & bank, investments & retirement, property, debts). */
+.hub-section, .sheet-section { display: flex; justify-content: space-between; align-items: baseline; margin: .9rem 0 .25rem; padding: .3rem .25rem; font-size: .72rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); background: var(--surface-3); border-radius: .4rem; }
+.hub-list > .hub-section:first-child, .sheet-section:first-of-type { margin-top: .25rem; }
+.hub-retirement { background: #1baf7a; } .hub-health { background: #0f8a8a; } .hub-realestate { background: #8a6d00; } .hub-vehicle { background: #6b5a1f; } .hub-valuables { background: #9a3d7a; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -4169,6 +4173,7 @@ I18n.add('en', {
 "Valor por año:": "Value by year:",
 "Vas por buen camino. Sigue avanzando paso a paso.": "You're on the right track. Keep moving step by step.",
 "Vehículo": "Vehicle",
+"Joyas": "Jewelry",
 "Vehículos": "Vehicles",
 "Vence hoy": "Due today",
 "Vencido hace {0} día{1}": "Overdue by {0} day{1|s}",
@@ -5664,6 +5669,32 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Brokerage": "Corretaje (bolsa)",
+    "Credit Cards": "Tarjetas de crédito",
+    "Jewelry": "Joyas",
+    "Loans": "Préstamos",
+    "Mortgages": "Hipotecas",
+    "Other investment": "Otra inversión",
+    "Other loan": "Otro préstamo",
+    "Other retirement": "Otra jubilación",
+    "Pension": "Pensión",
+    "Roth IRA": "Roth IRA",
+    "SEP IRA": "SEP IRA",
+    "Traditional IRA": "IRA tradicional",
+    "Traditional 401(k)": "401(k) tradicional",
+    "Roth 401(k)": "Roth 401(k)",
+    "After-tax 401(k)": "401(k) después de impuestos",
+    "403(b)": "403(b)",
+    "HSA": "HSA (cuenta de ahorro de salud)",
+    "FSA": "FSA (cuenta de gastos flexibles)",
+    "529 college": "529 universidad",
+    "Health (HSA, FSA)": "Salud (HSA, FSA)",
+    "Jewelry & other": "Joyas y otros",
+    "Cash & bank": "Efectivo y banco",
+    "Investments & retirement": "Inversiones y jubilación",
+    "Vehicle (car, boat…)": "Vehículo (carro, bote…)",
+    "Other (art, collectibles…)": "Otro (arte, colecciones…)",
+    "Investment / retirement (401(k), IRA, HSA…)": "Inversión / jubilación (401(k), IRA, HSA…)",
     "All clear: nothing needs a look right now.": "Todo en orden: nada necesita atención ahora.",
     "Dismiss": "Descartar",
     "Dismissed alerts don't come back. Alerts stay in the app: nothing is sent anywhere.": "Las alertas descartadas no vuelven. Las alertas se quedan en la app: nada se envía a ningún lado.",
@@ -12852,7 +12883,7 @@ I18n.override('EC', 'es', {
     const NET_WORTH_FIELDS = ['checking', 'savings', 'investments', 'mortgage', 'autoLoans', 'creditCards', 'personalLoans', 'studentLoans', 'otherDebts'];
     const NW_ASSET_FIELDS = ['checking', 'savings', 'investments'];
     const NW_LIABILITY_FIELDS = ['mortgage', 'autoLoans', 'creditCards', 'personalLoans', 'studentLoans', 'otherDebts'];
-    const ASSET_CATEGORIES = ['Bienes Raíces', 'Vehículo', 'Otro'];
+    const ASSET_CATEGORIES = ['Bienes Raíces', 'Vehículo', 'Joyas', 'Otro'];
 
     // A balance holds its value year after year until explicitly edited for a later year:
     // read the closest touched year at or before `year`.
@@ -12892,6 +12923,9 @@ I18n.override('EC', 'es', {
         }
         // Credit card accounts (balance below zero = owed) count once: through their debt when
         // linked to one, else here.
+        // Mortgage accounts (balance below zero = owed) are the mortgage line.
+        const mortgages = accounts.filter(a => a.kind === 'hipoteca');
+        if (mortgages.length) out.mortgage = sum(mortgages, a => Math.max(0, -num(a.balance)));
         const cards = accounts.filter(a => a.kind === 'tarjeta' && !(a.debtId && debts.some(d => d.id === a.debtId)));
         if (cards.length) out.creditCards = (out.creditCards || 0) + sum(cards, a => Math.max(0, -num(a.balance)));
         return out;
@@ -12940,14 +12974,56 @@ I18n.override('EC', 'es', {
     // investment, property, credit card, mortgage, loan. Each row says where it lives (ref) so the
     // app can open it. A card account linked to its debt shows once (as the debt, with the
     // account's name). Liabilities are positive amounts in `owed` groups.
-    const HUB_GROUPS = [
-        { key: 'checking', label: 'Checking', owed: false }, { key: 'savings', label: 'Savings', owed: false },
-        { key: 'cash', label: 'Cash', owed: false }, { key: 'investment', label: 'Investment', owed: false },
-        { key: 'property', label: 'Property', owed: false }, { key: 'card', label: 'Credit Card', owed: true },
-        { key: 'mortgage', label: 'Mortgage', owed: true }, { key: 'loan', label: 'Loan', owed: true }
+    // Investment-type accounts (kind 'retiro') say what they are (subtype): retirement plans, health
+    // accounts or other investments. Older accounts without one are guessed from the name.
+    const ACCOUNT_SUBTYPES = [
+        { id: '401k', label: 'Traditional 401(k)', group: 'retirement' }, { id: 'roth-401k', label: 'Roth 401(k)', group: 'retirement' },
+        { id: 'after-tax-401k', label: 'After-tax 401(k)', group: 'retirement' }, { id: '403b', label: '403(b)', group: 'retirement' },
+        { id: 'ira', label: 'Traditional IRA', group: 'retirement' }, { id: 'roth-ira', label: 'Roth IRA', group: 'retirement' },
+        { id: 'sep-ira', label: 'SEP IRA', group: 'retirement' }, { id: 'pension', label: 'Pension', group: 'retirement' },
+        { id: 'retirement', label: 'Other retirement', group: 'retirement' },
+        { id: 'hsa', label: 'HSA', group: 'health' }, { id: 'fsa', label: 'FSA', group: 'health' },
+        { id: 'brokerage', label: 'Brokerage', group: 'investment' }, { id: '529', label: '529 college', group: 'investment' },
+        { id: 'other-invest', label: 'Other investment', group: 'investment' }
     ];
+    function accountSubtype(a) {
+        if (!a || a.kind !== 'retiro') return null;
+        if (a.subtype && ACCOUNT_SUBTYPES.some(t => t.id === a.subtype)) return a.subtype;
+        const n = String(a.name || '').toLowerCase();
+        if (/\bhsa\b|health savings/.test(n)) return 'hsa';
+        if (/\bfsa\b|flexible spending/.test(n)) return 'fsa';
+        if (/after[- ]?tax/.test(n)) return 'after-tax-401k';
+        if (/roth/.test(n) && /401/.test(n)) return 'roth-401k';
+        if (/roth/.test(n)) return 'roth-ira';
+        if (/sep/.test(n) && /ira/.test(n)) return 'sep-ira';
+        if (/\bira\b/.test(n)) return 'ira';
+        if (/403/.test(n)) return '403b';
+        if (/401/.test(n)) return '401k';
+        if (/pension/.test(n)) return 'pension';
+        if (/529/.test(n)) return '529';
+        if (/brokerage|invest|stock|etf|fund/.test(n)) return 'brokerage';
+        return 'retirement';
+    }
+    // Retirement money for the retirement planner: not health spending (FSA) or college (529).
+    const isRetirementMoney = (a) => a.kind === 'retiro' && !['fsa', '529'].includes(accountSubtype(a));
+
+    // Everything you have and owe, grouped like a bank's account list, in four sections: cash and
+    // bank, investments, property, debts. Each row says where it lives (ref) so the app can open it.
+    // A card account linked to its debt shows once (as the debt, with the account's name).
+    // Liabilities are positive amounts in `owed` groups.
+    const HUB_GROUPS = [
+        { key: 'checking', label: 'Checking', section: 'cash', owed: false }, { key: 'savings', label: 'Savings', section: 'cash', owed: false },
+        { key: 'cash', label: 'Cash', section: 'cash', owed: false },
+        { key: 'retirement', label: 'Retirement', section: 'invest', owed: false }, { key: 'health', label: 'Health (HSA, FSA)', section: 'invest', owed: false },
+        { key: 'investment', label: 'Investments', section: 'invest', owed: false },
+        { key: 'realestate', label: 'Real estate', section: 'property', owed: false }, { key: 'vehicle', label: 'Vehicles', section: 'property', owed: false },
+        { key: 'valuables', label: 'Jewelry & other', section: 'property', owed: false },
+        { key: 'card', label: 'Credit Cards', section: 'debt', owed: true }, { key: 'mortgage', label: 'Mortgages', section: 'debt', owed: true },
+        { key: 'loan', label: 'Loans', section: 'debt', owed: true }
+    ];
+    const HUB_SECTIONS = [{ key: 'cash', label: 'Cash & bank' }, { key: 'invest', label: 'Investments & retirement' }, { key: 'property', label: 'Property' }, { key: 'debt', label: 'Debts' }];
     function accountsHub({ accounts = [], holdings = [], polizas = [], assets = [], debts = [], years = {}, year }) {
-        const rows = { checking: [], savings: [], cash: [], investment: [], property: [], card: [], mortgage: [], loan: [] };
+        const rows = {}; HUB_GROUPS.forEach(g => { rows[g.key] = []; });
         const linked = new Set();
         (accounts || []).forEach(a => {
             if (a.kind === 'tarjeta') {
@@ -12955,22 +13031,34 @@ I18n.override('EC', 'es', {
                 rows.card.push({ ref: { type: 'account', id: a.id }, name: a.name, kind: a.kind, balance: Math.max(0, -num(a.balance)) });
                 return;
             }
-            const g = a.kind === 'ahorros' ? 'savings' : a.kind === 'efectivo' ? 'cash' : a.kind === 'retiro' ? 'investment' : 'checking';
+            if (a.kind === 'hipoteca') { rows.mortgage.push({ ref: { type: 'account', id: a.id }, name: a.name, kind: a.kind, balance: Math.max(0, -num(a.balance)) }); return; }
+            if (a.kind === 'retiro') {
+                const st = accountSubtype(a), def = ACCOUNT_SUBTYPES.find(t => t.id === st);
+                rows[def.group].push({ ref: { type: 'account', id: a.id }, name: a.name, kind: st, balance: num(a.balance) });
+                return;
+            }
+            const g = a.kind === 'ahorros' ? 'savings' : a.kind === 'efectivo' ? 'cash' : 'checking';
             rows[g].push({ ref: { type: 'account', id: a.id }, name: a.name, kind: a.kind || 'corriente', balance: num(a.balance) });
         });
         (holdings || []).forEach(h => rows.investment.push({ ref: { type: 'holding', id: h.id }, name: h.name || h.ticker || '', sub: h.ticker || '', kind: 'holding', balance: holdingValue(h) }));
         (polizas || []).forEach(p => rows.investment.push({ ref: { type: 'poliza', id: p.id }, name: p.coopName || 'CD', sub: p.number || '', kind: 'poliza', balance: num(p.amount) }));
-        (assets || []).forEach(a => { if (assetOwned(a, year)) rows.property.push({ ref: { type: 'asset', id: a.id }, name: a.name, kind: a.category, balance: assetValue(a, year) }); });
+        (assets || []).forEach(a => {
+            if (!assetOwned(a, year)) return;
+            const g = a.category === 'Bienes Raíces' ? 'realestate' : a.category === 'Vehículo' ? 'vehicle' : 'valuables';
+            rows[g].push({ ref: { type: 'asset', id: a.id }, name: a.name, kind: a.category, balance: assetValue(a, year) });
+        });
         (debts || []).forEach(d => {
             if (!(num(d.balance) > 0)) return;
             const acct = linked.has(d.id) && (accounts || []).find(a => a.debtId === d.id && a.kind === 'tarjeta');
             rows[d.kind === 'tarjeta' ? 'card' : 'loan'].push({ ref: { type: 'debt', id: d.id }, name: acct ? acct.name : d.name, kind: d.kind, balance: num(d.balance), accountId: acct ? acct.id : null });
         });
+        // The mortgage typed in Net Worth, unless it's kept as a mortgage account.
         const mortgage = netWorthField(years, year, 'mortgage');
-        if (mortgage > 0) rows.mortgage.push({ ref: { type: 'field', id: 'mortgage' }, name: 'Mortgage', kind: 'mortgage', balance: mortgage });
+        if (mortgage > 0 && !rows.mortgage.length) rows.mortgage.push({ ref: { type: 'field', id: 'mortgage' }, name: 'Mortgage', kind: 'mortgage', balance: mortgage });
         const groups = HUB_GROUPS.map(g => ({ ...g, rows: rows[g.key], total: sum(rows[g.key], r => r.balance) }));
+        const sections = HUB_SECTIONS.map(x => ({ ...x, total: sum(groups.filter(g => g.section === x.key), g => g.total) }));
         const assetsTotal = sum(groups.filter(g => !g.owed), g => g.total), owedTotal = sum(groups.filter(g => g.owed), g => g.total);
-        return { groups, assets: assetsTotal, liabilities: owedTotal, net: assetsTotal - owedTotal };
+        return { groups, sections, assets: assetsTotal, liabilities: owedTotal, net: assetsTotal - owedTotal };
     }
 
     // One account's money in and out per month (the last `months` up to `end`) and its
@@ -13319,7 +13407,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, suggestBudget, spendPace, monthVsAverage, goalStatus, goalVelocity, buildAlerts, accountsHub, HUB_GROUPS, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, suggestBudget, spendPace, monthVsAverage, goalStatus, goalVelocity, buildAlerts, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -14997,7 +15085,7 @@ I18n.override('EC', 'es', {
         lazy('savingsBalance', () => ((s.accounts || []).some(a => a.kind === 'ahorros') ? Engine.accountTotal(s.accounts, 'ahorros') : ctx.netWorth.fields.savings));
         lazy('pools', () => Engine.savingsPools({
             polizas: s.polizas, savingsBalance: ctx.savingsBalance, goals: s.goals,
-            retirementAccounts: Engine.accountTotal(s.accounts, 'retiro'), holdings: Engine.holdingsValue(s.holdings),
+            retirementAccounts: (s.accounts || []).filter(Engine.isRetirementMoney).reduce((t, a) => t + (Number(a.balance) || 0), 0), holdings: Engine.holdingsValue(s.holdings),
             monthlyEssential: ctx.essentialMonthly
         }));
         lazy('ef', () => Engine.emergencyFund({ liquid: ctx.pools.emergency, budgetBase: ctx.year.budgetBase }));
@@ -18960,7 +19048,7 @@ I18n.override('EC', 'es', {
     }
 
     // Accounts, grouped by type, each with a checkbox; "All" switches them all.
-    const ACCT_GROUPS = [['corriente', 'Checking'], ['ahorros', 'Savings'], ['efectivo', 'Cash'], ['tarjeta', 'Credit Card'], ['retiro', 'Retirement']];
+    const ACCT_GROUPS = [['corriente', 'Checking'], ['ahorros', 'Savings'], ['efectivo', 'Cash'], ['tarjeta', 'Credit Card'], ['hipoteca', 'Mortgage'], ['retiro', 'Investments & retirement']];
     function pickAccounts() {
         const f = Store.ui.txnFilters, accts = Store.state.accounts || [];
         const on = (v) => !f.accounts || f.accounts.includes(v);
@@ -23221,6 +23309,7 @@ I18n.override('EC', 'es', {
         { field: 'investments', label: 'Investments, CDs and 401(k)/IRA', help: 'CDs, stocks/ETFs and retirement accounts.' },
         { registry: 'Bienes Raíces', label: 'Real estate' },
         { registry: 'Vehículo', label: 'Vehicles' },
+        { registry: 'Joyas', label: 'Jewelry' },
         { registry: 'Otro', label: 'Other valuables' }
     ];
     const LIABILITY_FIELDS = [
@@ -23406,13 +23495,13 @@ I18n.override('EC', 'es', {
     // ------------------------------------------------------------ accounts
     // Money you can use: everything but retirement accounts (401(k)/IRA).
     // Cards aren't available money: their balance (below 0) is what you owe.
-    const availableTotal = (list) => list.filter(a => a.kind !== 'retiro' && a.kind !== 'tarjeta').reduce((t, a) => t + (Number(a.balance) || 0), 0);
-    const ACCT_KINDS = [{ value: 'corriente', label: 'Checking account' }, { value: 'ahorros', label: 'Savings account' }, { value: 'efectivo', label: 'Efectivo' }, { value: 'tarjeta', label: 'Credit card' }, { value: 'retiro', label: 'Retirement (401(k) / IRA)' }];
+    const availableTotal = (list) => list.filter(a => !['retiro', 'tarjeta', 'hipoteca'].includes(a.kind)).reduce((t, a) => t + (Number(a.balance) || 0), 0);
+    const ACCT_KINDS = [{ value: 'corriente', label: 'Checking account' }, { value: 'ahorros', label: 'Savings account' }, { value: 'efectivo', label: 'Efectivo' }, { value: 'tarjeta', label: 'Credit card' }, { value: 'hipoteca', label: 'Mortgage' }, { value: 'retiro', label: 'Investment / retirement (401(k), IRA, HSA…)' }];
     // All accounts in one place: totals by type.
     function accountTypesHTML(list) {
         const tot = (f) => list.filter(f).reduce((t, a) => t + (Number(a.balance) || 0), 0);
-        const parts = [['Cash and bank', tot(a => !['tarjeta', 'retiro'].includes(a.kind))], ['Credit cards', tot(a => a.kind === 'tarjeta')], ['Retirement', tot(a => a.kind === 'retiro')]]
-            .filter((_, i) => i === 0 || list.some(a => a.kind === (i === 1 ? 'tarjeta' : 'retiro')));
+        const parts = [['Cash and bank', tot(a => !['tarjeta', 'retiro', 'hipoteca'].includes(a.kind))], ['Credit cards', tot(a => a.kind === 'tarjeta')], ['Retirement', tot(a => a.kind === 'retiro')], ['Mortgages', tot(a => a.kind === 'hipoteca')]]
+            .filter((_, i) => i === 0 || list.some(a => a.kind === ['', 'tarjeta', 'retiro', 'hipoteca'][i]));
         return parts.map(([l, v]) => `<span><span>${l}</span>: <strong class="${v < 0 ? 'text-red-700' : ''}">${v < 0 ? '−' : ''}${money(Math.abs(v))}</strong></span>`).join(' · ');
     }
     function renderAccounts(ctx) {
@@ -23653,9 +23742,32 @@ I18n.override('EC', 'es', {
 (function () {
     'use strict';
     const { money, esc } = Fmt;
-    const ICONS = { checking: 'fa-money-check', savings: 'fa-piggy-bank', cash: 'fa-wallet', investment: 'fa-chart-column', property: 'fa-house', card: 'fa-credit-card', mortgage: 'fa-house-chimney', loan: 'fa-file-invoice-dollar' };
+    const ICONS = { checking: 'fa-money-check', savings: 'fa-piggy-bank', cash: 'fa-wallet', retirement: 'fa-umbrella-beach', health: 'fa-briefcase-medical', investment: 'fa-chart-column', realestate: 'fa-house', vehicle: 'fa-car', valuables: 'fa-gem', card: 'fa-credit-card', mortgage: 'fa-house-chimney', loan: 'fa-file-invoice-dollar' };
     const initials = (name) => String(name || '?').replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
-    const SUB = { holding: 'Investment', poliza: 'CD', corriente: 'Checking', ahorros: 'Savings', efectivo: 'Cash', retiro: 'Retirement', tarjeta: 'Credit Card', vehicular: 'Auto loan', personal: 'Personal loan', estudiantil: 'Student loan', otra: 'Other debt', mortgage: 'Mortgage', 'Bienes Raíces': 'Real estate', 'Vehículo': 'Vehicle', 'Otro': 'Other' };
+    const SUB = Object.assign({ holding: 'Investment', poliza: 'CD', corriente: 'Checking', ahorros: 'Savings', efectivo: 'Cash', retiro: 'Retirement', tarjeta: 'Credit Card', hipoteca: 'Mortgage', vehicular: 'Auto loan', personal: 'Personal loan', estudiantil: 'Student loan', otra: 'Other debt', mortgage: 'Mortgage', 'Bienes Raíces': 'Real estate', 'Vehículo': 'Vehicle', 'Joyas': 'Jewelry', 'Otro': 'Other' },
+        Object.fromEntries(Engine.ACCOUNT_SUBTYPES.map(t => [t.id, t.label])));
+
+    // Every type an account can be, in one list grouped like the balance sheet. Values say where it
+    // is kept: 'acct:<kind>[:<subtype>]' (accounts), 'asset:<category>' (property), 'debt:<kind>'
+    // (loans in the debt plan).
+    const GROUP_LABEL = Object.fromEntries(Engine.HUB_GROUPS.map(g => [g.key, g.label]));
+    const TYPE_LIST = [
+        { value: 'acct:corriente', label: 'Checking', group: 'Cash & bank' }, { value: 'acct:ahorros', label: 'Savings', group: 'Cash & bank' }, { value: 'acct:efectivo', label: 'Cash', group: 'Cash & bank' }]
+        .concat(Engine.ACCOUNT_SUBTYPES.map(t => ({ value: 'acct:retiro:' + t.id, label: t.label, group: GROUP_LABEL[t.group] })))
+        .concat([
+            // Property categories are saved names (Engine.ASSET_CATEGORIES: real estate, vehicle, jewelry, other).
+            { value: 'asset:' + Engine.ASSET_CATEGORIES[0], label: 'Real estate', group: 'Property' }, { value: 'asset:' + Engine.ASSET_CATEGORIES[1], label: 'Vehicle (car, boat…)', group: 'Property' },
+            { value: 'asset:' + Engine.ASSET_CATEGORIES[2], label: 'Jewelry', group: 'Property' }, { value: 'asset:' + Engine.ASSET_CATEGORIES[3], label: 'Other (art, collectibles…)', group: 'Property' },
+            { value: 'acct:tarjeta', label: 'Credit Card', group: 'Debts' }, { value: 'acct:hipoteca', label: 'Mortgage', group: 'Debts' },
+            { value: 'debt:vehicular', label: 'Auto loan', group: 'Debts' }, { value: 'debt:estudiantil', label: 'Student loan', group: 'Debts' },
+            { value: 'debt:personal', label: 'Personal loan', group: 'Debts' }, { value: 'debt:otra', label: 'Other loan', group: 'Debts' }]);
+    function typeOptions(list, selected) {
+        const groups = [];
+        list.forEach(t => { let g = groups.find(x => x.label === t.group); if (!g) groups.push(g = { label: t.group, items: [] }); g.items.push(t); });
+        return groups.map(g => `<optgroup label="${esc(I18n.t(g.label))}">${g.items.map(t => `<option value="${esc(t.value)}" ${t.value === selected ? 'selected' : ''}>${esc(I18n.t(t.label))}</option>`).join('')}</optgroup>`).join('');
+    }
+    const OWED_KINDS = ['tarjeta', 'hipoteca'];
+    const acctTypeValue = (a) => 'acct:' + (a.kind || 'corriente') + (a.kind === 'retiro' ? ':' + Engine.accountSubtype(a) : '');
     let hub = null;
 
     function update(ctx) {
@@ -23677,7 +23789,7 @@ I18n.override('EC', 'es', {
                     <div class="hub-all"><i class="fa-solid fa-building-columns"></i> All accounts</div>${nav}
                     <div class="hub-sum"><span>Own <strong>${money(hub.assets)}</strong></span><span>Owe <strong class="text-red-600">${money(hub.liabilities)}</strong></span></div>
                 </nav>
-                <div class="hub-list">${shown.map(g => `<section class="hub-group" id="hub-${g.key}">
+                <div class="hub-list">${shown.map((g, i) => `${i === 0 || shown[i - 1].section !== g.section ? `<div class="hub-section"><span>${esc(I18n.t(hub.sections.find(x => x.key === g.section).label))}</span><span class="${g.owed ? 'text-red-600' : ''}">${money(hub.sections.find(x => x.key === g.section).total)}</span></div>` : ''}<section class="hub-group" id="hub-${g.key}">
                     <header><span>${esc(g.label)}</span>${amt(g, g.total)}</header>
                     ${g.rows.map(r => `<button type="button" class="hub-row" data-action="hub.open" data-type="${r.ref.type}" data-id="${esc(String(r.ref.id))}">
                         <span class="hub-logo hub-${g.key}" aria-hidden="true">${esc(initials(r.name))}</span>
@@ -23696,12 +23808,17 @@ I18n.override('EC', 'es', {
         const host = document.getElementById('nw-sheet-body');
         if (!host || !hub) return;
         const open = Store.ui.nwOpen || null;
-        const side = (owed) => hub.groups.filter(g => g.owed === owed && g.rows.length).map(g => `<div class="sheet-type">
+        const groupHTML = (g, owed) => `<div class="sheet-type">
                 <button type="button" class="sheet-head" data-action="sheet.toggle" data-key="${g.key}" aria-expanded="${open === g.key}"><span><i class="fa-solid ${ICONS[g.key]} text-slate-400"></i> ${esc(g.label)}</span><span class="flex items-center gap-2"><strong class="${owed ? 'text-red-600' : ''}">${money(g.total)}</strong><i class="fa-solid fa-chevron-${open === g.key ? 'up' : 'down'} text-[10px] text-slate-400"></i></span></button>
                 ${open === g.key ? `<div class="sheet-rows">${g.rows.map(r => r.ref.type === 'asset'
                     ? `<label class="sheet-row"><span class="truncate" data-i18n-skip>${esc(r.name)}</span><input type="number" class="cell-input num money" style="max-width:9rem" min="0" step="any" value="${Math.round(r.balance * 100) / 100}" data-change="sheet.assetValue" data-id="${r.ref.id}" aria-label="Value of ${esc(r.name)}"></label>`
                     : `<button type="button" class="sheet-row" data-action="hub.open" data-type="${r.ref.type}" data-id="${esc(String(r.ref.id))}"><span class="truncate" data-i18n-skip>${esc(r.name)}</span><span class="font-semibold ${owed ? 'text-red-600' : ''}">${money(r.balance)}</span></button>`).join('')}</div>` : ''}
-            </div>`).join('') || '<p class="help">Nothing here.</p>';
+            </div>`;
+        // Each side by section (cash & bank, investments & retirement, property / debts) with its subtotal.
+        const side = (owed) => hub.sections.filter(x => hub.groups.some(g => g.section === x.key && g.owed === owed && g.rows.length)).map(x => {
+            const gs = hub.groups.filter(g => g.section === x.key && g.rows.length);
+            return `${owed ? '' : `<div class="sheet-section"><span>${esc(I18n.t(x.label))}</span><span>${money(x.total)}</span></div>`}${gs.map(g => groupHTML(g, owed)).join('')}`;
+        }).join('') || '<p class="help">Nothing here.</p>';
         host.innerHTML = `<div class="sheet-net ${hub.net >= 0 ? 'text-emerald-700' : 'text-red-600'}"><span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Net worth</span><span class="text-3xl font-black">${money(hub.net)}</span></div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                 <div><div class="sheet-side"><span>What you own</span><strong>${money(hub.assets)}</strong></div>${side(false)}</div>
@@ -23723,7 +23840,6 @@ I18n.override('EC', 'es', {
     // Details (name, type, rate, minimum, due day, credit limit, original balance). A card linked to
     // its debt edits both: the debt is what the snowball uses.
     let det = null;   // { account, debt, tab, sheet }
-    const ACCOUNT_TYPES = [{ value: 'corriente', label: 'Checking' }, { value: 'ahorros', label: 'Savings' }, { value: 'efectivo', label: 'Cash' }, { value: 'retiro', label: 'Retirement / investment' }, { value: 'tarjeta', label: 'Credit Card' }];
     const DEBT_TYPES = [{ value: 'tarjeta', label: 'Credit Card' }].concat(LOANS_LIST());
     function LOANS_LIST() { return [{ value: 'vehicular', label: 'Auto loan' }, { value: 'personal', label: 'Personal loan' }, { value: 'estudiantil', label: 'Student loan' }, { value: 'otra', label: 'Other debt' }]; }
 
@@ -23738,10 +23854,10 @@ I18n.override('EC', 'es', {
         const account = debt ? (s.accounts || []).find(a => a.kind === 'tarjeta' && a.debtId === debt.id) : null;
         return debt ? { account: account || null, debt } : null;
     }
-    const owedKind = (d) => !!d.debt || (d.account && d.account.kind === 'tarjeta');
-    const balanceOf = (d) => d.debt ? Number(d.debt.balance) || 0 : d.account.kind === 'tarjeta' ? Math.max(0, -(Number(d.account.balance) || 0)) : Number(d.account.balance) || 0;
+    const owedKind = (d) => !!d.debt || (d.account && OWED_KINDS.includes(d.account.kind));
+    const balanceOf = (d) => d.debt ? Number(d.debt.balance) || 0 : OWED_KINDS.includes(d.account.kind) ? Math.max(0, -(Number(d.account.balance) || 0)) : Number(d.account.balance) || 0;
     const nameOf = (d) => (d.account ? d.account.name : d.debt.name) || '';
-    const typeLabel = (d) => d.account && !d.debt ? (ACCOUNT_TYPES.find(t => t.value === d.account.kind) || ACCOUNT_TYPES[0]).label : (DEBT_TYPES.find(t => t.value === d.debt.kind) || DEBT_TYPES[0]).label;
+    const typeLabel = (d) => d.account && !d.debt ? (TYPE_LIST.find(t => t.value === acctTypeValue(d.account)) || TYPE_LIST[0]).label : (DEBT_TYPES.find(t => t.value === d.debt.kind) || DEBT_TYPES[0]).label;
 
     function openDetails(type, id) {
         const d = resolve(type, id);
@@ -23757,13 +23873,13 @@ I18n.override('EC', 'es', {
         if (!host) return;
         const owed = owedKind(det), bal = balanceOf(det);
         const field = (f, label, value, opts = {}) => `<label class="acd-field"><span>${label}</span>${opts.select
-            ? `<select class="input" data-change="acd.set" data-field="${f}">${Views.selectOptions(opts.select, value)}</select>`
+            ? `<select class="input" data-change="acd.set" data-field="${f}">${opts.grouped ? typeOptions(opts.select, value) : Views.selectOptions(opts.select, value)}</select>`
             : `<input class="input" ${opts.number ? 'type="number" inputmode="decimal" step="any" min="0"' : ''} ${opts.ph ? `placeholder="${esc(opts.ph)}"` : ''} value="${esc(value === undefined || value === null || value === '' ? '' : String(value))}" data-change="acd.set" data-field="${f}">`}</label>`;
         const src = det.debt || det.account;
-        const card = owed && (!det.debt || det.debt.kind === 'tarjeta');
+        const card = owed && (det.debt ? det.debt.kind === 'tarjeta' : det.account.kind === 'tarjeta');
         const details = `<div class="acd-fields">
             ${field('name', 'Account name', nameOf(det), {})}
-            ${field('kind', 'Account type', det.account && !det.debt ? det.account.kind : det.debt.kind, { select: det.account && !det.debt ? ACCOUNT_TYPES : DEBT_TYPES })}
+            ${det.account && !det.debt ? field('kind', 'Account type', acctTypeValue(det.account), { select: TYPE_LIST.filter(t => t.value.startsWith('acct:')), grouped: true }) : field('kind', 'Account type', det.debt.kind, { select: DEBT_TYPES })}
             ${field('balance', owed ? 'What you owe' : 'Balance', Math.round(bal * 100) / 100, { number: true })}
             ${field('rate', owed ? 'Interest rate (APR %)' : 'Interest rate (APY %)', src.rate, { number: true })}
             ${owed ? field('minPayment', 'Minimum payment', src.minPayment, { number: true }) + field('dueDay', 'Payment due day', src.dueDay, { number: true, ph: 'Day of the month (1–31)' }) : ''}
@@ -23804,10 +23920,18 @@ I18n.override('EC', 'es', {
         const f = el.dataset.field, num = Math.max(0, Fmt.parseNum(el.value, 0));
         const { account, debt } = det;
         if (f === 'name') { const v = el.value.trim().slice(0, 40); if (!v) return; if (account) account.name = v; else debt.name = v; }
-        else if (f === 'kind') { if (account && !debt) account.kind = el.value; else debt.kind = el.value; }
+        else if (f === 'kind') {
+            if (account && !debt) {
+                // 'acct:retiro:roth-ira' → kind and subtype; moving between owed and owned flips the sign.
+                const [, kind, sub] = el.value.split(':'), wasOwed = OWED_KINDS.includes(account.kind), nowOwed = OWED_KINDS.includes(kind);
+                if (wasOwed !== nowOwed) account.balance = (nowOwed ? -1 : 1) * Math.abs(Number(account.balance) || 0);
+                account.kind = kind;
+                if (sub) account.subtype = sub; else delete account.subtype;
+            } else debt.kind = el.value;
+        }
         else if (f === 'balance') {
             if (debt) { debt.balance = num; if (num > (Number(debt.originalBalance) || 0)) debt.originalBalance = num; }
-            if (account) { account.balance = account.kind === 'tarjeta' ? -num : Fmt.parseNum(el.value, 0); account.updatedAt = Engine.isoDate(new Date()); }
+            if (account) { account.balance = OWED_KINDS.includes(account.kind) ? -num : Fmt.parseNum(el.value, 0); account.updatedAt = Engine.isoDate(new Date()); }
         } else if (f === 'creditLimit') { (account || debt).creditLimit = num; }
         else if (f === 'dueDay') { const day = Math.round(num); const t = debt || account; if (day >= 1 && day <= 31) t.dueDay = day; else delete t.dueDay; }
         else {
@@ -23836,21 +23960,12 @@ I18n.override('EC', 'es', {
         drawDetails();
     }
 
-    // "+ Add an account": a manual account of any type.
-    const TYPES = [
-        { value: 'corriente', label: 'Checking' }, { value: 'ahorros', label: 'Savings' }, { value: 'efectivo', label: 'Cash' },
-        { value: 'retiro', label: 'Retirement / investment' }, { value: 'tarjeta', label: 'Credit Card' },
-        { value: 'property', label: 'Property' }, { value: 'loan', label: 'Loan' }
-    ];
-    const PROPERTY = [{ value: 'Bienes Raíces', label: 'Real estate' }, { value: 'Vehículo', label: 'Vehicle' }, { value: 'Otro', label: 'Other (art, jewelry…)' }];
-    const LOANS = [{ value: 'vehicular', label: 'Auto loan' }, { value: 'personal', label: 'Personal loan' }, { value: 'estudiantil', label: 'Student loan' }, { value: 'otra', label: 'Other debt' }];
-
+    // "+ Add an account": a manual account of any type, from the grouped list.
     function addSheet() {
         const sheet = UI.sheet({ title: 'Add an account', icon: 'fa-building-columns', html: `
             <p class="help mb-3">Accounts are added by hand and kept up to date by importing your statements: nothing connects to your bank.</p>
             <div class="grid grid-cols-1 gap-3">
-                <label class="field"><span class="field-label">Account type</span><select id="hub-new-type" class="input" data-change="hub.newType">${Views.selectOptions(TYPES, 'corriente')}</select></label>
-                <label class="field hidden" id="hub-new-sub-f"><span class="field-label" id="hub-new-sub-l">Property type</span><select id="hub-new-sub" class="input"></select></label>
+                <label class="field"><span class="field-label">Account type</span><select id="hub-new-type" class="input" data-change="hub.newType">${typeOptions(TYPE_LIST, 'acct:corriente')}</select></label>
                 <label class="field"><span class="field-label">Account name</span><input id="hub-new-name" class="input" maxlength="40" placeholder="E.g. Chase Checking"></label>
                 <label class="field"><span class="field-label" id="hub-new-bal-l">Balance today ($)</span><input id="hub-new-bal" class="input" type="number" inputmode="decimal" step="any" min="0"></label>
             </div>
@@ -23859,27 +23974,30 @@ I18n.override('EC', 'es', {
     }
     let addOpen = null;
     function newType() {
-        const t = (document.getElementById('hub-new-type') || {}).value;
-        const sub = t === 'property' ? PROPERTY : t === 'loan' ? LOANS : null;
-        UI.show('hub-new-sub-f', !!sub);
-        if (sub) { UI.html('hub-new-sub', Views.selectOptions(sub, sub[0].value)); UI.text('hub-new-sub-l', t === 'property' ? 'Property type' : 'Loan type'); }
-        UI.text('hub-new-bal-l', t === 'tarjeta' || t === 'loan' ? 'What you owe today ($)' : t === 'property' ? 'What it\'s worth today ($)' : 'Balance today ($)');
+        const [where, kind] = ((document.getElementById('hub-new-type') || {}).value || '').split(':');
+        UI.text('hub-new-bal-l', where === 'debt' || OWED_KINDS.includes(kind) ? 'What you owe today ($)' : where === 'asset' ? 'What it\'s worth today ($)' : 'Balance today ($)');
     }
     function save() {
-        const t = document.getElementById('hub-new-type').value, sub = document.getElementById('hub-new-sub').value;
+        const [where, kind, sub] = document.getElementById('hub-new-type').value.split(':');
         const name = document.getElementById('hub-new-name').value.trim().slice(0, 40), bal = Math.abs(Fmt.parseNum(document.getElementById('hub-new-bal').value, 0));
         if (!name) { UI.toast('Give the account a name.', 'error'); return; }
         const s = Store.state, today = Engine.isoDate(new Date()), year = new Date().getFullYear();
         App.undoable(`Account added: ${name}`, () => {
-            if (t === 'property') {
+            if (where === 'asset') {
                 const list = s.assets || (s.assets = []);
-                list.push({ id: Store.nextId(list), name, category: sub || 'Otro', purchaseYear: year, purchaseValue: bal, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} });
-            } else if (t === 'loan') {
+                list.push({ id: Store.nextId(list), name, category: kind || 'Otro', purchaseYear: year, purchaseValue: bal, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} });
+            } else if (where === 'debt') {
                 const list = s.debts || (s.debts = []);
-                list.push({ id: Store.nextId(list), name, kind: sub || 'personal', balance: bal, originalBalance: bal, rate: 0, minPayment: 0, monthly: 0, createdYear: year });
+                list.push({ id: Store.nextId(list), name, kind: kind || 'personal', balance: bal, originalBalance: bal, rate: 0, minPayment: 0, monthly: 0, createdYear: year });
             } else {
                 const list = s.accounts || (s.accounts = []);
-                list.push({ id: Store.nextId(list), name, kind: t, balance: t === 'tarjeta' ? -bal : bal, updatedAt: today });
+                // The first mortgage account takes over the mortgage typed in Net Worth: keep that
+                // one as an account too, so it isn't lost.
+                const typed = kind === 'hipoteca' && !list.some(x => x.kind === 'hipoteca') ? (hub && (hub.groups.find(g => g.key === 'mortgage') || { rows: [] }).rows.find(r => r.ref.type === 'field')) : null;
+                if (typed) list.push({ id: Store.nextId(list), name: I18n.t('Mortgage'), kind: 'hipoteca', balance: -typed.balance, updatedAt: today });
+                const a = { id: Store.nextId(list), name, kind, balance: OWED_KINDS.includes(kind) ? -bal : bal, updatedAt: today };
+                if (sub) a.subtype = sub;
+                list.push(a);
             }
         });
         if (addOpen) { addOpen.close(); addOpen = null; }

@@ -920,3 +920,7 @@ button.sheet-row:hover { background: var(--surface-3); }
 .alert-row > i { margin-top: .2rem; }
 .alert-text { text-align: left; font-size: .88rem; color: var(--ink); }
 .alert-text:hover { text-decoration: underline; }
+/* Account sections (cash & bank, investments & retirement, property, debts). */
+.hub-section, .sheet-section { display: flex; justify-content: space-between; align-items: baseline; margin: .9rem 0 .25rem; padding: .3rem .25rem; font-size: .72rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); background: var(--surface-3); border-radius: .4rem; }
+.hub-list > .hub-section:first-child, .sheet-section:first-of-type { margin-top: .25rem; }
+.hub-retirement { background: #1baf7a; } .hub-health { background: #0f8a8a; } .hub-realestate { background: #8a6d00; } .hub-vehicle { background: #6b5a1f; } .hub-valuables { background: #9a3d7a; }

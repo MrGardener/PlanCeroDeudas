@@ -309,7 +309,7 @@
     }
 
     // Accounts, grouped by type, each with a checkbox; "All" switches them all.
-    const ACCT_GROUPS = [['corriente', 'Checking'], ['ahorros', 'Savings'], ['efectivo', 'Cash'], ['tarjeta', 'Credit Card'], ['retiro', 'Retirement']];
+    const ACCT_GROUPS = [['corriente', 'Checking'], ['ahorros', 'Savings'], ['efectivo', 'Cash'], ['tarjeta', 'Credit Card'], ['hipoteca', 'Mortgage'], ['retiro', 'Investments & retirement']];
     function pickAccounts() {
         const f = Store.ui.txnFilters, accts = Store.state.accounts || [];
         const on = (v) => !f.accounts || f.accounts.includes(v);

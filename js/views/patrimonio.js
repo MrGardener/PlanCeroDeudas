@@ -9,6 +9,7 @@
         { field: 'investments', label: 'Investments, CDs and 401(k)/IRA', help: 'CDs, stocks/ETFs and retirement accounts.' },
         { registry: 'Bienes Raíces', label: 'Real estate' },
         { registry: 'Vehículo', label: 'Vehicles' },
+        { registry: 'Joyas', label: 'Jewelry' },
         { registry: 'Otro', label: 'Other valuables' }
     ];
     const LIABILITY_FIELDS = [
@@ -194,13 +195,13 @@
     // ------------------------------------------------------------ accounts
     // Money you can use: everything but retirement accounts (401(k)/IRA).
     // Cards aren't available money: their balance (below 0) is what you owe.
-    const availableTotal = (list) => list.filter(a => a.kind !== 'retiro' && a.kind !== 'tarjeta').reduce((t, a) => t + (Number(a.balance) || 0), 0);
-    const ACCT_KINDS = [{ value: 'corriente', label: 'Checking account' }, { value: 'ahorros', label: 'Savings account' }, { value: 'efectivo', label: 'Efectivo' }, { value: 'tarjeta', label: 'Credit card' }, { value: 'retiro', label: 'Retirement (401(k) / IRA)' }];
+    const availableTotal = (list) => list.filter(a => !['retiro', 'tarjeta', 'hipoteca'].includes(a.kind)).reduce((t, a) => t + (Number(a.balance) || 0), 0);
+    const ACCT_KINDS = [{ value: 'corriente', label: 'Checking account' }, { value: 'ahorros', label: 'Savings account' }, { value: 'efectivo', label: 'Efectivo' }, { value: 'tarjeta', label: 'Credit card' }, { value: 'hipoteca', label: 'Mortgage' }, { value: 'retiro', label: 'Investment / retirement (401(k), IRA, HSA…)' }];
     // All accounts in one place: totals by type.
     function accountTypesHTML(list) {
         const tot = (f) => list.filter(f).reduce((t, a) => t + (Number(a.balance) || 0), 0);
-        const parts = [['Cash and bank', tot(a => !['tarjeta', 'retiro'].includes(a.kind))], ['Credit cards', tot(a => a.kind === 'tarjeta')], ['Retirement', tot(a => a.kind === 'retiro')]]
-            .filter((_, i) => i === 0 || list.some(a => a.kind === (i === 1 ? 'tarjeta' : 'retiro')));
+        const parts = [['Cash and bank', tot(a => !['tarjeta', 'retiro', 'hipoteca'].includes(a.kind))], ['Credit cards', tot(a => a.kind === 'tarjeta')], ['Retirement', tot(a => a.kind === 'retiro')], ['Mortgages', tot(a => a.kind === 'hipoteca')]]
+            .filter((_, i) => i === 0 || list.some(a => a.kind === ['', 'tarjeta', 'retiro', 'hipoteca'][i]));
         return parts.map(([l, v]) => `<span><span>${l}</span>: <strong class="${v < 0 ? 'text-red-700' : ''}">${v < 0 ? '−' : ''}${money(Math.abs(v))}</strong></span>`).join(' · ');
     }
     function renderAccounts(ctx) {
