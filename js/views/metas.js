@@ -14,7 +14,7 @@
             <td data-label="Budget per month"><input type="number" class="cell-input num money" min="0" step="10" value="${Number(d.monthly) || 0}" data-input="debt.set" data-id="${d.id}" data-field="monthly" aria-label="Amount in your budget" title="What your budget pays it each month"></td>
             <td class="text-center" data-label="Order" data-cell="order"></td>
             <td class="text-center whitespace-nowrap font-bold text-slate-700" data-label="Paid off in" data-cell="payoff"></td>
-            <td class="c-wide c-actions text-center whitespace-nowrap">${Number(d.balance) > 0 ? `<button class="mini-btn" data-action="debt.pay" data-id="${d.id}" title="Log a payment: lowers the balance and is saved in Transactions">Pay</button> ` : ''}<button class="row-del" data-action="debt.delete" data-id="${d.id}" title="Delete debt"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td class="c-wide c-actions text-center whitespace-nowrap">${Number(d.balance) > 0 ? `<button class="mini-btn" data-action="debt.pay" data-id="${d.id}" title="Log a payment: lowers the balance and is saved in Transactions">Pay</button> <button class="mini-btn" data-action="debt.schedule" data-id="${d.id}" title="Month by month: payment, interest, principal and balance">Schedule</button> ` : ''}<button class="row-del" data-action="debt.delete" data-id="${d.id}" title="Delete debt"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     }
 
@@ -183,6 +183,40 @@
         UI.html('debt-owed-table', marks.map(m => `<tr><td>${when(m)}</td><td class="num">${cell(planLine, m)}</td><td class="num">${cell(minLine, m)}</td></tr>`).join(''));
     }
 
+    // "What if I add $X a month?": the plan again with that much more, and how much sooner and
+    // cheaper it ends; "Add it to my budget" puts it in the extra debt line.
+    function debtWhatIf(ctx) {
+        const box = document.getElementById('debt-whatif');
+        if (!box) return;
+        const s = ctx.state, open = (s.debts || []).some(d => Number(d.balance) > 0);
+        UI.show(box, open);
+        if (!open) return;
+        const x = Math.max(0, Number(Store.ui.debtExtraTry) || 0), slider = document.getElementById('debt-extra');
+        if (slider && slider !== document.activeElement) slider.value = x;
+        UI.text('debt-extra-val', money0(x));
+        UI.show('debt-extra-apply', x > 0);
+        const base = ctx.debts;
+        if (!(x > 0)) { UI.html('debt-extra-result', base.never ? 'With your plan the debts are never paid off: try some extra.' : `Debt-free in ${esc(Fmt.monthYear(Engine.addMonths(ctx.today, base.months)))}. Slide to see what an extra amount each month does.`); return; }
+        const more = Engine.debtPayoff(s.debts, s.debtPlan.strategy, (Number(ctx.debtExtraRubros) || 0) + x);
+        const sooner = base.never ? null : base.months - more.months, saved = base.totalInterest - more.totalInterest;
+        UI.html('debt-extra-result', more.never ? 'Still not enough to pay them off.'
+            : `<strong>Debt-free in ${esc(Fmt.monthYear(Engine.addMonths(ctx.today, more.months)))}</strong>${sooner ? ` · ${Fmt.monthsAsYears(sooner)} sooner` : ''}${saved > 0.5 ? ` · ${money0(saved)} less interest` : ''}.`);
+    }
+
+    // A debt's schedule under the plan: month, payment, interest, principal, balance.
+    function openSchedule(id) {
+        const ctx = App.buildContext(), d = (ctx.state.debts || []).find(x => x.id === id), rows = ((ctx.debts.schedule || {})[id] || []).slice(0, 360);
+        if (!d) return;
+        let last = rows.findIndex(r => r.balance <= 0.005);
+        const shown = last >= 0 ? rows.slice(0, last + 1) : rows;
+        const interest = shown.reduce((t, r) => t + r.interest, 0);
+        UI.sheet({ title: d.name, icon: 'fa-table-list', wide: true, html: `
+            <p class="text-sm mb-2">${last >= 0 ? `Paid off in ${esc(Fmt.monthYear(Engine.addMonths(ctx.today, last + 1)))} (${last + 1} payment${last === 0 ? '' : 's'}), ${money(interest)} of interest.` : 'Not paid off within 30 years with this plan.'}</p>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Month</th><th class="num">Payment</th><th class="num hidden sm:table-cell">Interest</th><th class="num hidden sm:table-cell">Principal</th><th class="num">Balance</th></tr></thead><tbody>
+            ${shown.map((r, i) => `<tr><td class="whitespace-nowrap">${esc(Fmt.monthYear(Engine.addMonths(ctx.today, i + 1)))}</td><td class="num">${money(r.payment)}<span class="block text-[11px] text-slate-500 sm:hidden">${esc(I18n.t('Interest'))} ${money(r.interest)}</span></td><td class="num text-slate-500 hidden sm:table-cell">${money(r.interest)}</td><td class="num hidden sm:table-cell">${money(Math.max(0, r.payment - r.interest))}</td><td class="num font-semibold">${money(r.balance)}</td></tr>`).join('')}
+            </tbody></table></div>` });
+    }
+
     function update(ctx) {
         if (window.Runway) Runway.update(ctx);
         if (window.College) College.update(ctx);
@@ -190,6 +224,7 @@
         UI.html('metas-steps', Views.stepsHTML(ctx));
         roadmap(ctx);
         debtLadder(ctx);
+        debtWhatIf(ctx);
 
         // Emergency fund
         const ef = ctx.ef;
@@ -278,6 +313,21 @@
             // A higher balance (a new charge) raises the starting point; paying down doesn't.
             if (f === 'balance' && v > (Number(d.originalBalance) || 0)) d.originalBalance = v;
             App.changed();
+        },
+        'debt.extraTry': (el) => { Store.ui.debtExtraTry = Math.max(0, Fmt.parseNum(el.value, 0)); debtWhatIf(App.buildContext()); },
+        'debt.schedule': (el) => openSchedule(Number(el.dataset.id)),
+        'debt.extraApply': () => {
+            const x = Math.max(0, Number(Store.ui.debtExtraTry) || 0);
+            if (!(x > 0)) return;
+            const yd = Store.active();
+            App.undoable(`${money0(x)} more a month for your debts, in the budget`, () => {
+                const line = (yd.budgetBase || []).find(i => i.type === 'Deuda' && !i.link);
+                if (line) {
+                    if (Math.abs((Number(line.prep) || 0) - (Number(line.real) || 0)) < 0.005) line.prep = (Number(line.prep) || 0) + x;
+                    line.real = (Number(line.real) || 0) + x;
+                } else yd.budgetBase.push({ id: Store.nextId(yd.budgetBase), name: I18n.t('Debt snowball (extra)'), type: 'Deuda', isDeductible: false, prep: x, real: x, linkedCategory: 'Deudas' });
+                Store.ui.debtExtraTry = 0;
+            });
         },
         'debt.add': () => {
             const debts = Store.state.debts;

@@ -1031,6 +1031,12 @@
                 <div class="kpi tone-emerald"><span class="kpi-label">Savings vs. minimums only</span><span class="kpi-value" id="debt-saved">$0</span><span class="kpi-note">Interest with your plan: <strong id="debt-interest">$0</strong></span></div>
             </div>
             <div id="debt-warning" class="panel mb-4 hidden"></div>
+            <div id="debt-whatif" class="panel tone-slate mb-4 hidden">
+                <label class="flex justify-between items-center text-sm font-bold" for="debt-extra"><span><i class="fa-solid fa-sliders text-blue-600"></i> What if I add more each month?</span><span id="debt-extra-val" class="text-blue-700">$0</span></label>
+                <input type="range" id="debt-extra" class="range-slider" min="0" max="1500" step="25" value="0" data-input="debt.extraTry" aria-label="Extra each month">
+                <p class="text-sm mt-1" id="debt-extra-result"></p>
+                <button type="button" class="btn btn-secondary btn-sm mt-2 hidden" id="debt-extra-apply" data-action="debt.extraApply"><i class="fa-solid fa-plus"></i> Add it to my budget</button>
+            </div>
             <div id="debt-ladder" class="mb-4 hidden">
                 <div class="section-label"><i class="fa-solid fa-bars-staggered text-blue-600"></i> When each debt is paid off</div>
                 <p class="help mb-2" id="debt-ladder-note"></p>

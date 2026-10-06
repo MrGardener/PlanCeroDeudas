@@ -1845,12 +1845,16 @@
             let month = 0, totalInterest = 0;
             const history = [];   // total owed after each month
             const byDebt = {};    // each debt's balance after each month: { id: [..] }
+            const schedule = {};  // each debt's month by month: { id: [{ payment, interest, balance }] }
             while (items.some(d => d.balance > 0.01) && month < MAX) {
                 month++;
                 items.forEach(d => {
+                    d.paidThis = 0; d.interestThis = 0;
                     if (d.balance <= 0) return;
-                    const interest = d.balance * d.rate / 1200;
+                    // Lenders charge interest to the cent each month (a standard amortization table).
+                    const interest = Math.round(d.balance * d.rate / 1200 * 100) / 100;
                     d.balance += interest;
+                    d.interestThis = interest;
                     totalInterest += interest;
                 });
                 let pool = mode === 'minimums' ? 0 : extra0;
@@ -1859,12 +1863,14 @@
                     const own = Math.min(d.line, d.minPayment);
                     const pay = Math.min(own, d.balance);
                     d.balance -= pay;
+                    d.paidThis += pay;
                     if (mode !== 'minimums') pool += (d.line - own) + (own - pay);
                 });
                 for (const d of items) {
                     if (pool <= 0) break;
                     const pay = Math.min(pool, d.balance);
                     d.balance -= pay;
+                    d.paidThis += pay;
                     pool -= pay;
                     if (pay > 0.005 && d.attackMonth === null) d.attackMonth = month;
                 }
@@ -1875,10 +1881,14 @@
                     }
                 });
                 history.push(sum(items, d => d.balance));
-                items.forEach(d => { (byDebt[d.id] || (byDebt[d.id] = [])).push(d.balance); });
+                items.forEach(d => {
+                    (byDebt[d.id] || (byDebt[d.id] = [])).push(d.balance);
+                    // Each debt's month: what was paid and how much of it was interest (its schedule).
+                    (schedule[d.id] || (schedule[d.id] = [])).push({ payment: d.paidThis, interest: d.interestThis, balance: d.balance });
+                });
             }
             items.forEach((d, idx) => { d.order = idx + 1; });
-            return { items, months: month, totalInterest, history, byDebt, never: month >= MAX && items.some(d => d.balance > 0.01) };
+            return { items, months: month, totalInterest, history, byDebt, schedule, never: month >= MAX && items.some(d => d.balance > 0.01) };
         }
         const plan = run('plan');
         const minimums = run('minimums');
@@ -1887,6 +1897,7 @@
             items: plan.items,
             history: plan.history,
             byDebt: plan.byDebt,
+            schedule: plan.schedule,
             months: plan.months,
             never: plan.never,
             totalInterest: plan.totalInterest,

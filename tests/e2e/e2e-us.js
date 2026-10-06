@@ -678,6 +678,22 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('[data-action="trends.up"]');
   await page.waitForTimeout(150);
   ok(await page.evaluate(() => !Store.ui.trends.drill.cat && !Store.ui.trends.drill.sub), 'trends drill: back up to the month');
+  // Debt payoff controls: "what if" extra slider, add it to the budget; a debt's schedule.
+  await page.evaluate(() => { Store.reset('example'); Store.ui.debtExtraTry = 0; App.changed({ structural: true }); App.go('futuro/metas'); });
+  await page.waitForTimeout(300);
+  const dBefore = await page.evaluate(() => ({ m: App.buildContext().debts.months, extra: App.buildContext().debtExtraRubros }));
+  await page.evaluate(() => { const el = document.getElementById('debt-extra'); el.value = 300; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.waitForTimeout(150);
+  ok(/sooner/.test(await text(page, 'debt-extra-result')) && /less interest/.test(await text(page, 'debt-extra-result')), 'debts: what-if extra shows sooner and less interest', await text(page, 'debt-extra-result'));
+  await page.click('[data-action="debt.extraApply"]');
+  await page.waitForTimeout(250);
+  const dAfter = await page.evaluate(() => ({ m: App.buildContext().debts.months, extra: App.buildContext().debtExtraRubros, slider: document.getElementById('debt-extra').value }));
+  ok(dAfter.extra === dBefore.extra + 300 && dAfter.m < dBefore.m && dAfter.slider === '0', 'debts: add it to the budget', { dBefore, dAfter });
+  await page.click('[data-action="debt.schedule"] >> nth=0');
+  await page.waitForTimeout(250);
+  const sch = await page.evaluate(() => { const rows = [...document.querySelectorAll('.modal-backdrop.sheet tbody tr')]; return { n: rows.length, last: rows.length && rows[rows.length - 1].lastElementChild.textContent, first: rows[0] && rows[0].children.length }; });
+  ok(sch.n > 3 && sch.last === '$0.00' && sch.first === 5, 'debts: a schedule month by month down to $0', sch);
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');
