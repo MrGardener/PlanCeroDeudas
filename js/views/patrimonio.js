@@ -76,16 +76,34 @@
     // milestones: reached ones with their date, and the next few with how close you are.
     function progress(ctx) {
         const s = ctx.state, pal = UI.palette();
-        const h = s.netWorthHistory || [];
-        const enough = h.length >= 2;
-        UI.show('nw-month-box', enough);
+        const all = s.netWorthHistory || [];
+        const enough = all.length >= 2;
+        UI.show('nw-month-wrap', enough);
         UI.show('nw-month-empty', !enough);
         if (!enough) UI.html('nw-month-empty', 'We save your net worth on its own every month. Come back next month to see the line.');
-        else UI.chart('nw-month-chart', {
-            type: 'line',
-            data: { labels: h.map(x => Fmt.monthYear(new Date(x.month + '-01T00:00:00'))), datasets: [{ label: 'Net worth', data: h.map(x => x.value), borderColor: pal.blue, backgroundColor: pal.alpha(pal.blue, 0.1), borderWidth: 2, fill: true, tension: 0, pointRadius: h.length > 24 ? 0 : 3, pointBackgroundColor: pal.blue, pointBorderColor: pal.surface, pointBorderWidth: 2 }] },
-            options: { scales: { y: { beginAtZero: false } }, plugins: { legend: { display: false } } }
-        });
+        else {
+            // What you own (bars up), what you owe (bars down) and net worth (the line), one axis.
+            const range = [0, 6, 12].includes(Number(Store.ui.nwRange)) ? Number(Store.ui.nwRange) : 12;
+            UI.$$('[data-action="nw.range"]').forEach(b => b.classList.toggle('active', Number(b.dataset.months) === range));
+            const h = range ? all.slice(-range) : all;
+            const label = (x) => Fmt.monthYear(new Date(x.month + '-01T00:00:00'));
+            const own = pal.series[2], owe = pal.series[1];
+            UI.chart('nw-month-chart', {
+                type: 'bar',
+                data: {
+                    labels: h.map(label),
+                    datasets: [
+                        { type: 'line', label: 'Net worth', data: h.map(x => x.value), stack: 'net', borderColor: pal.text, backgroundColor: pal.text, borderWidth: 2, tension: 0, pointRadius: h.length > 24 ? 0 : 3, pointBorderColor: pal.surface, pointBorderWidth: 2, order: 0 },
+                        { label: 'Assets', data: h.map(x => Number(x.assets) || 0), stack: 'bars', backgroundColor: own, borderRadius: 4, order: 1 },
+                        { label: 'Liabilities', data: h.map(x => -(Number(x.liabilities) || 0)), stack: 'bars', backgroundColor: owe, borderRadius: 4, order: 1 }
+                    ]
+                },
+                options: { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'top', align: 'start' }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${money(Math.abs(c.parsed.y))}` } } } }
+            });
+            const d = h[h.length - 1].value - h[0].value;
+            UI.html('nw-month-change', Math.abs(d) < 1 ? '' : `<span class="${d > 0 ? 'text-emerald-700' : 'text-red-600'}">${d > 0 ? '▲' : '▼'} ${money0(Math.abs(d))}</span> <span class="text-slate-500 font-normal">since ${esc(label(h[0]))}</span>`);
+            UI.html('nw-month-table', h.slice().reverse().map(x => `<tr><td>${esc(label(x))}</td><td class="num">${money0(x.assets)}</td><td class="num">${money0(x.liabilities)}</td><td class="num font-bold ${x.value < 0 ? 'text-red-600' : ''}">${money0(x.value)}</td></tr>`).join(''));
+        }
         const list = Engine.milestones({ netWorth: Engine.netWorth(s.years, s.assets, ctx.today.getFullYear()).value, liquid: ctx.ef.liquid, monthsCovered: ctx.ef.monthsCovered, debts: s.debts, money: money0 });
         const got = s.milestones || {};
         const done = list.filter(m => m.done);
@@ -270,6 +288,7 @@
     }
 
     UI.register({
+        'nw.range': (el) => { Store.ui.nwRange = Number(el.dataset.months); App.update(); },
         'acct.add': () => {
             const list = Store.state.accounts || (Store.state.accounts = []);
             const id = Store.nextId(list);

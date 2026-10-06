@@ -2,6 +2,9 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Bars: what you own (up) and what you owe (down). Line: your net worth, the difference.": "Barras: lo que tienes (arriba) y lo que debes (abajo). Línea: tu patrimonio, la diferencia.",
+    "Net worth, what you own and what you owe, month by month": "Patrimonio, lo que tienes y lo que debes, mes a mes",
+    "since {0}": "desde {0}",
     "Each debt, month by month": "Cada deuda, mes a mes",
     "What you owe on each debt, stacked, until you're debt-free": "Lo que debes en cada deuda, apilado, hasta quedar libre de deudas",
     "Add cash event": "Agregar evento de efectivo",
