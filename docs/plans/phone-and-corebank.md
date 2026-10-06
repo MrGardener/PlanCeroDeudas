@@ -46,7 +46,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
 ## D. Views like the bank's "personal finance" tools
 10. ✅ **Spending** — a donut by category for a month (or 3M/6M), total in the middle; tap a slice to see
     its transactions; per person or household.
-11. **Trends** — stacked areas by category per month with an income line; 3M / 6M / 9M / 1Y; all
+11. ✅ **Trends** — stacked areas by category per month with an income line; 3M / 6M / 9M / 1Y; all
     categories or one; filter by account.
 12. **Budget bubbles** — a bubble per category sized by budget, colored green / yellow / red by how much
     is spent; tap to see the line. A toggle next to the current table view.

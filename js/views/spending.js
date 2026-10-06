@@ -1,6 +1,8 @@
 /* Reports → Spending: a donut of where the money went, by category, for a month or the last
    3 / 6 months; everyone, the household or one person. Tap a slice (or its row) to list that
-   category's transactions under it. */
+   category's transactions under it.
+   Reports → Trends: the same categories month by month as stacked areas, with income as a line;
+   3 / 6 / 9 / 12 months, all categories or one (then its subcategories), any account. */
 (function () {
     'use strict';
     const { money, esc } = Fmt;
@@ -58,13 +60,47 @@
             + (list.length > shown.length ? `<p class="help mt-1">The 25 biggest of ${list.length}.</p>` : ''));
     }
 
+    // ------------------------------------------------------------------ trends
+    const topts = () => (Store.ui.trends = Object.assign({ months: 6, category: '', account: '' }, Store.ui.trends));
+
+    function trends(ctx) {
+        if (!document.getElementById('trends-chart')) return;
+        const o = topts(), pal = UI.palette(), s = ctx.state;
+        const r = Engine.categoryTrend(s.transactions, { end: ctx.today, months: o.months, account: o.account, category: o.category });
+        UI.$$('[data-action="trends.months"]').forEach(b => b.classList.toggle('active', Number(b.dataset.months) === o.months));
+        UI.html('trends-category', Views.selectOptions([{ value: '', label: 'All categories' }].concat(Object.keys(s.taxonomy.expense).map(c => ({ value: c, label: c }))), o.category));
+        const accts = s.accounts || [];
+        UI.html('trends-account', Views.selectOptions([{ value: '', label: 'All accounts' }].concat(accts.map(a => ({ value: String(a.id), label: a.name })), [{ value: 'none', label: 'No account' }]), o.account));
+        const any = r.series.length > 0;
+        UI.show('trends-empty', !any);
+        UI.show('trends-body', any);
+        if (!any) return;
+        const label = (k) => { const [y, m] = k.split('-'); return `${Fmt.MONTH_SHORT[Number(m) - 1]}${r.months.some(x => x.slice(0, 4) !== y) ? ' ' + y.slice(2) : ''}`; };
+        const name = (x) => (x.key === null ? (o.category ? 'Other subcategories' : 'Other categories') : x.key);
+        const color = (x, i) => (x.key === null ? pal.muted : pal.series[i % pal.series.length]);
+        const datasets = r.series.map((x, i) => ({ label: name(x), data: x.values.map(v => Math.round(v * 100) / 100), stack: 'spend', fill: i === 0 ? 'origin' : '-1', backgroundColor: color(x, i) + 'cc', borderColor: color(x, i), borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.25 }));
+        if (r.income) datasets.push({ label: 'Income', data: r.income.map(v => Math.round(v * 100) / 100), stack: 'income', fill: false, borderColor: pal.text, backgroundColor: pal.text, borderWidth: 2, borderDash: [5, 4], pointRadius: 3, tension: 0.25 });
+        UI.chart('trends-chart', {
+            type: 'line',
+            data: { labels: r.months.map(label), datasets },
+            options: { scales: { y: { stacked: true } }, plugins: { legend: { position: 'bottom' } } }
+        });
+        const now = Engine.isoDate(ctx.today).slice(0, 7);
+        UI.text('trends-note', r.months[r.months.length - 1] === now ? 'This month isn\'t over yet.' : '');
+        UI.html('trends-head', `<tr><th>Month</th><th class="num">Spending</th>${r.income ? '<th class="num">Income</th><th class="num">Left over</th>' : ''}</tr>`);
+        UI.html('trends-table', r.months.map((k, i) => `<tr><td>${esc(label(k))}</td><td class="num">${money(r.spend[i])}</td>${r.income ? `<td class="num">${money(r.income[i])}</td><td class="num ${r.income[i] - r.spend[i] < 0 ? 'text-red-600' : ''}">${money(r.income[i] - r.spend[i])}</td>` : ''}</tr>`).join(''));
+    }
+
     function pick(key) { const o = opts(); o.pick = o.pick === key ? null : key; App.update(); }
 
     UI.register({
         'spend.range': (el) => { if (RANGES.includes(el.dataset.range)) { opts().range = el.dataset.range; App.update(); } },
         'spend.who': (el) => { opts().who = el.value; App.update(); },
-        'spend.pick': (el) => pick(el.dataset.key || null)
+        'spend.pick': (el) => pick(el.dataset.key || null),
+        'trends.months': (el) => { topts().months = Math.max(1, Math.min(12, Number(el.dataset.months) || 6)); App.update(); },
+        'trends.category': (el) => { topts().category = el.value; App.update(); },
+        'trends.account': (el) => { topts().account = el.value; App.update(); }
     });
 
-    window.Spending = { update };
+    window.Spending = { update: (ctx) => { update(ctx); trends(ctx); } };
 })();

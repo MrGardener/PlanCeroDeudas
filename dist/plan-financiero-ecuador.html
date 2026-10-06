@@ -1527,6 +1527,33 @@ html.kb-open.is-native body { padding-bottom: 0; }
             </div>
             <div id="spend-detail" class="mt-3"></div>
         </div>
+        <div class="card" id="trends-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-chart-area text-blue-600"></i> Trends</div>
+                    <div class="card-sub">Spending by category month by month, stacked, with your income as a line.</div>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+                <div class="segmented" role="tablist" aria-label="Period">
+                    <button type="button" data-action="trends.months" data-months="3">3M</button>
+                    <button type="button" data-action="trends.months" data-months="6">6M</button>
+                    <button type="button" data-action="trends.months" data-months="9">9M</button>
+                    <button type="button" data-action="trends.months" data-months="12">1Y</button>
+                </div>
+                <select id="trends-category" class="cell-input" style="width:auto" data-change="trends.category" aria-label="Category"></select>
+                <select id="trends-account" class="cell-input" style="width:auto" data-change="trends.account" aria-label="Account"></select>
+            </div>
+            <p id="trends-empty" class="text-xs text-slate-400 text-center py-8 hidden">No spending in these months.</p>
+            <div id="trends-body">
+                <div class="chart-box tall"><canvas id="trends-chart" aria-label="Spending by category per month"></canvas></div>
+                <p class="help mt-1" id="trends-note"></p>
+                <details class="mt-2">
+                    <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> See the numbers in a table</summary>
+                    <div class="table-wrap mt-2"><table class="table"><thead id="trends-head"></thead><tbody id="trends-table"></tbody></table></div>
+                </details>
+            </div>
+        </div>
         <div class="card" id="txn-trend-card">
             <div class="card-head">
                 <div>
@@ -5416,6 +5443,15 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "All accounts": "Todas las cuentas",
+    "No account": "Sin cuenta",
+    "No spending in these months.": "Sin gastos en estos meses.",
+    "Other subcategories": "Otras subcategorías",
+    "Spending by category month by month, stacked, with your income as a line.": "Gastos por categoría mes a mes, apilados, con tus ingresos como una línea.",
+    "Spending by category per month": "Gastos por categoría por mes",
+    "This month isn't over yet.": "Este mes aún no termina.",
+    "Trends": "Tendencias",
+    "1Y": "1A",
     "No spending in this period.": "Sin gastos en este periodo.",
     "Other categories: {0}.": "Otras categorías: {0}.",
     "Spending by category": "Gastos por categoría",
@@ -11239,6 +11275,34 @@ I18n.override('EC', 'es', {
         return { total, rows: rows.map(r => Object.assign(r, { share: total ? r.total / total : 0 })) };
     }
 
+    // Spending per month by category (or, for one category, by subcategory) for the last `months`
+    // months up to `end`, plus income, for the Trends chart. account: '' = all, 'none' = without
+    // an account, else an account id. The smallest series fold into one "other" (key null).
+    function categoryTrend(transactions, { end, months = 6, account = '', category = '', max = 7 } = {}) {
+        const e = end instanceof Date ? end : new Date(end);
+        const keys = Array.from({ length: months }, (_, i) => { const d = new Date(e.getFullYear(), e.getMonth() - months + 1 + i, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; });
+        const at = {}; keys.forEach((k, i) => { at[k] = i; });
+        const zeros = () => new Array(months).fill(0);
+        const by = {}, income = zeros();
+        (transactions || []).forEach(t => {
+            const i = t.date ? at[t.date.slice(0, 7)] : undefined;
+            if (i === undefined || isTransfer(t)) return;
+            if (account === 'none' ? t.accountId : account !== '' && account !== null && account !== undefined && String(t.accountId) !== String(account)) return;
+            if (txnType(t) === 'Ingreso') { if (!category) income[i] += num(t.amount); return; }
+            if (category && (t.parentCategory || 'Otros') !== category) return;
+            const k = category ? (t.category || category) : (t.parentCategory || 'Otros');
+            (by[k] || (by[k] = zeros()))[i] += amt(t);
+        });
+        let series = Object.keys(by).map(k => ({ key: k, values: by[k], total: by[k].reduce((a, v) => a + v, 0) })).filter(x => x.total > 0.005).sort((a, b) => b.total - a.total);
+        if (series.length > max) {
+            const rest = series.slice(max - 1);
+            const values = zeros(); rest.forEach(x => x.values.forEach((v, i) => { values[i] += v; }));
+            series = series.slice(0, max - 1).concat([{ key: null, other: rest.map(x => x.key), values, total: sum(rest, x => x.total) }]);
+        }
+        const spend = keys.map((_, i) => sum(series, x => x.values[i]));
+        return { months: keys, series, income: category ? null : income, spend };
+    }
+
     // ------------------------------------------------------------ recurring
     // A repeating transaction: { frequency: 'weekly'|'biweekly'|'monthly'|'yearly',
     // startDate, endDate?, lastPosted? }. Monthly/yearly keep the start's day of month
@@ -12575,7 +12639,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -19769,7 +19833,9 @@ I18n.override('EC', 'es', {
 <script>/* js/views/spending.js */
 /* Reports → Spending: a donut of where the money went, by category, for a month or the last
    3 / 6 months; everyone, the household or one person. Tap a slice (or its row) to list that
-   category's transactions under it. */
+   category's transactions under it.
+   Reports → Trends: the same categories month by month as stacked areas, with income as a line;
+   3 / 6 / 9 / 12 months, all categories or one (then its subcategories), any account. */
 (function () {
     'use strict';
     const { money, esc } = Fmt;
@@ -19827,15 +19893,49 @@ I18n.override('EC', 'es', {
             + (list.length > shown.length ? `<p class="help mt-1">The 25 biggest of ${list.length}.</p>` : ''));
     }
 
+    // ------------------------------------------------------------------ trends
+    const topts = () => (Store.ui.trends = Object.assign({ months: 6, category: '', account: '' }, Store.ui.trends));
+
+    function trends(ctx) {
+        if (!document.getElementById('trends-chart')) return;
+        const o = topts(), pal = UI.palette(), s = ctx.state;
+        const r = Engine.categoryTrend(s.transactions, { end: ctx.today, months: o.months, account: o.account, category: o.category });
+        UI.$$('[data-action="trends.months"]').forEach(b => b.classList.toggle('active', Number(b.dataset.months) === o.months));
+        UI.html('trends-category', Views.selectOptions([{ value: '', label: 'All categories' }].concat(Object.keys(s.taxonomy.expense).map(c => ({ value: c, label: c }))), o.category));
+        const accts = s.accounts || [];
+        UI.html('trends-account', Views.selectOptions([{ value: '', label: 'All accounts' }].concat(accts.map(a => ({ value: String(a.id), label: a.name })), [{ value: 'none', label: 'No account' }]), o.account));
+        const any = r.series.length > 0;
+        UI.show('trends-empty', !any);
+        UI.show('trends-body', any);
+        if (!any) return;
+        const label = (k) => { const [y, m] = k.split('-'); return `${Fmt.MONTH_SHORT[Number(m) - 1]}${r.months.some(x => x.slice(0, 4) !== y) ? ' ' + y.slice(2) : ''}`; };
+        const name = (x) => (x.key === null ? (o.category ? 'Other subcategories' : 'Other categories') : x.key);
+        const color = (x, i) => (x.key === null ? pal.muted : pal.series[i % pal.series.length]);
+        const datasets = r.series.map((x, i) => ({ label: name(x), data: x.values.map(v => Math.round(v * 100) / 100), stack: 'spend', fill: i === 0 ? 'origin' : '-1', backgroundColor: color(x, i) + 'cc', borderColor: color(x, i), borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.25 }));
+        if (r.income) datasets.push({ label: 'Income', data: r.income.map(v => Math.round(v * 100) / 100), stack: 'income', fill: false, borderColor: pal.text, backgroundColor: pal.text, borderWidth: 2, borderDash: [5, 4], pointRadius: 3, tension: 0.25 });
+        UI.chart('trends-chart', {
+            type: 'line',
+            data: { labels: r.months.map(label), datasets },
+            options: { scales: { y: { stacked: true } }, plugins: { legend: { position: 'bottom' } } }
+        });
+        const now = Engine.isoDate(ctx.today).slice(0, 7);
+        UI.text('trends-note', r.months[r.months.length - 1] === now ? 'This month isn\'t over yet.' : '');
+        UI.html('trends-head', `<tr><th>Month</th><th class="num">Spending</th>${r.income ? '<th class="num">Income</th><th class="num">Left over</th>' : ''}</tr>`);
+        UI.html('trends-table', r.months.map((k, i) => `<tr><td>${esc(label(k))}</td><td class="num">${money(r.spend[i])}</td>${r.income ? `<td class="num">${money(r.income[i])}</td><td class="num ${r.income[i] - r.spend[i] < 0 ? 'text-red-600' : ''}">${money(r.income[i] - r.spend[i])}</td>` : ''}</tr>`).join(''));
+    }
+
     function pick(key) { const o = opts(); o.pick = o.pick === key ? null : key; App.update(); }
 
     UI.register({
         'spend.range': (el) => { if (RANGES.includes(el.dataset.range)) { opts().range = el.dataset.range; App.update(); } },
         'spend.who': (el) => { opts().who = el.value; App.update(); },
-        'spend.pick': (el) => pick(el.dataset.key || null)
+        'spend.pick': (el) => pick(el.dataset.key || null),
+        'trends.months': (el) => { topts().months = Math.max(1, Math.min(12, Number(el.dataset.months) || 6)); App.update(); },
+        'trends.category': (el) => { topts().category = el.value; App.update(); },
+        'trends.account': (el) => { topts().account = el.value; App.update(); }
     });
 
-    window.Spending = { update };
+    window.Spending = { update: (ctx) => { update(ctx); trends(ctx); } };
 })();
 </script>
 <script>/* js/views/reportes.js */

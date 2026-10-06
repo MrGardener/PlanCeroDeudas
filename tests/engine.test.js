@@ -1421,3 +1421,28 @@ test('spendingBreakdown: expenses by category in a period, per person, small one
     assert.deepEqual(f.rows.map(x => [x.key, x.total]), [['A', 100], ['B', 90], [null, 150]]);
     assert.deepEqual(f.rows[2].other, ['C', 'D']);
 });
+
+test('categoryTrend: spending by category per month, income line, account and category filters', () => {
+    const t = (date, cat, amount, extra = {}) => Object.assign({ date, type: 'Gasto', parentCategory: cat, amount }, extra);
+    const list = [
+        t('2026-08-03', 'Alimentación', 100, { accountId: 1 }), t('2026-09-03', 'Alimentación', 120, { accountId: 2, category: 'Supermercado' }),
+        t('2026-10-02', 'Vivienda', 900, { accountId: 1 }), t('2026-10-05', 'Alimentación', 30, { category: 'Restaurantes' }),
+        t('2026-04-01', 'Ocio', 500),                                         // before the window
+        { date: '2026-10-01', type: 'Ingreso', amount: 3000, accountId: 1 }, { date: '2026-10-01', type: 'Transferencia', amount: 400 }
+    ];
+    const r = E.categoryTrend(list, { end: new Date(2026, 9, 6), months: 3 });
+    assert.deepEqual(r.months, ['2026-08', '2026-09', '2026-10']);
+    assert.deepEqual(r.series.map(x => [x.key, x.values]), [['Vivienda', [0, 0, 900]], ['Alimentación', [100, 120, 30]]]);
+    assert.deepEqual(r.income, [0, 0, 3000]);
+    assert.deepEqual(r.spend, [100, 120, 930]);
+    // One account; transactions with no account.
+    assert.deepEqual(E.categoryTrend(list, { end: new Date(2026, 9, 6), months: 3, account: 1 }).spend, [100, 0, 900]);
+    assert.deepEqual(E.categoryTrend(list, { end: new Date(2026, 9, 6), months: 3, account: 'none' }).spend, [0, 0, 30]);
+    // One category: its subcategories, no income line.
+    const one = E.categoryTrend(list, { end: new Date(2026, 9, 6), months: 3, category: 'Alimentación' });
+    assert.deepEqual(one.series.map(x => x.key), ['Supermercado', 'Alimentación', 'Restaurantes']);
+    assert.equal(one.income, null);
+    // Folding.
+    const f = E.categoryTrend(['A', 'B', 'C'].map((c, i) => t('2026-10-01', c, 30 - i)), { end: new Date(2026, 9, 6), months: 1, max: 2 });
+    assert.deepEqual(f.series.map(x => [x.key, x.values[0]]), [['A', 30], [null, 57]]);
+});
