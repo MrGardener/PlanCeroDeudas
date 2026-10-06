@@ -1070,12 +1070,14 @@
                 </div>
                 <button class="btn btn-secondary" data-action="goal.add"><i class="fa-solid fa-plus"></i> New Goal</button>
             </div>
-            <div class="table-wrap table-cards-wrap mb-4">
+            <div id="goal-cards" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4"></div>
+            <details class="mb-4" id="goal-table"><summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Edit every field in a table</summary>
+            <div class="table-wrap table-cards-wrap mt-2">
                 <table class="table table-cards">
                     <thead><tr><th style="min-width:11rem">Goal</th><th style="width:8rem">Target (<span class="cur">$</span>)</th><th style="width:8rem">Saved (<span class="cur">$</span>)</th><th style="width:8.5rem">In your budget (<span class="cur">$</span>/mo)</th><th style="width:6.5rem">Savings rate (APY %)</th><th style="width:9rem">By when?</th><th style="min-width:13rem">Progress</th><th></th></tr></thead>
                     <tbody id="goal-body"></tbody>
                 </table>
-            </div>
+            </div></details>
             <div id="goal-warning" class="panel tone-amber mb-4 text-xs text-amber-900 hidden"></div>
             <details class="explain">
                 <summary>How is the time calculated? (NPER)</summary>

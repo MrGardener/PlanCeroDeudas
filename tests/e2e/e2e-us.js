@@ -371,7 +371,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   ok(ms.m === await page.evaluate(() => Engine.isoDate(new Date())) && /Milestone!/.test(ms.toasts), 'paying a debt off is a dated, celebrated milestone', ms);
   // Phones: debts and goals show as one card per row, each field labeled; tables on desktop.
   await page.setViewportSize({ width: 1366, height: 900 });
-  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('futuro/metas'); });
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('futuro/metas'); document.getElementById('goal-table').open = true; });
   await page.waitForTimeout(150);
   ok(await page.isVisible('#metas-goals thead') && await page.evaluate(() => getComputedStyle(document.querySelector('#debt-body tr')).display) === 'table-row', 'desktop: debts and goals stay tables', await page.evaluate(() => [getComputedStyle(document.querySelector('#metas-goals thead')).display, getComputedStyle(document.querySelector('#debt-body tr')).display, innerWidth, Store.ui.tab, document.querySelectorAll('#debt-body tr').length]));
   await page.setViewportSize({ width: 390, height: 844 });
@@ -711,6 +711,22 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(200);
   ok(await page.evaluate(() => /Account details/.test(document.querySelector('.modal-backdrop.sheet').textContent)), 'balance sheet: an account opens its details');
   await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
+  // Goal cards: status, a monthly slider that moves the date, a linked savings account, saved per month.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('futuro/metas'); });
+  await page.waitForTimeout(250);
+  const gc1 = await page.evaluate(() => { const c = document.querySelectorAll('#goal-cards .goal-card'); return { n: c.length, goals: Store.state.goals.length, states: [...c].map(x => x.querySelector('[data-g="state"]').textContent.trim()), eta: c[0].querySelector('[data-g="eta"]').textContent }; });
+  ok(gc1.n === gc1.goals && gc1.states.every(x => /On track|Behind|Reached|No date|Not funded/.test(x)) && /Ready in|reached|month/.test(gc1.eta), 'goals: one card per goal with a status', gc1);
+  const gid = await page.evaluate(() => Number(document.querySelector('#goal-cards .goal-card').dataset.goal));
+  const eta1 = await page.evaluate((id) => document.querySelector(`#goal-cards [data-goal="${id}"] [data-g="eta"]`).textContent, gid);
+  await page.evaluate((id) => { const el = document.querySelector(`#goal-cards [data-goal="${id}"] [data-input="goal.slide"]`); el.max = 5000; el.value = 2000; el.dispatchEvent(new Event('input', { bubbles: true })); }, gid);
+  await page.waitForTimeout(150);
+  const gc2 = await page.evaluate((id) => ({ monthly: Store.state.goals.find(g => g.id === id).monthly, eta: document.querySelector(`#goal-cards [data-goal="${id}"] [data-g="eta"]`).textContent }), gid);
+  ok(gc2.monthly === 2000 && gc2.eta !== eta1, 'goals: the monthly slider moves the date', { eta1, gc2 });
+  await page.evaluate((id) => { const sav = Store.state.accounts.find(a => a.kind === 'ahorros'); const el = document.querySelector(`#goal-cards [data-goal="${id}"] [data-change="goal.link"]`); el.value = String(sav.id); el.dispatchEvent(new Event('change', { bubbles: true })); }, gid);
+  await page.waitForTimeout(150);
+  const gc3 = await page.evaluate((id) => { const g = Store.state.goals.find(x => x.id === id), a = Store.state.accounts.find(x => x.id === g.accountId); return { cur: g.current, bal: a && a.balance }; }, gid);
+  ok(gc3.bal !== undefined && gc3.cur === Math.max(0, gc3.bal), 'goals: linked to a savings account, its balance is what is saved', gc3);
+  ok(await page.evaluate(() => !!document.querySelector('#goal-cards [data-g="velocity"] svg')), 'goals: saved per month');
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

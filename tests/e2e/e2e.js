@@ -13,7 +13,7 @@ async function typeInto(page, selector, text) {
 const focusedMatches = (page, selector) => page.evaluate(sel => document.activeElement === document.querySelector(sel), selector);
 const text = (page, id) => page.evaluate(id => document.getElementById(id).textContent.trim(), id);
 // Transactions open on the history with the full form folded: tests that use the form open it.
-const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getElementById('txn-form-card'); if (f && /transacciones/.test(k)) f.open = true; if (k === 'config') document.querySelectorAll('[data-tab=config] details').forEach(d => { d.open = true; }); }, k);
+const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getElementById('txn-form-card'); if (f && /transacciones/.test(k)) f.open = true; if (k === 'config') document.querySelectorAll('[data-tab=config] details').forEach(d => { d.open = true; }); const gt = document.getElementById('goal-table'); if (gt && /metas/.test(k)) gt.open = true; }, k);
 
 (async () => {
   const { browser, context, page, errors } = await openApp({ styled: true });
