@@ -1373,3 +1373,10 @@ test('renaming a category or subcategory carries the new name everywhere it is s
     E.renameCategory(st, { kind: 'expense', category: 'Food', to: 'Groceries & dining' });
     assert.equal(E.renamedCategory(st.settings, 'expense', 'Alimentación').category, 'Groceries & dining');
 });
+
+test('household (shared) is its own row in the member totals', () => {
+    const t = (memberId, amount, type = 'Gasto') => ({ type, date: '2026-03-10', amount, memberId, parentCategory: 'Vivienda', category: 'x' });
+    const r = E.memberTotals([t(1, 100), t(E.HOUSEHOLD, 1500), t(undefined, 20), t(2, 3000, 'Ingreso')], [{ id: 1, name: 'Ana' }, { id: 2, name: 'Luis' }], 2026, 3);
+    assert.deepEqual(r.rows.map(x => [x.name, x.expense, x.income]), [['Ana', 100, 0], ['Luis', 0, 3000], ['Household', 1500, 0], ['Sin asignar', 20, 0]]);
+    assert.ok(E.HOUSEHOLD_CATEGORIES.includes('Vivienda'));
+});

@@ -286,7 +286,7 @@
         const members = Store.state.members || [];
         const ms = document.getElementById('imp-member');
         UI.show(ms, members.length > 0);
-        if (members.length && !ms.options.length) ms.innerHTML = `<option value="">Whose? (no one)</option>` + members.map(p => `<option value="${p.id}">${esc(p.name)}'s</option>`).join('');
+        if (members.length && !ms.options.length) ms.innerHTML = Views.whoOptions('', 'Whose? (no one)');
         renderBulk(ok.length);
         // OFX files carry the account's balance: offer to update one of yours with it.
         const ab = document.getElementById('imp-ofx-account');
@@ -299,7 +299,7 @@
         const opt = (list, sel) => list.map(x => { const v = typeof x === 'string' ? x : x.value, l = typeof x === 'string' ? x : x.label; return `<option value="${esc(v)}" ${v === sel ? 'selected' : ''}>${esc(l)}</option>`; }).join('');
         const catOptions = (r) => opt(Object.keys(taxFor(r.type)), r.category);
         const subOptions = (r) => { const subs = (taxFor(r.type)[r.category] || []).slice(); if (r.sub && !subs.includes(r.sub)) subs.push(r.sub); return opt(subs, r.sub); };
-        const whoOptions = (r) => `<option value="">—</option>${members.map(p => `<option value="${p.id}" ${String(p.id) === String(r.memberId || '') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}<option value="new">+ Add a person…</option>`;
+        const whoOptions = (r) => `${Views.whoOptions(r.memberId || '')}<option value="new">+ Add a person…</option>`;
         const conf = (r) => r.conf === 'low' ? '<span class="badge badge-warn">Check</span> ' : '';
         const incomeNote = (r) => r.type !== 'Ingreso' ? '' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Budget income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : r.newLine ? `<div class="text-[11px] text-emerald-700">New budget income: ${esc(r.newLine)}</div>` : r.sub === PAYROLL && !r.countAsExtra ? '<div class="text-[11px] text-slate-500">Your main paycheck (already counts in your budget)</div>' : '';
         UI.html('imp-rows', s.rows.slice(0, 500).map((r, i) => `<tr class="${r.error ? 'opacity-60' : ''}">
@@ -334,7 +334,7 @@
             <div class="space-y-2">${list.map(st => `<div class="imp-stream">
                 <div class="min-w-0"><div class="font-bold text-sm truncate" data-i18n-skip>${esc(st.name)}</div><div class="text-[11px] text-slate-500"><span>${st.count} deposit${st.count === 1 ? '' : 's'}</span> · <span>${money(st.total)} in total</span></div></div>
                 <select class="cell-input text-xs" data-change="imp.streamMode" data-k="${esc(st.k)}" aria-label="What it is">${modes(st).map(m => `<option value="${esc(m.value)}" ${m.value === cur(st) ? 'selected' : ''}>${esc(m.label)}</option>`).join('')}</select>
-                <select class="cell-input text-xs" data-change="imp.streamWho" data-k="${esc(st.k)}" aria-label="Whose"><option value="">Whose? —</option>${members.map(p => `<option value="${p.id}" ${String(p.id) === String(st.cfg.memberId || '') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}<option value="new">+ Add a person…</option></select>
+                <select class="cell-input text-xs" data-change="imp.streamWho" data-k="${esc(st.k)}" aria-label="Whose">${Views.whoOptions(st.cfg.memberId || '', 'Whose? —')}<option value="new">+ Add a person…</option></select>
             </div>`).join('')}</div></div>`);
     }
 
@@ -404,7 +404,7 @@
         UI.html('rule-body', rules.length ? rules.map(r => `<tr>
                 <td class="font-semibold">“${esc(r.contains)}”</td>
                 <td>${r.rename ? esc(r.rename) : '<span class="text-slate-400">—</span>'}</td>
-                <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">${esc(((Store.state.members || []).find(p => p.id === r.memberId) || {}).name || '')}'s</div>` : ''}</td>
+                <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">${esc(Views.whoName(r.memberId))}</div>` : ''}</td>
                 <td class="text-xs">${r.budgetLine ? esc(lineName(r.budgetLine)) : '<span class="text-slate-400">Automatic</span>'}</td>
                 <td class="text-center whitespace-nowrap"><button class="row-edit" data-action="rule.edit" data-id="${r.id}" title="Edit rule" aria-label="Edit rule"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="rule.delete" data-id="${r.id}" title="Delete rule" aria-label="Delete rule"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`).join('') : '<tr class="empty-row"><td colspan="5">No rules. Example: if it contains “SQ *COZ” → it\'s called “Cozy Coffee”, category Food.</td></tr>');
@@ -598,7 +598,8 @@
                     if (lineId && r.date.slice(0, 4) === year) t.incomeId = lineId;
                     if (r.countAsExtra) t.countAsExtra = true;
                 }
-                const who = r.memberId || memberId;
+                // Bills (housing, utilities, insurance) are the household's when no person is chosen.
+                const who = r.memberId || memberId || ((Store.state.members || []).length && !tr && Engine.HOUSEHOLD_CATEGORIES.includes(t.parentCategory) ? Engine.HOUSEHOLD : undefined);
                 if (who) t.memberId = who;
                 // A subcategory the engine suggested that isn't in your list yet ("Inversiones (bolsa)").
                 if (!tr && t.category) { const tax = taxFor(r.type); if (tax[t.parentCategory] && !tax[t.parentCategory].includes(t.category)) tax[t.parentCategory].push(t.category); }
@@ -759,7 +760,7 @@
                     { name: 'contains', label: 'If the description or place contains…', value: rule.contains },
                     { name: 'rename', label: 'Rename to (optional)', value: rule.rename || '' },
                     { name: 'cat', label: 'Category', options: cats, value: cats.some(c => c.value === cur) ? cur : `${kind}|${rule.category}|` },
-                    { name: 'member', label: 'Whose', options: [{ value: '', label: '—' }].concat(members.map(p => ({ value: String(p.id), label: p.name }))), value: rule.memberId ? String(rule.memberId) : '' },
+                    { name: 'member', label: 'Whose', options: [{ value: '', label: '—' }, { value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name }))), value: rule.memberId ? String(rule.memberId) : '' },
                     { name: 'line', label: 'And count it in the line (optional)', options: [{ value: '', label: 'Automatic (by category)' }].concat(items.map(i => ({ value: String(i.id), label: i.name }))), value: rule.budgetLine ? String(rule.budgetLine) : '' }
                 ],
                 confirmText: 'Save',

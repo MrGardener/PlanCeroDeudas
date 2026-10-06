@@ -35,7 +35,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-${members.length ? 3 : 2} gap-2 mt-3">
                 <input id="quick-note" class="input" placeholder="Note (optional): Walmart, taxi…" autocomplete="off">
                 <input id="quick-date" type="date" class="input" value="${Engine.isoDate(new Date())}">
-                ${members.length ? `<select id="quick-member" class="input"><option value="">Who? —</option>${members.map(p => `<option value="${p.id}" ${String(p.id) === String(Store.ui.lastMember || '') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>` : ''}
+                ${members.length ? `<select id="quick-member" class="input">${Views.whoOptions(Store.ui.lastMember || '', 'Who? —')}</select>` : ''}
             </div>
             <button type="button" class="btn btn-primary w-full mt-3 justify-center" data-action="quick.save" id="quick-save"><i class="fa-solid fa-check"></i> Save</button>
             <p class="help mt-2 text-center">More details (subcategory, line, repeat)? <a href="#" class="link" data-action="quick.full">Open the full form</a></p>`;

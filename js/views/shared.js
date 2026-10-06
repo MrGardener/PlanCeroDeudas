@@ -190,5 +190,17 @@
         return { g, desired, def, custom: !(want === null || want === undefined) };
     }
 
-    root.Views = { retireGap, guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions, dollarHTML, htmlKeepOpen };
+    // "Whose?" choices: not set, the household (shared), then each person.
+    function whoOptions(selected, blank = '—') {
+        const sel = String(selected === undefined || selected === null ? '' : selected);
+        const opt = (v, l) => `<option value="${v}" ${String(v) === sel ? 'selected' : ''}>${esc(l)}</option>`;
+        return opt('', blank) + opt(Engine.HOUSEHOLD, 'Household (shared)') + (Store.state.members || []).map(p => opt(p.id, p.name)).join('');
+    }
+    function whoName(id) {
+        if (id === Engine.HOUSEHOLD || id === String(Engine.HOUSEHOLD)) return 'Household';
+        const p = (Store.state.members || []).find(x => String(x.id) === String(id));
+        return p ? p.name : '';
+    }
+
+    root.Views = { whoOptions, whoName, retireGap, guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions, dollarHTML, htmlKeepOpen };
 })(this);

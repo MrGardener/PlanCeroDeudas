@@ -1323,7 +1323,8 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
   await page.waitForTimeout(200);
   const sriTxt = await page.textContent('#inc-sri-tracker');
-  ok(/Alimentación/.test(sriTxt) && /Salud/.test(sriTxt) && /Rebaja ganada hasta hoy/.test(sriTxt) && /sin factura a tu nombre/.test(sriTxt), 'the tracker shows SRI categories, the rebate and the invoices missing', sriTxt.slice(0, 200));
+  // Late in the year the example family's invoices pass the cap: then there's nothing missing to ask for.
+  ok(/Alimentación/.test(sriTxt) && /Salud/.test(sriTxt) && /Rebaja ganada hasta hoy/.test(sriTxt) && (/sin factura a tu nombre/.test(sriTxt) || /100%/.test(sriTxt)), 'the tracker shows SRI categories, the rebate and the invoices missing (or the cap reached)', sriTxt.slice(0, 200));
   const sriInv = () => page.evaluate(() => { const c = App.buildContext(); return Engine.sriPersonalExpenses(Store.state.transactions, Store.state.activeYear, { cap: c.pay.sriCap }).invoiced; });
   const inv0 = await sriInv();
   await go(page, 'transacciones/lista');
