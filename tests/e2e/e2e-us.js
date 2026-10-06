@@ -396,6 +396,66 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('[data-dialog-ok]');
   // Smart CSV import (engine, streams, rules) — see e2e-imp.js.
   await require('./e2e-imp.js')(page, ok);
+  // First-run setup guide: one sheet, five short steps, opened again from Settings.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
+  await go(page, 'config');
+  await page.click('[data-action="setup.open"]');
+  await page.waitForTimeout(150);
+  await page.click('[data-action="setup.start"]');
+  await page.waitForTimeout(150);
+  await page.click('[data-dialog-ok]');
+  await page.waitForTimeout(200);
+  ok(await page.evaluate(() => !Store.state.settings.sample && Store.state.transactions.length === 0), 'setup: the example makes way for an empty plan');
+  await page.fill('#su-names', 'Ana, Luis');
+  await page.click('[data-action="setup.next"]');
+  await page.waitForTimeout(100);
+  await page.selectOption('#su-type', 'hourly');
+  await page.waitForTimeout(100);
+  await page.fill('#su-rate', '25');
+  await page.fill('#su-hours', '40');
+  await page.selectOption('#su-freq', 'biweekly');
+  await page.fill('#su-next', '2026-10-16');
+  await page.click('[data-action="setup.next"]');
+  await page.waitForTimeout(100);
+  await page.fill('#su-checking', '1200');
+  await page.fill('#su-card', '800');
+  await page.click('[data-action="setup.next"]');
+  await page.waitForTimeout(100);
+  await page.fill('.su-bill >> nth=0', '1100');
+  await page.click('[data-action="setup.next"]');
+  await page.waitForTimeout(100);
+  await page.fill('#su-d0-name', 'Visa');
+  await page.fill('#su-d0-bal', '800');
+  await page.fill('#su-d0-rate', '24');
+  await page.click('[data-action="setup.next"]');
+  await page.waitForTimeout(150);
+  const su = await page.evaluate(() => { const s = Store.state, y = Store.active(); return { names: s.members.map(m => m.name).join(','), type: y.payType, rate: y.hourly && y.hourly.rate, sueldo: y.sueldo, sched: s.settings.paySchedule, accts: s.accounts.map(a => a.kind + ':' + a.balance + ':' + (a.debtId || '')).join(','), bill: y.budgetBase.filter(i => !i.link)[0].prep, debt: s.debts.map(d => d.name + ':' + d.kind + ':' + d.minPayment).join(','), seen: s.settings.setupSeen }; });
+  ok(su.names === 'Ana,Luis' && su.type === 'hourly' && su.rate === 25 && Math.round(su.sueldo) === 4333 && su.sched.interval === 2 && su.sched.anchor === '2026-10-16'
+    && su.accts === 'corriente:1200:,tarjeta:-800:1' && su.bill === 1100 && su.debt === 'Visa:tarjeta:25' && !su.seen, 'setup: each step saves what it asked', su);
+  ok(/Your plan is set up/.test(await page.textContent('.modal-backdrop:not(.hidden)')), 'setup: done screen');
+  await page.click('[data-action="setup.close"]');
+  await page.waitForTimeout(200);
+  ok(await page.evaluate(() => Store.state.settings.setupSeen && Store.ui.tab === 'presupuesto' && !document.querySelector('.modal-backdrop:not(.hidden)')), 'setup: closing marks it seen and goes to the budget');
+  // Walking through again keeps your data: no example offer, the checking balance is updated, not doubled.
+  await page.evaluate(() => UI.run('setup.open', {}));
+  await page.waitForTimeout(150);
+  ok(!(await page.$('[data-action="setup.example"]')), 'setup: no example offer over your own data');
+  await page.click('[data-action="setup.start"]');
+  await page.waitForTimeout(150);
+  await page.click('[data-action="setup.skip"]');
+  await page.click('[data-action="setup.skip"]');
+  await page.waitForTimeout(100);
+  await page.fill('#su-checking', '1500');
+  await page.click('[data-action="setup.next"]');
+  await page.waitForTimeout(100);
+  ok(await page.evaluate(() => Store.state.accounts.filter(a => a.kind === 'corriente').map(a => a.balance).join()) === '1500', 'setup: second walk updates the account');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+  // A fresh install opens it by itself, once.
+  const fresh = await page.evaluate(() => { Store.reset('empty'); Store.state.settings.welcomeDismissed = false; Setup.maybeOpen(); const a = !!document.querySelector('.modal-backdrop:not(.hidden) [data-action="setup.start"]'); Store.state.settings.setupSeen = true; return a; });
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+  ok(fresh && await page.evaluate(() => { const n = document.querySelectorAll('.modal-backdrop:not(.hidden)').length; Setup.maybeOpen(); return n === 0 && document.querySelectorAll('.modal-backdrop:not(.hidden)').length === 0; }), 'setup: opens on a fresh install, not after');
   // Salary schedule confirmation in English.
   await page.evaluate(() => { Store.reset('empty'); App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
   await page.evaluate(() => { UI.run('pay.edit', {}); });

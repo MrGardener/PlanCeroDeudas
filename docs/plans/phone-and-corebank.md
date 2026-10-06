@@ -39,7 +39,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
    lists typed transactions no statement has confirmed yet, per account.
 
 ## C. First run
-9. **Step-by-step start** — on first open, one screen that walks through: household → how you're paid
+9. ✅ **Step-by-step start** — on first open, one screen that walks through: household → how you're paid
    → accounts and balances → main bills → debts → done (each step a short form, no jumping between
    tabs; skip allowed). It doesn't come back unless you open it from Settings.
 
