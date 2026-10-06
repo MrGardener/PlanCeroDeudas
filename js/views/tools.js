@@ -24,7 +24,7 @@
         ['debts', 'fa-sack-dollar', 'Debts', ['futuro/metas', 'metas-debts'], [
             'List your debts smallest to largest and pay the minimums on all but the first.',
             'Every extra dollar goes to the first one; when it\'s gone, its payment rolls to the next (the snowball).']],
-        ['networth', 'fa-chart-line', 'Net Worth', ['patrimonio', 'nw-progress'], [
+        ['networth', 'fa-chart-line', 'Net Worth', ['patrimonio', 'nw-sheet'], [
             'What you own minus what you owe, saved on its own every month.',
             'Bars show what you own and owe; the line is your net worth.']],
         ['goals', 'fa-bullseye', 'Goals', ['futuro/metas', 'metas-goals'], [

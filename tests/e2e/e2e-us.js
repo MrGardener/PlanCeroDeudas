@@ -694,6 +694,23 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   const sch = await page.evaluate(() => { const rows = [...document.querySelectorAll('.modal-backdrop.sheet tbody tr')]; return { n: rows.length, last: rows.length && rows[rows.length - 1].lastElementChild.textContent, first: rows[0] && rows[0].children.length }; });
   ok(sch.n > 3 && sch.last === '$0.00' && sch.first === 5, 'debts: a schedule month by month down to $0', sch);
   await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
+  // Balance sheet: own vs owe by type; a type opens to its accounts; a property value edited in place.
+  await page.evaluate(() => { Store.reset('example'); Store.ui.nwOpen = null; App.changed({ structural: true }); App.go('patrimonio'); });
+  await page.waitForTimeout(250);
+  const bs1 = await page.evaluate(() => ({ own: document.querySelectorAll('#nw-sheet-body .sheet-side')[0].textContent, owe: document.querySelectorAll('#nw-sheet-body .sheet-side')[1].textContent, types: document.querySelectorAll('#nw-sheet-body .sheet-head').length, net: AccountsHub.last.net }));
+  ok(/What you own/.test(bs1.own) && /What you owe/.test(bs1.owe) && bs1.types >= 6, 'balance sheet: own and owe by type', bs1);
+  await page.click('[data-action="sheet.toggle"][data-key="property"]');
+  await page.waitForTimeout(150);
+  await page.evaluate(() => { const el = document.querySelector('[data-change="sheet.assetValue"]'); el.value = String(Number(el.value) + 10000); el.dispatchEvent(new Event('change', { bubbles: true })); });
+  await page.waitForTimeout(200);
+  const bs2 = await page.evaluate(() => ({ net: AccountsHub.last.net, headline: document.querySelector('.sheet-net').textContent }));
+  ok(Math.round(bs2.net - bs1.net) === 10000 && /Net worth/i.test(bs2.headline), 'balance sheet: a property value changes net worth', { bs1: bs1.net, bs2 });
+  await page.click('[data-action="sheet.toggle"][data-key="loan"]');
+  await page.waitForTimeout(150);
+  await page.click('#nw-sheet-body .sheet-rows button.sheet-row >> nth=0');
+  await page.waitForTimeout(200);
+  ok(await page.evaluate(() => /Account details/.test(document.querySelector('.modal-backdrop.sheet').textContent)), 'balance sheet: an account opens its details');
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

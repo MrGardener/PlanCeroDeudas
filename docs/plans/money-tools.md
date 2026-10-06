@@ -64,7 +64,7 @@ on top of that: one way in to every tool, and the drill-downs (level 1 → 4).
 9. ✅ **Debt payoff controls** — an "extra each month" slider that moves the debt-free date and interest saved
    as you drag; tap a debt: its schedule (month, payment, interest, principal, balance). Unit test:
    $10,000 at 5% paying $200 matches a standard amortization table to the cent.
-10. **Balance sheet** — Net Worth: what you own vs what you owe, by type, each with its total; tap a type to
+10. ✅ **Balance sheet** — Net Worth: what you own vs what you owe, by type, each with its total; tap a type to
     see its accounts and edit a manual asset; the net worth line updates.
 11. **Goals** — cards with progress and status (on track / behind for its date); a monthly-amount control
     that recalculates the date (unit test); link a goal to a savings account (its balance is the progress);

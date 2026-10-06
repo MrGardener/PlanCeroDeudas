@@ -2,6 +2,10 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Balance sheet": "Balance general",
+    "Value of {0}": "Valor de {0}",
+    "What you own": "Lo que tienes",
+    "What you own and what you owe, by type. Tap a type to see its accounts; property values can be changed right here.": "Lo que tienes y lo que debes, por tipo. Toca un tipo para ver sus cuentas; el valor de las propiedades se cambia aquí mismo.",
     "Add it to my budget": "Agregarlo a mi presupuesto",
     "Debt snowball (extra)": "Bola de nieve de deudas (extra)",
     "Debt-free in {0}": "Libre de deudas en {0}",

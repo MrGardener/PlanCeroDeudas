@@ -12,6 +12,10 @@
     function update(ctx) {
         const host = document.getElementById('hub-body');
         if (!host) return;
+        updateHub(ctx, host);
+        balanceSheet(ctx);
+    }
+    function updateHub(ctx, host) {
         const s = ctx.state, year = ctx.today.getFullYear();
         hub = Engine.accountsHub({ accounts: s.accounts, holdings: s.holdings, polizas: s.polizas, assets: s.assets, debts: s.debts, years: s.years, year });
         const shown = hub.groups.filter(g => g.rows.length);
@@ -33,6 +37,27 @@
                 </section>`).join('')}</div>
             </div>`
             : `<p class="help">No accounts yet. Add your checking account first: its balance is the start of your cash flow.</p>`;
+    }
+
+    // ------------------------------------------------------------ balance sheet
+    // Net worth as two columns: what you own (checking … property) and what you owe (cards,
+    // mortgage, loans), each type with its total; a type opens to its accounts. Property values are
+    // edited in place (this year's value), and the net worth line follows.
+    function balanceSheet(ctx) {
+        const host = document.getElementById('nw-sheet-body');
+        if (!host || !hub) return;
+        const open = Store.ui.nwOpen || null;
+        const side = (owed) => hub.groups.filter(g => g.owed === owed && g.rows.length).map(g => `<div class="sheet-type">
+                <button type="button" class="sheet-head" data-action="sheet.toggle" data-key="${g.key}" aria-expanded="${open === g.key}"><span><i class="fa-solid ${ICONS[g.key]} text-slate-400"></i> ${esc(g.label)}</span><span class="flex items-center gap-2"><strong class="${owed ? 'text-red-600' : ''}">${money(g.total)}</strong><i class="fa-solid fa-chevron-${open === g.key ? 'up' : 'down'} text-[10px] text-slate-400"></i></span></button>
+                ${open === g.key ? `<div class="sheet-rows">${g.rows.map(r => r.ref.type === 'asset'
+                    ? `<label class="sheet-row"><span class="truncate" data-i18n-skip>${esc(r.name)}</span><input type="number" class="cell-input num money" style="max-width:9rem" min="0" step="any" value="${Math.round(r.balance * 100) / 100}" data-change="sheet.assetValue" data-id="${r.ref.id}" aria-label="Value of ${esc(r.name)}"></label>`
+                    : `<button type="button" class="sheet-row" data-action="hub.open" data-type="${r.ref.type}" data-id="${esc(String(r.ref.id))}"><span class="truncate" data-i18n-skip>${esc(r.name)}</span><span class="font-semibold ${owed ? 'text-red-600' : ''}">${money(r.balance)}</span></button>`).join('')}</div>` : ''}
+            </div>`).join('') || '<p class="help">Nothing here.</p>';
+        host.innerHTML = `<div class="sheet-net ${hub.net >= 0 ? 'text-emerald-700' : 'text-red-600'}"><span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Net worth</span><span class="text-3xl font-black">${money(hub.net)}</span></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div><div class="sheet-side"><span>What you own</span><strong>${money(hub.assets)}</strong></div>${side(false)}</div>
+                <div><div class="sheet-side owe"><span>What you owe</span><strong class="text-red-600">${money(hub.liabilities)}</strong></div>${side(true)}</div>
+            </div>`;
     }
 
     // Where the rows without details of their own are edited (investments, CDs, property, mortgage).
@@ -217,6 +242,14 @@
         'hub.add': () => addSheet(),
         'hub.newType': () => newType(),
         'hub.save': () => save(),
+        'sheet.toggle': (el) => { Store.ui.nwOpen = Store.ui.nwOpen === el.dataset.key ? null : el.dataset.key; balanceSheet(App.buildContext()); },
+        'sheet.assetValue': (el) => {
+            const a = (Store.state.assets || []).find(x => x.id === Number(el.dataset.id));
+            if (!a) return;
+            const year = new Date().getFullYear(), v = Math.max(0, Fmt.parseNum(el.value, 0));
+            a.valuesByYear = Object.assign({}, a.valuesByYear, { [year]: v });
+            App.changed({ structural: true, step: true });
+        },
         'acd.tab': (el) => { if (det) { det.tab = el.dataset.tab === 'details' ? 'details' : 'activity'; drawDetails(); } },
         'acd.set': (el) => setField(el),
         'acd.toDebt': () => toDebt()
