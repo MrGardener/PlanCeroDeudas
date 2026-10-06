@@ -188,7 +188,7 @@
         }
         render();
         if (opts.scroll !== false) window.scrollTo({ top: 0 });
-        if (opts.focus) { const el = document.getElementById(opts.focus); if (el) { for (let d = el.tagName === 'DETAILS' ? el : el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true; el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); } }
+        if (opts.focus) { const el = document.getElementById(opts.focus); if (el) { for (let d = el.tagName === 'DETAILS' ? el : el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true; el.scrollIntoView({ block: el.offsetHeight > window.innerHeight * 0.5 ? 'start' : 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); } }
     }
 
     function buildNav() {

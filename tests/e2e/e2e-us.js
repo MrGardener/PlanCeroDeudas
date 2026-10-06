@@ -479,6 +479,23 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('[data-action="nw.range"][data-months="0"]');
   await page.waitForTimeout(150);
   ok(n6 === 6 && await page.evaluate(() => UI.chartInstance('nw-month-chart').data.labels.length === Store.state.netWorthHistory.length), 'net worth: 6M and All', n6);
+  // Money tools bar: every tool one tap away; Help grid with a how-to per tool that opens it.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('resumen'); });
+  await page.waitForTimeout(200);
+  ok(await page.$$eval('#tools-bar a', a => a.length) === 10, 'tools bar: 10 tools');
+  await page.click('#tools-bar a[data-focus="spend-card"]');
+  await page.waitForTimeout(300);
+  ok(await page.evaluate(() => Store.ui.tab === 'transacciones' && Math.abs(document.getElementById('spend-card').getBoundingClientRect().top) < 400), 'tools bar: Spending opens the donut');
+  await page.evaluate(() => App.go('resumen'));
+  await page.click('[data-action="tools.help"]');
+  await page.waitForTimeout(150);
+  ok(await page.$$eval('.help-grid button', b => b.length) === 12, 'help: 12 tiles');
+  await page.click('[data-action="tools.topic"][data-key="debts"]');
+  await page.waitForTimeout(100);
+  ok(/snowball/.test(await page.textContent('.modal-backdrop.sheet')), 'help: a topic explains the tool');
+  await page.click('[data-action="tools.go"]');
+  await page.waitForTimeout(300);
+  ok(await page.evaluate(() => Store.ui.tab === 'futuro' && !document.querySelector('.modal-backdrop.sheet')), 'help: Open goes to the tool');
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

@@ -60,6 +60,19 @@
 <!-- ============================================================ RESUMEN -->
 <section data-tab="resumen" class="space-y-5">
     <div id="dash-welcome" class="card hidden" style="border-color:#a7f3d0"></div>
+    <nav class="tools-bar" id="tools-bar" aria-label="Money tools">
+        <a href="#" data-goto="patrimonio" data-focus="nw-accounts"><i class="fa-solid fa-wallet"></i><span>Accounts</span></a>
+        <a href="#" data-goto="transacciones/lista"><i class="fa-solid fa-list-ul"></i><span>Transactions</span></a>
+        <a href="#" data-goto="transacciones/reportes" data-focus="spend-card"><i class="fa-solid fa-chart-pie"></i><span>Spending</span></a>
+        <a href="#" data-goto="presupuesto/plan"><i class="fa-solid fa-circle-nodes"></i><span>Budgets</span></a>
+        <a href="#" data-goto="transacciones/reportes" data-focus="trends-card"><i class="fa-solid fa-clock-rotate-left"></i><span>Trends</span></a>
+        <a href="#" data-goto="futuro/metas" data-focus="metas-debts"><i class="fa-solid fa-sack-dollar"></i><span>Debts</span></a>
+        <a href="#" data-goto="patrimonio" data-focus="nw-progress"><i class="fa-solid fa-chart-line"></i><span>Net Worth</span></a>
+        <a href="#" data-goto="futuro/metas" data-focus="metas-goals"><i class="fa-solid fa-bullseye"></i><span>Goals</span></a>
+        <a href="#" data-goto="patrimonio" data-focus="nw-holdings"><i class="fa-solid fa-chart-column"></i><span>Investments</span></a>
+        <a href="#" data-goto="resumen" data-focus="dash-flow-card"><i class="fa-regular fa-calendar-days"></i><span>Cash Flow</span></a>
+        <button type="button" data-action="tools.help" aria-label="Help"><i class="fa-solid fa-circle-question"></i><span>Help</span></button>
+    </nav>
     <div id="dash-hero" class="hero"></div>
     <div class="card hidden" id="dash-moves-card">
         <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-list-check text-emerald-600"></i> Your next moves</div>
@@ -1766,5 +1779,6 @@
 <script src="js/views/checklists.js"></script>
 <script src="js/views/config.js"></script>
 <script src="js/views/setup.js"></script>
+<script src="js/views/tools.js"></script>
 </body>
 </html>
