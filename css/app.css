@@ -874,3 +874,13 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .range-list button { display: flex; align-items: center; gap: .6rem; padding: .6rem .25rem; border-bottom: 1px solid var(--line-soft); font-size: .88rem; text-align: left; color: var(--ink); }
 .range-list button i { color: var(--muted); }
 .range-list button.active { font-weight: 700; } .range-list button.active i { color: var(--brand); }
+/* Transaction details: the "…" menu and the category picker. */
+.tdt-menu { position: absolute; right: 0; top: 2.6rem; z-index: 5; min-width: 10rem; background: var(--surface); border: 1px solid var(--line); border-radius: .6rem; box-shadow: var(--sh-2); padding: .25rem; display: flex; flex-direction: column; }
+.tdt-menu button { display: flex; align-items: center; gap: .6rem; padding: .55rem .7rem; border-radius: .4rem; font-size: .85rem; color: var(--ink); text-align: left; }
+.tdt-menu button:hover { background: var(--surface-3); }
+.cat-pick { border-bottom: 1px solid var(--line-soft); }
+.cat-pick-head { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: .65rem .25rem; font-weight: 700; color: var(--brand-dark); font-size: .88rem; }
+.cat-pick-subs { display: flex; flex-direction: column; padding: 0 0 .5rem .75rem; }
+.cat-pick-subs > button { text-align: left; padding: .45rem .25rem; font-size: .85rem; color: var(--ink); border-radius: .35rem; }
+.cat-pick-subs > button:hover { background: var(--surface-3); }
+.txn-main[data-action="txn.details"] { cursor: pointer; }

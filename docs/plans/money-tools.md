@@ -46,7 +46,7 @@ on top of that: one way in to every tool, and the drill-downs (level 1 → 4).
 4. ✅ **Ledger toolbar** — date range: Today, This month, Last month, Last 7 / 30 / 90 days or from–to, with
    ‹ › to step back and forward; account picker grouped by type with checkboxes and All; search ("No
    transactions found"); download what's shown (CSV); money in shows green with "+".
-5. **Transaction details** — tap a row: payee (editable) with the bank's original text under it (kept on
+5. ✅ **Transaction details** — tap a row: payee (editable) with the bank's original text under it (kept on
    import from now on), date, category (a picker with search, grouped by category, "+ Add subcategory"),
    tags, memo. "…" menu: **Flag**, **Exclude** (kept, but left out of budgets, reports and totals),
    **Split**. Filters for flagged and excluded.

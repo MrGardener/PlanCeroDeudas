@@ -258,8 +258,8 @@
         return `<div class="txn-item ${Store.ui.txnEditing === t.id ? 'row-editing' : ''} ${on ? 'is-selected' : ''}" data-row="${t.id}" ${inc || tr || picking ? '' : `draggable="true" data-txn="${t.id}"`}>
                 ${picking ? `<label class="txn-check"><input type="checkbox" data-action="txn.check" data-id="${t.id}" ${on ? 'checked' : ''} aria-label="Select"></label>` : ''}
                 <div class="txn-date ${tr ? 'tr' : inc || t.refund ? 'inc' : 'exp'} ${pending ? 'pending' : ''}"><span>${Fmt.MONTH_SHORT[d.getMonth()]}</span><b>${d.getDate()}</b></div>
-                <div class="txn-main" ${picking ? `data-action="txn.check" data-id="${t.id}"` : ''}>
-                    <div class="txn-desc">${memberBadge(t)}${esc(t.description)}</div>
+                <div class="txn-main" ${picking ? `data-action="txn.check" data-id="${t.id}"` : `data-action="txn.details" data-id="${t.id}" role="button" tabindex="0" title="Details"`}>
+                    <div class="txn-desc">${memberBadge(t)}${t.flagged ? '<i class="fa-solid fa-flag text-amber-600 mr-1" title="Flagged"></i>' : ''}${esc(t.description)}</div>
                     <div class="txn-meta">${(tr ? [t.store] : [t.store, `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`, t.paymentType]).filter(Boolean).map(esc).join(' · ')}</div>
                     ${notes.length ? `<div class="txn-notes">${notes.join(' ')}</div>` : ''}
                 </div>
@@ -343,14 +343,16 @@
         UI.show(mf, members.length > 0);
         if (members.length) mf.innerHTML = Views.selectOptions([{ value: 'all', label: 'Everyone' }, { value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name })), [{ value: 'none', label: 'No person' }]), f.member || 'all');
         const byMember = (t) => !f.member || f.member === 'all' || (f.member === 'none' ? !t.memberId : String(t.memberId) === f.member);
-        const byOrigin = (t) => !f.origin || f.origin === 'all' || (f.origin === 'unreconciled' ? Engine.txnOrigin(t) === 'typed' && !Engine.isReconciled(t) && !Engine.isTransfer(t) : Engine.txnOrigin(t) === f.origin);
+        const byOrigin = (t) => !f.origin || f.origin === 'all' || f.origin === 'excluded' || (f.origin === 'flagged' ? !!t.flagged : f.origin === 'unreconciled' ? Engine.txnOrigin(t) === 'typed' && !Engine.isReconciled(t) && !Engine.isTransfer(t) : Engine.txnOrigin(t) === f.origin);
         normalizeRange(f, ctx.today);
         const byDate = (t) => (!f.from || t.date >= f.from) && (!f.to || t.date <= f.to);
         const byAccount = (t) => !f.accounts || f.accounts.includes(t.accountId ? String(t.accountId) : 'none');
         UI.text('txn-range-label', rangeLabel(f));
         UI.text('txn-accts-label', !f.accounts ? I18n.t('All accounts') : I18n.t(`${f.accounts.length} account${f.accounts.length === 1 ? '' : 's'}`));
         UI.$$('[data-action="txn.rangeStep"]').forEach(b => { b.disabled = !f.from; });
-        const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => byDate(t) && byAccount(t) && matchesSearch(t, q) && byMember(t) && byOrigin(t))
+        // "Excluded" lists the ones set aside (they live apart, so nothing else counts them).
+        const source = f.origin === 'excluded' ? (ctx.state.excludedTxns || []) : ctx.state.transactions;
+        const list = Engine.filterTransactions(source, f).filter(t => byDate(t) && byAccount(t) && matchesSearch(t, q) && byMember(t) && byOrigin(t))
             .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
         const assignOf = assignments(ctx);
         lastList = list;

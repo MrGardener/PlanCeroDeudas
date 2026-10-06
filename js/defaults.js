@@ -172,6 +172,9 @@
             recurring: [],
             // Deleted transactions, restorable for 60 days.
             trash: [],
+            // Excluded transactions (a duplicate, a reimbursed work expense…): kept and shown with
+            // the "Excluded" filter, but no budget, report or total counts them.
+            excludedTxns: [],
             // Money accounts: { id, name, kind: 'corriente'|'ahorros'|'efectivo', balance, updatedAt }.
             // Cards and loans are debts (Deudas y Metas), so they're never counted twice.
             accounts: [],
