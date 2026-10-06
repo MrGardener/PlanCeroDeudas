@@ -1362,6 +1362,9 @@ html.kb-open.is-native body { padding-bottom: 0; }
                     </select>
                     <select id="txn-f-category" class="cell-input" style="width:auto" data-change="txn.filter"></select>
                     <select id="txn-f-member" class="cell-input hidden" style="width:auto" data-change="txn.filter" aria-label="Person"></select>
+                    <select id="txn-f-origin" class="cell-input" style="width:auto" data-change="txn.filter" aria-label="Where it came from">
+                        <option value="all">Typed and imported</option><option value="typed">Typed by hand</option><option value="unreconciled">Typed, not on a statement yet</option><option value="imported">Imported</option><option value="scheduled">Repeating (scheduled)</option>
+                    </select>
                     <button type="button" id="txn-select-toggle" class="btn btn-secondary btn-sm" data-action="txn.selectMode" aria-pressed="false"><i class="fa-regular fa-square-check"></i> Select</button>
                 </div>
             </div>
@@ -5375,6 +5378,17 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "An imported statement row matched it": "Una fila de un estado de cuenta importado coincidió",
+    "Imported": "Importada",
+    "Not matched by an imported statement yet": "Aún no coincide con un estado de cuenta importado",
+    "Typed": "Anotada a mano",
+    "Typed and imported": "Anotadas e importadas",
+    "Typed by hand": "Anotadas a mano",
+    "Typed · confirmed by a statement": "Anotada a mano · confirmada por un estado de cuenta",
+    "confirmed by a statement": "confirmada por un estado de cuenta",
+    "Typed, not on a statement yet": "Anotadas, aún sin estado de cuenta",
+    "Where it came from": "De dónde viene",
+    "Repeating (scheduled)": "Repetidas (programadas)",
     "Before last import": "Antes de la última importación",
     "Everything in this file is newer.": "Todo lo de este archivo es más reciente.",
     "Forget the last import date": "Olvidar la fecha de la última importación",
@@ -11089,6 +11103,16 @@ I18n.override('EC', 'es', {
         return { spent: cur.total, projected, top: cur.items[0] || null, jump: jumps[0] || null, drop: drops[0] || null, hasHistory: prev.total > 0 };
     }
 
+    // Where a transaction came from: 'imported' (a statement or invoice file), 'scheduled' (a
+    // repeating transaction posted on its day) or 'typed' (by hand). A typed one is reconciled once
+    // an imported statement row matched it (it then keeps the row's reference).
+    function txnOrigin(t) {
+        if (['csv', 'ofx', 'sri', 'xml'].includes(t.source)) return 'imported';
+        if (t.recurringId) return 'scheduled';
+        return 'typed';
+    }
+    const isReconciled = (t) => txnOrigin(t) === 'typed' && !!t.importRef;
+
     // "Household (shared)": a transaction for everyone (utilities, rent…), as opposed to one
     // person's or not set. Saved as memberId -1.
     const HOUSEHOLD = -1;
@@ -12448,7 +12472,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -17772,6 +17796,7 @@ I18n.override('EC', 'es', {
         UI.html('txn-f-year', Views.selectOptions([{ value: 'all', label: 'Every year' }].concat([...years].sort().map(y => ({ value: y, label: y }))), f.year));
         UI.html('txn-f-month', Views.selectOptions([{ value: 'all', label: 'Every month' }].concat(Fmt.MONTH_NAMES.map((n, i) => ({ value: i + 1, label: n }))), f.month));
         document.getElementById('txn-f-type').value = f.type;
+        const of = document.getElementById('txn-f-origin'); if (of) of.value = f.origin || 'all';
         // Categories already used by past transactions stay filterable even if deleted.
         const cats = new Set([...Object.keys(ctx.state.taxonomy.expense), ...Object.keys(ctx.state.taxonomy.income), ...ctx.state.transactions.map(t => t.parentCategory)]);
         UI.html('txn-f-category', Views.selectOptions([{ value: 'all', label: 'All categories' }].concat([...cats].sort().map(c => ({ value: c, label: c }))), f.category));
@@ -17878,6 +17903,10 @@ I18n.override('EC', 'es', {
         if (inc && t.incomeId) notes.push(incomeLabel(t));
         if (t.refund) notes.push('<span class="text-emerald-700"><i class="fa-solid fa-rotate-left"></i> Refund: lowers what you spent</span>');
         if (tr) notes.push('<span class="text-slate-500">Transfer: not income or spending</span>');
+        // Typed by hand (and whether a statement confirmed it), imported (into which account), scheduled.
+        const origin = Engine.txnOrigin(t), acct = t.accountId && (Store.state.accounts || []).find(a => a.id === t.accountId);
+        if (origin === 'typed') notes.push(Engine.isReconciled(t) ? '<span class="text-emerald-700" title="An imported statement row matched it"><i class="fa-solid fa-circle-check"></i> Typed · confirmed by a statement</span>' : '<span class="text-slate-500" title="Not matched by an imported statement yet"><i class="fa-solid fa-pen"></i> Typed</span>');
+        else if (origin === 'imported') notes.push(`<span class="text-slate-400"><i class="fa-solid fa-file-import"></i> <span>Imported</span>${acct ? ` · <span data-i18n-skip>${esc(acct.name)}</span>` : ''}</span>`);
         if ((t.tags || []).length) notes.push(t.tags.map(g => `<button type="button" class="tag-chip" data-action="txn.tagFilter" data-tag="${esc(g)}" title="See everything with this tag" data-i18n-skip>#${esc(g)}</button>`).join(''));
         const picking = !!Store.ui.txnSelecting;
         const on = picking && selected.has(t.id);
@@ -17905,7 +17934,8 @@ I18n.override('EC', 'es', {
         UI.show(mf, members.length > 0);
         if (members.length) mf.innerHTML = Views.selectOptions([{ value: 'all', label: 'Everyone' }, { value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name })), [{ value: 'none', label: 'No person' }]), f.member || 'all');
         const byMember = (t) => !f.member || f.member === 'all' || (f.member === 'none' ? !t.memberId : String(t.memberId) === f.member);
-        const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q) && byMember(t))
+        const byOrigin = (t) => !f.origin || f.origin === 'all' || (f.origin === 'unreconciled' ? Engine.txnOrigin(t) === 'typed' && !Engine.isReconciled(t) && !Engine.isTransfer(t) : Engine.txnOrigin(t) === f.origin);
+        const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q) && byMember(t) && byOrigin(t))
             .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
         const assignOf = assignments(ctx);
         lastList = list;
@@ -18576,7 +18606,8 @@ I18n.override('EC', 'es', {
                 month: document.getElementById('txn-f-month').value,
                 type: document.getElementById('txn-f-type').value,
                 category: document.getElementById('txn-f-category').value,
-                member: document.getElementById('txn-f-member').value || 'all'
+                member: document.getElementById('txn-f-member').value || 'all',
+                origin: document.getElementById('txn-f-origin').value || 'all'
             };
             App.update();
         },

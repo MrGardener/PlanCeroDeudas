@@ -1390,3 +1390,13 @@ test('accounts: a balance follows the imported rows; cards count as owed once', 
     assert.equal(nw.checking, 900);
     assert.equal(nw.creditCards, 1350);                                     // 1,000 through its debt + 350 unlinked
 });
+
+test('where a transaction came from; typed ones are reconciled once a statement matched them', () => {
+    assert.equal(E.txnOrigin({ source: 'csv' }), 'imported');
+    assert.equal(E.txnOrigin({ source: 'ofx', importRef: 'x' }), 'imported');
+    assert.equal(E.txnOrigin({ recurringId: 3 }), 'scheduled');
+    assert.equal(E.txnOrigin({ createdAt: '2026-01-01' }), 'typed');
+    assert.equal(E.isReconciled({ importRef: 'abc' }), true);              // typed, matched by an import
+    assert.equal(E.isReconciled({}), false);
+    assert.equal(E.isReconciled({ source: 'csv', importRef: 'abc' }), false);   // imported isn't "reconciled typed"
+});
