@@ -159,7 +159,21 @@
             ? 'Paying only the minimums, your debts aren\'t gone in 30 years: interest eats the payment.'
             : plan.monthsSaved > 0 ? `With your plan you finish ${Fmt.monthsAsYears(plan.monthsSaved)} sooner and pay ${money0(plan.interestSaved)} less interest than with minimums only.` : '');
 
+        // Each debt's balance, stacked, in the payoff order (the first to go at the bottom).
+        const MAXS = 7, ordered = rows.slice().sort((a, b) => (a.order || 99) - (b.order || 99));
+        const keep = ordered.length > MAXS ? ordered.slice(0, MAXS - 1) : ordered, rest = ordered.slice(keep.length);
+        const n = Math.min(CAP, planLine.length);
+        const lineOf = (id) => [Number((s.debts.find(d => d.id === id) || {}).balance) || 0].concat(plan.byDebt && plan.byDebt[id] || []).slice(0, n);
+        const series = keep.map(r => ({ label: short(r.debt.name), data: lineOf(r.id) }));
+        if (rest.length) series.push({ label: 'Other debts', data: Array.from({ length: n }, (_, i) => rest.reduce((t, r) => t + (lineOf(r.id)[i] || 0), 0)), other: true });
+        UI.chart('debt-stack-chart', {
+            type: 'line',
+            data: { labels: labels.slice(0, n), datasets: series.map((x, i) => { const c = x.other ? pal.muted : pal.series[i % pal.series.length]; return { label: x.label, data: x.data.map(v => Math.round(v)), stack: 'debts', fill: i === 0 ? 'origin' : '-1', backgroundColor: pal.alpha(c, 0.75), borderColor: c, borderWidth: 1, pointRadius: 0, pointHoverRadius: 4, tension: 0 }; }) },
+            options: { scales: { x: { ticks: { maxTicksLimit: 6, maxRotation: 0 } }, y: { stacked: true } }, plugins: { legend: { position: 'top', align: 'start' } } }
+        });
+
         UI.html('debt-ladder-table', rows.map(r => `<tr><td class="font-semibold" data-i18n-skip>${esc(r.debt.name)}</td><td class="num">${money0(r.debt.balance)}</td>
+            <td class="num">${Number(r.debt.rate) || 0}%</td><td class="num">${money0(r.debt.monthly === undefined || r.debt.monthly === null ? r.debt.minPayment : r.debt.monthly)}</td>
             <td>${r.attackMonth ? (r.attackMonth <= 1 ? 'From today' : when(r.attackMonth - 1)) : '—'}</td>
             <td>${r.payoffMonth ? `${when(r.payoffMonth)} (mes ${r.payoffMonth})` : 'Never'}</td></tr>`).join(''));
         const marks = [];

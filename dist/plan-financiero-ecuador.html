@@ -1835,9 +1835,11 @@ html.kb-open.is-native body { padding-bottom: 0; }
                 <div class="section-label mt-4"><i class="fa-solid fa-chart-area text-blue-600"></i> What you owe, month by month</div>
                 <div class="chart-box"><canvas id="debt-owed-chart" role="img" aria-label="Total you owe with your plan and with minimums only"></canvas></div>
                 <p class="help mt-1" id="debt-owed-note"></p>
+                <div class="section-label mt-4"><i class="fa-solid fa-layer-group text-blue-600"></i> Each debt, month by month</div>
+                <div class="chart-box"><canvas id="debt-stack-chart" role="img" aria-label="What you owe on each debt, stacked, until you're debt-free"></canvas></div>
                 <details class="mt-2">
                     <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> See the numbers in a table</summary>
-                    <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Deuda</th><th class="num">Balance today</th><th>Gets the snowball</th><th>Paid off</th></tr></thead><tbody id="debt-ladder-table"></tbody></table></div>
+                    <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Deuda</th><th class="num">Balance today</th><th class="num">Rate</th><th class="num">Payment</th><th>Gets the snowball</th><th>Paid off</th></tr></thead><tbody id="debt-ladder-table"></tbody></table></div>
                     <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Date</th><th class="num">With your plan</th><th class="num">Minimums only</th></tr></thead><tbody id="debt-owed-table"></tbody></table></div>
                 </details>
             </div>
@@ -5488,6 +5490,8 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Each debt, month by month": "Cada deuda, mes a mes",
+    "What you owe on each debt, stacked, until you're debt-free": "Lo que debes en cada deuda, apilado, hasta quedar libre de deudas",
     "Add cash event": "Agregar evento de efectivo",
     "Add your checking account balance (Net Worth → Accounts) to see your cash flow.": "Agrega el saldo de tu cuenta corriente (Patrimonio → Cuentas) para ver tu flujo de efectivo.",
     "Cash event added: {0}": "Evento de efectivo agregado: {0}",
@@ -12068,6 +12072,7 @@ I18n.override('EC', 'es', {
 
             let month = 0, totalInterest = 0;
             const history = [];   // total owed after each month
+            const byDebt = {};    // each debt's balance after each month: { id: [..] }
             while (items.some(d => d.balance > 0.01) && month < MAX) {
                 month++;
                 items.forEach(d => {
@@ -12098,9 +12103,10 @@ I18n.override('EC', 'es', {
                     }
                 });
                 history.push(sum(items, d => d.balance));
+                items.forEach(d => { (byDebt[d.id] || (byDebt[d.id] = [])).push(d.balance); });
             }
             items.forEach((d, idx) => { d.order = idx + 1; });
-            return { items, months: month, totalInterest, history, never: month >= MAX && items.some(d => d.balance > 0.01) };
+            return { items, months: month, totalInterest, history, byDebt, never: month >= MAX && items.some(d => d.balance > 0.01) };
         }
         const plan = run('plan');
         const minimums = run('minimums');
@@ -12108,6 +12114,7 @@ I18n.override('EC', 'es', {
         return {
             items: plan.items,
             history: plan.history,
+            byDebt: plan.byDebt,
             months: plan.months,
             never: plan.never,
             totalInterest: plan.totalInterest,
@@ -21028,7 +21035,21 @@ I18n.override('EC', 'es', {
             ? 'Paying only the minimums, your debts aren\'t gone in 30 years: interest eats the payment.'
             : plan.monthsSaved > 0 ? `With your plan you finish ${Fmt.monthsAsYears(plan.monthsSaved)} sooner and pay ${money0(plan.interestSaved)} less interest than with minimums only.` : '');
 
+        // Each debt's balance, stacked, in the payoff order (the first to go at the bottom).
+        const MAXS = 7, ordered = rows.slice().sort((a, b) => (a.order || 99) - (b.order || 99));
+        const keep = ordered.length > MAXS ? ordered.slice(0, MAXS - 1) : ordered, rest = ordered.slice(keep.length);
+        const n = Math.min(CAP, planLine.length);
+        const lineOf = (id) => [Number((s.debts.find(d => d.id === id) || {}).balance) || 0].concat(plan.byDebt && plan.byDebt[id] || []).slice(0, n);
+        const series = keep.map(r => ({ label: short(r.debt.name), data: lineOf(r.id) }));
+        if (rest.length) series.push({ label: 'Other debts', data: Array.from({ length: n }, (_, i) => rest.reduce((t, r) => t + (lineOf(r.id)[i] || 0), 0)), other: true });
+        UI.chart('debt-stack-chart', {
+            type: 'line',
+            data: { labels: labels.slice(0, n), datasets: series.map((x, i) => { const c = x.other ? pal.muted : pal.series[i % pal.series.length]; return { label: x.label, data: x.data.map(v => Math.round(v)), stack: 'debts', fill: i === 0 ? 'origin' : '-1', backgroundColor: pal.alpha(c, 0.75), borderColor: c, borderWidth: 1, pointRadius: 0, pointHoverRadius: 4, tension: 0 }; }) },
+            options: { scales: { x: { ticks: { maxTicksLimit: 6, maxRotation: 0 } }, y: { stacked: true } }, plugins: { legend: { position: 'top', align: 'start' } } }
+        });
+
         UI.html('debt-ladder-table', rows.map(r => `<tr><td class="font-semibold" data-i18n-skip>${esc(r.debt.name)}</td><td class="num">${money0(r.debt.balance)}</td>
+            <td class="num">${Number(r.debt.rate) || 0}%</td><td class="num">${money0(r.debt.monthly === undefined || r.debt.monthly === null ? r.debt.minPayment : r.debt.monthly)}</td>
             <td>${r.attackMonth ? (r.attackMonth <= 1 ? 'From today' : when(r.attackMonth - 1)) : '—'}</td>
             <td>${r.payoffMonth ? `${when(r.payoffMonth)} (mes ${r.payoffMonth})` : 'Never'}</td></tr>`).join(''));
         const marks = [];

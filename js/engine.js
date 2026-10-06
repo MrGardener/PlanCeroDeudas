@@ -1783,6 +1783,7 @@
 
             let month = 0, totalInterest = 0;
             const history = [];   // total owed after each month
+            const byDebt = {};    // each debt's balance after each month: { id: [..] }
             while (items.some(d => d.balance > 0.01) && month < MAX) {
                 month++;
                 items.forEach(d => {
@@ -1813,9 +1814,10 @@
                     }
                 });
                 history.push(sum(items, d => d.balance));
+                items.forEach(d => { (byDebt[d.id] || (byDebt[d.id] = [])).push(d.balance); });
             }
             items.forEach((d, idx) => { d.order = idx + 1; });
-            return { items, months: month, totalInterest, history, never: month >= MAX && items.some(d => d.balance > 0.01) };
+            return { items, months: month, totalInterest, history, byDebt, never: month >= MAX && items.some(d => d.balance > 0.01) };
         }
         const plan = run('plan');
         const minimums = run('minimums');
@@ -1823,6 +1825,7 @@
         return {
             items: plan.items,
             history: plan.history,
+            byDebt: plan.byDebt,
             months: plan.months,
             never: plan.never,
             totalInterest: plan.totalInterest,

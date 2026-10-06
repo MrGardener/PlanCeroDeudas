@@ -1470,3 +1470,15 @@ test('cashEvents: one-off events in the window join the forecast', () => {
     assert.equal(f.find(d => d.date === '2026-10-20').balance, -200);
     assert.equal(f.find(d => d.date === '2026-10-20').status, 'short');
 });
+
+test('debtPayoff: each debt\'s balance month by month adds up to the total', () => {
+    const debts = [{ id: 1, name: 'Card', balance: 1000, rate: 20, minPayment: 50 }, { id: 2, name: 'Car', balance: 5000, rate: 6, minPayment: 200 }];
+    const p = E.debtPayoff(debts, 'snowball', 100);
+    assert.equal(p.byDebt[1].length, p.months);
+    assert.equal(p.byDebt[2].length, p.months);
+    p.history.forEach((t, i) => assert.ok(Math.abs(t - p.byDebt[1][i] - p.byDebt[2][i]) < 1e-6));
+    const first = p.items.find(i => i.id === 1).payoffMonth;
+    assert.equal(p.byDebt[1][first - 1], 0);
+    assert.ok(p.byDebt[1][first - 2] > 0);
+    assert.equal(p.byDebt[2][p.months - 1], 0);
+});
