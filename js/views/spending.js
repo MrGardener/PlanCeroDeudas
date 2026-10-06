@@ -5,7 +5,7 @@
    3 / 6 / 9 / 12 months, all categories or one (then its subcategories), any account. */
 (function () {
     'use strict';
-    const { money, esc } = Fmt;
+    const { money, money0, esc } = Fmt;
     const RANGES = ['this-month', 'last-month', '3m', '6m'];
     const opts = () => (Store.ui.spending = Object.assign({ range: 'this-month', who: '', cat: null, sub: null, txns: false }, Store.ui.spending));
 
@@ -102,8 +102,10 @@
         UI.chart('trends-chart', {
             type: 'line',
             data: { labels: r.months.map(label), datasets },
-            options: { scales: { y: { stacked: true } }, plugins: { legend: { position: 'bottom' } } }
+            options: { scales: { y: { stacked: true } }, plugins: { legend: { position: 'bottom' } },
+                onClick: (e, els) => { if (!els.length) return; const k = r.months[els[0].index]; o.drill = o.drill && o.drill.month === k && !o.drill.cat ? null : { month: k, cat: null, sub: null }; App.update(); } }
         });
+        drill(ctx, o, r, label);
         const now = Engine.isoDate(ctx.today).slice(0, 7);
         UI.text('trends-note', r.months[r.months.length - 1] === now ? 'This month isn\'t over yet.' : '');
         UI.html('trends-head', `<tr><th>Month</th><th class="num">Spending</th>${r.income ? '<th class="num">Income</th><th class="num">Left over</th>' : ''}</tr>`);
@@ -111,6 +113,33 @@
     }
 
     // Level 1 → a category; level 2 → a subcategory (tap again to unpick).
+    // Tap a month: its categories vs the period's average; a category: its subcategories; a
+    // subcategory: its transactions. "Back" goes up a level.
+    function drill(ctx, o, r, label) {
+        const host = document.getElementById('trends-drill');
+        if (!host) return;
+        const d = o.drill;
+        if (!d || !r.months.includes(d.month)) { o.drill = null; host.innerHTML = '<p class="help"><i class="fa-solid fa-hand-pointer"></i> Tap a month on the chart to see what changed.</p>'; return; }
+        const idx = r.months.indexOf(d.month), s = ctx.state;
+        const cat = o.category || d.cat;   // the chart already shows one category: its subcategories
+        const head = (title, back) => `<div class="flex items-center justify-between gap-2 mb-2"><strong class="text-sm">${title}</strong>${back ? `<button type="button" class="link text-xs" data-action="trends.up"><i class="fa-solid fa-arrow-left"></i> Back</button>` : ''}</div>`;
+        const month = esc(label(d.month));
+        if (d.sub) {
+            const [y, m] = d.month.split('-').map(Number), from = `${d.month}-01`, to = Engine.isoDate(new Date(y, m, 0));
+            const acc = o.account;
+            const list = s.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && t.date >= from && t.date <= to && (t.parentCategory || 'Otros') === cat && (t.category || cat) === d.sub
+                && (!acc || (acc === 'none' ? !t.accountId : String(t.accountId) === String(acc)))).sort((a, b) => Engine.spendAmount(b) - Engine.spendAmount(a));
+            host.innerHTML = head(`${month} · ${esc(I18n.t(d.sub))}`, true) + `<div class="acd-txns">${list.map(t => `<div class="acd-txn"><span class="text-xs text-slate-500 whitespace-nowrap">${esc(Fmt.dayMonth(new Date(t.date + 'T00:00:00')))}</span><span class="truncate font-semibold" data-i18n-skip>${esc(t.description || '—')}</span><span class="font-semibold whitespace-nowrap">${money(Engine.spendAmount(t))}</span></div>`).join('') || '<p class="help">No transactions.</p>'}</div>`;
+            return;
+        }
+        const tr = cat ? Engine.categoryTrend(s.transactions, { end: ctx.today, months: o.months, account: o.account, category: cat, max: 999 }) : Engine.categoryTrend(s.transactions, { end: ctx.today, months: o.months, account: o.account, max: 999 });
+        const rows = Engine.monthVsAverage(tr, idx), total = rows.reduce((a, x) => a + x.value, 0);
+        host.innerHTML = head(`${month}${cat ? ` · ${esc(I18n.t(cat))}` : ''} · ${money(total)}`, !!d.cat) + `<div class="spend-legend">${rows.map(x => `<button type="button" class="spend-row" style="grid-template-columns:1fr auto 5.5rem" data-action="trends.drill" data-key="${esc(x.key)}">
+                <span class="spend-name">${esc(I18n.t(x.key))}</span>
+                <span class="text-[11px] whitespace-nowrap ${x.diff > 0.5 ? 'text-red-600' : x.diff < -0.5 ? 'text-emerald-700' : 'text-slate-500'}">${Math.abs(x.diff) < 0.5 ? '= avg' : `${x.diff > 0 ? '▲' : '▼'} ${money0(Math.abs(x.diff))} vs avg`}</span>
+                <span class="spend-amt">${money(x.value)}</span></button>`).join('') || '<p class="help">No spending that month.</p>'}</div>`;
+    }
+
     function pick(key) {
         const o = opts();
         if (!key) { o.cat = null; o.sub = null; o.txns = false; }
@@ -125,6 +154,8 @@
         'spend.pick': (el) => pick(el.dataset.key || null),
         'spend.back': () => pick(null),
         'spend.txns': () => { const o = opts(); o.txns = !o.txns; App.update(); },
+        'trends.drill': (el) => { const o = topts(); if (!o.drill) return; if (o.category || o.drill.cat) o.drill.sub = el.dataset.key; else o.drill.cat = el.dataset.key; App.update(); },
+        'trends.up': () => { const o = topts(); if (!o.drill) return; if (o.drill.sub) o.drill.sub = null; else o.drill.cat = null; App.update(); },
         'trends.months': (el) => { topts().months = Math.max(1, Math.min(12, Number(el.dataset.months) || 6)); App.update(); },
         'trends.category': (el) => { topts().category = el.value; App.update(); },
         'trends.account': (el) => { topts().account = el.value; App.update(); }
