@@ -2,6 +2,18 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Before last import": "Antes de la última importación",
+    "Everything in this file is newer.": "Todo lo de este archivo es más reciente.",
+    "Forget the last import date": "Olvidar la fecha de la última importación",
+    "Imported up to {0}": "Importado hasta el {0}",
+    "Include them anyway": "Incluirlas de todos modos",
+    "Last import date cleared": "Fecha de la última importación borrada",
+    "Last import into this account: {0}.": "Última importación a esta cuenta: {0}.",
+    "On or before the last import into this account": "El día de la última importación a esta cuenta o antes",
+    "Rows before it are treated like the others.": "Las filas anteriores se tratan como las demás.",
+    "Rows on or before this date start unchecked when you import this account again": "Las filas de esta fecha o antes empiezan sin marcar cuando vuelvas a importar esta cuenta",
+    "Uncheck them again": "Desmarcarlas otra vez",
+    "{0} row{1} on or before that date start unchecked.": "{0} fila{1|s|} de esa fecha o antes empieza{1|n|} sin marcar.",
     "+ New checking account": "+ Cuenta corriente nueva",
     "+ New credit card": "+ Tarjeta de crédito nueva",
     "+ New savings account": "+ Cuenta de ahorros nueva",

@@ -62,6 +62,9 @@ module.exports = async function run(page, ok) {
   await page.waitForTimeout(700);
   const again = await page.evaluate(() => { const s = ImportSession.get(); return { dup: s.rows.filter(r => r.dup).length, include: s.rows.filter(r => r.include).length, gx: s.rows.find(r => r.description === 'Globex'), streams: s.streamList.map(x => [x.name, x.cfg.mode, x.cfg.lineId, x.cfg.memberId]) }; });
   ok(again.dup === n && again.include === 0, 'importing the same file again: all already there', [again.dup, again.include]);
+  // The account remembers its last import (step 7): the same file again is all "before last import".
+  const lastImp = await page.evaluate(() => { const a = Store.state.accounts.find(x => x.kind === 'corriente'), s = ImportSession.get(); return { last: a.lastImport, account: s.account, before: s.rows.filter(r => r.before).length, n: s.rows.length, max: s.rows.reduce((d, r) => (r.date > d ? r.date : d), ''), banner: document.getElementById('imp-ofx-account').textContent }; });
+  ok(lastImp.last === lastImp.max && lastImp.account && lastImp.before === lastImp.n && /Last import into this account/.test(lastImp.banner), 'the account remembers the last imported date; the same file again is all before it', [lastImp.last, lastImp.before, lastImp.n]);
   ok(/rule/.test(again.gx.why) && again.gx.memberId === 2 && again.streams.find(x => x[0] === 'Globex')[1] === 'line', 'next time the rules do it: Globex → Luis, budget line', again.streams);
   await page.click('[data-action="imp.cancel"]');
   // Phone: the review list is cards, no sideways scroll; card file by category code.

@@ -120,6 +120,7 @@
     }
 
     function recompute() {
+        const cutoff = lastImportOf(session);
         const s = session;
         let rows;
         if (s.source === 'csv') rows = Importers.buildRows(s.table, Object.assign({ dateDefault: Store.COUNTRY === 'US' ? 'mdy' : 'dmy' }, s.mapping));
@@ -178,8 +179,10 @@
                 const m = Importers.findMatch(out, manual, { exclude: used });
                 if (m) { used.add(m.txn.id); match = { id: m.txn.id, description: m.txn.description, date: m.txn.date, days: m.days }; }
             }
-            const include = s.include[i] !== undefined ? s.include[i] : !r.error && !dup && !match;
-            return Object.assign(out, { dup, match, include: !r.error && include, isCard: !!(info && info.isCard) });
+            // On or before the account's last import: most likely already in (start unchecked).
+            const before = !!(cutoff && r.date && r.date <= cutoff);
+            const include = s.include[i] !== undefined ? s.include[i] : !r.error && !dup && !match && !before;
+            return Object.assign(out, { dup, match, before, include: !r.error && include, isCard: !!(info && info.isCard) });
         });
         applyStreams(s, members);
         s.suggest = suggestions(s);
@@ -309,7 +312,7 @@
                 </div>${r.why ? `<div class="text-[11px] text-slate-400">${conf(r)}${esc(r.why)}</div>` : conf(r) ? `<div class="text-[11px]">${conf(r)}</div>` : ''}${incomeNote(r)}${r.budgetLine && r.type === 'Gasto' ? `<div class="text-[11px] text-blue-600">Line: ${esc(lineName(r.budgetLine))}</div>` : ''}`}</td>
                 <td data-label="Whose?">${r.error ? '' : `<select class="cell-input text-xs" data-change="imp.who" data-i="${i}" aria-label="Whose">${whoOptions(r)}</select>`}</td>
                 <td class="num font-bold ${r.type === 'Ingreso' ? 'text-emerald-700' : ''}" data-label="Amount">${r.error ? '' : (r.type === 'Ingreso' ? '+' : r.type === 'Transferencia' ? '' : '−') + money(r.amount)}</td>
-                <td class="text-xs" data-label="Status">${r.error ? `<span class="badge badge-bad">${esc(r.error)}</span>` : r.dup ? '<span class="badge badge-warn">Already exists</span>' : r.match ? matchCell(r, i) : '<span class="badge badge-ok">New</span>'}</td>
+                <td class="text-xs" data-label="Status">${r.error ? `<span class="badge badge-bad">${esc(r.error)}</span>` : r.dup ? '<span class="badge badge-warn">Already exists</span>' : r.match ? matchCell(r, i) : r.before && !r.include ? '<span class="badge badge-info" title="On or before the last import into this account">Before last import</span>' : '<span class="badge badge-ok">New</span>'}</td>
             </tr>`).join('') + (s.rows.length > 500 ? `<tr><td colspan="7" class="text-xs text-slate-500">Showing 500 of ${s.rows.length}; all checked rows are imported.</td></tr>` : ''));
     }
 
@@ -398,6 +401,12 @@
     // Which account the file is from: each transaction remembers it, and its balance follows the
     // file (its balance column) or the imported amounts. A card's balance is what you owe (below 0).
     const ACCOUNT_KINDS = { corriente: 'Checking', ahorros: 'Savings', efectivo: 'Cash', retiro: 'Retirement', tarjeta: 'Credit card' };
+    // The date of the last import into the chosen account (unless "include them anyway").
+    function lastImportOf(s) {
+        if (!s || !s.account || s.ignoreLast) return '';
+        const a = (Store.state.accounts || []).find(x => String(x.id) === String(s.account));
+        return (a && a.lastImport) || '';
+    }
     function fileBalance(s) { return s.source === 'csv' ? Importers.latestBalance(s.rows) : s.source === 'ofx' ? s.ofxBalance : null; }
     function renderAccountPick(s) {
         const el = document.getElementById('imp-ofx-account');
@@ -410,8 +419,13 @@
         const lb = fileBalance(s);
         const ok = s.rows.filter(r => r.include);
         const net = Engine.balanceAfterRows(0, ok);
+        const acct = accts.find(a => String(a.id) === String(s.account));
+        const before = s.rows.filter(r => r.before).length;
+        const last = acct && acct.lastImport ? (s.ignoreLast
+            ? `<p class="text-xs mt-2"><i class="fa-solid fa-circle-info text-blue-600"></i> <span>Last import into this account: ${esc(acct.lastImport)}.</span> <span>Rows before it are treated like the others.</span> <button type="button" class="link" data-action="imp.useLast">Uncheck them again</button></p>`
+            : `<p class="text-xs mt-2"><i class="fa-solid fa-lock text-amber-600"></i> <span>Last import into this account: ${esc(acct.lastImport)}.</span> ${before ? `<span>${before} row${before === 1 ? '' : 's'} on or before that date start unchecked.</span> <button type="button" class="link" data-action="imp.ignoreLast">Include them anyway</button>` : '<span>Everything in this file is newer.</span>'}</p>`) : '';
         el.innerHTML = `<label class="field max-w-md"><span class="field-label">Which account is this file from?</span><select class="input" data-change="imp.account">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(s.account || '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
-            <span class="help">${!s.account ? 'Pick it to keep its balance and know where each transaction was made (your card or your checking).' : lb ? `The file's balance (${money(lb.balance)} as of ${esc(lb.date || '')}) becomes the account's balance.` : `No balance in the file: the account's balance moves by what you import (${(net >= 0 ? '+' : '−') + money(Math.abs(net))}).`}</span></label>`;
+            ${last}<span class="help">${!s.account ? 'Pick it to keep its balance and know where each transaction was made (your card or your checking).' : lb ? `The file's balance (${money(lb.balance)} as of ${esc(lb.date || '')}) becomes the account's balance.` : `No balance in the file: the account's balance moves by what you import (${(net >= 0 ? '+' : '−') + money(Math.abs(net))}).`}</span></label>`;
     }
 
     // ------------------------------------------------------------------ rules
@@ -502,7 +516,10 @@
             if (el.value) session.catMap[el.dataset.value] = el.value; else delete session.catMap[el.dataset.value];
             recompute();
         },
-        'imp.account': (el) => { if (session) { session.account = el.value; renderAccountPick(session); } },
+        // Rows you checked or unchecked yourself keep your choice; the others follow the account.
+        'imp.account': (el) => { if (session) { session.account = el.value; recompute(); } },
+        'imp.ignoreLast': () => { if (session) { session.ignoreLast = true; recompute(); } },
+        'imp.useLast': () => { if (session) { session.ignoreLast = false; recompute(); } },
         'imp.cat': (el) => { if (!session) return; editRow(Number(el.dataset.i), { category: el.value, sub: undefined }); recompute(); },
         'imp.sub': (el) => { if (!session) return; const i = Number(el.dataset.i); editRow(i, { category: session.rows[i].category, sub: el.value }); recompute(); },
         'imp.type': (el) => { if (!session) return; editRow(Number(el.dataset.i), { type: el.value, category: undefined, sub: undefined }); recompute(); },
@@ -667,6 +684,9 @@
                 else if (rows.length) { acct.balance = Engine.balanceAfterRows(acct.balance, rows); acct.updatedAt = rows.reduce((d, r) => (r.date > d ? r.date : d), acct.updatedAt || ''); }
                 const debt = acct.kind === 'tarjeta' && acct.debtId ? (Store.state.debts || []).find(d => d.id === acct.debtId) : null;
                 if (debt) debt.balance = Math.max(0, -acct.balance);
+                // The newest imported date: next time, rows up to it start unchecked.
+                const newest = rows.reduce((d, r) => (r.date > d ? r.date : d), '');
+                if (newest && newest > (acct.lastImport || '')) acct.lastImport = newest;
                 balanceNote = ` "${acct.name}" balance: ${acct.balance < 0 ? '−' : ''}${money(Math.abs(acct.balance))}.`;
             }
             // Rows that are the same money as a hand-typed transaction: nothing new is added, but the
