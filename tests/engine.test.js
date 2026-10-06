@@ -1543,3 +1543,19 @@ test('spendingBreakdown: one category splits into its subcategories', () => {
     assert.deepEqual(r.rows.map(x => [x.key, x.total]), [['Supermercado', 300], ['Restaurantes', 80], ['Alimentación', 20]]);
     assert.equal(r.total, 400);
 });
+
+test('suggestBudget: average of the last months per everyday line, rounded; spendPace', () => {
+    const items = [{ id: 1, name: 'Groceries', real: 600, type: 'Gasto Variable' }, { id: 2, name: 'Coffee', real: 20, type: 'Gasto Variable' },
+        { id: 3, name: 'Car loan', real: 350, type: 'Deuda', link: 'debt' }, { id: 4, name: 'Emergency fund', real: 100, type: 'Ahorro' }];
+    const m = (a, b) => ({ spend: { byLine: { 1: { spent: a }, 2: { spent: b } } } });
+    const r = E.suggestBudget([m(700, 30), m(650, 41), m(712, 0)], items);
+    assert.deepEqual(r.map(x => [x.id, x.suggested]), [[1, 690], [2, 25]]);
+    assert.ok(Math.abs(r[0].avg - 687.33) < 0.01);
+    const p = E.spendPace({ planned: 600, spent: 400, day: 15, daysInMonth: 30 });
+    assert.equal(p.expected, 300);
+    assert.equal(p.state, 'fast');
+    assert.equal(p.daysLeft, 16);
+    assert.equal(p.perDay, 12.5);
+    assert.equal(E.spendPace({ planned: 600, spent: 700, day: 20, daysInMonth: 30 }).state, 'over');
+    assert.equal(E.spendPace({ planned: 600, spent: 250, day: 15, daysInMonth: 30 }).state, 'ok');
+});

@@ -2,6 +2,23 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "By today: {0}": "A hoy: {0}",
+    "Check at least one line.": "Marca al menos una línea.",
+    "No spending in the last 3 months yet: log or import a few months first.": "Aún no hay gastos en los últimos 3 meses: registra o importa algunos meses primero.",
+    "On pace.": "Al ritmo.",
+    "Over the plan for this month.": "Por encima del plan de este mes.",
+    "Spending faster than planned.": "Gastando más rápido de lo planeado.",
+    "Suggest from my last 90 days": "Sugerir según mis últimos 90 días",
+    "Suggested": "Sugerido",
+    "Use the checked ones": "Usar las marcadas",
+    "Use the suggestion": "Usar la sugerencia",
+    "Where spending would be by today": "Dónde estaría el gasto a hoy",
+    "{0} a day left for {1} day{2}.": "{0} al día para {1} día{2|s|}.",
+    "What you spent on average in the last 3 full months, per line. Check the ones to use; debts, goals and savings stay as they are.": "Lo que gastaste en promedio en los últimos 3 meses completos, por línea. Marca las que quieras usar; deudas, metas y ahorros quedan igual.",
+    "Budget updated from your spending: {0} line{1}": "Presupuesto actualizado según tus gastos: {0} línea{1|s|}",
+    "avg {0}": "prom. {0}",
+    "Planned {0}": "Planeado {0}",
+    "Spent {0}": "Gastado {0}",
     "Hide transactions": "Ocultar transacciones",
     "Same as the period before": "Igual que el periodo anterior",
     "View transactions": "Ver transacciones",

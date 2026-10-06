@@ -126,7 +126,8 @@
         'tdt.split': () => {
             const id = txnId;
             if (sheet) sheet.close();
-            UI.run('txn.assignLine', { value: '__split', dataset: { id: String(id) } });
+            const t = find(id);
+            if (t && window.BudgetSimple && BudgetSimple.openSplit) BudgetSimple.openSplit(t);
         },
         'tdt.category': () => pickCategory(),
         'tdt.back': () => { view = 'details'; draw(); },

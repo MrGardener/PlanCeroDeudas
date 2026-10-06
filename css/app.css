@@ -885,3 +885,10 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .cat-pick-subs > button:hover { background: var(--surface-3); }
 .txn-main[data-action="txn.details"] { cursor: pointer; }
 .spend-banner { border: 1px solid var(--line); border-radius: .8rem; padding: .75rem .9rem; background: var(--surface-2, var(--surface)); display: flex; flex-direction: column; gap: .15rem; }
+/* Bubble sheet: target sliders and the month's pace (a marker where spending would be by today). */
+.bub-line { padding: .6rem 0; border-bottom: 1px solid var(--line-soft); }
+.bub-slider { width: 100%; margin-top: .4rem; accent-color: var(--brand); }
+.pace-bar { position: relative; height: .7rem; border-radius: 9999px; background: var(--surface-3); overflow: visible; }
+.pace-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 9999px; background: #1baf7a; }
+.pace-fill.is-fast { background: #eda100; } .pace-fill.is-over { background: #d03b3b; }
+.pace-mark { position: absolute; top: -.25rem; bottom: -.25rem; width: 2px; background: var(--ink); border-radius: 1px; }
