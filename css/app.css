@@ -906,3 +906,9 @@ button.sheet-row:hover { background: var(--surface-3); }
 /* Goal cards (Debts & Goals). */
 .goal-card { border: 1px solid var(--line); border-radius: .9rem; padding: .85rem .95rem; background: var(--surface); }
 .goal-card .spark { vertical-align: middle; }
+/* Cash flow calendar: a cell per day with dots for money in / out and the end balance. */
+.flow-cell { text-align: left; }
+.flow-cell.picked { outline: 2px solid var(--brand); outline-offset: -2px; }
+.flow-dots { display: flex; gap: 3px; min-height: 8px; }
+.flow-dots i { width: 7px; height: 7px; border-radius: 9999px; display: inline-block; }
+.flow-dots i.in { background: #1baf7a; } .flow-dots i.out { background: #d03b3b; }
