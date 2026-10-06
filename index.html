@@ -67,7 +67,7 @@
         <a href="#" data-goto="presupuesto/plan"><i class="fa-solid fa-circle-nodes"></i><span>Budgets</span></a>
         <a href="#" data-goto="transacciones/reportes" data-focus="trends-card"><i class="fa-solid fa-clock-rotate-left"></i><span>Trends</span></a>
         <a href="#" data-goto="futuro/metas" data-focus="metas-debts"><i class="fa-solid fa-sack-dollar"></i><span>Debts</span></a>
-        <a href="#" data-goto="patrimonio" data-focus="nw-progress"><i class="fa-solid fa-chart-line"></i><span>Net Worth</span></a>
+        <a href="#" data-goto="patrimonio" data-focus="nw-sheet"><i class="fa-solid fa-chart-line"></i><span>Net Worth</span></a>
         <a href="#" data-goto="futuro/metas" data-focus="metas-goals"><i class="fa-solid fa-bullseye"></i><span>Goals</span></a>
         <a href="#" data-goto="patrimonio" data-focus="nw-holdings"><i class="fa-solid fa-chart-column"></i><span>Investments</span></a>
         <a href="#" data-goto="resumen" data-focus="dash-flow-card"><i class="fa-regular fa-calendar-days"></i><span>Cash Flow</span></a>
@@ -1420,6 +1420,15 @@
         </div>
     </div>
 
+    <div class="card" id="nw-sheet">
+        <div class="card-head">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-scale-unbalanced text-blue-600"></i> Balance sheet</div>
+                <div class="card-sub">What you own and what you owe, by type. Tap a type to see its accounts; property values can be changed right here.</div>
+            </div>
+        </div>
+        <div id="nw-sheet-body"></div>
+    </div>
     <div class="card" id="nw-progress">
         <div class="card-head">
             <div>

@@ -893,3 +893,13 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .pace-fill.is-fast { background: #eda100; } .pace-fill.is-over { background: #d03b3b; }
 .pace-mark { position: absolute; top: -.25rem; bottom: -.25rem; width: 2px; background: var(--ink); border-radius: 1px; }
 .range-slider { width: 100%; margin-top: .4rem; accent-color: var(--brand); }
+/* Balance sheet (Net Worth): own vs owe by type; a type opens to its accounts. */
+.sheet-net { display: flex; flex-direction: column; align-items: center; padding: .5rem 0; }
+.sheet-side { display: flex; justify-content: space-between; align-items: baseline; padding: .45rem .25rem; border-bottom: 2px solid #1baf7a; font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-2); }
+.sheet-side.owe { border-bottom-color: #d03b3b; }
+.sheet-side strong { font-size: 1rem; text-transform: none; }
+.sheet-head { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: .6rem .25rem; border-bottom: 1px solid var(--line-soft); font-size: .88rem; font-weight: 600; color: var(--ink); }
+.sheet-head:hover { background: var(--surface-3); }
+.sheet-rows { padding: .15rem 0 .4rem .9rem; }
+.sheet-row { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding: .45rem .25rem; font-size: .84rem; color: var(--ink); border-bottom: 1px dashed var(--line-soft); text-align: left; }
+button.sheet-row:hover { background: var(--surface-3); }
