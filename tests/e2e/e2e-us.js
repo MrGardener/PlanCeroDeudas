@@ -409,6 +409,22 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(150);
   const sp6 = await page.evaluate(() => ({ center: document.getElementById('spend-center').textContent, active: document.querySelector('[data-action="spend.range"].active').dataset.range }));
   ok(sp6.active === '6m' && /Spent/.test(sp6.center) && !sp6.center.includes(sp.total), 'spending: 6 months, household only', sp6);
+  // Trends: stacked areas by category with an income line; 1Y; one category; one account.
+  await page.click('[data-action="trends.months"][data-months="12"]');
+  await page.waitForTimeout(200);
+  const tr1 = await page.evaluate(() => { const c = UI.chartInstance('trends-chart'); return { labels: c.data.labels.length, sets: c.data.datasets.map(d => d.label), stacked: c.options.scales.y.stacked, rows: document.querySelectorAll('#trends-table tr').length }; });
+  ok(tr1.labels === 12 && tr1.rows === 12 && tr1.stacked && tr1.sets.includes('Income') && tr1.sets.length >= 3, 'trends: 12 months stacked by category with income', tr1);
+  await page.selectOption('#trends-category', 'Alimentación');
+  await page.waitForTimeout(200);
+  const tr2 = await page.evaluate(() => UI.chartInstance('trends-chart').data.datasets.map(d => d.label));
+  ok(!tr2.includes('Income') && tr2.length >= 1 && !tr2.includes('Food'), 'trends: one category shows its subcategories', tr2);
+  await page.evaluate(() => { Store.state.transactions.push({ id: 999001, date: Engine.isoDate(new Date()), type: 'Gasto', parentCategory: 'Ocio', category: 'Cine', description: 'Movies', amount: 33, accountId: 77 }); App.update(); });
+  await page.selectOption('#trends-category', '');
+  await page.evaluate(() => { const s = document.getElementById('trends-account'); s.insertAdjacentHTML('beforeend', '<option value="77">x</option>'); s.value = '77'; s.dispatchEvent(new Event('change', { bubbles: true })); });
+  await page.waitForTimeout(200);
+  const tr3 = await page.evaluate(() => { const c = UI.chartInstance('trends-chart'); return c.data.datasets.map(d => d.label + ':' + d.data.reduce((a, v) => a + v, 0)); });
+  ok(tr3.length === 2 && /:33$/.test(tr3[0]) && tr3[1] === 'Income:0', 'trends: one account', tr3);
+  await page.evaluate(() => { Store.state.transactions = Store.state.transactions.filter(t => t.id !== 999001); Store.ui.trends = null; App.update(); });
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

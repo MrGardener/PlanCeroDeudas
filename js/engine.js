@@ -1071,6 +1071,34 @@
         return { total, rows: rows.map(r => Object.assign(r, { share: total ? r.total / total : 0 })) };
     }
 
+    // Spending per month by category (or, for one category, by subcategory) for the last `months`
+    // months up to `end`, plus income, for the Trends chart. account: '' = all, 'none' = without
+    // an account, else an account id. The smallest series fold into one "other" (key null).
+    function categoryTrend(transactions, { end, months = 6, account = '', category = '', max = 7 } = {}) {
+        const e = end instanceof Date ? end : new Date(end);
+        const keys = Array.from({ length: months }, (_, i) => { const d = new Date(e.getFullYear(), e.getMonth() - months + 1 + i, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; });
+        const at = {}; keys.forEach((k, i) => { at[k] = i; });
+        const zeros = () => new Array(months).fill(0);
+        const by = {}, income = zeros();
+        (transactions || []).forEach(t => {
+            const i = t.date ? at[t.date.slice(0, 7)] : undefined;
+            if (i === undefined || isTransfer(t)) return;
+            if (account === 'none' ? t.accountId : account !== '' && account !== null && account !== undefined && String(t.accountId) !== String(account)) return;
+            if (txnType(t) === 'Ingreso') { if (!category) income[i] += num(t.amount); return; }
+            if (category && (t.parentCategory || 'Otros') !== category) return;
+            const k = category ? (t.category || category) : (t.parentCategory || 'Otros');
+            (by[k] || (by[k] = zeros()))[i] += amt(t);
+        });
+        let series = Object.keys(by).map(k => ({ key: k, values: by[k], total: by[k].reduce((a, v) => a + v, 0) })).filter(x => x.total > 0.005).sort((a, b) => b.total - a.total);
+        if (series.length > max) {
+            const rest = series.slice(max - 1);
+            const values = zeros(); rest.forEach(x => x.values.forEach((v, i) => { values[i] += v; }));
+            series = series.slice(0, max - 1).concat([{ key: null, other: rest.map(x => x.key), values, total: sum(rest, x => x.total) }]);
+        }
+        const spend = keys.map((_, i) => sum(series, x => x.values[i]));
+        return { months: keys, series, income: category ? null : income, spend };
+    }
+
     // ------------------------------------------------------------ recurring
     // A repeating transaction: { frequency: 'weekly'|'biweekly'|'monthly'|'yearly',
     // startDate, endDate?, lastPosted? }. Monthly/yearly keep the start's day of month
@@ -2407,7 +2435,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
