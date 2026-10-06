@@ -4,9 +4,32 @@
 (function () {
     'use strict';
     const { money, esc } = Fmt;
-    const ICONS = { checking: 'fa-money-check', savings: 'fa-piggy-bank', cash: 'fa-wallet', investment: 'fa-chart-column', property: 'fa-house', card: 'fa-credit-card', mortgage: 'fa-house-chimney', loan: 'fa-file-invoice-dollar' };
+    const ICONS = { checking: 'fa-money-check', savings: 'fa-piggy-bank', cash: 'fa-wallet', retirement: 'fa-umbrella-beach', health: 'fa-briefcase-medical', investment: 'fa-chart-column', realestate: 'fa-house', vehicle: 'fa-car', valuables: 'fa-gem', card: 'fa-credit-card', mortgage: 'fa-house-chimney', loan: 'fa-file-invoice-dollar' };
     const initials = (name) => String(name || '?').replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
-    const SUB = { holding: 'Investment', poliza: 'CD', corriente: 'Checking', ahorros: 'Savings', efectivo: 'Cash', retiro: 'Retirement', tarjeta: 'Credit Card', vehicular: 'Auto loan', personal: 'Personal loan', estudiantil: 'Student loan', otra: 'Other debt', mortgage: 'Mortgage', 'Bienes Raíces': 'Real estate', 'Vehículo': 'Vehicle', 'Otro': 'Other' };
+    const SUB = Object.assign({ holding: 'Investment', poliza: 'CD', corriente: 'Checking', ahorros: 'Savings', efectivo: 'Cash', retiro: 'Retirement', tarjeta: 'Credit Card', hipoteca: 'Mortgage', vehicular: 'Auto loan', personal: 'Personal loan', estudiantil: 'Student loan', otra: 'Other debt', mortgage: 'Mortgage', 'Bienes Raíces': 'Real estate', 'Vehículo': 'Vehicle', 'Joyas': 'Jewelry', 'Otro': 'Other' },
+        Object.fromEntries(Engine.ACCOUNT_SUBTYPES.map(t => [t.id, t.label])));
+
+    // Every type an account can be, in one list grouped like the balance sheet. Values say where it
+    // is kept: 'acct:<kind>[:<subtype>]' (accounts), 'asset:<category>' (property), 'debt:<kind>'
+    // (loans in the debt plan).
+    const GROUP_LABEL = Object.fromEntries(Engine.HUB_GROUPS.map(g => [g.key, g.label]));
+    const TYPE_LIST = [
+        { value: 'acct:corriente', label: 'Checking', group: 'Cash & bank' }, { value: 'acct:ahorros', label: 'Savings', group: 'Cash & bank' }, { value: 'acct:efectivo', label: 'Cash', group: 'Cash & bank' }]
+        .concat(Engine.ACCOUNT_SUBTYPES.map(t => ({ value: 'acct:retiro:' + t.id, label: t.label, group: GROUP_LABEL[t.group] })))
+        .concat([
+            // Property categories are saved names (Engine.ASSET_CATEGORIES: real estate, vehicle, jewelry, other).
+            { value: 'asset:' + Engine.ASSET_CATEGORIES[0], label: 'Real estate', group: 'Property' }, { value: 'asset:' + Engine.ASSET_CATEGORIES[1], label: 'Vehicle (car, boat…)', group: 'Property' },
+            { value: 'asset:' + Engine.ASSET_CATEGORIES[2], label: 'Jewelry', group: 'Property' }, { value: 'asset:' + Engine.ASSET_CATEGORIES[3], label: 'Other (art, collectibles…)', group: 'Property' },
+            { value: 'acct:tarjeta', label: 'Credit Card', group: 'Debts' }, { value: 'acct:hipoteca', label: 'Mortgage', group: 'Debts' },
+            { value: 'debt:vehicular', label: 'Auto loan', group: 'Debts' }, { value: 'debt:estudiantil', label: 'Student loan', group: 'Debts' },
+            { value: 'debt:personal', label: 'Personal loan', group: 'Debts' }, { value: 'debt:otra', label: 'Other loan', group: 'Debts' }]);
+    function typeOptions(list, selected) {
+        const groups = [];
+        list.forEach(t => { let g = groups.find(x => x.label === t.group); if (!g) groups.push(g = { label: t.group, items: [] }); g.items.push(t); });
+        return groups.map(g => `<optgroup label="${esc(I18n.t(g.label))}">${g.items.map(t => `<option value="${esc(t.value)}" ${t.value === selected ? 'selected' : ''}>${esc(I18n.t(t.label))}</option>`).join('')}</optgroup>`).join('');
+    }
+    const OWED_KINDS = ['tarjeta', 'hipoteca'];
+    const acctTypeValue = (a) => 'acct:' + (a.kind || 'corriente') + (a.kind === 'retiro' ? ':' + Engine.accountSubtype(a) : '');
     let hub = null;
 
     function update(ctx) {
@@ -28,7 +51,7 @@
                     <div class="hub-all"><i class="fa-solid fa-building-columns"></i> All accounts</div>${nav}
                     <div class="hub-sum"><span>Own <strong>${money(hub.assets)}</strong></span><span>Owe <strong class="text-red-600">${money(hub.liabilities)}</strong></span></div>
                 </nav>
-                <div class="hub-list">${shown.map(g => `<section class="hub-group" id="hub-${g.key}">
+                <div class="hub-list">${shown.map((g, i) => `${i === 0 || shown[i - 1].section !== g.section ? `<div class="hub-section"><span>${esc(I18n.t(hub.sections.find(x => x.key === g.section).label))}</span><span class="${g.owed ? 'text-red-600' : ''}">${money(hub.sections.find(x => x.key === g.section).total)}</span></div>` : ''}<section class="hub-group" id="hub-${g.key}">
                     <header><span>${esc(g.label)}</span>${amt(g, g.total)}</header>
                     ${g.rows.map(r => `<button type="button" class="hub-row" data-action="hub.open" data-type="${r.ref.type}" data-id="${esc(String(r.ref.id))}">
                         <span class="hub-logo hub-${g.key}" aria-hidden="true">${esc(initials(r.name))}</span>
@@ -47,12 +70,17 @@
         const host = document.getElementById('nw-sheet-body');
         if (!host || !hub) return;
         const open = Store.ui.nwOpen || null;
-        const side = (owed) => hub.groups.filter(g => g.owed === owed && g.rows.length).map(g => `<div class="sheet-type">
+        const groupHTML = (g, owed) => `<div class="sheet-type">
                 <button type="button" class="sheet-head" data-action="sheet.toggle" data-key="${g.key}" aria-expanded="${open === g.key}"><span><i class="fa-solid ${ICONS[g.key]} text-slate-400"></i> ${esc(g.label)}</span><span class="flex items-center gap-2"><strong class="${owed ? 'text-red-600' : ''}">${money(g.total)}</strong><i class="fa-solid fa-chevron-${open === g.key ? 'up' : 'down'} text-[10px] text-slate-400"></i></span></button>
                 ${open === g.key ? `<div class="sheet-rows">${g.rows.map(r => r.ref.type === 'asset'
                     ? `<label class="sheet-row"><span class="truncate" data-i18n-skip>${esc(r.name)}</span><input type="number" class="cell-input num money" style="max-width:9rem" min="0" step="any" value="${Math.round(r.balance * 100) / 100}" data-change="sheet.assetValue" data-id="${r.ref.id}" aria-label="Value of ${esc(r.name)}"></label>`
                     : `<button type="button" class="sheet-row" data-action="hub.open" data-type="${r.ref.type}" data-id="${esc(String(r.ref.id))}"><span class="truncate" data-i18n-skip>${esc(r.name)}</span><span class="font-semibold ${owed ? 'text-red-600' : ''}">${money(r.balance)}</span></button>`).join('')}</div>` : ''}
-            </div>`).join('') || '<p class="help">Nothing here.</p>';
+            </div>`;
+        // Each side by section (cash & bank, investments & retirement, property / debts) with its subtotal.
+        const side = (owed) => hub.sections.filter(x => hub.groups.some(g => g.section === x.key && g.owed === owed && g.rows.length)).map(x => {
+            const gs = hub.groups.filter(g => g.section === x.key && g.rows.length);
+            return `${owed ? '' : `<div class="sheet-section"><span>${esc(I18n.t(x.label))}</span><span>${money(x.total)}</span></div>`}${gs.map(g => groupHTML(g, owed)).join('')}`;
+        }).join('') || '<p class="help">Nothing here.</p>';
         host.innerHTML = `<div class="sheet-net ${hub.net >= 0 ? 'text-emerald-700' : 'text-red-600'}"><span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Net worth</span><span class="text-3xl font-black">${money(hub.net)}</span></div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                 <div><div class="sheet-side"><span>What you own</span><strong>${money(hub.assets)}</strong></div>${side(false)}</div>
@@ -74,7 +102,6 @@
     // Details (name, type, rate, minimum, due day, credit limit, original balance). A card linked to
     // its debt edits both: the debt is what the snowball uses.
     let det = null;   // { account, debt, tab, sheet }
-    const ACCOUNT_TYPES = [{ value: 'corriente', label: 'Checking' }, { value: 'ahorros', label: 'Savings' }, { value: 'efectivo', label: 'Cash' }, { value: 'retiro', label: 'Retirement / investment' }, { value: 'tarjeta', label: 'Credit Card' }];
     const DEBT_TYPES = [{ value: 'tarjeta', label: 'Credit Card' }].concat(LOANS_LIST());
     function LOANS_LIST() { return [{ value: 'vehicular', label: 'Auto loan' }, { value: 'personal', label: 'Personal loan' }, { value: 'estudiantil', label: 'Student loan' }, { value: 'otra', label: 'Other debt' }]; }
 
@@ -89,10 +116,10 @@
         const account = debt ? (s.accounts || []).find(a => a.kind === 'tarjeta' && a.debtId === debt.id) : null;
         return debt ? { account: account || null, debt } : null;
     }
-    const owedKind = (d) => !!d.debt || (d.account && d.account.kind === 'tarjeta');
-    const balanceOf = (d) => d.debt ? Number(d.debt.balance) || 0 : d.account.kind === 'tarjeta' ? Math.max(0, -(Number(d.account.balance) || 0)) : Number(d.account.balance) || 0;
+    const owedKind = (d) => !!d.debt || (d.account && OWED_KINDS.includes(d.account.kind));
+    const balanceOf = (d) => d.debt ? Number(d.debt.balance) || 0 : OWED_KINDS.includes(d.account.kind) ? Math.max(0, -(Number(d.account.balance) || 0)) : Number(d.account.balance) || 0;
     const nameOf = (d) => (d.account ? d.account.name : d.debt.name) || '';
-    const typeLabel = (d) => d.account && !d.debt ? (ACCOUNT_TYPES.find(t => t.value === d.account.kind) || ACCOUNT_TYPES[0]).label : (DEBT_TYPES.find(t => t.value === d.debt.kind) || DEBT_TYPES[0]).label;
+    const typeLabel = (d) => d.account && !d.debt ? (TYPE_LIST.find(t => t.value === acctTypeValue(d.account)) || TYPE_LIST[0]).label : (DEBT_TYPES.find(t => t.value === d.debt.kind) || DEBT_TYPES[0]).label;
 
     function openDetails(type, id) {
         const d = resolve(type, id);
@@ -108,13 +135,13 @@
         if (!host) return;
         const owed = owedKind(det), bal = balanceOf(det);
         const field = (f, label, value, opts = {}) => `<label class="acd-field"><span>${label}</span>${opts.select
-            ? `<select class="input" data-change="acd.set" data-field="${f}">${Views.selectOptions(opts.select, value)}</select>`
+            ? `<select class="input" data-change="acd.set" data-field="${f}">${opts.grouped ? typeOptions(opts.select, value) : Views.selectOptions(opts.select, value)}</select>`
             : `<input class="input" ${opts.number ? 'type="number" inputmode="decimal" step="any" min="0"' : ''} ${opts.ph ? `placeholder="${esc(opts.ph)}"` : ''} value="${esc(value === undefined || value === null || value === '' ? '' : String(value))}" data-change="acd.set" data-field="${f}">`}</label>`;
         const src = det.debt || det.account;
-        const card = owed && (!det.debt || det.debt.kind === 'tarjeta');
+        const card = owed && (det.debt ? det.debt.kind === 'tarjeta' : det.account.kind === 'tarjeta');
         const details = `<div class="acd-fields">
             ${field('name', 'Account name', nameOf(det), {})}
-            ${field('kind', 'Account type', det.account && !det.debt ? det.account.kind : det.debt.kind, { select: det.account && !det.debt ? ACCOUNT_TYPES : DEBT_TYPES })}
+            ${det.account && !det.debt ? field('kind', 'Account type', acctTypeValue(det.account), { select: TYPE_LIST.filter(t => t.value.startsWith('acct:')), grouped: true }) : field('kind', 'Account type', det.debt.kind, { select: DEBT_TYPES })}
             ${field('balance', owed ? 'What you owe' : 'Balance', Math.round(bal * 100) / 100, { number: true })}
             ${field('rate', owed ? 'Interest rate (APR %)' : 'Interest rate (APY %)', src.rate, { number: true })}
             ${owed ? field('minPayment', 'Minimum payment', src.minPayment, { number: true }) + field('dueDay', 'Payment due day', src.dueDay, { number: true, ph: 'Day of the month (1–31)' }) : ''}
@@ -155,10 +182,18 @@
         const f = el.dataset.field, num = Math.max(0, Fmt.parseNum(el.value, 0));
         const { account, debt } = det;
         if (f === 'name') { const v = el.value.trim().slice(0, 40); if (!v) return; if (account) account.name = v; else debt.name = v; }
-        else if (f === 'kind') { if (account && !debt) account.kind = el.value; else debt.kind = el.value; }
+        else if (f === 'kind') {
+            if (account && !debt) {
+                // 'acct:retiro:roth-ira' → kind and subtype; moving between owed and owned flips the sign.
+                const [, kind, sub] = el.value.split(':'), wasOwed = OWED_KINDS.includes(account.kind), nowOwed = OWED_KINDS.includes(kind);
+                if (wasOwed !== nowOwed) account.balance = (nowOwed ? -1 : 1) * Math.abs(Number(account.balance) || 0);
+                account.kind = kind;
+                if (sub) account.subtype = sub; else delete account.subtype;
+            } else debt.kind = el.value;
+        }
         else if (f === 'balance') {
             if (debt) { debt.balance = num; if (num > (Number(debt.originalBalance) || 0)) debt.originalBalance = num; }
-            if (account) { account.balance = account.kind === 'tarjeta' ? -num : Fmt.parseNum(el.value, 0); account.updatedAt = Engine.isoDate(new Date()); }
+            if (account) { account.balance = OWED_KINDS.includes(account.kind) ? -num : Fmt.parseNum(el.value, 0); account.updatedAt = Engine.isoDate(new Date()); }
         } else if (f === 'creditLimit') { (account || debt).creditLimit = num; }
         else if (f === 'dueDay') { const day = Math.round(num); const t = debt || account; if (day >= 1 && day <= 31) t.dueDay = day; else delete t.dueDay; }
         else {
@@ -187,21 +222,12 @@
         drawDetails();
     }
 
-    // "+ Add an account": a manual account of any type.
-    const TYPES = [
-        { value: 'corriente', label: 'Checking' }, { value: 'ahorros', label: 'Savings' }, { value: 'efectivo', label: 'Cash' },
-        { value: 'retiro', label: 'Retirement / investment' }, { value: 'tarjeta', label: 'Credit Card' },
-        { value: 'property', label: 'Property' }, { value: 'loan', label: 'Loan' }
-    ];
-    const PROPERTY = [{ value: 'Bienes Raíces', label: 'Real estate' }, { value: 'Vehículo', label: 'Vehicle' }, { value: 'Otro', label: 'Other (art, jewelry…)' }];
-    const LOANS = [{ value: 'vehicular', label: 'Auto loan' }, { value: 'personal', label: 'Personal loan' }, { value: 'estudiantil', label: 'Student loan' }, { value: 'otra', label: 'Other debt' }];
-
+    // "+ Add an account": a manual account of any type, from the grouped list.
     function addSheet() {
         const sheet = UI.sheet({ title: 'Add an account', icon: 'fa-building-columns', html: `
             <p class="help mb-3">Accounts are added by hand and kept up to date by importing your statements: nothing connects to your bank.</p>
             <div class="grid grid-cols-1 gap-3">
-                <label class="field"><span class="field-label">Account type</span><select id="hub-new-type" class="input" data-change="hub.newType">${Views.selectOptions(TYPES, 'corriente')}</select></label>
-                <label class="field hidden" id="hub-new-sub-f"><span class="field-label" id="hub-new-sub-l">Property type</span><select id="hub-new-sub" class="input"></select></label>
+                <label class="field"><span class="field-label">Account type</span><select id="hub-new-type" class="input" data-change="hub.newType">${typeOptions(TYPE_LIST, 'acct:corriente')}</select></label>
                 <label class="field"><span class="field-label">Account name</span><input id="hub-new-name" class="input" maxlength="40" placeholder="E.g. Chase Checking"></label>
                 <label class="field"><span class="field-label" id="hub-new-bal-l">Balance today ($)</span><input id="hub-new-bal" class="input" type="number" inputmode="decimal" step="any" min="0"></label>
             </div>
@@ -210,27 +236,30 @@
     }
     let addOpen = null;
     function newType() {
-        const t = (document.getElementById('hub-new-type') || {}).value;
-        const sub = t === 'property' ? PROPERTY : t === 'loan' ? LOANS : null;
-        UI.show('hub-new-sub-f', !!sub);
-        if (sub) { UI.html('hub-new-sub', Views.selectOptions(sub, sub[0].value)); UI.text('hub-new-sub-l', t === 'property' ? 'Property type' : 'Loan type'); }
-        UI.text('hub-new-bal-l', t === 'tarjeta' || t === 'loan' ? 'What you owe today ($)' : t === 'property' ? 'What it\'s worth today ($)' : 'Balance today ($)');
+        const [where, kind] = ((document.getElementById('hub-new-type') || {}).value || '').split(':');
+        UI.text('hub-new-bal-l', where === 'debt' || OWED_KINDS.includes(kind) ? 'What you owe today ($)' : where === 'asset' ? 'What it\'s worth today ($)' : 'Balance today ($)');
     }
     function save() {
-        const t = document.getElementById('hub-new-type').value, sub = document.getElementById('hub-new-sub').value;
+        const [where, kind, sub] = document.getElementById('hub-new-type').value.split(':');
         const name = document.getElementById('hub-new-name').value.trim().slice(0, 40), bal = Math.abs(Fmt.parseNum(document.getElementById('hub-new-bal').value, 0));
         if (!name) { UI.toast('Give the account a name.', 'error'); return; }
         const s = Store.state, today = Engine.isoDate(new Date()), year = new Date().getFullYear();
         App.undoable(`Account added: ${name}`, () => {
-            if (t === 'property') {
+            if (where === 'asset') {
                 const list = s.assets || (s.assets = []);
-                list.push({ id: Store.nextId(list), name, category: sub || 'Otro', purchaseYear: year, purchaseValue: bal, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} });
-            } else if (t === 'loan') {
+                list.push({ id: Store.nextId(list), name, category: kind || 'Otro', purchaseYear: year, purchaseValue: bal, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} });
+            } else if (where === 'debt') {
                 const list = s.debts || (s.debts = []);
-                list.push({ id: Store.nextId(list), name, kind: sub || 'personal', balance: bal, originalBalance: bal, rate: 0, minPayment: 0, monthly: 0, createdYear: year });
+                list.push({ id: Store.nextId(list), name, kind: kind || 'personal', balance: bal, originalBalance: bal, rate: 0, minPayment: 0, monthly: 0, createdYear: year });
             } else {
                 const list = s.accounts || (s.accounts = []);
-                list.push({ id: Store.nextId(list), name, kind: t, balance: t === 'tarjeta' ? -bal : bal, updatedAt: today });
+                // The first mortgage account takes over the mortgage typed in Net Worth: keep that
+                // one as an account too, so it isn't lost.
+                const typed = kind === 'hipoteca' && !list.some(x => x.kind === 'hipoteca') ? (hub && (hub.groups.find(g => g.key === 'mortgage') || { rows: [] }).rows.find(r => r.ref.type === 'field')) : null;
+                if (typed) list.push({ id: Store.nextId(list), name: I18n.t('Mortgage'), kind: 'hipoteca', balance: -typed.balance, updatedAt: today });
+                const a = { id: Store.nextId(list), name, kind, balance: OWED_KINDS.includes(kind) ? -bal : bal, updatedAt: today };
+                if (sub) a.subtype = sub;
+                list.push(a);
             }
         });
         if (addOpen) { addOpen.close(); addOpen = null; }

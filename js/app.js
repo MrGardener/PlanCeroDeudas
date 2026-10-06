@@ -112,7 +112,7 @@
         lazy('savingsBalance', () => ((s.accounts || []).some(a => a.kind === 'ahorros') ? Engine.accountTotal(s.accounts, 'ahorros') : ctx.netWorth.fields.savings));
         lazy('pools', () => Engine.savingsPools({
             polizas: s.polizas, savingsBalance: ctx.savingsBalance, goals: s.goals,
-            retirementAccounts: Engine.accountTotal(s.accounts, 'retiro'), holdings: Engine.holdingsValue(s.holdings),
+            retirementAccounts: (s.accounts || []).filter(Engine.isRetirementMoney).reduce((t, a) => t + (Number(a.balance) || 0), 0), holdings: Engine.holdingsValue(s.holdings),
             monthlyEssential: ctx.essentialMonthly
         }));
         lazy('ef', () => Engine.emergencyFund({ liquid: ctx.pools.emergency, budgetBase: ctx.year.budgetBase }));

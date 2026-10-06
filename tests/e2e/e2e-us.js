@@ -512,19 +512,17 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('patrimonio'); });
   await page.waitForTimeout(300);
   const hub = await page.evaluate(() => { const h = AccountsHub.last; return { groups: [...document.querySelectorAll('#hub-body .hub-group')].map(g => g.id.slice(4)), rows: document.querySelectorAll('#hub-body .hub-row').length, n: h.groups.reduce((t, g) => t + g.rows.length, 0), owedRed: !!document.querySelector('#hub-loan header .text-red-600'), net: Math.round(h.net) }; });
-  ok(hub.groups.includes('checking') && hub.groups.includes('card') && hub.groups.includes('property') && hub.rows === hub.n && hub.owedRed, 'accounts hub: groups by type, owed in red', hub);
+  ok(hub.groups.includes('checking') && hub.groups.includes('card') && hub.groups.includes('realestate') && hub.groups.includes('retirement') && hub.groups.includes('health') && hub.rows === hub.n && hub.owedRed, 'accounts hub: groups by type, owed in red', hub);
   await page.click('[data-action="hub.add"]');
   await page.waitForTimeout(150);
-  await page.selectOption('#hub-new-type', 'property');
-  await page.waitForTimeout(100);
-  await page.selectOption('#hub-new-sub', 'Vehículo');
+  await page.evaluate(() => { const el = document.getElementById('hub-new-type'); el.value = 'asset:' + Engine.ASSET_CATEGORIES[1]; el.dispatchEvent(new Event('change', { bubbles: true })); });
   await page.fill('#hub-new-name', 'Camper');
   await page.fill('#hub-new-bal', '12000');
   await page.click('[data-action="hub.save"]');
   await page.waitForTimeout(250);
-  ok(await page.evaluate(() => Store.state.assets.some(a => a.name === 'Camper' && a.category === 'Vehículo' && a.purchaseValue === 12000) && /Camper/.test(document.getElementById('hub-property').textContent)), 'accounts hub: add a property');
+  ok(await page.evaluate(() => Store.state.assets.some(a => a.name === 'Camper' && a.category === 'Vehículo' && a.purchaseValue === 12000) && /Camper/.test(document.getElementById('hub-vehicle').textContent)), 'accounts hub: add a property');
   await page.click('[data-action="hub.add"]');
-  await page.selectOption('#hub-new-type', 'tarjeta');
+  await page.selectOption('#hub-new-type', 'acct:tarjeta');
   await page.fill('#hub-new-name', 'Store card');
   await page.fill('#hub-new-bal', '300');
   await page.click('[data-action="hub.save"]');
@@ -699,7 +697,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(250);
   const bs1 = await page.evaluate(() => ({ own: document.querySelectorAll('#nw-sheet-body .sheet-side')[0].textContent, owe: document.querySelectorAll('#nw-sheet-body .sheet-side')[1].textContent, types: document.querySelectorAll('#nw-sheet-body .sheet-head').length, net: AccountsHub.last.net }));
   ok(/What you own/.test(bs1.own) && /What you owe/.test(bs1.owe) && bs1.types >= 6, 'balance sheet: own and owe by type', bs1);
-  await page.click('[data-action="sheet.toggle"][data-key="property"]');
+  await page.click('[data-action="sheet.toggle"][data-key="realestate"]');
   await page.waitForTimeout(150);
   await page.evaluate(() => { const el = document.querySelector('[data-change="sheet.assetValue"]'); el.value = String(Number(el.value) + 10000); el.dispatchEvent(new Event('change', { bubbles: true })); });
   await page.waitForTimeout(200);
@@ -767,6 +765,28 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
     ok(await page.evaluate(() => !document.querySelector('.alert-row')), 'alerts: tapping one goes to it');
     await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
   }
+  // Account types: Roth IRA, HSA, jewelry and a mortgage, each in its group; change a type in details.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('patrimonio'); });
+  await page.waitForTimeout(250);
+  const addAcct = async (type, name, bal) => { await page.click('[data-action="hub.add"]'); await page.waitForTimeout(100); await page.selectOption('#hub-new-type', type); await page.fill('#hub-new-name', name); await page.fill('#hub-new-bal', String(bal)); await page.click('[data-action="hub.save"]'); await page.waitForTimeout(200); };
+  const netStart = await page.evaluate(() => AccountsHub.last.net);
+  await addAcct('acct:retiro:roth-ira', 'My Roth', 7000);
+  await addAcct('acct:retiro:hsa', 'Health saver', 1500);
+  await page.click('[data-action="hub.add"]'); await page.waitForTimeout(100);
+  await page.evaluate(() => { const el = document.getElementById('hub-new-type'); el.value = 'asset:' + Engine.ASSET_CATEGORIES[2]; el.dispatchEvent(new Event('change', { bubbles: true })); });
+  await page.fill('#hub-new-name', 'Grandma ring'); await page.fill('#hub-new-bal', '2500'); await page.click('[data-action="hub.save"]'); await page.waitForTimeout(200);
+  await addAcct('acct:hipoteca', 'Cabin mortgage', 90000);
+  const types = await page.evaluate(() => ({ ret: document.getElementById('hub-retirement').textContent, health: document.getElementById('hub-health').textContent, val: document.getElementById('hub-valuables').textContent, mort: document.getElementById('hub-mortgage').textContent, net: AccountsHub.last.net, sections: [...document.querySelectorAll('#hub-body .hub-section')].map(x => x.textContent.replace(/\s+/g, ' ').trim().split('$')[0]) }));
+  ok(/My Roth/.test(types.ret) && /Roth IRA/.test(types.ret) && /Health saver/.test(types.health) && /HSA/.test(types.health) && /Grandma ring/.test(types.val) && /Jewelry/.test(types.val) && /Cabin mortgage/.test(types.mort) && /257,303/.test(types.mort)
+    && Math.round(types.net - netStart) === 7000 + 1500 + 2500 - 90000 && types.sections.join('|') === 'Cash & bank|Investments & retirement|Property|Debts', 'account types: each in its group, net worth follows', types);
+  await page.evaluate(() => { const a = Store.state.accounts.find(x => x.name === 'Health saver'); AccountsHub.openDetails('account', a.id); });
+  await page.click('[data-action="acd.tab"][data-tab="details"]');
+  await page.selectOption('.acd-fields [data-field="kind"]', 'acct:retiro:fsa');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => { const a = Store.state.accounts.find(x => x.name === 'Health saver'); return a.kind === 'retiro' && a.subtype === 'fsa' && /FSA/.test(document.getElementById('hub-health').textContent); }), 'account types: change the type in its details');
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
+  const bsec = await page.evaluate(() => [...document.querySelectorAll('#nw-sheet-body .sheet-section')].map(x => x.textContent.replace(/\s+/g, ' ').trim().split('$')[0]));
+  ok(bsec.join('|') === 'Cash & bank|Investments & retirement|Property', 'balance sheet: sections with subtotals', bsec);
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

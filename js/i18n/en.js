@@ -1219,6 +1219,7 @@ I18n.add('en', {
 "Valor por año:": "Value by year:",
 "Vas por buen camino. Sigue avanzando paso a paso.": "You're on the right track. Keep moving step by step.",
 "Vehículo": "Vehicle",
+"Joyas": "Jewelry",
 "Vehículos": "Vehicles",
 "Vence hoy": "Due today",
 "Vencido hace {0} día{1}": "Overdue by {0} day{1|s}",

@@ -1497,8 +1497,9 @@ test('accountsHub: everything by type, a linked card once, totals', () => {
     const g = Object.fromEntries(r.groups.map(x => [x.key, x]));
     assert.deepEqual(g.checking.rows.map(x => x.name), ['Checking']);
     assert.equal(g.cash.total, 60);
-    assert.equal(g.investment.total, 23000);
-    assert.deepEqual(g.property.rows.map(x => x.name), ['House']);
+    assert.equal(g.retirement.total, 20000);
+    assert.equal(g.investment.total, 3000);
+    assert.deepEqual(g.realestate.rows.map(x => x.name), ['House']);
     assert.deepEqual(g.card.rows.map(x => [x.name, x.balance, x.ref.type]), [['Store card', 150, 'account'], ['Visa', 800, 'debt']]);
     assert.deepEqual(g.loan.rows.map(x => x.name), ['Car loan']);
     assert.equal(g.mortgage.total, 180000);
@@ -1619,4 +1620,29 @@ test('buildAlerts: below $0 ahead, bills due soon, lines over, unusually large p
     // No shortfall: the first day under the cushion is a warning instead.
     const b = E.buildAlerts({ today, forecast: forecast.slice(0, 2), buffer: 500 });
     assert.deepEqual(b.map(x => [x.kind, x.date]), [['low', '2026-10-07']]);
+});
+
+test('accountsHub: retirement, health and investment subtypes; mortgages as accounts; sections', () => {
+    const accounts = [
+        { id: 1, name: 'Fidelity', kind: 'retiro', subtype: 'roth-401k', balance: 50000 }, { id: 2, name: 'HSA – HealthEquity', kind: 'retiro', balance: 4000 },
+        { id: 3, name: 'Work FSA', kind: 'retiro', subtype: 'fsa', balance: 800 }, { id: 4, name: 'Schwab brokerage', kind: 'retiro', balance: 12000 },
+        { id: 5, name: 'Old IRA', kind: 'retiro', balance: 9000 }, { id: 6, name: 'Home loan', kind: 'hipoteca', balance: -210000 }
+    ];
+    const assets = [{ id: 1, name: 'Ring', category: 'Joyas', purchaseYear: 2020, purchaseValue: 6000, status: 'Activo', valuesByYear: {} },
+        { id: 2, name: 'Truck', category: 'Vehículo', purchaseYear: 2021, purchaseValue: 30000, status: 'Activo', valuesByYear: {} }];
+    const r = E.accountsHub({ accounts, assets, years: { 2026: { netWorth: { mortgage: 999 }, netWorthTouched: { mortgage: true } } }, year: 2026 });
+    const g = Object.fromEntries(r.groups.map(x => [x.key, x]));
+    assert.deepEqual(g.retirement.rows.map(x => [x.name, x.kind]), [['Fidelity', 'roth-401k'], ['Old IRA', 'ira']]);
+    assert.deepEqual(g.health.rows.map(x => x.kind), ['hsa', 'fsa']);
+    assert.deepEqual(g.investment.rows.map(x => x.kind), ['brokerage']);
+    assert.deepEqual(g.valuables.rows.map(x => x.name), ['Ring']);
+    assert.deepEqual(g.vehicle.rows.map(x => x.name), ['Truck']);
+    // A mortgage account replaces the typed mortgage (no double count).
+    assert.deepEqual(g.mortgage.rows.map(x => [x.name, x.balance]), [['Home loan', 210000]]);
+    const sec = Object.fromEntries(r.sections.map(x => [x.key, x.total]));
+    assert.deepEqual(sec, { cash: 0, invest: 75800, property: 36000, debt: 210000 });
+    assert.equal(r.net, 75800 + 36000 - 210000);
+    // Net worth from the accounts: the mortgage account is the mortgage line; FSA and 529 aren't retirement money.
+    assert.equal(E.netWorthFromSources({ accounts }).mortgage, 210000);
+    assert.equal(accounts.filter(E.isRetirementMoney).reduce((t, a) => t + a.balance, 0), 50000 + 4000 + 12000 + 9000);
 });
