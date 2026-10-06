@@ -631,6 +631,8 @@
                 const t = { id: id++, type: r.type, description: firstLine(desc).slice(0, 120), store: (r.store || '').slice(0, 80), parentCategory: tr ? 'Transferencia' : r.category, category: tr ? '' : r.sub || '', amount: r.amount, date: r.date,
                     paymentType: tr ? 'Transferencia' : r.payment || (r.isCard ? 'Tarjeta de Crédito' : 'Transferencia'), source: s.source };
                 if (r.budgetLine && r.type === 'Gasto') t.budgetLine = String(r.budgetLine);
+                // A transfer keeps its direction (into or out of the account) for the account's activity.
+                if (tr && Number(r.signed)) t.signed = Math.sign(Number(r.signed)) * Math.abs(Number(r.amount) || 0);
                 if (acct) { t.accountId = acct.id; if (acct.kind === 'tarjeta' && !tr) t.paymentType = 'Tarjeta de Crédito'; }
                 if (r.invoice) t.invoice = r.invoice;
                 if (r.ref) t.importRef = r.ref;

@@ -982,11 +982,17 @@
             return rec;
         });
         txns.forEach((t, i) => { t._id = i + 1; });
+        const checkingAcct = P.accounts.find(a => a.kind === 'corriente'), walletAcct = P.accounts.find(a => a.kind === 'efectivo');
         s.transactions = txns.map(t => {
             const out = Object.assign({ id: t._id }, t);
             if (t._refundOf) out.refundOf = t._refundOf._id;
             delete out._rec; delete out._route; delete out._refundOf; delete out._id; delete out._debt;
             if (!out.memberId) delete out.memberId;
+            // Which account it went through (the account details' Activity): cash from the wallet,
+            // card purchases on the card, everything else through checking.
+            const acct = out.paymentType === CASH ? walletAcct : out.paymentType === CREDIT ? null : checkingAcct;
+            if (acct) out.accountId = acct.id;
+            if (out.type === 'Transferencia' && acct && out.from === 'acc-' + acct.id) out.signed = -out.amount;
             return out;
         });
 

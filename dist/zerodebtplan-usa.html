@@ -877,6 +877,15 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .hub-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hub-name small { font-size: .7rem; color: var(--muted); font-weight: 400; }
 .hub-amt { font-weight: 700; font-variant-numeric: tabular-nums; font-size: .9rem; }
+/* Account details sheet. */
+.acd-head { display: flex; align-items: center; gap: .75rem; }
+.acd-bal { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.acd-fields { display: flex; flex-direction: column; }
+.acd-field { display: grid; grid-template-columns: 9.5rem 1fr; align-items: center; gap: .75rem; padding: .45rem 0; border-bottom: 1px solid var(--line-soft); font-size: .8rem; font-weight: 600; color: var(--ink-2); }
+@media (max-width: 420px) { .acd-field { grid-template-columns: 1fr; gap: .25rem; } }
+.acd-txns { border-top: 1px solid var(--line); }
+.acd-txn { display: grid; grid-template-columns: 4.6rem 1fr auto; align-items: center; gap: .6rem; padding: .5rem .1rem; border-bottom: 1px solid var(--line-soft); font-size: .82rem; }
+@media (max-width: 480px) { .acd-bal { font-size: 1.25rem; } }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -5571,6 +5580,23 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "\"{0}\" added to your debts": "\"{0}\" agregada a tus deudas",
+    "Account details": "Detalles de la cuenta",
+    "Activity": "Actividad",
+    "Add it to my debts": "Agregarla a mis deudas",
+    "Changes here are the same debt your snowball plan uses.": "Los cambios aquí son la misma deuda que usa tu plan bola de nieve.",
+    "Credit limit": "Límite de crédito",
+    "Day of the month (1–31)": "Día del mes (1–31)",
+    "Interest rate (APR %)": "Tasa de interés (TAE %)",
+    "Interest rate (APY %)": "Tasa de interés (rendimiento anual %)",
+    "Money out and money in, month by month": "Dinero que sale y que entra, mes a mes",
+    "Original balance": "Saldo original",
+    "Payment due day": "Día de vencimiento del pago",
+    "The 50 most recent of {0}.": "Las 50 más recientes de {0}.",
+    "This account has no transactions yet. Import a statement into it, or pick it when you log one.": "Esta cuenta aún no tiene transacciones. Importa un estado de cuenta en ella, o elígela al registrar una.",
+    "This card isn't in your debt plan yet.": "Esta tarjeta aún no está en tu plan de deudas.",
+    "What you owe": "Lo que debes",
+    "so the snowball pays it off.": "para que la bola de nieve la pague.",
     "Account added: {0}": "Cuenta agregada: {0}",
     "Account type": "Tipo de cuenta",
     "Account types": "Tipos de cuenta",
@@ -10303,11 +10329,17 @@ I18n.override('EC', 'es', {
             return rec;
         });
         txns.forEach((t, i) => { t._id = i + 1; });
+        const checkingAcct = P.accounts.find(a => a.kind === 'corriente'), walletAcct = P.accounts.find(a => a.kind === 'efectivo');
         s.transactions = txns.map(t => {
             const out = Object.assign({ id: t._id }, t);
             if (t._refundOf) out.refundOf = t._refundOf._id;
             delete out._rec; delete out._route; delete out._refundOf; delete out._id; delete out._debt;
             if (!out.memberId) delete out.memberId;
+            // Which account it went through (the account details' Activity): cash from the wallet,
+            // card purchases on the card, everything else through checking.
+            const acct = out.paymentType === CASH ? walletAcct : out.paymentType === CREDIT ? null : checkingAcct;
+            if (acct) out.accountId = acct.id;
+            if (out.type === 'Transferencia' && acct && out.from === 'acc-' + acct.id) out.signed = -out.amount;
             return out;
         });
 
@@ -12603,6 +12635,25 @@ I18n.override('EC', 'es', {
         return { groups, assets: assetsTotal, liabilities: owedTotal, net: assetsTotal - owedTotal };
     }
 
+    // One account's money in and out per month (the last `months` up to `end`) and its
+    // transactions, newest first: for the account details "Activity" tab. Income and refunds are
+    // money in; spending is money out; a transfer goes by its sign (`signed`), if known.
+    function accountActivity(transactions, accountId, { end, months = 12 } = {}) {
+        const e = end instanceof Date ? end : new Date(end);
+        const keys = Array.from({ length: months }, (_, i) => { const d = new Date(e.getFullYear(), e.getMonth() - months + 1 + i, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; });
+        const at = {}; keys.forEach((k, i) => { at[k] = i; });
+        const inn = new Array(months).fill(0), out = new Array(months).fill(0);
+        const list = (transactions || []).filter(t => accountId !== null && accountId !== undefined && String(t.accountId) === String(accountId));
+        list.forEach(t => {
+            const i = t.date ? at[t.date.slice(0, 7)] : undefined;
+            if (i === undefined) return;
+            const a = Math.abs(num(t.amount));
+            const dir = txnType(t) === 'Ingreso' ? 1 : txnType(t) === 'Transferencia' ? Math.sign(num(t.signed)) : (t.refund ? 1 : -1);
+            if (dir > 0) inn[i] += a; else if (dir < 0) out[i] += a;
+        });
+        return { months: keys, in: inn, out, txns: list.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))) };
+    }
+
     // ---------------------------------------------------- emergency fund & steps
 
     // What a pot of savings is for: 'emergencia', 'jubilacion' or 'general'. The person can set
@@ -12930,7 +12981,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, accountsHub, HUB_GROUPS, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, accountsHub, HUB_GROUPS, accountActivity, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -19963,6 +20014,8 @@ I18n.override('EC', 'es', {
                 const t = { id: id++, type: r.type, description: firstLine(desc).slice(0, 120), store: (r.store || '').slice(0, 80), parentCategory: tr ? 'Transferencia' : r.category, category: tr ? '' : r.sub || '', amount: r.amount, date: r.date,
                     paymentType: tr ? 'Transferencia' : r.payment || (r.isCard ? 'Tarjeta de Crédito' : 'Transferencia'), source: s.source };
                 if (r.budgetLine && r.type === 'Gasto') t.budgetLine = String(r.budgetLine);
+                // A transfer keeps its direction (into or out of the account) for the account's activity.
+                if (tr && Number(r.signed)) t.signed = Math.sign(Number(r.signed)) * Math.abs(Number(r.amount) || 0);
                 if (acct) { t.accountId = acct.id; if (acct.kind === 'tarjeta' && !tr) t.paymentType = 'Tarjeta de Crédito'; }
                 if (r.invoice) t.invoice = r.invoice;
                 if (r.ref) t.importRef = r.ref;
@@ -22710,12 +22763,131 @@ I18n.override('EC', 'es', {
             : `<p class="help">No accounts yet. Add your checking account first: its balance is the start of your cash flow.</p>`;
     }
 
-    // Where each kind of row is edited today (account details come in the next step).
+    // Where the rows without details of their own are edited (investments, CDs, property, mortgage).
     function openRow(type, id) {
-        const goto = { account: ['patrimonio', 'nw-accounts'], holding: ['patrimonio', 'nw-holdings'], poliza: ['futuro/polizas', ''], asset: ['patrimonio', 'asset-registry'], debt: ['futuro/metas', 'metas-debts'], field: ['patrimonio', ''] }[type];
+        if (type === 'account' || type === 'debt') { openDetails(type, id); return; }
+        const goto = { holding: ['patrimonio', 'nw-holdings'], poliza: ['futuro/polizas', ''], asset: ['patrimonio', 'asset-registry'], field: ['patrimonio', ''] }[type];
         if (!goto) return;
         App.go(goto[0], goto[1] ? { focus: goto[1] } : {});
         if (type === 'field') { const el = document.querySelector(`[data-input="nw.set"][data-field="${CSS.escape(id)}"]`); if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); } }
+    }
+
+    // ------------------------------------------------------------ account details
+    // One account (or debt): Activity (12 months of money in and out, and its transactions) and
+    // Details (name, type, rate, minimum, due day, credit limit, original balance). A card linked to
+    // its debt edits both: the debt is what the snowball uses.
+    let det = null;   // { account, debt, tab, sheet }
+    const ACCOUNT_TYPES = [{ value: 'corriente', label: 'Checking' }, { value: 'ahorros', label: 'Savings' }, { value: 'efectivo', label: 'Cash' }, { value: 'retiro', label: 'Retirement / investment' }, { value: 'tarjeta', label: 'Credit Card' }];
+    const DEBT_TYPES = [{ value: 'tarjeta', label: 'Credit Card' }].concat(LOANS_LIST());
+    function LOANS_LIST() { return [{ value: 'vehicular', label: 'Auto loan' }, { value: 'personal', label: 'Personal loan' }, { value: 'estudiantil', label: 'Student loan' }, { value: 'otra', label: 'Other debt' }]; }
+
+    function resolve(type, id) {
+        const s = Store.state;
+        if (type === 'account') {
+            const account = (s.accounts || []).find(a => a.id === id);
+            const debt = account && account.kind === 'tarjeta' && account.debtId ? (s.debts || []).find(d => d.id === account.debtId) : null;
+            return account ? { account, debt } : null;
+        }
+        const debt = (s.debts || []).find(d => d.id === id);
+        const account = debt ? (s.accounts || []).find(a => a.kind === 'tarjeta' && a.debtId === debt.id) : null;
+        return debt ? { account: account || null, debt } : null;
+    }
+    const owedKind = (d) => !!d.debt || (d.account && d.account.kind === 'tarjeta');
+    const balanceOf = (d) => d.debt ? Number(d.debt.balance) || 0 : d.account.kind === 'tarjeta' ? Math.max(0, -(Number(d.account.balance) || 0)) : Number(d.account.balance) || 0;
+    const nameOf = (d) => (d.account ? d.account.name : d.debt.name) || '';
+    const typeLabel = (d) => d.account && !d.debt ? (ACCOUNT_TYPES.find(t => t.value === d.account.kind) || ACCOUNT_TYPES[0]).label : (DEBT_TYPES.find(t => t.value === d.debt.kind) || DEBT_TYPES[0]).label;
+
+    function openDetails(type, id) {
+        const d = resolve(type, id);
+        if (!d) return;
+        det = Object.assign(d, { tab: 'activity' });
+        det.sheet = UI.sheet({ title: 'Account details', icon: 'fa-building-columns', wide: true, html: '<div id="acd-body"></div>', onClose: () => { det = null; } });
+        drawDetails();
+    }
+
+    function drawDetails() {
+        if (!det) return;
+        const host = document.getElementById('acd-body');
+        if (!host) return;
+        const owed = owedKind(det), bal = balanceOf(det);
+        const field = (f, label, value, opts = {}) => `<label class="acd-field"><span>${label}</span>${opts.select
+            ? `<select class="input" data-change="acd.set" data-field="${f}">${Views.selectOptions(opts.select, value)}</select>`
+            : `<input class="input" ${opts.number ? 'type="number" inputmode="decimal" step="any" min="0"' : ''} ${opts.ph ? `placeholder="${esc(opts.ph)}"` : ''} value="${esc(value === undefined || value === null || value === '' ? '' : String(value))}" data-change="acd.set" data-field="${f}">`}</label>`;
+        const src = det.debt || det.account;
+        const card = owed && (!det.debt || det.debt.kind === 'tarjeta');
+        const details = `<div class="acd-fields">
+            ${field('name', 'Account name', nameOf(det), {})}
+            ${field('kind', 'Account type', det.account && !det.debt ? det.account.kind : det.debt.kind, { select: det.account && !det.debt ? ACCOUNT_TYPES : DEBT_TYPES })}
+            ${field('balance', owed ? 'What you owe' : 'Balance', Math.round(bal * 100) / 100, { number: true })}
+            ${field('rate', owed ? 'Interest rate (APR %)' : 'Interest rate (APY %)', src.rate, { number: true })}
+            ${owed ? field('minPayment', 'Minimum payment', src.minPayment, { number: true }) + field('dueDay', 'Payment due day', src.dueDay, { number: true, ph: 'Day of the month (1–31)' }) : ''}
+            ${card ? field('creditLimit', 'Credit limit', (det.account || det.debt).creditLimit, { number: true }) : ''}
+            ${owed ? field('originalBalance', 'Original balance', src.originalBalance, { number: true }) : ''}
+        </div>
+        ${det.account && det.account.kind === 'tarjeta' && !det.debt ? '<p class="help mt-3">This card isn\'t in your debt plan yet. <button type="button" class="link" data-action="acd.toDebt">Add it to my debts</button> so the snowball pays it off.</p>' : ''}
+        ${det.debt ? '<p class="help mt-3">Changes here are the same debt your snowball plan uses.</p>' : ''}`;
+        let activity = '<p class="help">This account has no transactions yet. Import a statement into it, or pick it when you log one.</p>';
+        const acctId = det.account ? det.account.id : null;
+        const a = Engine.accountActivity(Store.state.transactions, acctId, { end: new Date(), months: 12 });
+        if (a.txns.length) {
+            const shown = a.txns.slice(0, 50);
+            activity = `<div class="chart-box"><canvas id="acd-chart" aria-label="Money out and money in, month by month"></canvas></div>
+                <div class="acd-txns mt-3">${shown.map(t => { const inn = (t.type || 'Gasto') === 'Ingreso' || t.refund || (t.type === 'Transferencia' && Number(t.signed) > 0);
+                    return `<div class="acd-txn"><span class="text-xs text-slate-500 whitespace-nowrap">${esc(Fmt.dayMonth(new Date(t.date + 'T00:00:00')))}</span><span class="min-w-0"><span class="block truncate font-semibold" data-i18n-skip>${esc(t.description || '—')}</span><span class="block truncate text-[11px] text-slate-500">${esc(I18n.t(t.category || t.parentCategory || ''))}</span></span><span class="font-semibold whitespace-nowrap ${inn ? 'text-emerald-700' : ''}">${inn ? '+ ' : ''}${money(Math.abs(Number(t.amount) || 0))}</span></div>`; }).join('')}</div>
+                ${a.txns.length > shown.length ? `<p class="help mt-1">The 50 most recent of ${a.txns.length}.</p>` : ''}`;
+        }
+        host.innerHTML = `<div class="acd-head"><span class="hub-logo hub-${owed ? 'card' : 'checking'}" aria-hidden="true">${esc(initials(nameOf(det)))}</span>
+                <div class="min-w-0 flex-1"><div class="font-bold truncate" data-i18n-skip>${esc(nameOf(det))}</div><div class="text-xs text-slate-500">${esc(I18n.t(typeLabel(det)))}</div></div>
+                <div class="acd-bal ${owed && bal > 0 ? 'text-red-600' : ''}">${money(bal)}</div></div>
+            <div class="segmented my-3" role="tablist"><button type="button" role="tab" data-action="acd.tab" data-tab="activity" class="${det.tab === 'activity' ? 'active' : ''}">Activity</button><button type="button" role="tab" data-action="acd.tab" data-tab="details" class="${det.tab === 'details' ? 'active' : ''}">Details</button></div>
+            <div>${det.tab === 'activity' ? activity : details}</div>`;
+        if (det.tab === 'activity' && a.txns.length) {
+            const pal = UI.palette();
+            UI.chart('acd-chart', {
+                type: 'bar',
+                data: { labels: a.months.map(k => `${Fmt.MONTH_SHORT[Number(k.slice(5)) - 1]} ${k.slice(2, 4)}`), datasets: [
+                    { label: 'Money out', data: a.out.map(v => Math.round(v * 100) / 100), backgroundColor: pal.series[0], borderRadius: 4 },
+                    { label: 'Money in', data: a.in.map(v => Math.round(v * 100) / 100), backgroundColor: pal.muted, borderRadius: 4 }] },
+                options: { plugins: { legend: { position: 'top', align: 'start' } } }
+            });
+        }
+    }
+
+    function setField(el) {
+        if (!det) return;
+        const f = el.dataset.field, num = Math.max(0, Fmt.parseNum(el.value, 0));
+        const { account, debt } = det;
+        if (f === 'name') { const v = el.value.trim().slice(0, 40); if (!v) return; if (account) account.name = v; else debt.name = v; }
+        else if (f === 'kind') { if (account && !debt) account.kind = el.value; else debt.kind = el.value; }
+        else if (f === 'balance') {
+            if (debt) { debt.balance = num; if (num > (Number(debt.originalBalance) || 0)) debt.originalBalance = num; }
+            if (account) { account.balance = account.kind === 'tarjeta' ? -num : Fmt.parseNum(el.value, 0); account.updatedAt = Engine.isoDate(new Date()); }
+        } else if (f === 'creditLimit') { (account || debt).creditLimit = num; }
+        else if (f === 'dueDay') { const day = Math.round(num); const t = debt || account; if (day >= 1 && day <= 31) t.dueDay = day; else delete t.dueDay; }
+        else {
+            const t = debt || account;
+            // A budgeted amount that was just the minimum keeps following it (as in Debts).
+            if (f === 'minPayment' && debt && Math.abs((Number(debt.monthly) || 0) - (Number(debt.minPayment) || 0)) < 0.005) debt.monthly = num;
+            t[f] = num;
+        }
+        App.changed({ structural: f === 'kind' || f === 'name' });
+        drawDetails();
+    }
+
+    // An unlinked card becomes a debt in the plan, linked to the account.
+    function toDebt() {
+        if (!det || !det.account || det.debt) return;
+        const a = det.account, s = Store.state, owed = Math.max(0, -(Number(a.balance) || 0));
+        App.undoable(`"${a.name}" added to your debts`, () => {
+            const debts = s.debts || (s.debts = []);
+            const min = Number(a.minPayment) || Math.max(25, Math.round(owed * 0.02));
+            const d = { id: Store.nextId(debts), name: a.name, kind: 'tarjeta', balance: owed, originalBalance: Math.max(owed, Number(a.originalBalance) || 0), rate: Number(a.rate) || 0, minPayment: min, monthly: min, createdYear: new Date().getFullYear() };
+            if (a.dueDay) d.dueDay = a.dueDay;
+            debts.push(d);
+            a.debtId = d.id;
+            det.debt = d;
+        });
+        drawDetails();
     }
 
     // "+ Add an account": a manual account of any type.
@@ -22772,10 +22944,13 @@ I18n.override('EC', 'es', {
         'hub.open': (el) => openRow(el.dataset.type, el.dataset.type === 'field' ? el.dataset.id : Number(el.dataset.id)),
         'hub.add': () => addSheet(),
         'hub.newType': () => newType(),
-        'hub.save': () => save()
+        'hub.save': () => save(),
+        'acd.tab': (el) => { if (det) { det.tab = el.dataset.tab === 'details' ? 'details' : 'activity'; drawDetails(); } },
+        'acd.set': (el) => setField(el),
+        'acd.toDebt': () => toDebt()
     });
 
-    window.AccountsHub = { update, get last() { return hub; } };
+    window.AccountsHub = { update, openDetails, get last() { return hub; } };
 })();
 </script>
 <script>/* js/views/checklists.js */

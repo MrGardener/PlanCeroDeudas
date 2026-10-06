@@ -520,7 +520,33 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   ok(await page.evaluate(() => Store.state.accounts.some(a => a.name === 'Store card' && a.kind === 'tarjeta' && a.balance === -300) && /Store card/.test(document.getElementById('hub-card').textContent)), 'accounts hub: a card is what you owe');
   await page.click('#hub-loan .hub-row >> nth=0');
   await page.waitForTimeout(300);
-  ok(await page.evaluate(() => Store.ui.tab === 'futuro'), 'accounts hub: a loan opens its debt');
+  ok(await page.evaluate(() => /Auto loan|Student loan|Other debt/.test(document.querySelector('.modal-backdrop.sheet').textContent)), 'accounts hub: a loan opens its details');
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
+  // Account details: Activity (12 months in/out + transactions) and Details synced with the debt.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('patrimonio'); });
+  await page.waitForTimeout(300);
+  await page.click('#hub-checking .hub-row >> nth=0');
+  await page.waitForTimeout(300);
+  const acd1 = await page.evaluate(() => { const c = UI.chartInstance('acd-chart'); return { bars: c && c.data.labels.length, sets: c && c.data.datasets.map(d => d.label).join(), rows: document.querySelectorAll('.acd-txn').length }; });
+  ok(acd1.bars === 12 && /Money out/.test(acd1.sets) && acd1.rows > 10, 'account details: activity chart and transactions', acd1);
+  await page.evaluate(() => document.querySelector('.modal-backdrop.sheet [data-dialog-cancel]').click());
+  await page.click('#hub-card .hub-row >> nth=0');
+  await page.waitForTimeout(200);
+  await page.click('[data-action="acd.tab"][data-tab="details"]');
+  await page.waitForTimeout(150);
+  await page.evaluate(() => { const set = (f, v) => { const el = document.querySelector(`.acd-fields [data-field="${f}"]`); el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); }; set('rate', '19.99'); set('minPayment', '160'); set('creditLimit', '10000'); set('dueDay', '15'); });
+  await page.waitForTimeout(200);
+  const acd2 = await page.evaluate(() => { const d = Store.state.debts.find(x => x.kind === 'tarjeta'); return { rate: d.rate, min: d.minPayment, due: d.dueDay, limit: d.creditLimit }; });
+  ok(acd2.rate === 19.99 && acd2.min === 160 && acd2.due === 15 && acd2.limit === 10000, 'account details: details change the debt the snowball uses', acd2);
+  await page.evaluate(() => document.querySelector('.modal-backdrop.sheet [data-dialog-cancel]').click());
+  // An unlinked card account becomes a debt from its details.
+  await page.evaluate(() => { Store.state.accounts.push({ id: 99, name: 'Store card', kind: 'tarjeta', balance: -420, updatedAt: Engine.isoDate(new Date()) }); App.changed({ structural: true }); AccountsHub.openDetails('account', 99); });
+  await page.waitForTimeout(200);
+  await page.click('[data-action="acd.tab"][data-tab="details"]');
+  await page.click('[data-action="acd.toDebt"]');
+  await page.waitForTimeout(200);
+  ok(await page.evaluate(() => { const a = Store.state.accounts.find(x => x.id === 99), d = Store.state.debts.find(x => x.id === a.debtId); return !!d && d.balance === 420 && d.kind === 'tarjeta' && AccountsHub.last.groups.find(g => g.key === 'card').rows.filter(r => r.name === 'Store card').length === 1; }), 'account details: add an unlinked card to the debts, counted once');
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

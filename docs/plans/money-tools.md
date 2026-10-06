@@ -37,7 +37,7 @@ on top of that: one way in to every tool, and the drill-downs (level 1 → 4).
    chips at the top that jump to their section. "+ Add an account" (balance, name, type; Property asks
    real estate / vehicle / other). Reads accounts, CDs and investments, assets and debts; a card linked to
    its debt counts once.
-3. **Account details** — tap an account: name, type and balance; **Activity** tab: 12 months of money out vs
+3. ✅ **Account details** — tap an account: name, type and balance; **Activity** tab: 12 months of money out vs
    money in (bars) and the account's transactions; **Details** tab: name, type, interest rate, minimum
    payment, payment due day, credit limit, original balance. Editing a card or loan here changes its debt
    in the snowball (and the other way round).
