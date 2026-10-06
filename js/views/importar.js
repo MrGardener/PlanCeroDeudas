@@ -173,7 +173,8 @@
                 if (e.memberId !== undefined) out.memberId = e.memberId || undefined;
             }
             out.ref = r.error ? '' : r.fitid ? 'ofx:' + r.fitid : Importers.importRef(r);
-            const dup = !r.error && (!!r.dupKey || Importers.isDuplicate(out, Store.state.transactions) || Importers.isDuplicate(r, Store.state.transactions) || Store.state.transactions.some(t => t.importRef === out.ref));
+            const known = Store.state.transactions.concat(Store.state.excludedTxns || []);
+            const dup = !r.error && (!!r.dupKey || Importers.isDuplicate(out, known) || Importers.isDuplicate(r, known) || known.some(t => t.importRef === out.ref));
             let match = null;
             if (!r.error && !dup) {
                 const m = Importers.findMatch(out, manual, { exclude: used });
@@ -631,6 +632,8 @@
                 const t = { id: id++, type: r.type, description: firstLine(desc).slice(0, 120), store: (r.store || '').slice(0, 80), parentCategory: tr ? 'Transferencia' : r.category, category: tr ? '' : r.sub || '', amount: r.amount, date: r.date,
                     paymentType: tr ? 'Transferencia' : r.payment || (r.isCard ? 'Tarjeta de Crédito' : 'Transferencia'), source: s.source };
                 if (r.budgetLine && r.type === 'Gasto') t.budgetLine = String(r.budgetLine);
+                // The bank's own text, shown under the payee in the transaction's details.
+                if (r.original && r.original !== NO_DESC && firstLine(r.original) !== t.description) t.original = firstLine(r.original).slice(0, 120);
                 // A transfer keeps its direction (into or out of the account) for the account's activity.
                 if (tr && Number(r.signed)) t.signed = Math.sign(Number(r.signed)) * Math.abs(Number(r.amount) || 0);
                 if (acct) { t.accountId = acct.id; if (acct.kind === 'tarjeta' && !tr) t.paymentType = 'Tarjeta de Crédito'; }
