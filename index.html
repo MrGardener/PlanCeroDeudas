@@ -61,7 +61,7 @@
 <section data-tab="resumen" class="space-y-5">
     <div id="dash-welcome" class="card hidden" style="border-color:#a7f3d0"></div>
     <nav class="tools-bar" id="tools-bar" aria-label="Money tools">
-        <a href="#" data-goto="patrimonio" data-focus="nw-accounts"><i class="fa-solid fa-wallet"></i><span>Accounts</span></a>
+        <a href="#" data-goto="patrimonio" data-focus="acct-hub"><i class="fa-solid fa-wallet"></i><span>Accounts</span></a>
         <a href="#" data-goto="transacciones/lista"><i class="fa-solid fa-list-ul"></i><span>Transactions</span></a>
         <a href="#" data-goto="transacciones/reportes" data-focus="spend-card"><i class="fa-solid fa-chart-pie"></i><span>Spending</span></a>
         <a href="#" data-goto="presupuesto/plan"><i class="fa-solid fa-circle-nodes"></i><span>Budgets</span></a>
@@ -1366,6 +1366,16 @@
 
 <!-- =========================================================== PATRIMONIO -->
 <section data-tab="patrimonio" class="hidden space-y-5">
+    <div class="card" id="acct-hub">
+        <div class="card-head">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-building-columns text-blue-600"></i> All accounts</div>
+                <div class="card-sub">Everything you have and owe in one list. Tap one to change it.</div>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" data-action="hub.add"><i class="fa-solid fa-plus"></i> Add an account</button>
+        </div>
+        <div id="hub-body"></div>
+    </div>
     <div class="card">
         <div class="card-head">
             <div>
@@ -1776,6 +1786,7 @@
 <script src="js/views/hipoteca.js"></script>
 <script src="js/views/jubilacion.js"></script>
 <script src="js/views/patrimonio.js"></script>
+<script src="js/views/accounts.js"></script>
 <script src="js/views/checklists.js"></script>
 <script src="js/views/config.js"></script>
 <script src="js/views/setup.js"></script>

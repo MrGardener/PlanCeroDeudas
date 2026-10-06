@@ -2132,6 +2132,43 @@
         return { fields: nw, registry, assets: assetsTotal, liabilities, value: assetsTotal - liabilities };
     }
 
+    // Everything you have and owe, grouped like a bank's account list: checking, savings, cash,
+    // investment, property, credit card, mortgage, loan. Each row says where it lives (ref) so the
+    // app can open it. A card account linked to its debt shows once (as the debt, with the
+    // account's name). Liabilities are positive amounts in `owed` groups.
+    const HUB_GROUPS = [
+        { key: 'checking', label: 'Checking', owed: false }, { key: 'savings', label: 'Savings', owed: false },
+        { key: 'cash', label: 'Cash', owed: false }, { key: 'investment', label: 'Investment', owed: false },
+        { key: 'property', label: 'Property', owed: false }, { key: 'card', label: 'Credit Card', owed: true },
+        { key: 'mortgage', label: 'Mortgage', owed: true }, { key: 'loan', label: 'Loan', owed: true }
+    ];
+    function accountsHub({ accounts = [], holdings = [], polizas = [], assets = [], debts = [], years = {}, year }) {
+        const rows = { checking: [], savings: [], cash: [], investment: [], property: [], card: [], mortgage: [], loan: [] };
+        const linked = new Set();
+        (accounts || []).forEach(a => {
+            if (a.kind === 'tarjeta') {
+                if (a.debtId && (debts || []).some(d => d.id === a.debtId)) { linked.add(a.debtId); return; }
+                rows.card.push({ ref: { type: 'account', id: a.id }, name: a.name, kind: a.kind, balance: Math.max(0, -num(a.balance)) });
+                return;
+            }
+            const g = a.kind === 'ahorros' ? 'savings' : a.kind === 'efectivo' ? 'cash' : a.kind === 'retiro' ? 'investment' : 'checking';
+            rows[g].push({ ref: { type: 'account', id: a.id }, name: a.name, kind: a.kind || 'corriente', balance: num(a.balance) });
+        });
+        (holdings || []).forEach(h => rows.investment.push({ ref: { type: 'holding', id: h.id }, name: h.name || h.ticker || '', sub: h.ticker || '', kind: 'holding', balance: holdingValue(h) }));
+        (polizas || []).forEach(p => rows.investment.push({ ref: { type: 'poliza', id: p.id }, name: p.coopName || 'CD', sub: p.number || '', kind: 'poliza', balance: num(p.amount) }));
+        (assets || []).forEach(a => { if (assetOwned(a, year)) rows.property.push({ ref: { type: 'asset', id: a.id }, name: a.name, kind: a.category, balance: assetValue(a, year) }); });
+        (debts || []).forEach(d => {
+            if (!(num(d.balance) > 0)) return;
+            const acct = linked.has(d.id) && (accounts || []).find(a => a.debtId === d.id && a.kind === 'tarjeta');
+            rows[d.kind === 'tarjeta' ? 'card' : 'loan'].push({ ref: { type: 'debt', id: d.id }, name: acct ? acct.name : d.name, kind: d.kind, balance: num(d.balance), accountId: acct ? acct.id : null });
+        });
+        const mortgage = netWorthField(years, year, 'mortgage');
+        if (mortgage > 0) rows.mortgage.push({ ref: { type: 'field', id: 'mortgage' }, name: 'Mortgage', kind: 'mortgage', balance: mortgage });
+        const groups = HUB_GROUPS.map(g => ({ ...g, rows: rows[g.key], total: sum(rows[g.key], r => r.balance) }));
+        const assetsTotal = sum(groups.filter(g => !g.owed), g => g.total), owedTotal = sum(groups.filter(g => g.owed), g => g.total);
+        return { groups, assets: assetsTotal, liabilities: owedTotal, net: assetsTotal - owedTotal };
+    }
+
     // ---------------------------------------------------- emergency fund & steps
 
     // What a pot of savings is for: 'emergencia', 'jubilacion' or 'general'. The person can set
@@ -2459,7 +2496,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, accountsHub, HUB_GROUPS, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

@@ -847,6 +847,36 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .help-grid button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .45rem; min-height: 5.5rem; border: 1px solid var(--line); border-radius: .8rem; background: var(--surface); color: var(--ink); font-size: .78rem; font-weight: 700; }
 .help-grid button i { font-size: 1.4rem; color: var(--muted); }
 .help-grid button:hover { background: var(--surface-3); }
+
+/* All accounts (Net Worth): types on the left (chips on a phone), accounts by type on the right. */
+.hub { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+@media (min-width: 768px) { .hub { grid-template-columns: 14rem 1fr; align-items: start; } }
+.hub-nav { display: flex; gap: .4rem; overflow-x: auto; scrollbar-width: none; }
+.hub-nav::-webkit-scrollbar { display: none; }
+.hub-all, .hub-sum { display: none; }
+@media (min-width: 768px) {
+    .hub-nav { flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: .8rem; overflow: hidden; position: sticky; top: 8.5rem; }
+    .hub-all { display: flex; align-items: center; gap: .5rem; padding: .7rem .9rem; background: var(--ink-2); color: #fff; font-weight: 800; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
+    .hub-sum { display: flex; flex-direction: column; gap: .15rem; padding: .7rem .9rem; font-size: .75rem; color: var(--muted); border-top: 1px solid var(--line); }
+}
+.hub-type { flex: 0 0 auto; display: flex; align-items: center; gap: .55rem; padding: .5rem .75rem; border: 1px solid var(--line); border-radius: 9999px; background: var(--surface); text-align: left; color: var(--ink); }
+.hub-type > span { display: flex; flex-direction: column; line-height: 1.15; }
+.hub-type-name { font-size: .68rem; color: var(--muted); }
+.hub-type strong { font-size: .82rem; font-variant-numeric: tabular-nums; }
+.hub-type i { color: var(--muted); width: 1rem; text-align: center; }
+.hub-type:hover, .hub-type:focus-visible { background: var(--surface-3); }
+@media (min-width: 768px) { .hub-type { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: .65rem .9rem; } }
+.hub-group { scroll-margin-top: 9rem; margin-bottom: 1rem; }
+.hub-group header { display: flex; justify-content: space-between; padding: .35rem .25rem; font-size: .78rem; font-weight: 700; color: var(--brand-dark); border-bottom: 1px solid var(--line); }
+.hub-row { width: 100%; display: grid; grid-template-columns: 2.4rem 1fr auto; align-items: center; gap: .75rem; padding: .6rem .25rem; border-bottom: 1px solid var(--line-soft); text-align: left; color: var(--ink); min-height: 3.25rem; }
+.hub-row:hover, .hub-row:focus-visible { background: var(--surface-3); }
+.hub-logo { width: 2.4rem; height: 2.4rem; border-radius: .5rem; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 800; color: #fff; background: #2a78d6; }
+.hub-savings, .hub-investment { background: #1baf7a; } .hub-cash { background: #4a3aa7; } .hub-property { background: #8a6d00; }
+.hub-card, .hub-loan, .hub-mortgage { background: #b4532a; }
+.hub-name { display: flex; flex-direction: column; min-width: 0; font-weight: 600; font-size: .88rem; }
+.hub-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-name small { font-size: .7rem; color: var(--muted); font-weight: 400; }
+.hub-amt { font-weight: 700; font-variant-numeric: tabular-nums; font-size: .9rem; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -890,7 +920,7 @@ html.kb-open.is-native body { padding-bottom: 0; }
 <section data-tab="resumen" class="space-y-5">
     <div id="dash-welcome" class="card hidden" style="border-color:#a7f3d0"></div>
     <nav class="tools-bar" id="tools-bar" aria-label="Money tools">
-        <a href="#" data-goto="patrimonio" data-focus="nw-accounts"><i class="fa-solid fa-wallet"></i><span>Accounts</span></a>
+        <a href="#" data-goto="patrimonio" data-focus="acct-hub"><i class="fa-solid fa-wallet"></i><span>Accounts</span></a>
         <a href="#" data-goto="transacciones/lista"><i class="fa-solid fa-list-ul"></i><span>Transactions</span></a>
         <a href="#" data-goto="transacciones/reportes" data-focus="spend-card"><i class="fa-solid fa-chart-pie"></i><span>Spending</span></a>
         <a href="#" data-goto="presupuesto/plan"><i class="fa-solid fa-circle-nodes"></i><span>Budgets</span></a>
@@ -2195,6 +2225,16 @@ html.kb-open.is-native body { padding-bottom: 0; }
 
 <!-- =========================================================== PATRIMONIO -->
 <section data-tab="patrimonio" class="hidden space-y-5">
+    <div class="card" id="acct-hub">
+        <div class="card-head">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-building-columns text-blue-600"></i> All accounts</div>
+                <div class="card-sub">Everything you have and owe in one list. Tap one to change it.</div>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" data-action="hub.add"><i class="fa-solid fa-plus"></i> Add an account</button>
+        </div>
+        <div id="hub-body"></div>
+    </div>
     <div class="card">
         <div class="card-head">
             <div>
@@ -5531,6 +5571,34 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Account added: {0}": "Cuenta agregada: {0}",
+    "Account type": "Tipo de cuenta",
+    "Account types": "Tipos de cuenta",
+    "Accounts are added by hand and kept up to date by importing your statements: nothing connects to your bank.": "Las cuentas se agregan a mano y se mantienen al día importando tus estados de cuenta: nada se conecta a tu banco.",
+    "Add an account": "Agregar una cuenta",
+    "Auto loan": "Préstamo de auto",
+    "Balance today ($)": "Saldo hoy ($)",
+    "Credit Card": "Tarjeta de crédito",
+    "E.g. Chase Checking": "Ej.: Cuenta corriente Chase",
+    "Everything you have and owe in one list. Tap one to change it.": "Todo lo que tienes y debes en una lista. Toca una para cambiarla.",
+    "Give the account a name.": "Ponle un nombre a la cuenta.",
+    "Investment": "Inversión",
+    "Loan type": "Tipo de préstamo",
+    "Mortgage": "Hipoteca",
+    "No accounts yet. Add your checking account first: its balance is the start of your cash flow.": "Aún no hay cuentas. Agrega primero tu cuenta corriente: su saldo es el inicio de tu flujo de efectivo.",
+    "Other": "Otro",
+    "Other debt": "Otra deuda",
+    "Owe": "Debes",
+    "Own": "Tienes",
+    "Personal loan": "Préstamo personal",
+    "Property": "Propiedad",
+    "Property type": "Tipo de propiedad",
+    "Student loan": "Préstamo estudiantil",
+    "Vehicle": "Vehículo",
+    "What it's worth today ($)": "Lo que vale hoy ($)",
+    "What you owe today ($)": "Lo que debes hoy ($)",
+    "Retirement / investment": "Jubilación / inversión",
+    "Other (art, jewelry…)": "Otro (arte, joyas…)",
     "A donut of where the money went, by category, for a month or the last 3 / 6 months.": "Una dona de a dónde se fue el dinero, por categoría, de un mes o de los últimos 3 / 6 meses.",
     "Accounts": "Cuentas",
     "Add each checking, savings and credit card account with today's balance.": "Agrega cada cuenta corriente, de ahorros y tarjeta de crédito con su saldo de hoy.",
@@ -12498,6 +12566,43 @@ I18n.override('EC', 'es', {
         return { fields: nw, registry, assets: assetsTotal, liabilities, value: assetsTotal - liabilities };
     }
 
+    // Everything you have and owe, grouped like a bank's account list: checking, savings, cash,
+    // investment, property, credit card, mortgage, loan. Each row says where it lives (ref) so the
+    // app can open it. A card account linked to its debt shows once (as the debt, with the
+    // account's name). Liabilities are positive amounts in `owed` groups.
+    const HUB_GROUPS = [
+        { key: 'checking', label: 'Checking', owed: false }, { key: 'savings', label: 'Savings', owed: false },
+        { key: 'cash', label: 'Cash', owed: false }, { key: 'investment', label: 'Investment', owed: false },
+        { key: 'property', label: 'Property', owed: false }, { key: 'card', label: 'Credit Card', owed: true },
+        { key: 'mortgage', label: 'Mortgage', owed: true }, { key: 'loan', label: 'Loan', owed: true }
+    ];
+    function accountsHub({ accounts = [], holdings = [], polizas = [], assets = [], debts = [], years = {}, year }) {
+        const rows = { checking: [], savings: [], cash: [], investment: [], property: [], card: [], mortgage: [], loan: [] };
+        const linked = new Set();
+        (accounts || []).forEach(a => {
+            if (a.kind === 'tarjeta') {
+                if (a.debtId && (debts || []).some(d => d.id === a.debtId)) { linked.add(a.debtId); return; }
+                rows.card.push({ ref: { type: 'account', id: a.id }, name: a.name, kind: a.kind, balance: Math.max(0, -num(a.balance)) });
+                return;
+            }
+            const g = a.kind === 'ahorros' ? 'savings' : a.kind === 'efectivo' ? 'cash' : a.kind === 'retiro' ? 'investment' : 'checking';
+            rows[g].push({ ref: { type: 'account', id: a.id }, name: a.name, kind: a.kind || 'corriente', balance: num(a.balance) });
+        });
+        (holdings || []).forEach(h => rows.investment.push({ ref: { type: 'holding', id: h.id }, name: h.name || h.ticker || '', sub: h.ticker || '', kind: 'holding', balance: holdingValue(h) }));
+        (polizas || []).forEach(p => rows.investment.push({ ref: { type: 'poliza', id: p.id }, name: p.coopName || 'CD', sub: p.number || '', kind: 'poliza', balance: num(p.amount) }));
+        (assets || []).forEach(a => { if (assetOwned(a, year)) rows.property.push({ ref: { type: 'asset', id: a.id }, name: a.name, kind: a.category, balance: assetValue(a, year) }); });
+        (debts || []).forEach(d => {
+            if (!(num(d.balance) > 0)) return;
+            const acct = linked.has(d.id) && (accounts || []).find(a => a.debtId === d.id && a.kind === 'tarjeta');
+            rows[d.kind === 'tarjeta' ? 'card' : 'loan'].push({ ref: { type: 'debt', id: d.id }, name: acct ? acct.name : d.name, kind: d.kind, balance: num(d.balance), accountId: acct ? acct.id : null });
+        });
+        const mortgage = netWorthField(years, year, 'mortgage');
+        if (mortgage > 0) rows.mortgage.push({ ref: { type: 'field', id: 'mortgage' }, name: 'Mortgage', kind: 'mortgage', balance: mortgage });
+        const groups = HUB_GROUPS.map(g => ({ ...g, rows: rows[g.key], total: sum(rows[g.key], r => r.balance) }));
+        const assetsTotal = sum(groups.filter(g => !g.owed), g => g.total), owedTotal = sum(groups.filter(g => g.owed), g => g.total);
+        return { groups, assets: assetsTotal, liabilities: owedTotal, net: assetsTotal - owedTotal };
+    }
+
     // ---------------------------------------------------- emergency fund & steps
 
     // What a pot of savings is for: 'emergencia', 'jubilacion' or 'general'. The person can set
@@ -12825,7 +12930,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, accountsHub, HUB_GROUPS, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -22247,6 +22352,7 @@ I18n.override('EC', 'es', {
     }
 
     function update(ctx) {
+        if (window.AccountsHub) AccountsHub.update(ctx);
         updateHoldings(ctx);
         progress(ctx);
         if (window.Checklists) Checklists.render();
@@ -22564,6 +22670,112 @@ I18n.override('EC', 'es', {
     });
 
     App.defineView('patrimonio', { render, update });
+})();
+</script>
+<script>/* js/views/accounts.js */
+/* Net Worth → All accounts: everything you have and owe in one list, by type (Engine.accountsHub),
+   like the bank's Accounts page. On the phone the types are chips that jump to their section; on a
+   wide screen they're a list on the left. "+ Add an account" adds a manual one of any type. */
+(function () {
+    'use strict';
+    const { money, esc } = Fmt;
+    const ICONS = { checking: 'fa-money-check', savings: 'fa-piggy-bank', cash: 'fa-wallet', investment: 'fa-chart-column', property: 'fa-house', card: 'fa-credit-card', mortgage: 'fa-house-chimney', loan: 'fa-file-invoice-dollar' };
+    const initials = (name) => String(name || '?').replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+    const SUB = { holding: 'Investment', poliza: 'CD', corriente: 'Checking', ahorros: 'Savings', efectivo: 'Cash', retiro: 'Retirement', tarjeta: 'Credit Card', vehicular: 'Auto loan', personal: 'Personal loan', estudiantil: 'Student loan', otra: 'Other debt', mortgage: 'Mortgage', 'Bienes Raíces': 'Real estate', 'Vehículo': 'Vehicle', 'Otro': 'Other' };
+    let hub = null;
+
+    function update(ctx) {
+        const host = document.getElementById('hub-body');
+        if (!host) return;
+        const s = ctx.state, year = ctx.today.getFullYear();
+        hub = Engine.accountsHub({ accounts: s.accounts, holdings: s.holdings, polizas: s.polizas, assets: s.assets, debts: s.debts, years: s.years, year });
+        const shown = hub.groups.filter(g => g.rows.length);
+        const amt = (g, v) => `<span class="${g.owed && v > 0 ? 'text-red-600' : ''}">${money(v)}</span>`;
+        const nav = hub.groups.map(g => g.rows.length
+            ? `<button type="button" class="hub-type" data-action="hub.jump" data-key="${g.key}"><i class="fa-solid ${ICONS[g.key]}"></i><span><span class="hub-type-name">${esc(g.label)}</span><strong>${amt(g, g.total)}</strong></span></button>`
+            : '').join('');
+        host.innerHTML = shown.length ? `<div class="hub">
+                <nav class="hub-nav" aria-label="Account types">
+                    <div class="hub-all"><i class="fa-solid fa-building-columns"></i> All accounts</div>${nav}
+                    <div class="hub-sum"><span>Own <strong>${money(hub.assets)}</strong></span><span>Owe <strong class="text-red-600">${money(hub.liabilities)}</strong></span></div>
+                </nav>
+                <div class="hub-list">${shown.map(g => `<section class="hub-group" id="hub-${g.key}">
+                    <header><span>${esc(g.label)}</span>${amt(g, g.total)}</header>
+                    ${g.rows.map(r => `<button type="button" class="hub-row" data-action="hub.open" data-type="${r.ref.type}" data-id="${esc(String(r.ref.id))}">
+                        <span class="hub-logo hub-${g.key}" aria-hidden="true">${esc(initials(r.name))}</span>
+                        <span class="hub-name"><span data-i18n-skip>${esc(r.name)}</span><small>${esc(I18n.t(SUB[r.kind] || g.label))}${r.sub ? ` · <span data-i18n-skip>${esc(r.sub)}</span>` : ''}</small></span>
+                        <span class="hub-amt">${amt(g, r.balance)}</span></button>`).join('')}
+                </section>`).join('')}</div>
+            </div>`
+            : `<p class="help">No accounts yet. Add your checking account first: its balance is the start of your cash flow.</p>`;
+    }
+
+    // Where each kind of row is edited today (account details come in the next step).
+    function openRow(type, id) {
+        const goto = { account: ['patrimonio', 'nw-accounts'], holding: ['patrimonio', 'nw-holdings'], poliza: ['futuro/polizas', ''], asset: ['patrimonio', 'asset-registry'], debt: ['futuro/metas', 'metas-debts'], field: ['patrimonio', ''] }[type];
+        if (!goto) return;
+        App.go(goto[0], goto[1] ? { focus: goto[1] } : {});
+        if (type === 'field') { const el = document.querySelector(`[data-input="nw.set"][data-field="${CSS.escape(id)}"]`); if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); } }
+    }
+
+    // "+ Add an account": a manual account of any type.
+    const TYPES = [
+        { value: 'corriente', label: 'Checking' }, { value: 'ahorros', label: 'Savings' }, { value: 'efectivo', label: 'Cash' },
+        { value: 'retiro', label: 'Retirement / investment' }, { value: 'tarjeta', label: 'Credit Card' },
+        { value: 'property', label: 'Property' }, { value: 'loan', label: 'Loan' }
+    ];
+    const PROPERTY = [{ value: 'Bienes Raíces', label: 'Real estate' }, { value: 'Vehículo', label: 'Vehicle' }, { value: 'Otro', label: 'Other (art, jewelry…)' }];
+    const LOANS = [{ value: 'vehicular', label: 'Auto loan' }, { value: 'personal', label: 'Personal loan' }, { value: 'estudiantil', label: 'Student loan' }, { value: 'otra', label: 'Other debt' }];
+
+    function addSheet() {
+        const sheet = UI.sheet({ title: 'Add an account', icon: 'fa-building-columns', html: `
+            <p class="help mb-3">Accounts are added by hand and kept up to date by importing your statements: nothing connects to your bank.</p>
+            <div class="grid grid-cols-1 gap-3">
+                <label class="field"><span class="field-label">Account type</span><select id="hub-new-type" class="input" data-change="hub.newType">${Views.selectOptions(TYPES, 'corriente')}</select></label>
+                <label class="field hidden" id="hub-new-sub-f"><span class="field-label" id="hub-new-sub-l">Property type</span><select id="hub-new-sub" class="input"></select></label>
+                <label class="field"><span class="field-label">Account name</span><input id="hub-new-name" class="input" maxlength="40" placeholder="E.g. Chase Checking"></label>
+                <label class="field"><span class="field-label" id="hub-new-bal-l">Balance today ($)</span><input id="hub-new-bal" class="input" type="number" inputmode="decimal" step="any" min="0"></label>
+            </div>
+            <div class="flex justify-end gap-2 mt-4"><button type="button" class="btn btn-primary" data-action="hub.save"><i class="fa-regular fa-circle-check"></i> Save</button></div>` });
+        addOpen = sheet;
+    }
+    let addOpen = null;
+    function newType() {
+        const t = (document.getElementById('hub-new-type') || {}).value;
+        const sub = t === 'property' ? PROPERTY : t === 'loan' ? LOANS : null;
+        UI.show('hub-new-sub-f', !!sub);
+        if (sub) { UI.html('hub-new-sub', Views.selectOptions(sub, sub[0].value)); UI.text('hub-new-sub-l', t === 'property' ? 'Property type' : 'Loan type'); }
+        UI.text('hub-new-bal-l', t === 'tarjeta' || t === 'loan' ? 'What you owe today ($)' : t === 'property' ? 'What it\'s worth today ($)' : 'Balance today ($)');
+    }
+    function save() {
+        const t = document.getElementById('hub-new-type').value, sub = document.getElementById('hub-new-sub').value;
+        const name = document.getElementById('hub-new-name').value.trim().slice(0, 40), bal = Math.abs(Fmt.parseNum(document.getElementById('hub-new-bal').value, 0));
+        if (!name) { UI.toast('Give the account a name.', 'error'); return; }
+        const s = Store.state, today = Engine.isoDate(new Date()), year = new Date().getFullYear();
+        App.undoable(`Account added: ${name}`, () => {
+            if (t === 'property') {
+                const list = s.assets || (s.assets = []);
+                list.push({ id: Store.nextId(list), name, category: sub || 'Otro', purchaseYear: year, purchaseValue: bal, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} });
+            } else if (t === 'loan') {
+                const list = s.debts || (s.debts = []);
+                list.push({ id: Store.nextId(list), name, kind: sub || 'personal', balance: bal, originalBalance: bal, rate: 0, minPayment: 0, monthly: 0, createdYear: year });
+            } else {
+                const list = s.accounts || (s.accounts = []);
+                list.push({ id: Store.nextId(list), name, kind: t, balance: t === 'tarjeta' ? -bal : bal, updatedAt: today });
+            }
+        });
+        if (addOpen) { addOpen.close(); addOpen = null; }
+    }
+
+    UI.register({
+        'hub.jump': (el) => { const g = document.getElementById('hub-' + el.dataset.key); if (g) g.scrollIntoView({ block: 'start', behavior: 'smooth' }); },
+        'hub.open': (el) => openRow(el.dataset.type, el.dataset.type === 'field' ? el.dataset.id : Number(el.dataset.id)),
+        'hub.add': () => addSheet(),
+        'hub.newType': () => newType(),
+        'hub.save': () => save()
+    });
+
+    window.AccountsHub = { update, get last() { return hub; } };
 })();
 </script>
 <script>/* js/views/checklists.js */
@@ -23035,7 +23247,7 @@ I18n.override('EC', 'es', {
 
     // [key, icon, title, where it opens (goto, focus), how-to sentences]
     const TOPICS = [
-        ['accounts', 'fa-wallet', 'Accounts', ['patrimonio', 'nw-accounts'], [
+        ['accounts', 'fa-wallet', 'Accounts', ['patrimonio', 'acct-hub'], [
             'Add each checking, savings and credit card account with today\'s balance.',
             'Importing a statement into an account keeps its balance up to date; a card\'s balance is what you owe.']],
         ['transactions', 'fa-list-ul', 'Transactions', ['transacciones/lista', ''], [

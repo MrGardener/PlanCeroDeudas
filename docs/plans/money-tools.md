@@ -32,7 +32,7 @@ on top of that: one way in to every tool, and the drill-downs (level 1 → 4).
    how-to.
 
 ## B. Accounts (tool 1)
-2. **Accounts hub** — everything you have and owe in one list, by type (Checking, Savings, Cash, Investment,
+2. ✅ **Accounts hub** — everything you have and owe in one list, by type (Checking, Savings, Cash, Investment,
    Property, Credit card, Mortgage, Loan) with each type's total (owed in red). On the phone the types are
    chips at the top that jump to their section. "+ Add an account" (balance, name, type; Property asks
    real estate / vehicle / other). Reads accounts, CDs and investments, assets and debts; a card linked to

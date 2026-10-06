@@ -496,6 +496,31 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('[data-action="tools.go"]');
   await page.waitForTimeout(300);
   ok(await page.evaluate(() => Store.ui.tab === 'futuro' && !document.querySelector('.modal-backdrop.sheet')), 'help: Open goes to the tool');
+  // All accounts: everything by type with totals; add a manual property and a loan; open a row.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('patrimonio'); });
+  await page.waitForTimeout(300);
+  const hub = await page.evaluate(() => { const h = AccountsHub.last; return { groups: [...document.querySelectorAll('#hub-body .hub-group')].map(g => g.id.slice(4)), rows: document.querySelectorAll('#hub-body .hub-row').length, n: h.groups.reduce((t, g) => t + g.rows.length, 0), owedRed: !!document.querySelector('#hub-loan header .text-red-600'), net: Math.round(h.net) }; });
+  ok(hub.groups.includes('checking') && hub.groups.includes('card') && hub.groups.includes('property') && hub.rows === hub.n && hub.owedRed, 'accounts hub: groups by type, owed in red', hub);
+  await page.click('[data-action="hub.add"]');
+  await page.waitForTimeout(150);
+  await page.selectOption('#hub-new-type', 'property');
+  await page.waitForTimeout(100);
+  await page.selectOption('#hub-new-sub', 'Vehículo');
+  await page.fill('#hub-new-name', 'Camper');
+  await page.fill('#hub-new-bal', '12000');
+  await page.click('[data-action="hub.save"]');
+  await page.waitForTimeout(250);
+  ok(await page.evaluate(() => Store.state.assets.some(a => a.name === 'Camper' && a.category === 'Vehículo' && a.purchaseValue === 12000) && /Camper/.test(document.getElementById('hub-property').textContent)), 'accounts hub: add a property');
+  await page.click('[data-action="hub.add"]');
+  await page.selectOption('#hub-new-type', 'tarjeta');
+  await page.fill('#hub-new-name', 'Store card');
+  await page.fill('#hub-new-bal', '300');
+  await page.click('[data-action="hub.save"]');
+  await page.waitForTimeout(250);
+  ok(await page.evaluate(() => Store.state.accounts.some(a => a.name === 'Store card' && a.kind === 'tarjeta' && a.balance === -300) && /Store card/.test(document.getElementById('hub-card').textContent)), 'accounts hub: a card is what you owe');
+  await page.click('#hub-loan .hub-row >> nth=0');
+  await page.waitForTimeout(300);
+  ok(await page.evaluate(() => Store.ui.tab === 'futuro'), 'accounts hub: a loan opens its debt');
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

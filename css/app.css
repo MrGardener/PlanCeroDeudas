@@ -826,3 +826,33 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .help-grid button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .45rem; min-height: 5.5rem; border: 1px solid var(--line); border-radius: .8rem; background: var(--surface); color: var(--ink); font-size: .78rem; font-weight: 700; }
 .help-grid button i { font-size: 1.4rem; color: var(--muted); }
 .help-grid button:hover { background: var(--surface-3); }
+
+/* All accounts (Net Worth): types on the left (chips on a phone), accounts by type on the right. */
+.hub { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+@media (min-width: 768px) { .hub { grid-template-columns: 14rem 1fr; align-items: start; } }
+.hub-nav { display: flex; gap: .4rem; overflow-x: auto; scrollbar-width: none; }
+.hub-nav::-webkit-scrollbar { display: none; }
+.hub-all, .hub-sum { display: none; }
+@media (min-width: 768px) {
+    .hub-nav { flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: .8rem; overflow: hidden; position: sticky; top: 8.5rem; }
+    .hub-all { display: flex; align-items: center; gap: .5rem; padding: .7rem .9rem; background: var(--ink-2); color: #fff; font-weight: 800; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
+    .hub-sum { display: flex; flex-direction: column; gap: .15rem; padding: .7rem .9rem; font-size: .75rem; color: var(--muted); border-top: 1px solid var(--line); }
+}
+.hub-type { flex: 0 0 auto; display: flex; align-items: center; gap: .55rem; padding: .5rem .75rem; border: 1px solid var(--line); border-radius: 9999px; background: var(--surface); text-align: left; color: var(--ink); }
+.hub-type > span { display: flex; flex-direction: column; line-height: 1.15; }
+.hub-type-name { font-size: .68rem; color: var(--muted); }
+.hub-type strong { font-size: .82rem; font-variant-numeric: tabular-nums; }
+.hub-type i { color: var(--muted); width: 1rem; text-align: center; }
+.hub-type:hover, .hub-type:focus-visible { background: var(--surface-3); }
+@media (min-width: 768px) { .hub-type { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: .65rem .9rem; } }
+.hub-group { scroll-margin-top: 9rem; margin-bottom: 1rem; }
+.hub-group header { display: flex; justify-content: space-between; padding: .35rem .25rem; font-size: .78rem; font-weight: 700; color: var(--brand-dark); border-bottom: 1px solid var(--line); }
+.hub-row { width: 100%; display: grid; grid-template-columns: 2.4rem 1fr auto; align-items: center; gap: .75rem; padding: .6rem .25rem; border-bottom: 1px solid var(--line-soft); text-align: left; color: var(--ink); min-height: 3.25rem; }
+.hub-row:hover, .hub-row:focus-visible { background: var(--surface-3); }
+.hub-logo { width: 2.4rem; height: 2.4rem; border-radius: .5rem; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 800; color: #fff; background: #2a78d6; }
+.hub-savings, .hub-investment { background: #1baf7a; } .hub-cash { background: #4a3aa7; } .hub-property { background: #8a6d00; }
+.hub-card, .hub-loan, .hub-mortgage { background: #b4532a; }
+.hub-name { display: flex; flex-direction: column; min-width: 0; font-weight: 600; font-size: .88rem; }
+.hub-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-name small { font-size: .7rem; color: var(--muted); font-weight: 400; }
+.hub-amt { font-weight: 700; font-variant-numeric: tabular-nums; font-size: .9rem; }
