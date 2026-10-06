@@ -196,6 +196,8 @@
                 }
             };
             const options = mergeDeep(base, config.options || {});
+            // Round charts have no axes.
+            if (config.type === 'doughnut' || config.type === 'pie') delete options.scales;
             const existing = charts[canvasId];
             if (existing && existing.canvas === canvas && existing.config.type === config.type) {
                 existing.data = config.data;

@@ -44,7 +44,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
    tabs; skip allowed). It doesn't come back unless you open it from Settings.
 
 ## D. Views like the bank's "personal finance" tools
-10. **Spending** — a donut by category for a month (or 3M/6M), total in the middle; tap a slice to see
+10. ✅ **Spending** — a donut by category for a month (or 3M/6M), total in the middle; tap a slice to see
     its transactions; per person or household.
 11. **Trends** — stacked areas by category per month with an income line; 3M / 6M / 9M / 1Y; all
     categories or one; filter by account.

@@ -396,6 +396,19 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('[data-dialog-ok]');
   // Smart CSV import (engine, streams, rules) — see e2e-imp.js.
   await require('./e2e-imp.js')(page, ok);
+  // Spending donut: categories of the month, a slice opens its transactions, per person.
+  await page.evaluate(() => { Store.reset('example'); Store.ui.spending = null; App.changed({ structural: true }); App.go('transacciones/reportes'); });
+  await page.waitForTimeout(400);
+  const sp = await page.evaluate(() => { const t = new Date(), y = t.getFullYear(), m = t.getMonth(); const r = Engine.spendingBreakdown(Store.state.transactions, { from: Engine.isoDate(new Date(y, m, 1)), to: Engine.isoDate(new Date(y, m + 1, 0)) }); return { total: Fmt.money(r.total), first: r.rows[0].key, n: r.rows.length, rows: document.querySelectorAll('#spend-legend .spend-row').length, center: document.getElementById('spend-center').textContent, chart: !!UI.chartInstance('spend-donut') }; });
+  ok(sp.chart && sp.rows === sp.n && sp.n <= 7 && sp.center.includes(sp.total), 'spending: donut, total in the middle, one row per slice', sp);
+  await page.click('#spend-legend .spend-row >> nth=0');
+  await page.waitForTimeout(150);
+  ok(/Housing/.test(await text(page, 'spend-detail')) && await page.$$eval('#spend-detail tr', r => r.length) > 0, 'spending: a row lists its transactions', await text(page, 'spend-detail'));
+  await page.click('[data-action="spend.range"][data-range="6m"]');
+  await page.selectOption('#spend-who', String(-1));
+  await page.waitForTimeout(150);
+  const sp6 = await page.evaluate(() => ({ center: document.getElementById('spend-center').textContent, active: document.querySelector('[data-action="spend.range"].active').dataset.range }));
+  ok(sp6.active === '6m' && /Spent/.test(sp6.center) && !sp6.center.includes(sp.total), 'spending: 6 months, household only', sp6);
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

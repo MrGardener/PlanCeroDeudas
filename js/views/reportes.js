@@ -136,6 +136,7 @@
 
     function render(ctx) {
         if (window.TxnCharts) TxnCharts.update(ctx);
+        if (window.Spending) Spending.update(ctx);
         heatmap(ctx);
         const o = opts();
         ['range', 'type', 'by'].forEach(k => { document.getElementById('rep-' + k).value = o[k]; });

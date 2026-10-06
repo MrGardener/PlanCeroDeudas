@@ -805,6 +805,20 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .chart-readout-item i { width: .6rem; height: .6rem; border-radius: 2px; display: inline-block; }
 .chart-readout .contents { display: contents; }
 .chart-readout-hint { color: var(--faint); }
+
+/* Spending donut (Reports): the total sits in the hole; the rows beside it are the legend. */
+.donut-box { height: 15rem; }
+.donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; text-align: center; }
+.donut-total { font-size: 1.35rem; font-weight: 800; color: var(--ink); }
+.donut-label { font-size: .7rem; color: var(--muted); }
+.spend-legend { display: flex; flex-direction: column; gap: .15rem; }
+.spend-row { display: grid; grid-template-columns: .75rem 1fr auto 5.5rem; align-items: center; gap: .5rem; padding: .45rem .5rem; border-radius: .5rem; font-size: .8rem; text-align: left; color: var(--ink); min-height: 2.5rem; }
+.spend-row:hover:not(:disabled), .spend-row.is-picked { background: var(--surface-3); }
+.spend-row:disabled { cursor: default; }
+.spend-row i { width: .75rem; height: .75rem; border-radius: .2rem; }
+.spend-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.spend-pct { color: var(--muted); font-size: .72rem; }
+.spend-amt { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -1490,6 +1504,29 @@ html.kb-open.is-native body { padding-bottom: 0; }
         </div>
     </div>
     <div data-view="reportes" class="space-y-5 hidden">
+        <div class="card" id="spend-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-chart-pie text-blue-600"></i> Spending</div>
+                    <div class="card-sub">Where the money went, by category. Tap a slice or a row to see its transactions.</div>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+                <div class="segmented" role="tablist" aria-label="Period">
+                    <button type="button" data-action="spend.range" data-range="this-month">This month</button>
+                    <button type="button" data-action="spend.range" data-range="last-month">Last month</button>
+                    <button type="button" data-action="spend.range" data-range="3m">3M</button>
+                    <button type="button" data-action="spend.range" data-range="6m">6M</button>
+                </div>
+                <select id="spend-who" class="cell-input" style="width:auto" data-change="spend.who" aria-label="Whose"></select>
+            </div>
+            <p id="spend-empty" class="text-xs text-slate-400 text-center py-8 hidden">No spending in this period.</p>
+            <div id="spend-body" class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                <div><div class="chart-box donut-box"><canvas id="spend-donut" aria-label="Spending by category"></canvas><div class="donut-center" id="spend-center"></div></div></div>
+                <div id="spend-legend" class="spend-legend"></div>
+            </div>
+            <div id="spend-detail" class="mt-3"></div>
+        </div>
         <div class="card" id="txn-trend-card">
             <div class="card-head">
                 <div>
@@ -5379,6 +5416,13 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "No spending in this period.": "Sin gastos en este periodo.",
+    "Other categories: {0}.": "Otras categorías: {0}.",
+    "Spending by category": "Gastos por categoría",
+    "Spent last month": "Gastado el mes pasado",
+    "Spent this month": "Gastado este mes",
+    "The 25 biggest of {0}.": "Los 25 más grandes de {0}.",
+    "Where the money went, by category. Tap a slice or a row to see its transactions.": "A dónde se fue el dinero, por categoría. Toca una porción o una fila para ver sus transacciones.",
     "Your main paycheck; other income can be added later in the budget.": "Tu sueldo principal; otros ingresos se agregan luego en el presupuesto.",
     "A salary": "Un sueldo fijo",
     "Checking ($)": "Cuenta corriente ($)",
@@ -11174,6 +11218,27 @@ I18n.override('EC', 'es', {
         return { income: ti, expense: te, rows: all.map(r => Object.assign(r, { incomeShare: ti ? r.income / ti : 0, expenseShare: te ? r.expense / te : 0 })) };
     }
 
+    // Spending by category between two ISO dates, biggest first, for the Spending donut.
+    // who: undefined = everyone, HOUSEHOLD, or a member id. The smallest categories fold into one
+    // "other" row so the donut never needs more than `max` colors. Refunds lower their category.
+    function spendingBreakdown(transactions, { from, to, who, max = 7 } = {}) {
+        const by = {};
+        (transactions || []).forEach(t => {
+            if (txnType(t) !== 'Gasto' || isTransfer(t) || !t.date || t.date < from || t.date > to) return;
+            if (who !== undefined && who !== null && who !== '' && t.memberId !== who) return;
+            const k = t.parentCategory || 'Otros';
+            const r = by[k] || (by[k] = { key: k, total: 0, count: 0 });
+            r.total += amt(t); r.count++;
+        });
+        let rows = Object.values(by).filter(r => r.total > 0.005).sort((a, b) => b.total - a.total);
+        if (rows.length > max) {
+            const rest = rows.slice(max - 1);
+            rows = rows.slice(0, max - 1).concat([{ key: null, other: rest.map(r => r.key), total: sum(rest, r => r.total), count: sum(rest, r => r.count) }]);
+        }
+        const total = sum(rows, r => r.total);
+        return { total, rows: rows.map(r => Object.assign(r, { share: total ? r.total / total : 0 })) };
+    }
+
     // ------------------------------------------------------------ recurring
     // A repeating transaction: { frequency: 'weekly'|'biweekly'|'monthly'|'yearly',
     // startDate, endDate?, lastPosted? }. Monthly/yearly keep the start's day of month
@@ -12510,7 +12575,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -13832,6 +13897,8 @@ I18n.override('EC', 'es', {
                 }
             };
             const options = mergeDeep(base, config.options || {});
+            // Round charts have no axes.
+            if (config.type === 'doughnut' || config.type === 'pie') delete options.scales;
             const existing = charts[canvasId];
             if (existing && existing.canvas === canvas && existing.config.type === config.type) {
                 existing.data = config.data;
@@ -19699,6 +19766,78 @@ I18n.override('EC', 'es', {
     window.ImportSession = { get: () => session, start: startSession, resolve };
 })();
 </script>
+<script>/* js/views/spending.js */
+/* Reports → Spending: a donut of where the money went, by category, for a month or the last
+   3 / 6 months; everyone, the household or one person. Tap a slice (or its row) to list that
+   category's transactions under it. */
+(function () {
+    'use strict';
+    const { money, esc } = Fmt;
+    const RANGES = ['this-month', 'last-month', '3m', '6m'];
+    const opts = () => (Store.ui.spending = Object.assign({ range: 'this-month', who: '', pick: null }, Store.ui.spending));
+
+    function period(range, today) {
+        const y = today.getFullYear(), m = today.getMonth(), iso = Engine.isoDate;
+        if (range === 'last-month') return [iso(new Date(y, m - 1, 1)), iso(new Date(y, m, 0))];
+        if (range === '3m') return [iso(new Date(y, m - 2, 1)), iso(today)];
+        if (range === '6m') return [iso(new Date(y, m - 5, 1)), iso(today)];
+        return [iso(new Date(y, m, 1)), iso(new Date(y, m + 1, 0))];
+    }
+    const whoValue = (v) => (v === '' || v === undefined ? undefined : Number(v));
+    const name = (r) => (r.key === null ? 'Other categories' : r.key);
+
+    function update(ctx) {
+        if (!document.getElementById('spend-donut')) return;
+        const o = opts(), pal = UI.palette();
+        const [from, to] = period(o.range, ctx.today);
+        const r = Engine.spendingBreakdown(ctx.state.transactions, { from, to, who: whoValue(o.who) });
+        UI.$$('[data-action="spend.range"]').forEach(b => b.classList.toggle('active', b.dataset.range === o.range));
+        UI.html('spend-who', Views.whoOptions(o.who, 'Everyone'));
+        // Colors in fixed order; the folded "other" row is gray.
+        const color = (row, i) => (row.key === null ? pal.muted : pal.series[i % pal.series.length]);
+        UI.show('spend-empty', !r.rows.length);
+        UI.show('spend-body', r.rows.length > 0);
+        if (!r.rows.some(x => x.key === o.pick)) o.pick = null;
+        UI.html('spend-center', `<span class="donut-total">${money(r.total)}</span><span class="donut-label">${o.range === 'this-month' ? 'Spent this month' : o.range === 'last-month' ? 'Spent last month' : 'Spent'}</span>`);
+        UI.html('spend-legend', r.rows.map((row, i) => `<button type="button" class="spend-row ${o.pick === row.key && row.key !== null ? 'is-picked' : ''}" data-action="spend.pick" data-key="${row.key === null ? '' : esc(row.key)}" ${row.key === null ? 'disabled' : ''}>
+                <i style="background:${color(row, i)}"></i><span class="spend-name">${esc(name(row))}</span><span class="spend-pct">${Math.round(row.share * 100)}%</span><span class="spend-amt">${money(row.total)}</span></button>`).join('')
+            + (r.rows.some(x => x.key === null) ? `<p class="help mt-1">Other categories: ${esc(r.rows.find(x => x.key === null).other.map(k => I18n.t(k)).join(', '))}.</p>` : ''));
+        UI.chart('spend-donut', {
+            type: 'doughnut',
+            data: { labels: r.rows.map(name), datasets: [{ label: 'Spending', data: r.rows.map(x => Math.round(x.total * 100) / 100), backgroundColor: r.rows.map(color), borderColor: pal.surface, borderWidth: 2, hoverOffset: 6 }] },
+            options: {
+                cutout: '66%',
+                interaction: { mode: 'nearest', intersect: true },
+                plugins: { legend: { display: false }, tooltip: { callbacks: { title: () => '', label: (c) => `${c.label}: ${money(c.parsed)} (${Math.round(c.parsed / (r.total || 1) * 100)}%)` } } },
+                onClick: (e, els) => { const row = els.length && r.rows[els[0].index]; if (row && row.key !== null) pick(row.key); }
+            }
+        });
+        detail(ctx, from, to, o);
+    }
+
+    // The picked category's transactions in the period, biggest first.
+    function detail(ctx, from, to, o) {
+        if (o.pick === null) { UI.html('spend-detail', ''); return; }
+        const who = whoValue(o.who);
+        const list = ctx.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && t.date >= from && t.date <= to && (t.parentCategory || 'Otros') === o.pick && (who === undefined || t.memberId === who))
+            .sort((a, b) => Engine.spendAmount(b) - Engine.spendAmount(a));
+        const shown = list.slice(0, 25);
+        UI.html('spend-detail', `<div class="flex items-center justify-between gap-2 mb-1"><strong class="text-sm">${esc(I18n.t(o.pick))}</strong><button type="button" class="row-del" data-action="spend.pick" data-key="" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
+            <div class="table-wrap"><table class="table"><tbody>${shown.map(t => `<tr><td class="whitespace-nowrap text-xs">${esc(Fmt.dayMonth(new Date(t.date + 'T00:00:00')))}</td><td data-i18n-skip>${esc(t.description || t.store || '—')}</td><td class="text-xs text-slate-500">${esc(t.category || '')}</td><td class="num font-semibold">${money(Engine.spendAmount(t))}</td></tr>`).join('')}</tbody></table></div>`
+            + (list.length > shown.length ? `<p class="help mt-1">The 25 biggest of ${list.length}.</p>` : ''));
+    }
+
+    function pick(key) { const o = opts(); o.pick = o.pick === key ? null : key; App.update(); }
+
+    UI.register({
+        'spend.range': (el) => { if (RANGES.includes(el.dataset.range)) { opts().range = el.dataset.range; App.update(); } },
+        'spend.who': (el) => { opts().who = el.value; App.update(); },
+        'spend.pick': (el) => pick(el.dataset.key || null)
+    });
+
+    window.Spending = { update };
+})();
+</script>
 <script>/* js/views/reportes.js */
 /* Presupuesto → Reportes: group transactions any way over any period; export CSV or print. */
 (function () {
@@ -19838,6 +19977,7 @@ I18n.override('EC', 'es', {
 
     function render(ctx) {
         if (window.TxnCharts) TxnCharts.update(ctx);
+        if (window.Spending) Spending.update(ctx);
         heatmap(ctx);
         const o = opts();
         ['range', 'type', 'by'].forEach(k => { document.getElementById('rep-' + k).value = o[k]; });
