@@ -443,8 +443,11 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   ok(bub.n >= 5 && bub.grid && /Housing/.test(bub.first) && bub.desc && bub.states >= 2 && bub.pressed === 'true', 'bubbles: one per category, biggest plan first, colored by spending', bub);
   await page.click('#bs-bubbles .bubble >> nth=0');
   await page.waitForTimeout(200);
-  const bsheet = await page.evaluate(() => { const m = document.querySelector('.modal-backdrop.sheet'); return m ? { title: m.querySelector('.modal-title').textContent, rows: m.querySelectorAll('tbody tr').length } : null; });
+  const bsheet = await page.evaluate(() => { const m = document.querySelector('.modal-backdrop.sheet'); return m ? { title: m.querySelector('.modal-title').textContent, rows: m.querySelectorAll('.bub-line').length, pace: !!m.querySelector('#bub-pace') } : null; });
   ok(bsheet && /Housing/.test(bsheet.title) && bsheet.rows >= 1, 'bubbles: tapping one lists its lines', bsheet);
+  // The slider changes the line's planned amount; the pace says where spending would be by today.
+  const slid = await page.evaluate(() => { const el = document.querySelector('.bub-slider'); const id = el.dataset.id; el.value = '1500'; el.dispatchEvent(new Event('input', { bubbles: true })); const it = Engine.monthItems(Store.active(), 'base').find(x => String(x.id) === id); return { real: it.real, label: el.closest('.bub-line').querySelector('[data-planned]').textContent, pace: document.getElementById('bub-pace').textContent }; });
+  ok(slid.real === 1500 && /1,500/.test(slid.label) && /By today|spent of/.test(slid.pace), 'bubbles: a slider changes the plan; the pace shows', slid);
   await page.click('.modal-backdrop.sheet [data-action="budget.bubbleLine"] >> nth=0');
   await page.waitForTimeout(250);
   ok(await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').length === 1 && !document.querySelector('[data-action="budget.bubbleLine"]')), 'bubbles: a line opens its details');
@@ -632,8 +635,28 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('[data-action="tdt.exclude"]');
   await page.waitForTimeout(200);
   ok(await page.evaluate((id) => Store.state.transactions.some(x => x.id === id) && !Store.state.excludedTxns.length, tid), 'transaction details: include again');
+  await page.click('[data-action="tdt.menu"]');
+  await page.click('[data-action="tdt.split"]');
+  await page.waitForTimeout(250);
+  ok(await page.evaluate(() => !!document.querySelector('.modal-backdrop') && !document.getElementById('tdt-body')), 'transaction details: Split opens the split');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop').forEach(m => m.remove()));
   await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
   await page.selectOption('#txn-f-origin', 'all');
+  // Smart budget: suggest from the last 90 days, apply the checked lines (undoable).
+  await page.evaluate(() => { Store.reset('example'); Store.ui.month = 'base'; Store.ui.budgetBubbles = false; App.changed({ structural: true }); App.go('presupuesto/plan'); });
+  await page.waitForTimeout(250);
+  await page.click('[data-action="budget.suggest"]');
+  await page.waitForTimeout(250);
+  const sug = await page.evaluate(() => ({ rows: document.querySelectorAll('.sug-pick').length, checked: document.querySelectorAll('.sug-pick:checked').length }));
+  ok(sug.rows > 10 && sug.checked >= 1 && sug.checked < sug.rows, 'smart budget: suggestions with the different ones checked', sug);
+  const want = await page.evaluate(() => { const c = document.querySelector('.sug-pick:checked'); const row = c.closest('tr'); return { name: row.children[1].textContent, sugg: row.children[3].querySelector('span').textContent }; });
+  await page.click('[data-action="budget.suggestApply"]');
+  await page.waitForTimeout(250);
+  const applied = await page.evaluate((w) => { const it = Engine.monthItems(Store.active(), 'base').find(x => I18n.t(x.name) === w.name); return it && Fmt.money0(it.real); }, want);
+  ok(applied === want.sugg, 'smart budget: the checked line takes the suggestion', { want, applied });
+  await page.evaluate(() => App.undo());
+  await page.waitForTimeout(150);
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

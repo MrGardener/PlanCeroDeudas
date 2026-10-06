@@ -1101,6 +1101,26 @@
         return { months: keys, series, income: category ? null : income, spend };
     }
 
+    // "Suggest from my last 90 days": each everyday line's average spending over the given months
+    // (each { spend: lineSpend(...) }), rounded to $5 (or $10 from $100 up). Debt, goal and savings
+    // lines are decisions, not habits: they're left out.
+    function suggestBudget(months, items) {
+        const n = Math.max(1, (months || []).length);
+        return (items || []).filter(i => !i.link && !i.sweep && i.type !== 'Ingreso' && !isSavingsItem(i)).map(i => {
+            const avg = sum(months || [], m => num((((m.spend || {}).byLine || {})[String(i.id)] || {}).spent)) / n;
+            const step = avg >= 100 ? 10 : 5;
+            return { id: i.id, name: i.name, planned: num(i.real), avg, suggested: Math.round(avg / step) * step };
+        });
+    }
+
+    // How a line's month is going: where spending "should" be by today if spread evenly, and
+    // what's left per day for the days left (today included).
+    function spendPace({ planned, spent, day, daysInMonth }) {
+        const p = Math.max(0, num(planned)), s = num(spent), left = Math.max(0, daysInMonth - day + 1);
+        const expected = p * Math.min(1, day / daysInMonth);
+        return { expected, ahead: s - expected, perDay: left ? Math.max(0, p - s) / left : 0, daysLeft: left, state: s > p + 0.005 ? 'over' : s > expected * 1.1 + 0.005 ? 'fast' : 'ok' };
+    }
+
     // Budget bubbles: a month's expense lines grouped by category (linkedCategory), with what's
     // planned and spent and a state: 'ok' under 80% spent, 'warn' 80–100%, 'over' past the plan.
     // spentOf(id) → amount spent on that line. Biggest plan first.
@@ -2546,7 +2566,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, accountsHub, HUB_GROUPS, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, suggestBudget, spendPace, accountsHub, HUB_GROUPS, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

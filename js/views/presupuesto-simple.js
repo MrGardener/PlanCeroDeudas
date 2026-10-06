@@ -139,6 +139,7 @@
             <div class="bs-toolbar">
                 <div class="segmented bs-modes" role="tablist" aria-label="What to show">${Object.keys(MODES).map(k => `<button type="button" data-action="budget.mode" data-mode="${k}">${MODES[k]}</button>`).join('')}</div>
                 <button type="button" class="btn btn-secondary bs-view" data-action="budget.bubbles" aria-pressed="false"><i class="fa-solid fa-circle-nodes"></i> <span>Bubbles</span></button>
+                <button type="button" class="btn btn-secondary" data-action="budget.suggest"><i class="fa-solid fa-wand-magic-sparkles"></i> <span>Suggest from my last 90 days</span></button>
                 <span class="bs-month" id="bs-month"></span>
             </div>
             <section class="bs-card hidden" id="bs-bubbles" aria-label="Budget lines as bubbles"></section>
@@ -321,17 +322,82 @@
             <p class="bubble-key">${Object.keys(BUBBLE_STATE).map(k => `<span class="is-${k}"><i class="fa-solid ${BUBBLE_STATE[k].icon}"></i> ${BUBBLE_STATE[k].label}</span>`).join('')}<span>Size: money planned</span></p>
             <p class="help">Under 80% spent, 80–100%, or over. Tap a bubble to see its lines.</p>`;
     }
-    // A category's lines: planned, spent, and a link to each line's details.
+    // A category's lines: planned (a slider to change it), spent, the month's pace, and a link to
+    // each line's details. Debt and goal lines change in Debts & Goals.
+    let bubbleMonth = null;
     function openBubble(i) {
         const b = lastBubbles[i];
         if (!b) return;
-        const sheet = UI.sheet({ title: I18n.t(b.category), icon: 'fa-circle-nodes', html: `
-            <p class="text-sm mb-2">${money(b.spent)} spent of ${money(b.planned)} planned.</p>
-            <div class="table-wrap"><table class="table"><thead><tr><th>Line</th><th class="num">Planned</th><th class="num">Spent</th><th></th></tr></thead><tbody>
-            ${b.lines.map(l => `<tr><td data-i18n-skip>${esc(I18n.t(l.name))}</td><td class="num">${money(l.planned)}</td><td class="num ${l.spent > l.planned + 0.005 ? 'text-red-600 font-bold' : ''}">${money(l.spent)}</td>
-                <td><button type="button" class="mini-btn" data-action="budget.bubbleLine" data-id="${esc(String(l.id))}">Details</button></td></tr>`).join('')}</tbody></table></div>` });
-        bubbleSheet = sheet;
+        const items = Engine.monthItems(Store.active(), Store.ui.month);
+        const editable = (l) => { const it = items.find(x => String(x.id) === String(l.id)); return it && !it.link && !it.sweep; };
+        const row = (l) => {
+            const max = Math.max(50, Math.ceil(Math.max(l.planned, l.spent) * 2 / 10) * 10);
+            return `<div class="bub-line" data-line="${esc(String(l.id))}">
+                <div class="flex justify-between gap-2 text-sm"><span class="font-semibold truncate" data-i18n-skip>${esc(I18n.t(l.name))}</span><button type="button" class="mini-btn" data-action="budget.bubbleLine" data-id="${esc(String(l.id))}">Details</button></div>
+                <div class="flex justify-between text-xs text-slate-500 mt-1"><span>Planned <strong class="text-slate-800" data-planned>${money(l.planned)}</strong></span><span class="${l.spent > l.planned + 0.005 ? 'text-red-600 font-bold' : ''}">Spent ${money(l.spent)}</span></div>
+                ${editable(l) ? `<input type="range" class="bub-slider" min="0" max="${max}" step="5" value="${Math.round(l.planned)}" data-input="budget.slide" data-id="${esc(String(l.id))}" data-field="real" data-sync="prep" aria-label="Planned for ${esc(I18n.t(l.name))}">` : ''}
+            </div>`;
+        };
+        const sheet = UI.sheet({ title: I18n.t(b.category), icon: 'fa-circle-nodes', html: `<div id="bub-pace"></div>${b.lines.map(row).join('')}` });
+        bubbleSheet = sheet; bubbleMonth = b;
+        drawPace();
     }
+    // The category's month so far: where spending should be by today, and what's left per day.
+    function drawPace() {
+        const b = bubbleMonth, host = document.getElementById('bub-pace');
+        if (!b || !host) return;
+        const t = new Date(), m = Store.ui.month === 'base' ? t.getMonth() + 1 : Number(Store.ui.month);
+        const current = Store.state.activeYear === t.getFullYear() && m === t.getMonth() + 1;
+        const planned = b.lines.reduce((a, l) => a + l.planned, 0);
+        if (!current || !(planned > 0)) { host.innerHTML = `<p class="text-sm mb-3">${money(b.spent)} spent of ${money(planned)} planned.</p>`; return; }
+        const days = new Date(t.getFullYear(), m, 0).getDate();
+        const p = Engine.spendPace({ planned, spent: b.spent, day: t.getDate(), daysInMonth: days });
+        const pct = (v) => Math.max(0, Math.min(100, v / Math.max(planned, b.spent) * 100)).toFixed(1);
+        host.innerHTML = `<div class="pace mb-3">
+            <div class="pace-bar"><span class="pace-fill is-${p.state}" style="width:${pct(b.spent)}%"></span><span class="pace-mark" style="left:${pct(p.expected)}%" title="Where spending would be by today"></span></div>
+            <div class="flex justify-between text-xs mt-1"><span>${money(b.spent)} of ${money(planned)}</span><span class="text-slate-500">By today: ${money(p.expected)}</span></div>
+            <p class="text-sm mt-1 ${p.state === 'ok' ? 'text-emerald-700' : 'text-red-600'}"><i class="fa-solid ${p.state === 'ok' ? 'fa-circle-check' : 'fa-triangle-exclamation'}"></i> ${p.state === 'over' ? 'Over the plan for this month.' : p.state === 'fast' ? 'Spending faster than planned.' : 'On pace.'} ${money(p.perDay)} a day left for ${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'}.</p>
+        </div>`;
+    }
+
+    // "Suggest from my last 90 days": each everyday line's average of the last 3 full months, in a
+    // preview; you pick which to apply (undoable).
+    let suggestSheet = null, suggestRows = [];
+    function openSuggest() {
+        const t = new Date(), months = [];
+        for (let k = 1; k <= 3; k++) {
+            const d = new Date(t.getFullYear(), t.getMonth() - k, 1), y = d.getFullYear(), m = String(d.getMonth() + 1);
+            const items = Engine.monthItems(Store.effective(y), m);
+            months.push({ spend: Engine.lineSpend(items, Store.state.transactions, y, m) });
+        }
+        const items = Engine.monthItems(Store.active(), Store.ui.month);
+        suggestRows = Engine.suggestBudget(months, items).filter(r => r.avg > 0.5 || r.planned > 0);
+        const differs = (r) => r.avg > 0.5 && Math.abs(r.suggested - r.planned) >= Math.max(5, r.planned * 0.1);
+        suggestSheet = UI.sheet({ title: 'Suggest from my last 90 days', icon: 'fa-wand-magic-sparkles', wide: true, html: suggestRows.length ? `
+            <p class="help mb-2">What you spent on average in the last 3 full months, per line. Check the ones to use; debts, goals and savings stay as they are.</p>
+            <div class="table-wrap"><table class="table"><thead><tr><th></th><th>Line</th><th class="num">Planned</th><th class="num">Suggested</th></tr></thead><tbody>
+            ${suggestRows.map((r, i) => `<tr><td><input type="checkbox" class="sug-pick" data-i="${i}" ${differs(r) ? 'checked' : ''} aria-label="Use the suggestion"></td><td data-i18n-skip>${esc(I18n.t(r.name))}</td><td class="num">${money0(r.planned)}</td><td class="num"><span class="font-bold ${r.suggested > r.planned ? 'text-red-600' : r.suggested < r.planned ? 'text-emerald-700' : ''}">${money0(r.suggested)}</span><span class="block text-[11px] text-slate-500">avg ${money0(r.avg)}</span></td></tr>`).join('')}
+            </tbody></table></div>
+            <div class="flex justify-end mt-3"><button type="button" class="btn btn-primary" data-action="budget.suggestApply">Use the checked ones</button></div>`
+            : '<p class="help">No spending in the last 3 months yet: log or import a few months first.</p>' });
+    }
+    function applySuggest() {
+        const picked = UI.$$('.sug-pick').filter(c => c.checked).map(c => suggestRows[Number(c.dataset.i)]).filter(Boolean);
+        if (!picked.length) { UI.toast('Check at least one line.', 'error'); return; }
+        const yd = Store.active(), m = Store.ui.month;
+        App.undoable(`Budget updated from your spending: ${picked.length} line${picked.length === 1 ? '' : 's'}`, () => {
+            if (m !== 'base' && !yd.monthOverrides[m]) yd.monthOverrides[m] = Defaults.clone(yd.budgetBase);
+            const items = Engine.monthItems(yd, m);
+            picked.forEach(r => {
+                const it = items.find(x => String(x.id) === String(r.id));
+                if (!it) return;
+                if (Math.abs((Number(it.prep) || 0) - (Number(it.real) || 0)) < 0.005) it.prep = r.suggested;
+                it.real = r.suggested;
+            });
+        });
+        if (suggestSheet) { suggestSheet.close(); suggestSheet = null; }
+    }
+
     let bubbleSheet = null;
 
     // <option>s for every expense line of a month's budget, grouped.
@@ -513,9 +579,25 @@
         'budget.mode': (el) => { Store.ui.budgetMode = el.dataset.mode; App.update(); },
         'budget.bubbles': () => { Store.ui.budgetBubbles = !Store.ui.budgetBubbles; App.update(); },
         'budget.bubble': (el) => openBubble(Number(el.dataset.index)),
+        'budget.slide': (el) => {
+            const yd = Store.active(), m = Store.ui.month, v = Math.max(0, Fmt.parseNum(el.value, 0));
+            if (m !== 'base' && !yd.monthOverrides[m]) yd.monthOverrides[m] = Defaults.clone(yd.budgetBase);
+            const it = Engine.monthItems(yd, m).find(x => String(x.id) === el.dataset.id);
+            if (!it || it.link || it.sweep) return;
+            // Presupuestado follows the planned amount while they were the same (as in the cards).
+            if (Math.abs((Number(it.prep) || 0) - (Number(it.real) || 0)) < 0.005) it.prep = v;
+            it.real = v;
+            App.changed();
+            const line = el.closest('.bub-line');
+            if (line) line.querySelector('[data-planned]').textContent = money(v);
+            const l = bubbleMonth && bubbleMonth.lines.find(x => String(x.id) === el.dataset.id);
+            if (l) { l.planned = v; drawPace(); }
+        },
+        'budget.suggest': () => openSuggest(),
+        'budget.suggestApply': () => applySuggest(),
         'budget.bubbleLine': (el) => { if (bubbleSheet) bubbleSheet.close(); bubbleSheet = null; openDetail(el.dataset.id); },
         'budget.layout': (el) => { Store.ui.budgetLayout = el.dataset.layout; App.render(); }
     });
 
-    root.BudgetSimple = { render, update, lineOptions, groupOf, GROUPS, assignLine };
+    root.BudgetSimple = { render, update, lineOptions, groupOf, GROUPS, assignLine, openSplit };
 })(this);
