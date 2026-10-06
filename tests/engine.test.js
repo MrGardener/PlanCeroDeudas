@@ -1535,3 +1535,11 @@ test('rangeFor and shiftRange: presets and stepping back and forward', () => {
     assert.deepEqual(E.shiftRange('2026-09-30', '2026-10-06', -1), { from: '2026-09-23', to: '2026-09-29' });
     assert.deepEqual(E.shiftRange(null, null, 1), { from: null, to: null });
 });
+
+test('spendingBreakdown: one category splits into its subcategories', () => {
+    const t = (cat, sub, amount) => ({ date: '2026-10-02', type: 'Gasto', parentCategory: cat, category: sub, amount });
+    const list = [t('Alimentación', 'Supermercado', 300), t('Alimentación', 'Restaurantes', 80), t('Alimentación', '', 20), t('Vivienda', 'Arriendo', 1000)];
+    const r = E.spendingBreakdown(list, { from: '2026-10-01', to: '2026-10-31', category: 'Alimentación' });
+    assert.deepEqual(r.rows.map(x => [x.key, x.total]), [['Supermercado', 300], ['Restaurantes', 80], ['Alimentación', 20]]);
+    assert.equal(r.total, 400);
+});

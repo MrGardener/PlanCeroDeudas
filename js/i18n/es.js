@@ -2,6 +2,12 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Hide transactions": "Ocultar transacciones",
+    "Same as the period before": "Igual que el periodo anterior",
+    "View transactions": "Ver transacciones",
+    "· {0}% of all spending": "· {0}% de todos los gastos",
+    "{0}% of all spending": "{0}% de todos los gastos",
+    "{0} {1} vs the period before": "{0} {1} frente al periodo anterior",
     "\"{0}\" counts again": "\"{0}\" cuenta otra vez",
     "\"{0}\" excluded: it no longer counts": "\"{0}\" excluida: ya no cuenta",
     "Add a memo": "Agrega una nota",

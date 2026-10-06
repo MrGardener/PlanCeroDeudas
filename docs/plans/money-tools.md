@@ -52,7 +52,7 @@ on top of that: one way in to every tool, and the drill-downs (level 1 → 4).
    **Split**. Filters for flagged and excluded.
 
 ## D. Drill-downs (tools 3–5)
-6. **Spending wheel** — tap a category: the donut shows its subcategories, with a banner (total, share of
+6. ✅ **Spending wheel** — tap a category: the donut shows its subcategories, with a banner (total, share of
    spending, vs the period before) and "View transactions" (grouped by payee). Back returns to categories.
 7. **Smart budget** — "Suggest from my last 90 days": average monthly spending per line, rounded, in a
    preview where you accept line by line. In the bubble sheet: a slider to change the target and a pace bar
