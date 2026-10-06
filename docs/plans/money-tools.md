@@ -69,7 +69,7 @@ on top of that: one way in to every tool, and the drill-downs (level 1 → 4).
 11. ✅ **Goals** — cards with progress and status (on track / behind for its date); a monthly-amount control
     that recalculates the date (unit test); link a goal to a savings account (its balance is the progress);
     saved per month over the last months.
-12. **Cash flow calendar** — Chart | Calendar toggle on Cash flow; tap a day: what comes in and goes out and
+12. ✅ **Cash flow calendar** — Chart | Calendar toggle on Cash flow; tap a day: what comes in and goes out and
     the balance, "+ Add expected transaction" for that day; list of repeating items with their next date.
 
 ## F. Later

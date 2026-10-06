@@ -2,6 +2,17 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Add expected transaction": "Agregar transacción esperada",
+    "Calendar": "Calendario",
+    "Change repeating transactions": "Cambiar transacciones que se repiten",
+    "Chart": "Gráfico",
+    "Everyday spending (spread)": "Gastos diarios (repartidos)",
+    "Nothing scheduled.": "Nada programado.",
+    "Repeating": "Se repiten",
+    "Tap a day to see what comes in and goes out.": "Toca un día para ver lo que entra y sale.",
+    "View": "Vista",
+    "Below $0": "Bajo $0",
+    "Below your cushion ({0})": "Bajo tu colchón ({0})",
     "Behind": "Atrasada",
     "Each month": "Cada mes",
     "Each month for {0}": "Cada mes para {0}",

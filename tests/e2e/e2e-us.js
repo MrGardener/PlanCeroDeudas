@@ -727,6 +727,24 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   const gc3 = await page.evaluate((id) => { const g = Store.state.goals.find(x => x.id === id), a = Store.state.accounts.find(x => x.id === g.accountId); return { cur: g.current, bal: a && a.balance }; }, gid);
   ok(gc3.bal !== undefined && gc3.cur === Math.max(0, gc3.bal), 'goals: linked to a savings account, its balance is what is saved', gc3);
   ok(await page.evaluate(() => !!document.querySelector('#goal-cards [data-g="velocity"] svg')), 'goals: saved per month');
+  // Cash flow calendar: Chart | Calendar; tap a day for its panel; add an expected transaction; repeating list.
+  await page.evaluate(() => { Store.reset('example'); Store.ui.flowView = 'chart'; Store.ui.flowDay = null; Store.ui.flowDays = 30; App.changed({ structural: true }); App.go('resumen'); document.getElementById('dash-flow-card').open = true; });
+  await page.waitForTimeout(250);
+  await page.click('[data-action="flow.view"][data-view="calendar"]');
+  await page.waitForTimeout(200);
+  const fc = await page.evaluate(() => ({ cells: document.querySelectorAll('#flow-cal .flow-cell').length, chartHidden: document.getElementById('flow-chart-box').classList.contains('hidden'), repeat: document.querySelectorAll('#flow-repeat .acd-txn').length }));
+  ok(fc.cells === 30 && fc.chartHidden && fc.repeat >= 1, 'cash flow calendar: a cell per day, repeating items listed', fc);
+  const busy = await page.evaluate(() => { const c = [...document.querySelectorAll('#flow-cal .flow-cell')].find(x => x.querySelector('.flow-dots i')); return c && c.dataset.date; });
+  await page.click(`#flow-cal .flow-cell[data-date="${busy}"]`);
+  await page.waitForTimeout(150);
+  const fd = await page.evaluate(() => document.getElementById('flow-day').textContent);
+  ok(/Add expected transaction/.test(fd) && /[+−]\$/.test(fd), 'cash flow calendar: a day shows what comes in and goes out', fd.slice(0, 120));
+  await page.click('[data-action="flow.addOn"]');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate((d) => document.getElementById('flow-date').value === d && document.activeElement === document.getElementById('flow-name'), busy), 'cash flow calendar: add an expected transaction on that day');
+  await page.click('[data-action="flow.view"][data-view="chart"]');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => !document.getElementById('flow-chart-box').classList.contains('hidden') && document.getElementById('flow-cal').classList.contains('hidden')), 'cash flow calendar: back to the chart');
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

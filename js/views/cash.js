@@ -237,6 +237,8 @@
             ? `<i class="fa-solid fa-triangle-exclamation"></i> Below $0 on ${day(firstShort)}. Lowest: ${money0(worst.balance)} on ${day(worst)}.`
             : `<i class="fa-solid fa-circle-check"></i> Your lowest point: ${money0(worst.balance)} on ${day(worst)}.`}</div>`
             + (ev.assumed ? '<p class="help mb-2">Pay assumed on the last day of each month: <a href="#" class="link" data-goto="presupuesto/ingresos" data-focus="pay-schedule">set your paydays</a>.</p>' : ''));
+        flowCalendar(f, t, buffer);
+        flowRepeating(t);
         const oneOff = (d) => d.events.filter(e => e.kind === 'oneoff');
         const red = pal.neg, blue = pal.series[0];
         UI.chart('flow-chart', {
@@ -252,17 +254,71 @@
                 }]
             },
             options: {
+                onClick: (e, els) => { if (els.length) { Store.ui.flowDay = f[els[0].index].date; flowDayPanel(f); } },
                 scales: { y: { beginAtZero: false, grid: { color: (c) => (c.tick && c.tick.value === 0 ? pal.text2 : 'rgba(148,163,184,.18)') } } },
                 plugins: {
                     legend: { display: false },
                     todayLine: { index: 0, label: 'Today' },
+                    // (a tap also picks that day for the panel under the chart)
                     tooltip: { callbacks: { label: (c) => { const d = f[c.dataIndex]; return [`${I18n.t('Balance')}: ${money(d.balance)}`].concat(d.events.map(e => `${e.amount < 0 ? '−' : '+'}${money(Math.abs(e.amount))} ${I18n.t(e.name)}`)).join(' · '); } } }
                 }
             }
         });
     }
 
+    // Calendar view of the same forecast: a cell per day with its end balance and dots for money
+    // in / out; red below $0, amber below the cushion. Tap a day for its panel.
+    let lastFlow = [];
+    function flowCalendar(f, t, buffer) {
+        lastFlow = f;
+        const view = Store.ui.flowView === 'calendar' ? 'calendar' : 'chart';
+        UI.$$('[data-action="flow.view"]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+        UI.show('flow-chart-box', view === 'chart');
+        UI.show('flow-cal', view === 'calendar');
+        const readout = document.querySelector('#flow-chart-box + .chart-readout');
+        if (readout) readout.classList.toggle('hidden', view !== 'chart');
+        if (view === 'calendar' && f.length) {
+            const lead = (new Date(f[0].date + 'T00:00:00').getDay() + 6) % 7;
+            const cells = Array(lead).fill('<div class="cal-cell cal-empty" aria-hidden="true"></div>').concat(f.map(d => {
+                const dd = new Date(d.date + 'T00:00:00'), ins = d.events.some(e => e.amount > 0), outs = d.events.some(e => e.amount < 0);
+                return `<button type="button" class="cal-cell flow-cell ${d.status === 'short' ? 'short' : d.status === 'low' ? 'low' : ''} ${Store.ui.flowDay === d.date ? 'picked' : ''} ${d.date === iso(t) ? 'today' : ''}" data-action="flow.day" data-date="${d.date}" aria-label="${esc(Fmt.dayMonth(dd))}: ${esc(money(d.balance))}">
+                    <div class="cal-day">${dd.getDate() === 1 || d === f[0] ? `${Fmt.MONTH_SHORT[dd.getMonth()]} ` : ''}${dd.getDate()}</div>
+                    <div class="flow-dots">${ins ? '<i class="in"></i>' : ''}${outs ? '<i class="out"></i>' : ''}</div>
+                    <div class="cal-bal">${short(d.balance)}</div></button>`;
+            }));
+            UI.html('flow-cal', `<div class="cal-grid">${DOW.map(x => `<div class="cal-dow">${x}</div>`).join('')}${cells.join('')}</div>
+                <div class="cal-legend"><span><i class="cal-sw in"></i>Money in</span><span><i class="cal-sw out"></i>Money out</span><span><i class="cal-sw low"></i>Below your cushion${buffer ? ` (${money0(buffer)})` : ''}</span><span><i class="cal-sw short"></i>Below $0</span></div>`);
+        }
+        flowDayPanel(f);
+    }
+    // One day: what comes in and goes out, everyday spending, and the balance at the end.
+    function flowDayPanel(f) {
+        const d = (f || lastFlow).find(x => x.date === Store.ui.flowDay);
+        if (!d) { UI.html('flow-day', '<p class="help"><i class="fa-solid fa-hand-pointer"></i> Tap a day to see what comes in and goes out.</p>'); return; }
+        const dd = new Date(d.date + 'T00:00:00');
+        UI.html('flow-day', `<div class="spend-banner">
+            <div class="flex justify-between gap-2"><strong>${esc(Fmt.dayMonth(dd))}</strong><span class="${d.balance < 0 ? 'text-red-600' : ''} font-bold">${money(d.balance)}</span></div>
+            ${d.events.length ? d.events.map(e => `<div class="flex justify-between gap-2 text-sm"><span data-i18n-skip>${esc(I18n.t(e.name || ''))}</span><span class="${e.amount > 0 ? 'text-emerald-700' : ''} whitespace-nowrap">${e.amount > 0 ? '+' : '−'}${money(Math.abs(e.amount))}</span></div>`).join('') : '<p class="text-xs text-slate-500">Nothing scheduled.</p>'}
+            ${d.everyday > 0.005 ? `<div class="flex justify-between gap-2 text-xs text-slate-500"><span>Everyday spending (spread)</span><span>−${money(d.everyday)}</span></div>` : ''}
+            <button type="button" class="btn btn-secondary btn-sm mt-2" data-action="flow.addOn" data-date="${d.date}"><i class="fa-solid fa-plus"></i> Add expected transaction</button>
+        </div>`);
+    }
+    // Repeating transactions with their next date (what the forecast counts on).
+    function flowRepeating(t) {
+        const list = (Store.state.recurring || []).filter(r => r.auto !== false).map(r => ({ r, next: Engine.nextOccurrence(r, t) })).filter(x => x.next).sort((a, b) => a.next.localeCompare(b.next)).slice(0, 8);
+        UI.html('flow-repeat', list.length ? `<div class="text-xs font-bold text-slate-600 mb-1"><i class="fa-solid fa-repeat"></i> Repeating</div>
+            <div class="acd-txns">${list.map(x => { const inc = (x.r.type || 'Gasto') === 'Ingreso'; return `<div class="acd-txn"><span class="text-xs text-slate-500 whitespace-nowrap">${esc(Fmt.dayMonth(new Date(x.next + 'T00:00:00')))}</span><span class="truncate" data-i18n-skip>${esc(x.r.description || '')}</span><span class="font-semibold whitespace-nowrap ${inc ? 'text-emerald-700' : ''}">${inc ? '+' : '−'}${money(Number(x.r.amount) || 0)}</span></div>`; }).join('')}</div>
+            <a href="#" class="link text-xs" data-goto="transacciones/lista" data-focus="rec-card">Change repeating transactions</a>` : '');
+    }
+
     UI.register({
+        'flow.view': (el) => { Store.ui.flowView = el.dataset.view; renderFlow(new Date()); },
+        'flow.day': (el) => { Store.ui.flowDay = Store.ui.flowDay === el.dataset.date ? null : el.dataset.date; UI.$$('.flow-cell').forEach(c => c.classList.toggle('picked', c.dataset.date === Store.ui.flowDay)); flowDayPanel(); },
+        'flow.addOn': (el) => {
+            const d = document.getElementById('flow-date'), n = document.getElementById('flow-name');
+            if (d) d.value = el.dataset.date;
+            if (n) { n.scrollIntoView({ block: 'center', behavior: 'smooth' }); n.focus({ preventScroll: true }); }
+        },
         'flow.days': (el) => { Store.ui.flowDays = Number(el.dataset.days); renderFlow(new Date()); },
         'flow.add': () => {
             const date = (document.getElementById('flow-date') || {}).value, name = ((document.getElementById('flow-name') || {}).value || '').trim();
