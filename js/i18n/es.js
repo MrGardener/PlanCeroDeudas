@@ -2,6 +2,23 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Behind": "Atrasada",
+    "Each month": "Cada mes",
+    "Each month for {0}": "Cada mes para {0}",
+    "Edit every field in a table": "Editar todos los campos en una tabla",
+    "Linked account": "Cuenta vinculada",
+    "No date": "Sin fecha",
+    "None (type what's saved)": "Ninguna (escribe lo ahorrado)",
+    "Not funded": "Sin aporte",
+    "Nothing goes in each month yet: slide to set an amount.": "Aún no entra nada cada mes: desliza para poner un monto.",
+    "Reached": "Alcanzada",
+    "Ready in": "Lista en",
+    "Saved per month (6 mo.)": "Ahorrado por mes (6 meses)",
+    "Saved per month: {0}": "Ahorrado por mes: {0}",
+    "Ready in {0}.": "Lista en {0}.",
+    "Ready in {0} · needs {1} a month for {2}.": "Lista en {0} · necesita {1} al mes para {2}.",
+    "needs {0} a month for {1}.": "necesita {0} al mes para {1}.",
+    "Put {0} a month in to reach it by {1}.": "Pon {0} al mes para lograrla en {1}.",
     "Balance sheet": "Balance general",
     "Value of {0}": "Valor de {0}",
     "What you own": "Lo que tienes",

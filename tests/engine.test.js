@@ -1581,3 +1581,24 @@ test('debtPayoff schedule: $10,000 at 5% paying $200 matches a standard amortiza
     assert.ok(Math.abs(p.totalInterest - interest) < 0.10, `${p.totalInterest} vs ${interest}`);
     assert.equal(c(rows.reduce((t, r) => t + r.payment, 0)), c(10000 + p.totalInterest));
 });
+
+test('goalStatus and goalVelocity: on track or behind for the date, monthly amount moves the date', () => {
+    const today = new Date(2026, 9, 6);
+    const g = { id: 4, target: 6000, current: 1200, monthly: 400, rate: 0, targetDate: '2027-10' };
+    const s1 = E.goalStatus(g, today);
+    assert.equal(s1.state, 'on-track');
+    assert.equal(s1.months, 12);                  // (6000 − 1200) / 400
+    assert.equal(s1.pct, 0.2);
+    // A smaller monthly amount pushes the date out and falls behind; a bigger one brings it in.
+    const s2 = E.goalStatus(Object.assign({}, g, { monthly: 300 }), today);
+    assert.equal(s2.months, 16);
+    assert.equal(s2.state, 'behind');
+    assert.equal(E.goalStatus(Object.assign({}, g, { monthly: 800 }), today).months, 6);
+    assert.equal(E.goalStatus(Object.assign({}, g, { monthly: 0 }), today).state, 'never');
+    assert.equal(E.goalStatus(Object.assign({}, g, { targetDate: '' }), today).state, 'no-date');
+    assert.equal(E.goalStatus(Object.assign({}, g, { current: 6000 }), today).state, 'reached');
+    const txns = [{ date: '2026-09-02', type: 'Gasto', amount: 300, budgetLine: 'goal-4' }, { date: '2026-10-01', type: 'Gasto', amount: 450, budgetLine: 'goal-4' }, { date: '2026-10-01', type: 'Gasto', amount: 99, budgetLine: 'goal-5' }];
+    const v = E.goalVelocity(txns, 4, { end: today, months: 3 });
+    assert.deepEqual(v.values, [0, 300, 450]);
+    assert.equal(v.average, 250);
+});

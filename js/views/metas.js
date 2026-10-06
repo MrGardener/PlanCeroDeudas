@@ -29,10 +29,58 @@
         </tr>`;
     }
 
+    // Goal cards: progress, status (with an icon and a word), when it's ready, a monthly-amount
+    // slider that moves that date, the savings account it's linked to, and what went in lately.
+    const GOAL_STATE = { reached: ['fa-circle-check', 'Reached', 'badge-ok'], 'on-track': ['fa-circle-check', 'On track', 'badge-ok'], behind: ['fa-triangle-exclamation', 'Behind', 'badge-bad'], 'no-date': ['fa-calendar', 'No date', 'badge-muted'], never: ['fa-circle-pause', 'Not funded', 'badge-bad'] };
+    function goalCard(g) {
+        const accts = (Store.state.accounts || []).filter(a => a.kind === 'ahorros' || a.kind === 'retiro');
+        return `<div class="goal-card" data-goal="${g.id}">
+            <div class="flex items-start justify-between gap-2"><strong class="truncate" data-i18n-skip>${esc(g.name)}</strong><span data-g="state"></span></div>
+            <div class="progress-track mt-2"><div class="progress-fill" data-g="bar"></div></div>
+            <div class="flex justify-between text-xs mt-1"><span data-g="saved"></span><span class="font-bold" data-g="pct"></span></div>
+            <p class="text-sm mt-2" data-g="eta"></p>
+            <label class="flex justify-between items-center text-xs font-bold mt-2"><span>Each month</span><span data-g="monthly"></span></label>
+            <input type="range" class="range-slider" min="0" step="10" data-input="goal.slide" data-id="${g.id}" aria-label="Each month for ${esc(g.name)}">
+            <div class="flex items-center justify-between gap-2 mt-2 text-xs"><span class="text-slate-500">Saved per month (6 mo.)</span><span class="flex items-center gap-2 whitespace-nowrap" data-g="velocity"></span></div>
+            ${accts.length ? `<label class="flex items-center gap-2 mt-2 text-xs"><span class="text-slate-500 whitespace-nowrap">Linked account</span><select class="cell-input" data-change="goal.link" data-id="${g.id}">${Views.selectOptions([{ value: '', label: 'None (type what\'s saved)' }].concat(accts.map(a => ({ value: String(a.id), label: a.name }))), g.accountId ? String(g.accountId) : '')}</select></label>` : ''}
+        </div>`;
+    }
+    function goalCards(ctx) {
+        const pal = UI.palette();
+        (ctx.state.goals || []).forEach(g => {
+            const card = document.querySelector(`#goal-cards [data-goal="${g.id}"]`);
+            if (!card) return;
+            const st = Engine.goalStatus(g, ctx.today), def = GOAL_STATE[st.state];
+            const q = (k) => card.querySelector(`[data-g="${k}"]`);
+            q('state').innerHTML = `<span class="badge ${def[2]}"><i class="fa-solid ${def[0]}"></i> ${I18n.t(def[1])}</span>`;
+            q('bar').style.width = (st.pct * 100).toFixed(1) + '%';
+            q('saved').textContent = `${money0(g.current)} / ${money0(g.target)}`;
+            q('pct').textContent = Math.round(st.pct * 100) + '%';
+            const when = (m) => Fmt.monthYear(Engine.addMonths(ctx.today, m));
+            q('eta').innerHTML = st.state === 'reached' ? 'Goal reached!'
+                : st.state === 'never' ? (st.required ? `Put ${money0(st.required)} a month in to reach it by ${esc(Fmt.monthYear(new Date(g.targetDate + '-01T00:00:00')))}.` : 'Nothing goes in each month yet: slide to set an amount.')
+                : `Ready in <strong>${esc(when(st.months))}</strong>${st.state === 'behind' ? ` · needs ${money0(st.required)} a month for ${esc(Fmt.monthYear(new Date(g.targetDate + '-01T00:00:00')))}` : ''}.`;
+            q('monthly').textContent = money0(g.monthly);
+            const slider = card.querySelector('[data-input="goal.slide"]');
+            const max = Math.max(500, Math.ceil(Math.max(Number(g.monthly) || 0, st.required || 0) * 2 / 50) * 50);
+            if (slider !== document.activeElement) { slider.max = max; slider.value = Number(g.monthly) || 0; }
+            const v = Engine.goalVelocity(ctx.state.transactions, g.id, { end: ctx.today, months: 6 });
+            q('velocity').innerHTML = `${UI.sparkline(v.values, { width: 72, height: 18, color: pal.series[2], label: `Saved per month: ${v.values.map(money0).join(', ')}` })} <strong>${money0(v.average)}</strong>`;
+        });
+    }
+
+    // A goal linked to an account: money put in or taken out moves the account's balance too
+    // (what's saved follows that balance).
+    function linkedMove(g, amount) {
+        const a = g.accountId && (Store.state.accounts || []).find(x => x.id === g.accountId);
+        if (a) { a.balance = Math.round(((Number(a.balance) || 0) + amount) * 100) / 100; a.updatedAt = Engine.isoDate(new Date()); }
+    }
+
     function render(ctx) {
         const s = ctx.state;
         UI.html('debt-body', s.debts.length ? s.debts.map(debtRow).join('') : '<tr class="empty-row"><td colspan="9">No debts entered! If you have any, add it to build your plan.</td></tr>');
         UI.html('goal-body', s.goals.length ? s.goals.map(goalRow).join('') : '<tr class="empty-row"><td colspan="8">Add a goal: a car, land, college…</td></tr>');
+        UI.html('goal-cards', s.goals.map(goalCard).join(''));
         if (window.Runway) Runway.render(ctx);
         if (window.Insurance) Insurance.render(ctx);
         if (window.College) College.render(ctx);
@@ -225,6 +273,7 @@
         roadmap(ctx);
         debtLadder(ctx);
         debtWhatIf(ctx);
+        goalCards(ctx);
 
         // Emergency fund
         const ef = ctx.ef;
@@ -383,6 +432,20 @@
             g[f] = f === 'name' || f === 'targetDate' ? el.value : Math.max(0, parseNum(el.value, 0));
             App.changed();
         },
+        'goal.slide': (el) => {
+            const g = find(Store.state.goals, el);
+            if (!g) return;
+            g.monthly = Math.max(0, parseNum(el.value, 0));
+            const twin = document.querySelector(`#goal-body tr[data-row="${g.id}"] [data-field="monthly"]`);
+            if (twin) twin.value = g.monthly;
+            App.changed();
+        },
+        'goal.link': (el) => {
+            const g = find(Store.state.goals, el);
+            if (!g) return;
+            if (el.value) g.accountId = Number(el.value); else delete g.accountId;
+            App.changed({ structural: true });
+        },
         'goal.add': () => {
             const goals = Store.state.goals;
             const id = Store.nextId(goals);
@@ -408,6 +471,7 @@
             if (!r) return;
             const amount = Math.round(Number(r.amount) * 100) / 100;
             g.current = Math.round(((Number(g.current) || 0) + amount) * 100) / 100;
+            linkedMove(g, amount);
             if (r.log === 'yes') {
                 const txns = Store.state.transactions;
                 const tax = Store.state.taxonomy.expense;
@@ -446,6 +510,7 @@
             const sub = pre.sub && (tax[r.cat] || []).includes(pre.sub) ? pre.sub : (tax[r.cat] || [])[0] || '';
             App.undoable(rest > 0 ? `${money(covered)} paid from «${g.name}»; the other ${money(rest)} count in this month's budget.` : `${money(amount)} paid from «${g.name}». ${money(Number(g.current) - covered)} left.`, () => {
                 g.current = Math.round(((Number(g.current) || 0) - covered) * 100) / 100;
+                linkedMove(g, -covered);
                 const base = { type: 'Gasto', description: r.desc.trim(), store: '', parentCategory: r.cat, category: sub, date: r.date, paymentType: 'Tarjeta de Débito', createdAt: new Date().toISOString() };
                 if (covered > 0) s.transactions.push(Object.assign({ id: Store.nextId(s.transactions), amount: covered, fromGoal: g.id }, base));
                 if (rest > 0) s.transactions.push(Object.assign({ id: Store.nextId(s.transactions), amount: rest }, base));

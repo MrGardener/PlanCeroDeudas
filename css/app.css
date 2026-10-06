@@ -903,3 +903,6 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .sheet-rows { padding: .15rem 0 .4rem .9rem; }
 .sheet-row { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding: .45rem .25rem; font-size: .84rem; color: var(--ink); border-bottom: 1px dashed var(--line-soft); text-align: left; }
 button.sheet-row:hover { background: var(--surface-3); }
+/* Goal cards (Debts & Goals). */
+.goal-card { border: 1px solid var(--line); border-radius: .9rem; padding: .85rem .95rem; background: var(--surface); }
+.goal-card .spark { vertical-align: middle; }

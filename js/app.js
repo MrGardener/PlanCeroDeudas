@@ -313,6 +313,15 @@
     // Any new change also dismisses a pending "Deshacer" toast (the header button remains).
     // This calendar year's net worth follows the accounts, CDs, investments and debts on its own
     // (no "pull in" button to remember). Fields with no source keep what the person typed.
+    // A goal linked to a savings account shows that account's balance as what's saved.
+    function syncGoals() {
+        const s = Store.state;
+        (s.goals || []).forEach(g => {
+            const a = g.accountId && (s.accounts || []).find(x => x.id === g.accountId);
+            if (a) g.current = Math.max(0, Math.round((Number(a.balance) || 0) * 100) / 100);
+        });
+    }
+
     function syncNetWorth() {
         const s = Store.state, y = new Date().getFullYear();
         if (y < s.configStartYear || y > s.configEndYear) return;
@@ -347,6 +356,7 @@
 
     function changed(opts = {}) {
         if (!opts.keepUndo) dismissUndo();
+        syncGoals();
         syncNetWorth();
         trackProgress();
         recordChange();
@@ -422,6 +432,7 @@
         const E = root.APP_EDITION || {};
         if (E.appName) { UI.text('brand-title', E.appName); UI.text('brand-sub', E.appSub || ''); }
         Store.init();
+        syncGoals();
         syncNetWorth();
         trackProgress();
         hist.committed = snapshot();
