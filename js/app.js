@@ -478,6 +478,8 @@
         if (window.Recurring) window.Recurring.maintain();
         document.addEventListener('visibilitychange', () => { if (!document.hidden && window.Recurring) window.Recurring.maintain(); });
         renderSaveStatus({ lastSavedAt: new Date(), error: null });
+        // A fresh install opens the setup guide once (browser tests open it themselves).
+        if (window.Setup && !openQuick && !navigator.webdriver && !document.documentElement.classList.contains('app-locked')) Setup.maybeOpen();
     }
 
     root.App = {
