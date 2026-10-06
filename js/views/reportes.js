@@ -55,7 +55,7 @@
             switch (o.by) {
                 case 'sub': return `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`;
                 case 'line': return lineOf(t);
-                case 'member': { const p = members.find(x => x.id === t.memberId); return p ? p.name : 'Sin persona'; }
+                case 'member': return Views.whoName(t.memberId) || 'Sin persona';
                 case 'month': return t.date.slice(0, 7);
                 case 'week': return Engine.isoDate(Engine.periodStart(new Date(t.date + 'T00:00:00'), 'week'));
                 case 'store': return (t.store || t.description || '—').trim();

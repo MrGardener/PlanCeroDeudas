@@ -5373,6 +5373,8 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Household (shared)": "Hogar (compartido)",
+    "Household": "Hogar",
     "(add, rename or delete them in Settings)": "(agrégalas, renómbralas o bórralas en Configuración)",
     "Add, rename or delete them. A rename carries over to your transactions, rules, repeating transactions and budget lines.": "Agrégalas, renómbralas o bórralas. Un nombre nuevo pasa a tus transacciones, reglas, transacciones repetidas y rubros del presupuesto.",
     "Categories and subcategories": "Categorías y subcategorías",
@@ -11054,10 +11056,17 @@ I18n.override('EC', 'es', {
         return { spent: cur.total, projected, top: cur.items[0] || null, jump: jumps[0] || null, drop: drops[0] || null, hasHistory: prev.total > 0 };
     }
 
-    // Income and expenses per household member for a month; transactions with no member go
-    // to "Sin asignar".
+    // "Household (shared)": a transaction for everyone (utilities, rent…), as opposed to one
+    // person's or not set. Saved as memberId -1.
+    const HOUSEHOLD = -1;
+    // Bills that belong to the whole household: imports put them there when no person is chosen.
+    const HOUSEHOLD_CATEGORIES = ['Vivienda', 'Servicios Básicos y Comunicación', 'Seguros y Protección'];
+
+    // Income and expenses per household member for a month; shared ones go to "Household";
+    // transactions with no member go to "Sin asignar".
     function memberTotals(transactions, members, y, m) {
         const rows = (members || []).map(p => ({ id: p.id, name: p.name, color: p.color, income: 0, expense: 0 }));
+        if ((transactions || []).some(x => x.memberId === HOUSEHOLD)) rows.push({ id: HOUSEHOLD, name: 'Household', color: '#64748b', income: 0, expense: 0 });
         const none = { id: null, name: 'Sin asignar', income: 0, expense: 0 };
         (transactions || []).forEach(x => {
             if (!inMonth(x, y, m)) return;
@@ -12392,7 +12401,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -14638,7 +14647,19 @@ I18n.override('EC', 'es', {
         return { g, desired, def, custom: !(want === null || want === undefined) };
     }
 
-    root.Views = { retireGap, guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions, dollarHTML, htmlKeepOpen };
+    // "Whose?" choices: not set, the household (shared), then each person.
+    function whoOptions(selected, blank = '—') {
+        const sel = String(selected === undefined || selected === null ? '' : selected);
+        const opt = (v, l) => `<option value="${v}" ${String(v) === sel ? 'selected' : ''}>${esc(l)}</option>`;
+        return opt('', blank) + opt(Engine.HOUSEHOLD, 'Household (shared)') + (Store.state.members || []).map(p => opt(p.id, p.name)).join('');
+    }
+    function whoName(id) {
+        if (id === Engine.HOUSEHOLD || id === String(Engine.HOUSEHOLD)) return 'Household';
+        const p = (Store.state.members || []).find(x => String(x.id) === String(id));
+        return p ? p.name : '';
+    }
+
+    root.Views = { whoOptions, whoName, retireGap, guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions, dollarHTML, htmlKeepOpen };
 })(this);
 </script>
 <script>/* js/views/resumen.js */
@@ -17663,10 +17684,11 @@ I18n.override('EC', 'es', {
         UI.show('txn-member-field', list.length > 0);
         const sel = document.getElementById('txn-member');
         const prev = keep !== undefined ? String(keep || '') : (sel.value || String(Store.ui.lastMember || ''));
-        sel.innerHTML = `<option value="">—</option>` + list.map(p => `<option value="${p.id}" ${String(p.id) === prev ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+        sel.innerHTML = Views.whoOptions(prev);
     }
 
     function memberBadge(t) {
+        if (t.memberId === Engine.HOUSEHOLD) return '<span class="member-dot sm" style="background:#64748b" title="Household (shared)"><i class="fa-solid fa-house text-[8px]"></i></span>';
         const p = t.memberId && (Store.state.members || []).find(x => x.id === t.memberId);
         return p ? `<span class="member-dot sm" style="background:${esc(p.color)}" title="${esc(p.name)}">${esc(p.name.charAt(0).toUpperCase())}</span>` : '';
     }
@@ -17834,7 +17856,7 @@ I18n.override('EC', 'es', {
         const members = ctx.state.members || [];
         const mf = document.getElementById('txn-f-member');
         UI.show(mf, members.length > 0);
-        if (members.length) mf.innerHTML = Views.selectOptions([{ value: 'all', label: 'Everyone' }].concat(members.map(p => ({ value: String(p.id), label: p.name })), [{ value: 'none', label: 'No person' }]), f.member || 'all');
+        if (members.length) mf.innerHTML = Views.selectOptions([{ value: 'all', label: 'Everyone' }, { value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name })), [{ value: 'none', label: 'No person' }]), f.member || 'all');
         const byMember = (t) => !f.member || f.member === 'all' || (f.member === 'none' ? !t.memberId : String(t.memberId) === f.member);
         const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q) && byMember(t))
             .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
@@ -18400,13 +18422,13 @@ I18n.override('EC', 'es', {
             const list = picked();
             const r = await UI.form({
                 title: 'Whose are the selected transactions?',
-                fields: [{ name: 'member', label: 'Person', options: members.map(p => ({ value: String(p.id), label: p.name })).concat([{ value: '', label: 'No person' }]) }],
+                fields: [{ name: 'member', label: 'Person', options: [{ value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name })), [{ value: '', label: 'No person' }]) }],
                 confirmText: 'Change'
             });
             if (!r) return;
-            const who = members.find(p => String(p.id) === r.member);
-            bulkApply(who ? `${list.length} transaction${ones(list.length)} for ${who.name}` : 'Person removed', t => {
-                if (who) t.memberId = who.id; else delete t.memberId;
+            const id = r.member === '' ? null : Number(r.member);
+            bulkApply(id !== null ? `${list.length} transaction${ones(list.length)} for ${Views.whoName(id)}` : 'Person removed', t => {
+                if (id !== null) t.memberId = id; else delete t.memberId;
             });
         },
         'txn.bulkPayment': async () => {
@@ -19003,7 +19025,7 @@ I18n.override('EC', 'es', {
         const members = Store.state.members || [];
         const ms = document.getElementById('imp-member');
         UI.show(ms, members.length > 0);
-        if (members.length && !ms.options.length) ms.innerHTML = `<option value="">Whose? (no one)</option>` + members.map(p => `<option value="${p.id}">${esc(p.name)}'s</option>`).join('');
+        if (members.length && !ms.options.length) ms.innerHTML = Views.whoOptions('', 'Whose? (no one)');
         renderBulk(ok.length);
         // OFX files carry the account's balance: offer to update one of yours with it.
         const ab = document.getElementById('imp-ofx-account');
@@ -19016,7 +19038,7 @@ I18n.override('EC', 'es', {
         const opt = (list, sel) => list.map(x => { const v = typeof x === 'string' ? x : x.value, l = typeof x === 'string' ? x : x.label; return `<option value="${esc(v)}" ${v === sel ? 'selected' : ''}>${esc(l)}</option>`; }).join('');
         const catOptions = (r) => opt(Object.keys(taxFor(r.type)), r.category);
         const subOptions = (r) => { const subs = (taxFor(r.type)[r.category] || []).slice(); if (r.sub && !subs.includes(r.sub)) subs.push(r.sub); return opt(subs, r.sub); };
-        const whoOptions = (r) => `<option value="">—</option>${members.map(p => `<option value="${p.id}" ${String(p.id) === String(r.memberId || '') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}<option value="new">+ Add a person…</option>`;
+        const whoOptions = (r) => `${Views.whoOptions(r.memberId || '')}<option value="new">+ Add a person…</option>`;
         const conf = (r) => r.conf === 'low' ? '<span class="badge badge-warn">Check</span> ' : '';
         const incomeNote = (r) => r.type !== 'Ingreso' ? '' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Budget income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : r.newLine ? `<div class="text-[11px] text-emerald-700">New budget income: ${esc(r.newLine)}</div>` : r.sub === PAYROLL && !r.countAsExtra ? '<div class="text-[11px] text-slate-500">Your main paycheck (already counts in your budget)</div>' : '';
         UI.html('imp-rows', s.rows.slice(0, 500).map((r, i) => `<tr class="${r.error ? 'opacity-60' : ''}">
@@ -19051,7 +19073,7 @@ I18n.override('EC', 'es', {
             <div class="space-y-2">${list.map(st => `<div class="imp-stream">
                 <div class="min-w-0"><div class="font-bold text-sm truncate" data-i18n-skip>${esc(st.name)}</div><div class="text-[11px] text-slate-500"><span>${st.count} deposit${st.count === 1 ? '' : 's'}</span> · <span>${money(st.total)} in total</span></div></div>
                 <select class="cell-input text-xs" data-change="imp.streamMode" data-k="${esc(st.k)}" aria-label="What it is">${modes(st).map(m => `<option value="${esc(m.value)}" ${m.value === cur(st) ? 'selected' : ''}>${esc(m.label)}</option>`).join('')}</select>
-                <select class="cell-input text-xs" data-change="imp.streamWho" data-k="${esc(st.k)}" aria-label="Whose"><option value="">Whose? —</option>${members.map(p => `<option value="${p.id}" ${String(p.id) === String(st.cfg.memberId || '') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}<option value="new">+ Add a person…</option></select>
+                <select class="cell-input text-xs" data-change="imp.streamWho" data-k="${esc(st.k)}" aria-label="Whose">${Views.whoOptions(st.cfg.memberId || '', 'Whose? —')}<option value="new">+ Add a person…</option></select>
             </div>`).join('')}</div></div>`);
     }
 
@@ -19121,7 +19143,7 @@ I18n.override('EC', 'es', {
         UI.html('rule-body', rules.length ? rules.map(r => `<tr>
                 <td class="font-semibold">“${esc(r.contains)}”</td>
                 <td>${r.rename ? esc(r.rename) : '<span class="text-slate-400">—</span>'}</td>
-                <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">${esc(((Store.state.members || []).find(p => p.id === r.memberId) || {}).name || '')}'s</div>` : ''}</td>
+                <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">${esc(Views.whoName(r.memberId))}</div>` : ''}</td>
                 <td class="text-xs">${r.budgetLine ? esc(lineName(r.budgetLine)) : '<span class="text-slate-400">Automatic</span>'}</td>
                 <td class="text-center whitespace-nowrap"><button class="row-edit" data-action="rule.edit" data-id="${r.id}" title="Edit rule" aria-label="Edit rule"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="rule.delete" data-id="${r.id}" title="Delete rule" aria-label="Delete rule"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`).join('') : '<tr class="empty-row"><td colspan="5">No rules. Example: if it contains “SQ *COZ” → it\'s called “Cozy Coffee”, category Food.</td></tr>');
@@ -19315,7 +19337,8 @@ I18n.override('EC', 'es', {
                     if (lineId && r.date.slice(0, 4) === year) t.incomeId = lineId;
                     if (r.countAsExtra) t.countAsExtra = true;
                 }
-                const who = r.memberId || memberId;
+                // Bills (housing, utilities, insurance) are the household's when no person is chosen.
+                const who = r.memberId || memberId || ((Store.state.members || []).length && !tr && Engine.HOUSEHOLD_CATEGORIES.includes(t.parentCategory) ? Engine.HOUSEHOLD : undefined);
                 if (who) t.memberId = who;
                 // A subcategory the engine suggested that isn't in your list yet ("Inversiones (bolsa)").
                 if (!tr && t.category) { const tax = taxFor(r.type); if (tax[t.parentCategory] && !tax[t.parentCategory].includes(t.category)) tax[t.parentCategory].push(t.category); }
@@ -19476,7 +19499,7 @@ I18n.override('EC', 'es', {
                     { name: 'contains', label: 'If the description or place contains…', value: rule.contains },
                     { name: 'rename', label: 'Rename to (optional)', value: rule.rename || '' },
                     { name: 'cat', label: 'Category', options: cats, value: cats.some(c => c.value === cur) ? cur : `${kind}|${rule.category}|` },
-                    { name: 'member', label: 'Whose', options: [{ value: '', label: '—' }].concat(members.map(p => ({ value: String(p.id), label: p.name }))), value: rule.memberId ? String(rule.memberId) : '' },
+                    { name: 'member', label: 'Whose', options: [{ value: '', label: '—' }, { value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name }))), value: rule.memberId ? String(rule.memberId) : '' },
                     { name: 'line', label: 'And count it in the line (optional)', options: [{ value: '', label: 'Automatic (by category)' }].concat(items.map(i => ({ value: String(i.id), label: i.name }))), value: rule.budgetLine ? String(rule.budgetLine) : '' }
                 ],
                 confirmText: 'Save',
@@ -19569,7 +19592,7 @@ I18n.override('EC', 'es', {
             switch (o.by) {
                 case 'sub': return `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`;
                 case 'line': return lineOf(t);
-                case 'member': { const p = members.find(x => x.id === t.memberId); return p ? p.name : 'Sin persona'; }
+                case 'member': return Views.whoName(t.memberId) || 'Sin persona';
                 case 'month': return t.date.slice(0, 7);
                 case 'week': return Engine.isoDate(Engine.periodStart(new Date(t.date + 'T00:00:00'), 'week'));
                 case 'store': return (t.store || t.description || '—').trim();
@@ -20134,7 +20157,7 @@ I18n.override('EC', 'es', {
             <div class="grid grid-cols-1 sm:grid-cols-${members.length ? 3 : 2} gap-2 mt-3">
                 <input id="quick-note" class="input" placeholder="Note (optional): Walmart, taxi…" autocomplete="off">
                 <input id="quick-date" type="date" class="input" value="${Engine.isoDate(new Date())}">
-                ${members.length ? `<select id="quick-member" class="input"><option value="">Who? —</option>${members.map(p => `<option value="${p.id}" ${String(p.id) === String(Store.ui.lastMember || '') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>` : ''}
+                ${members.length ? `<select id="quick-member" class="input">${Views.whoOptions(Store.ui.lastMember || '', 'Who? —')}</select>` : ''}
             </div>
             <button type="button" class="btn btn-primary w-full mt-3 justify-center" data-action="quick.save" id="quick-save"><i class="fa-solid fa-check"></i> Save</button>
             <p class="help mt-2 text-center">More details (subcategory, line, repeat)? <a href="#" class="link" data-action="quick.full">Open the full form</a></p>`;

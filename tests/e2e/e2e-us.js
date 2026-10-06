@@ -184,6 +184,22 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(250);
   const cr = await page.evaluate(() => ({ n: Store.state.transactions.filter(t => t.parentCategory === 'Groceries & Dining').length, old: Store.state.transactions.filter(t => t.parentCategory === 'Alimentación').length, subs: Store.state.taxonomy.expense['Groceries & Dining'], list: document.getElementById('cat-list').textContent }));
   ok(shown === 'Food' && catBefore > 0 && cr.n === catBefore && cr.old === 0 && cr.subs.includes('Coffee') && /Groceries & Dining/.test(cr.list), 'Settings → Categories: rename carries to transactions; add a subcategory', [shown, catBefore, cr.n, cr.old]);
+  // Household (shared) next to each person (step 5).
+  await page.evaluate(() => { Store.reset('example'); if (!(Store.state.members || []).length) Store.state.members = [{ id: 1, name: 'Ana', color: '#2a78d6' }]; App.changed({ structural: true }); App.go('transacciones/lista'); });
+  await page.waitForTimeout(250);
+  const hh = await page.evaluate(() => {
+    const opts = [...document.querySelectorAll('#txn-member option')].map(o => [o.value, o.textContent]);
+    const ym = Engine.isoDate(new Date()).slice(0, 7), t = Store.state.transactions.find(x => (x.type || 'Gasto') === 'Gasto' && x.date.startsWith(ym)) || Store.state.transactions.find(x => (x.type || 'Gasto') === 'Gasto');
+    t.memberId = Engine.HOUSEHOLD;
+    App.changed({ structural: true });
+    return { opts, badge: !!document.querySelector('.member-dot[title="Household (shared)"]') };
+  });
+  ok(hh.opts.some(([v, l]) => v === '-1' && /Household \(shared\)/.test(l)) && hh.opts[0][0] === '', 'Whose? offers "Household (shared)" next to each person', hh.opts);
+  await page.evaluate(() => { App.go('transacciones/reportes'); });
+  await page.waitForTimeout(200);
+  await page.selectOption('#rep-by', 'member');
+  await page.waitForTimeout(200);
+  ok(/Household/.test(await page.textContent('#rep-body')), 'reports by person show the household as its own row');
   // Hourly pay, overtime and bonuses (docs/plans/hourly-pay.md, phase 2).
   await page.evaluate(() => { Store.reset('example'); Store.active().sueldo = 5000; Store.active().payDeductions = []; App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
   await page.waitForTimeout(200);

@@ -2,6 +2,8 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Household (shared)": "Hogar (compartido)",
+    "Household": "Hogar",
     "(add, rename or delete them in Settings)": "(agrégalas, renómbralas o bórralas en Configuración)",
     "Add, rename or delete them. A rename carries over to your transactions, rules, repeating transactions and budget lines.": "Agrégalas, renómbralas o bórralas. Un nombre nuevo pasa a tus transacciones, reglas, transacciones repetidas y rubros del presupuesto.",
     "Categories and subcategories": "Categorías y subcategorías",

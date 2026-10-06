@@ -102,10 +102,11 @@
         UI.show('txn-member-field', list.length > 0);
         const sel = document.getElementById('txn-member');
         const prev = keep !== undefined ? String(keep || '') : (sel.value || String(Store.ui.lastMember || ''));
-        sel.innerHTML = `<option value="">—</option>` + list.map(p => `<option value="${p.id}" ${String(p.id) === prev ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+        sel.innerHTML = Views.whoOptions(prev);
     }
 
     function memberBadge(t) {
+        if (t.memberId === Engine.HOUSEHOLD) return '<span class="member-dot sm" style="background:#64748b" title="Household (shared)"><i class="fa-solid fa-house text-[8px]"></i></span>';
         const p = t.memberId && (Store.state.members || []).find(x => x.id === t.memberId);
         return p ? `<span class="member-dot sm" style="background:${esc(p.color)}" title="${esc(p.name)}">${esc(p.name.charAt(0).toUpperCase())}</span>` : '';
     }
@@ -273,7 +274,7 @@
         const members = ctx.state.members || [];
         const mf = document.getElementById('txn-f-member');
         UI.show(mf, members.length > 0);
-        if (members.length) mf.innerHTML = Views.selectOptions([{ value: 'all', label: 'Everyone' }].concat(members.map(p => ({ value: String(p.id), label: p.name })), [{ value: 'none', label: 'No person' }]), f.member || 'all');
+        if (members.length) mf.innerHTML = Views.selectOptions([{ value: 'all', label: 'Everyone' }, { value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name })), [{ value: 'none', label: 'No person' }]), f.member || 'all');
         const byMember = (t) => !f.member || f.member === 'all' || (f.member === 'none' ? !t.memberId : String(t.memberId) === f.member);
         const list = Engine.filterTransactions(ctx.state.transactions, f).filter(t => matchesSearch(t, q) && byMember(t))
             .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
@@ -839,13 +840,13 @@
             const list = picked();
             const r = await UI.form({
                 title: 'Whose are the selected transactions?',
-                fields: [{ name: 'member', label: 'Person', options: members.map(p => ({ value: String(p.id), label: p.name })).concat([{ value: '', label: 'No person' }]) }],
+                fields: [{ name: 'member', label: 'Person', options: [{ value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name })), [{ value: '', label: 'No person' }]) }],
                 confirmText: 'Change'
             });
             if (!r) return;
-            const who = members.find(p => String(p.id) === r.member);
-            bulkApply(who ? `${list.length} transaction${ones(list.length)} for ${who.name}` : 'Person removed', t => {
-                if (who) t.memberId = who.id; else delete t.memberId;
+            const id = r.member === '' ? null : Number(r.member);
+            bulkApply(id !== null ? `${list.length} transaction${ones(list.length)} for ${Views.whoName(id)}` : 'Person removed', t => {
+                if (id !== null) t.memberId = id; else delete t.memberId;
             });
         },
         'txn.bulkPayment': async () => {

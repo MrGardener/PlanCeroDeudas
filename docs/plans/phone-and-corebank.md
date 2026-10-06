@@ -21,7 +21,7 @@ Ask: **"Do step N of docs/plans/phone-and-corebank.md. Open a PR, merge when CI 
    Settings (plus a link from the category picker), add **rename** (category and subcategory, carried to
    transactions, rules, budget lines and the list) and **add subcategory**. Saved names stay as they are
    unless you rename them.
-5. **Household, not a person** — a "Household (shared)" choice next to each person, for transactions,
+5. ✅ **Household, not a person** — a "Household (shared)" choice next to each person, for transactions,
    rules and imports; reports show it as its own column. Bills (utilities, rent, mortgage, insurance)
    default to Household; "no one" stays for "not set".
 
