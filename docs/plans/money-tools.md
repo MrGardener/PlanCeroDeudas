@@ -43,7 +43,7 @@ on top of that: one way in to every tool, and the drill-downs (level 1 → 4).
    in the snowball (and the other way round).
 
 ## C. Transactions (tool 2)
-4. **Ledger toolbar** — date range: Today, This month, Last month, Last 7 / 30 / 90 days or from–to, with
+4. ✅ **Ledger toolbar** — date range: Today, This month, Last month, Last 7 / 30 / 90 days or from–to, with
    ‹ › to step back and forward; account picker grouped by type with checkboxes and All; search ("No
    transactions found"); download what's shown (CSV); money in shows green with "+".
 5. **Transaction details** — tap a row: payee (editable) with the bank's original text under it (kept on

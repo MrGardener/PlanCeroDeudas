@@ -2,6 +2,23 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "\"From\" is after \"To\".": "\"Desde\" es después de \"Hasta\".",
+    "All dates": "Todas las fechas",
+    "Dates": "Fechas",
+    "Download what's shown (CSV)": "Descargar lo que se muestra (CSV)",
+    "Earlier": "Antes",
+    "Later": "Después",
+    "No account (typed by hand)": "Sin cuenta (escritas a mano)",
+    "Payee": "Beneficiario",
+    "Pick at least one account.": "Elige al menos una cuenta.",
+    "Select a range": "Elige un rango",
+    "Show these accounts": "Mostrar estas cuentas",
+    "Show these dates": "Mostrar estas fechas",
+    "Tags": "Etiquetas",
+    "{0} account{1}": "{0} cuenta{1|s|}",
+    "Last 7 days": "Últimos 7 días",
+    "Last 30 days": "Últimos 30 días",
+    "Last 90 days": "Últimos 90 días",
     "\"{0}\" added to your debts": "\"{0}\" agregada a tus deudas",
     "Account details": "Detalles de la cuenta",
     "Activity": "Actividad",
