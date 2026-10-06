@@ -1050,6 +1050,27 @@
         return { income: ti, expense: te, rows: all.map(r => Object.assign(r, { incomeShare: ti ? r.income / ti : 0, expenseShare: te ? r.expense / te : 0 })) };
     }
 
+    // Spending by category between two ISO dates, biggest first, for the Spending donut.
+    // who: undefined = everyone, HOUSEHOLD, or a member id. The smallest categories fold into one
+    // "other" row so the donut never needs more than `max` colors. Refunds lower their category.
+    function spendingBreakdown(transactions, { from, to, who, max = 7 } = {}) {
+        const by = {};
+        (transactions || []).forEach(t => {
+            if (txnType(t) !== 'Gasto' || isTransfer(t) || !t.date || t.date < from || t.date > to) return;
+            if (who !== undefined && who !== null && who !== '' && t.memberId !== who) return;
+            const k = t.parentCategory || 'Otros';
+            const r = by[k] || (by[k] = { key: k, total: 0, count: 0 });
+            r.total += amt(t); r.count++;
+        });
+        let rows = Object.values(by).filter(r => r.total > 0.005).sort((a, b) => b.total - a.total);
+        if (rows.length > max) {
+            const rest = rows.slice(max - 1);
+            rows = rows.slice(0, max - 1).concat([{ key: null, other: rest.map(r => r.key), total: sum(rest, r => r.total), count: sum(rest, r => r.count) }]);
+        }
+        const total = sum(rows, r => r.total);
+        return { total, rows: rows.map(r => Object.assign(r, { share: total ? r.total / total : 0 })) };
+    }
+
     // ------------------------------------------------------------ recurring
     // A repeating transaction: { frequency: 'weekly'|'biweekly'|'monthly'|'yearly',
     // startDate, endDate?, lastPosted? }. Monthly/yearly keep the start's day of month
@@ -2386,7 +2407,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

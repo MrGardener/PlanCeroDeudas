@@ -1400,3 +1400,24 @@ test('where a transaction came from; typed ones are reconciled once a statement 
     assert.equal(E.isReconciled({}), false);
     assert.equal(E.isReconciled({ source: 'csv', importRef: 'abc' }), false);   // imported isn't "reconciled typed"
 });
+
+test('spendingBreakdown: expenses by category in a period, per person, small ones folded', () => {
+    const t = (date, cat, amount, extra = {}) => Object.assign({ date, type: 'Gasto', parentCategory: cat, amount }, extra);
+    const list = [
+        t('2026-10-01', 'Vivienda', 1200, { memberId: E.HOUSEHOLD }), t('2026-10-03', 'Alimentación', 300, { memberId: 1 }),
+        t('2026-10-05', 'Alimentación', 50, { refund: true, memberId: 1 }), t('2026-10-06', 'Transporte', 80, { memberId: 2 }),
+        t('2026-09-30', 'Ocio', 999), { date: '2026-10-02', type: 'Ingreso', parentCategory: 'Ingresos', amount: 4000 },
+        { date: '2026-10-02', type: 'Transferencia', amount: 500 }
+    ];
+    const r = E.spendingBreakdown(list, { from: '2026-10-01', to: '2026-10-31' });
+    assert.deepEqual(r.rows.map(x => [x.key, x.total, x.count]), [['Vivienda', 1200, 1], ['Alimentación', 250, 2], ['Transporte', 80, 1]]);
+    assert.equal(r.total, 1530);
+    assert.ok(Math.abs(r.rows[0].share - 1200 / 1530) < 1e-9);
+    assert.deepEqual(E.spendingBreakdown(list, { from: '2026-10-01', to: '2026-10-31', who: E.HOUSEHOLD }).rows.map(x => x.key), ['Vivienda']);
+    assert.equal(E.spendingBreakdown(list, { from: '2026-10-01', to: '2026-10-31', who: 1 }).total, 250);
+    // More categories than colors: the smallest fold into one row.
+    const many = ['A', 'B', 'C', 'D'].map((c, i) => t('2026-10-01', c, 100 - i * 10));
+    const f = E.spendingBreakdown(many, { from: '2026-10-01', to: '2026-10-31', max: 3 });
+    assert.deepEqual(f.rows.map(x => [x.key, x.total]), [['A', 100], ['B', 90], [null, 150]]);
+    assert.deepEqual(f.rows[2].other, ['C', 'D']);
+});

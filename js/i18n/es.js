@@ -2,6 +2,13 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "No spending in this period.": "Sin gastos en este periodo.",
+    "Other categories: {0}.": "Otras categorías: {0}.",
+    "Spending by category": "Gastos por categoría",
+    "Spent last month": "Gastado el mes pasado",
+    "Spent this month": "Gastado este mes",
+    "The 25 biggest of {0}.": "Los 25 más grandes de {0}.",
+    "Where the money went, by category. Tap a slice or a row to see its transactions.": "A dónde se fue el dinero, por categoría. Toca una porción o una fila para ver sus transacciones.",
     "Your main paycheck; other income can be added later in the budget.": "Tu sueldo principal; otros ingresos se agregan luego en el presupuesto.",
     "A salary": "Un sueldo fijo",
     "Checking ($)": "Cuenta corriente ($)",
