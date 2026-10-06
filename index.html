@@ -152,6 +152,36 @@
         </div>
         <div id="dash-cal"></div>
     </details>
+    <details class="card group-card" id="dash-flow-card" open>
+        <summary class="flex items-center justify-between gap-3">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-water text-blue-600"></i> Cash flow</div>
+                <div class="card-sub">Your checking and cash balance day by day from today: pay, bills, everyday spending and the one-off events you add. Below $0 shows in red.</div>
+            </div>
+            <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
+        </summary>
+        <div class="flex flex-wrap items-center gap-2 mt-3 mb-3">
+            <div class="segmented" role="tablist" aria-label="How far ahead">
+                <button type="button" data-action="flow.days" data-days="30">30 days</button>
+                <button type="button" data-action="flow.days" data-days="60">60 days</button>
+                <button type="button" data-action="flow.days" data-days="90">90 days</button>
+            </div>
+        </div>
+        <div id="flow-note"></div>
+        <div id="flow-body"><div class="chart-box"><canvas id="flow-chart" aria-label="Projected balance per day"></canvas></div></div>
+        <div class="mt-3">
+            <div class="text-xs font-bold text-slate-600 mb-1"><i class="fa-solid fa-bolt"></i> Cash events</div>
+            <p class="help mb-2">One-off money you know is coming: a tax refund, a car repair, a trip. They show on the chart and the money calendar.</p>
+            <div id="flow-events" class="space-y-1 mb-2"></div>
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end">
+                <label class="field"><span class="field-label">Date</span><input type="date" id="flow-date" class="input"></label>
+                <label class="field sm:col-span-2"><span class="field-label">What</span><input id="flow-name" class="input" maxlength="40" placeholder="E.g. Tax refund"></label>
+                <label class="field"><span class="field-label">Amount</span><input type="number" id="flow-amount" class="input" inputmode="decimal" min="0" step="any"></label>
+                <label class="field"><span class="field-label">In or out</span><select id="flow-dir" class="input"><option value="out">Money out</option><option value="in">Money in</option></select></label>
+            </div>
+            <button type="button" class="btn btn-secondary mt-2" data-action="flow.add"><i class="fa-solid fa-plus"></i> Add cash event</button>
+        </div>
+    </details>
     <details class="card group-card" id="dash-longterm" open>
         <summary class="flex items-center justify-between gap-3">
             <div><div class="card-title"><i class="fa-solid fa-road text-emerald-600"></i> Your long-term plan</div><div class="card-sub">Your steps, debts, emergency fund, retirement and net worth.</div></div>

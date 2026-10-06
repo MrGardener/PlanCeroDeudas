@@ -444,6 +444,25 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('[data-action="budget.bubbles"]');
   await page.waitForTimeout(150);
   ok(await page.evaluate(() => !document.querySelector('#bud-simple .bs-grid').classList.contains('hidden') && document.getElementById('bs-bubbles').classList.contains('hidden')), 'bubbles: back to cards');
+  // Cash flow: daily balance ahead, red below $0, cash events added, shown and removed (undoable).
+  await page.evaluate(() => { Store.reset('example'); Store.ui.flowDays = 30; App.changed({ structural: true }); App.go('resumen'); });
+  await page.waitForTimeout(300);
+  const fl1 = await page.evaluate(() => { const c = UI.chartInstance('flow-chart'); return { n: c.data.labels.length, today: c.options.plugins.todayLine.index, note: document.getElementById('flow-note').textContent }; });
+  ok(fl1.n === 30 && fl1.today === 0 && /lowest point|Below \$0/i.test(fl1.note), 'cash flow: 30 days from today', fl1);
+  await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 5); document.getElementById('flow-date').value = Engine.isoDate(d); document.getElementById('dash-flow-card').open = true; });
+  await page.fill('#flow-name', 'Car repair');
+  await page.fill('#flow-amount', '25000');
+  await page.click('[data-action="flow.add"]');
+  await page.waitForTimeout(300);
+  const fl2 = await page.evaluate(() => { const c = UI.chartInstance('flow-chart'); const ds = c.data.datasets[0]; return { ev: Store.state.cashEvents.map(e => e.name + ':' + e.amount).join(), marked: ds.pointRadius.filter(r => r > 0).length, neg: Math.min(...ds.data) < 0, below: typeof ds.fill === 'object' && !!ds.fill.below, list: document.getElementById('flow-events').textContent, cal: Cash.events(Engine.isoDate(new Date()), Engine.isoDate(new Date(Date.now() + 9 * 864e5))).list.some(e => e.kind === 'oneoff') }; });
+  ok(fl2.ev === 'Car repair:-25000' && fl2.marked === 1 && fl2.neg && fl2.below && /Car repair/.test(fl2.list) && fl2.cal, 'cash flow: a cash event shows on the chart, the list and the calendar', fl2);
+  await page.click('[data-action="flow.days"][data-days="90"]');
+  await page.click('[data-action="flow.del"]');
+  await page.waitForTimeout(250);
+  ok(await page.evaluate(() => Store.state.cashEvents.length === 0 && UI.chartInstance('flow-chart').data.labels.length === 90), 'cash flow: 90 days; removing the event');
+  await page.click('.toast-undo button, .toast-undo [data-toast-action], .toast-undo .toast-btn').catch(() => page.evaluate(() => App.undo()));
+  await page.waitForTimeout(250);
+  ok(await page.evaluate(() => Store.state.cashEvents.length === 1), 'cash flow: removing is undoable');
   // First-run setup guide: one sheet, five short steps, opened again from Settings.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   await go(page, 'config');

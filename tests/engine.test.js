@@ -1460,3 +1460,13 @@ test('budgetBubbles: lines grouped by category, planned vs spent, state by share
     assert.deepEqual(r[0].lines.map(l => l.name), ['Rent', 'Repairs']);
     assert.equal(r[3].share, null);
 });
+
+test('cashEvents: one-off events in the window join the forecast', () => {
+    const oneOff = [{ id: 1, date: '2026-10-10', name: 'Tax refund', amount: 900 }, { id: 2, date: '2026-10-20', name: 'Car repair', amount: -1500 }, { id: 3, date: '2026-12-01', name: 'Later', amount: -50 }];
+    const ev = E.cashEvents({ from: '2026-10-06', to: '2026-10-31', months: [], recurring: [], oneOff });
+    assert.deepEqual(ev.map(e => [e.date, e.kind, e.name, e.amount]), [['2026-10-10', 'oneoff', 'Tax refund', 900], ['2026-10-20', 'oneoff', 'Car repair', -1500]]);
+    const f = E.cashForecast({ from: '2026-10-06', to: '2026-10-31', start: 400, events: ev });
+    assert.equal(f.find(d => d.date === '2026-10-10').balance, 1300);
+    assert.equal(f.find(d => d.date === '2026-10-20').balance, -200);
+    assert.equal(f.find(d => d.date === '2026-10-20').status, 'short');
+});

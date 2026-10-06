@@ -143,6 +143,7 @@
         UI.text('dash-month-name', `${Fmt.MONTH_NAMES[m - 1]} ${y}`);
         Cash.renderSafe(t);
         Cash.renderCalendar(t);
+        Cash.renderFlow(t);
         const txns = s.transactions;
         const items = Engine.monthItems(Store.effective(y), m);
         // Everything the plan sends out this month (spending, savings, debt payments) — the same

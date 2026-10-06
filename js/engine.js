@@ -2293,7 +2293,7 @@
     // transactions, and paydays (net salary split between them).
     // months: [{ year, month, items, spend }] covering the range (current month may include
     // overdue unpaid bills, dated before `from`).
-    function cashEvents({ from, to, months, recurring, paydays, schedule, payPerMonth = 0, payBase }) {
+    function cashEvents({ from, to, months, recurring, paydays, schedule, payPerMonth = 0, payBase, oneOff = [] }) {
         const out = [];
         const billLines = new Set();
         const billCats = new Set();
@@ -2343,6 +2343,8 @@
                 if (total - base > 0.004) out.push({ date: dates[0], kind: 'payday', name: 'Décimo / bono', amount: total - base });
             });
         }
+        // Cash events you added by hand (a tax refund, a car repair…).
+        (oneOff || []).forEach(e => { if (e.date >= from && e.date <= to && num(e.amount)) out.push({ date: e.date, kind: 'oneoff', name: e.name || '', amount: num(e.amount), id: e.id }); });
         return out.sort((a, b) => a.date.localeCompare(b.date) || a.amount - b.amount);
     }
 
