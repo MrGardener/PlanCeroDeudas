@@ -39,8 +39,10 @@
             <div class="progress-track mt-2"><div class="progress-fill" data-g="bar"></div></div>
             <div class="flex justify-between text-xs mt-1"><span data-g="saved"></span><span class="font-bold" data-g="pct"></span></div>
             <p class="text-sm mt-2" data-g="eta"></p>
-            <label class="flex justify-between items-center text-xs font-bold mt-2"><span>Each month</span><span data-g="monthly"></span></label>
-            <input type="range" class="range-slider" min="0" step="10" data-input="goal.slide" data-id="${g.id}" aria-label="Each month for ${esc(g.name)}">
+            <label class="flex justify-between items-center gap-2 text-xs font-bold mt-2"><span>Each month</span>
+                <input type="number" class="cell-input num goal-monthly" min="0" step="any" inputmode="decimal" data-g="monthly" data-change="goal.typeMonthly" data-id="${g.id}" aria-label="Each month for ${esc(g.name)} (type it)"></label>
+            <input type="range" class="range-slider" min="0" step="5" data-input="goal.slide" data-id="${g.id}" aria-label="Each month for ${esc(g.name)}">
+            <div class="flex justify-between text-[10px] text-slate-400"><span>$0</span><span data-g="cap"></span></div>
             <div class="flex items-center justify-between gap-2 mt-2 text-xs"><span class="text-slate-500">Saved per month (6 mo.)</span><span class="flex items-center gap-2 whitespace-nowrap" data-g="velocity"></span></div>
             ${accts.length ? `<label class="flex items-center gap-2 mt-2 text-xs"><span class="text-slate-500 whitespace-nowrap">Linked account</span><select class="cell-input" data-change="goal.link" data-id="${g.id}">${Views.selectOptions([{ value: '', label: 'None (type what\'s saved)' }].concat(accts.map(a => ({ value: String(a.id), label: a.name }))), g.accountId ? String(g.accountId) : '')}</select></label>` : ''}
         </div>`;
@@ -60,9 +62,15 @@
             q('eta').innerHTML = st.state === 'reached' ? 'Goal reached!'
                 : st.state === 'never' ? (st.required ? `Put ${money0(st.required)} a month in to reach it by ${esc(Fmt.monthYear(new Date(g.targetDate + '-01T00:00:00')))}.` : 'Nothing goes in each month yet: slide to set an amount.')
                 : `Ready in <strong>${esc(when(st.months))}</strong>${st.state === 'behind' ? ` · needs ${money0(st.required)} a month for ${esc(Fmt.monthYear(new Date(g.targetDate + '-01T00:00:00')))}` : ''}.`;
-            q('monthly').textContent = money0(g.monthly);
+            const box = q('monthly');
+            if (box !== document.activeElement) box.value = Math.round((Number(g.monthly) || 0) * 100) / 100;
             const slider = card.querySelector('[data-input="goal.slide"]');
-            const max = Math.max(500, Math.ceil(Math.max(Number(g.monthly) || 0, st.required || 0) * 2 / 50) * 50);
+            // The slider goes up to your monthly income (what's possible at most), not ever higher
+            // as you drag; more than that can still be typed in the box.
+            const income = ctx.monthBudget ? Number(ctx.monthBudget.income) || 0 : 0;
+            const cap = Math.max(100, Math.ceil((income > 0 ? income : 2000) / 50) * 50);
+            const max = Math.max(cap, Math.ceil((Number(g.monthly) || 0) / 50) * 50);
+            q('cap').textContent = income > 0 ? `${money0(cap)} · ${I18n.t('your monthly income')}` : money0(cap);
             if (slider !== document.activeElement) { slider.max = max; slider.value = Number(g.monthly) || 0; }
             const v = Engine.goalVelocity(ctx.state.transactions, g.id, { end: ctx.today, months: 6 });
             q('velocity').innerHTML = `${UI.sparkline(v.values, { width: 72, height: 18, color: pal.series[2], label: `Saved per month: ${v.values.map(money0).join(', ')}` })} <strong>${money0(v.average)}</strong>`;
@@ -432,6 +440,11 @@
             const f = el.dataset.field;
             g[f] = f === 'name' || f === 'targetDate' ? el.value : Math.max(0, parseNum(el.value, 0));
             App.changed();
+        },
+        'goal.typeMonthly': (el) => {
+            const g = find(Store.state.goals, el);
+            if (!g) return;
+            App.undoable(`${g.name}: ${money0(Math.max(0, parseNum(el.value, 0)))} a month`, () => { g.monthly = Math.max(0, Math.round(parseNum(el.value, 0) * 100) / 100); });
         },
         'goal.slide': (el) => {
             const g = find(Store.state.goals, el);

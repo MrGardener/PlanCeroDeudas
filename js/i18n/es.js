@@ -2,6 +2,13 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Farther years": "Años más lejanos",
+    "How many years to show": "Cuántos años mostrar",
+    "Nearer years": "Años más cercanos",
+    "Tap a goal for its details. Pick how many years to show, then slide (or use ‹ ›) to move along them.": "Toca una meta para ver su detalle. Elige cuántos años mostrar y desliza (o usa ‹ ›) para moverte por ellos.",
+    "your monthly income": "tu ingreso mensual",
+    "Each month for {0} (type it)": "Cada mes para {0} (escríbelo)",
+    "{0}: {1} a month": "{0}: {1} al mes",
     "Hide amounts": "Ocultar montos",
     "Hide amounts on screen (the 👁 button at the top does the same)": "Ocultar los montos en pantalla (el botón 👁 de arriba hace lo mismo)",
     "New PIN or passcode": "Nuevo PIN o contraseña",
