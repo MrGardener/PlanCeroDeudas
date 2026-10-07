@@ -136,7 +136,7 @@
 
     // ------------------------------------------------------------------ money calendar
     const DOW = Fmt.DOW_SHORT;
-    const short = (v) => { const a = Math.abs(v); const t = a >= 10000 ? `${Math.round(a / 1000)}k` : a >= 1000 ? `${(a / 1000).toFixed(1)}k` : Math.round(a).toString(); return `${v < 0 ? '−' : ''}${Fmt.currency().symbol}${t}`; };
+    const short = (v) => { if (Fmt.hidden) return Fmt.money0(v); const a = Math.abs(v); const t = a >= 10000 ? `${Math.round(a / 1000)}k` : a >= 1000 ? `${(a / 1000).toFixed(1)}k` : Math.round(a).toString(); return `${v < 0 ? '−' : ''}${Fmt.currency().symbol}${t}`; };
 
     function calendarData(offset, today = new Date()) {
         const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());

@@ -172,8 +172,14 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 .alert-item { display: flex; gap: .6rem; align-items: flex-start; font-size: .78rem; padding: .6rem .7rem; border-radius: .6rem; border-width: 1px; border-style: solid; }
 
 /* ---------------------------------------------------------------- modal & toast */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); backdrop-filter: blur(3px); z-index: 60; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-.modal { background: var(--surface); border-radius: var(--r-xl); max-width: 28rem; width: 100%; padding: 1.4rem; box-shadow: var(--sh-3); border-top: 4px solid var(--brand); }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); backdrop-filter: blur(3px); z-index: 60; display: flex; align-items: center; justify-content: center;
+    padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); }
+/* Never taller than the screen (the phone's own bars included: dvh): long content scrolls inside,
+   so the top (title, ← back, ×) is always reachable. */
+.modal { background: var(--surface); border-radius: var(--r-xl); max-width: 28rem; width: 100%; padding: 1.4rem; box-shadow: var(--sh-3); border-top: 4px solid var(--brand);
+    max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* A sheet's own top row (its ← back) stays in reach while the list under it scrolls. */
+.sheet-sticky { position: sticky; top: -1.4rem; z-index: 2; background: var(--surface); margin: -1.4rem -1.4rem .5rem; padding: 1.4rem 1.4rem .5rem; }
 .modal-danger { border-top-color: #dc2626; }
 .modal-title { font-size: 1.05rem; font-weight: 800; color: var(--ink); display: flex; gap: .55rem; align-items: center; margin-bottom: .6rem; }
 .modal-title i { color: #059669; } .modal-danger .modal-title i { color: #dc2626; }
@@ -380,7 +386,7 @@ body:has(section:not(.hidden) > [data-view]:not(.hidden) #txn-bulk:not(.hidden))
 .insight-ico { flex: 0 0 auto; width: 1.9rem; height: 1.9rem; border-radius: 999px; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; }
 .bs-add-group { border: 2px dashed #cbd5e1; border-radius: 1rem; padding: 1.25rem; color: #2563eb; font-weight: 700; font-size: .85rem; text-align: center; background: transparent; min-height: 6rem; }
 .bs-add-group:hover { border-color: #3b82f6; background: #eff6ff; }
-.modal.modal-wide { max-width: 46rem; width: calc(100% - 2rem); max-height: calc(100vh - 2rem); overflow-y: auto; }
+.modal.modal-wide { max-width: 46rem; width: calc(100% - 2rem); }
 
 /* ---------------------------------------------------------------- quick entry */
 .fab { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 40; width: 3.5rem; height: 3.5rem; border-radius: 999px; background: var(--brand); color: #fff; font-size: 1.35rem; box-shadow: 0 8px 20px rgba(5, 150, 105, .35); display: grid; place-items: center; transition: transform var(--dur) var(--ease); }
@@ -914,7 +920,7 @@ button.donut-center .donut-label.font-bold { color: var(--ink); max-width: 100%;
 .tdt-menu { position: absolute; right: 0; top: 2.6rem; z-index: 5; min-width: 10rem; background: var(--surface); border: 1px solid var(--line); border-radius: .6rem; box-shadow: var(--sh-2); padding: .25rem; display: flex; flex-direction: column; }
 .tdt-menu button { display: flex; align-items: center; gap: .6rem; padding: .55rem .7rem; border-radius: .4rem; font-size: .85rem; color: var(--ink); text-align: left; }
 .tdt-menu button:hover { background: var(--surface-3); }
-.cat-pick { border-bottom: 1px solid var(--line-soft); }
+.cat-pick { border-bottom: 1px solid var(--line-soft); scroll-margin-top: 7.5rem; }
 .cat-pick-head { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: .65rem .25rem; font-weight: 700; color: var(--brand-dark); font-size: .88rem; }
 .cat-pick-subs { display: flex; flex-direction: column; padding: 0 0 .5rem .75rem; }
 .cat-pick-subs > button { text-align: left; padding: .45rem .25rem; font-size: .85rem; color: var(--ink); border-radius: .35rem; }

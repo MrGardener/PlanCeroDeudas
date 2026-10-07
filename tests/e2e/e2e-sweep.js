@@ -109,6 +109,27 @@ const inspect = (page) => page.evaluate(() => {
                 ok(box && box.top >= -1 && box.bottom <= box.h + 1 && box.left >= -1 && box.right <= box.w + 1 && /fits|auto|scroll/.test(box.sc), `${which} ${size}: the ${label} sheet fits the screen`, box);
             }
             await closeAll(page);
+            // A transaction's category list is long: it scrolls inside the sheet, ← stays in reach,
+            // and the last category ("Other") opens and its subcategories can be tapped.
+            await page.evaluate(() => { TxnDetails.open(Store.state.transactions.find(t => (t.type || 'Gasto') === 'Gasto').id); });
+            await page.waitForTimeout(150);
+            await page.click('[data-action="tdt.category"]');
+            await page.waitForTimeout(150);
+            const lastCat = await page.evaluate(() => [...document.querySelectorAll('#tdt-cats .cat-pick-head')].pop().dataset.parent);
+            await page.click(`#tdt-cats .cat-pick-head[data-parent="${lastCat}"]`);
+            await page.waitForTimeout(500);
+            const cp = await page.evaluate(() => {
+                const m = document.querySelector('.modal-backdrop.sheet .modal'), r = m.getBoundingClientRect(), back = document.querySelector('[data-action="tdt.back"]').getBoundingClientRect();
+                const subs = [...document.querySelectorAll('#tdt-cats .cat-pick-subs button')];
+                return { fits: r.top >= -1 && r.bottom <= innerHeight + 1, scrolls: m.scrollHeight > m.clientHeight ? getComputedStyle(m).overflowY : 'fits', backIn: back.top >= r.top - 1 && back.bottom <= r.bottom + 1, subs: subs.length };
+            });
+            const lastSub = page.locator('#tdt-cats .cat-pick-subs button').last();
+            await lastSub.scrollIntoViewIfNeeded();
+            const reach = await lastSub.boundingBox();
+            ok(cp.fits && /fits|auto|scroll/.test(cp.scrolls) && cp.backIn && cp.subs >= 2 && reach && reach.y >= 0 && reach.y + reach.height <= wh[1] + 1, `${which} ${size}: the category list scrolls, ← stays in reach, the last category opens`, Object.assign(cp, { reach }));
+            await page.click('[data-action="tdt.back"]');
+            ok(await page.evaluate(() => !!document.querySelector('[data-action="tdt.category"]')), `${which} ${size}: ← returns to the transaction`);
+            await closeAll(page);
             ok(!errors.length, `${which} ${size}: no page errors`, errors.slice(0, 5));
             await page.screenshot({ path: path.join(OUT, `sweep-${which}-${size.replace(' ', '-')}.png`) });
             await ctx.close();

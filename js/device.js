@@ -74,6 +74,25 @@
         if (root.App && App.render) App.render();
     }
 
+    // ------------------------------------------------------------------ hide amounts
+    // For when someone can see your screen: amounts show as •••. Per device, like the theme.
+    function applyPrivacy() {
+        const on = !!read().hideAmounts;
+        if (root.Fmt && Fmt.setHidden) Fmt.setHidden(on);
+        document.documentElement.classList.toggle('amounts-hidden', on);
+        const b = document.getElementById('privacy-toggle');
+        if (b) { b.innerHTML = `<i class="fa-solid ${on ? 'fa-eye-slash' : 'fa-eye'}"></i>`; b.title = on ? 'Show amounts' : 'Hide amounts'; b.setAttribute('aria-pressed', String(on)); }
+        const c = document.getElementById('cfg-hide-amounts');
+        if (c) c.checked = on;
+    }
+    function setPrivacy(on) {
+        const d = read();
+        if (on) d.hideAmounts = true; else delete d.hideAmounts;
+        write(d);
+        applyPrivacy();
+        if (root.App && App.render) App.render();
+    }
+
     // ------------------------------------------------------------------ PIN
     function randomSalt() {
         const a = new Uint8Array(16);
@@ -208,8 +227,9 @@
             <form class="lock-box" autocomplete="off">
                 <div class="brand-logo mx-auto mb-3"><i class="fa-solid fa-lock"></i></div>
                 <div class="lock-title" data-i18n-skip>${(root.APP_EDITION && APP_EDITION.appName) || 'Plan Financiero Ecuador'}</div>
-                <p class="lock-sub">Type your PIN to get in.</p>
-                <input id="lock-pin" class="lock-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" aria-label="PIN" autofocus>
+                ${read().lock && read().lock.kind === 'passcode'
+                    ? '<p class="lock-sub">Type your passcode to get in.</p><input id="lock-pin" class="lock-input" type="password" maxlength="64" autocomplete="current-password" aria-label="Passcode" autofocus>'
+                    : '<p class="lock-sub">Type your PIN to get in.</p><input id="lock-pin" class="lock-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" aria-label="PIN" autofocus>'}
                 <p id="lock-msg" class="lock-msg" role="alert"></p>
                 <button type="submit" class="btn btn-primary w-full justify-center">Enter</button>
                 <button type="button" class="lock-forgot" id="lock-forgot">I forgot my PIN</button>
@@ -276,11 +296,13 @@
     }
 
     // Turning the PIN on encrypts the saved plan; changing it re-wraps the same data key.
-    async function setPin(pin) {
+    // kind: 'pin' (4–8 digits) or 'passcode' (8+ characters, letters too: much harder to guess).
+    async function setPin(pin, kind = 'pin') {
         const salt = randomSalt();
         const d = read();
         const keep = d.lock && d.lock.wrap && dataKey;
         d.lock = { salt, hash: await hashPin(pin, salt) };
+        if (kind === 'passcode') d.lock.kind = 'passcode';
         if (!write(d)) return false;
         if (!c()) return true;
         if (keep) {
@@ -316,7 +338,7 @@
         if (root.I18n && I18n.apply) { applyLang(); I18n.apply(el); }
         el.querySelector('#lock-wipe').addEventListener('click', async () => { await wipeAll(); location.reload(); });
     }
-    document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); if (dataLocked() && !hasPin()) showLost(); else showLock(); });
+    document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); applyPrivacy(); if (dataLocked() && !hasPin()) showLost(); else showLock(); });
 
-    root.Device = { storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
+    root.Device = { applyPrivacy, setPrivacy, hidden: () => !!read().hideAmounts, isPasscode: () => !!(read().lock && read().lock.kind === 'passcode'), storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
 })(this);

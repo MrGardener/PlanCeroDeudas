@@ -1156,6 +1156,35 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.evaluate(() => Device.removePin());
   await page.waitForTimeout(200);
   ok(await page.evaluate((k) => { const v = localStorage.getItem(k); return !v.startsWith('zdpenc1:') && v.includes('after unlock'); }, encKey), 'removing the PIN saves the plan readable again');
+  // A passcode (letters too) instead of a PIN; the lock screen asks for it with a normal keyboard.
+  await page.evaluate(() => App.go('config'));
+  await page.click('#cfg-lock [data-action="device.setPin"]');
+  await page.fill('.modal input[name="pin"]', 'short');
+  await page.fill('.modal input[name="again"]', 'short');
+  await page.click('.modal [data-dialog-ok]');
+  ok(/at least 8 characters/.test(await page.textContent('.modal .modal-error')), 'a passcode needs 8 or more characters');
+  await page.fill('.modal input[name="pin"]', 'Maple-tree 77');
+  await page.fill('.modal input[name="again"]', 'Maple-tree 77');
+  await page.click('.modal [data-dialog-ok]');
+  await page.waitForTimeout(1200);
+  ok(await page.evaluate(() => Device.isPasscode() && /passcode/.test(document.getElementById('cfg-lock').textContent)), 'passcode saved (the lock says so)');
+  await page.evaluate(() => Device.lockNow());
+  const pcIn = await page.evaluate(() => { const i = document.getElementById('lock-pin'); return { mode: i.getAttribute('inputmode'), label: i.getAttribute('aria-label'), sub: document.querySelector('.lock-sub').textContent }; });
+  ok(!pcIn.mode && pcIn.label === 'Passcode' && /passcode/.test(pcIn.sub), 'the lock asks for the passcode with a full keyboard', pcIn);
+  await page.fill('#lock-pin', 'Maple-tree 77');
+  await page.click('#lock-screen button[type="submit"]');
+  await page.waitForTimeout(1200);
+  ok(!(await page.$('#lock-screen')), 'the passcode unlocks');
+  await page.evaluate(() => Device.removePin());
+  // Hide amounts: every amount shows as •••; the plan itself doesn't change.
+  await page.evaluate(() => App.go('resumen'));
+  await page.click('#privacy-toggle');
+  await page.waitForTimeout(200);
+  const hid = await page.evaluate(() => ({ dots: (document.querySelector('[data-tab="resumen"]').innerText.match(/\$•••/g) || []).length, digits: (document.querySelector('[data-tab="resumen"]').innerText.match(/\$[1-9][\d,.]*/g) || []).slice(0, 5), pressed: document.getElementById('privacy-toggle').getAttribute('aria-pressed'), backup: /•••/.test(Store.serialize()) }));
+    ok(hid.dots > 5 && !hid.digits.length && hid.pressed === 'true' && !hid.backup, 'hide amounts: every amount shows as ••• (the data is untouched)', hid);
+  await page.click('#privacy-toggle');
+  await page.waitForTimeout(200);
+  ok(await page.evaluate(() => /\$[1-9]/.test(document.querySelector('[data-tab="resumen"]').innerText) && !Device.hidden()), 'hide amounts: off again');
   // 10 wrong PINs erase everything this app keeps on the device (the count survives a reload).
   await page.evaluate(async () => { await Device.setPin('1234'); Store.saveNow(); Device.lockNow(); });
   const pinKey = await page.evaluate(() => Store.KEY);

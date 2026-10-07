@@ -27,7 +27,11 @@
     const setCurrency = (code) => { cur = CURRENCIES.find(c => c.code === code) || CURRENCIES[0]; return cur; };
     const currency = () => cur;
 
+    // "Hide amounts" (a device setting): every amount on screen shows as •••; files and data are untouched.
+    let hidden = false;
+    const setHidden = (on) => { hidden = !!on; };
     function fmt(n, decimals) {
+        if (hidden) return cur.after ? `••• ${cur.symbol}` : `${cur.symbol}•••`;
         const v = Number(n) || 0;
         const d = Math.min(decimals, cur.decimals);
         const num = Math.abs(v).toLocaleString(cur.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -80,7 +84,7 @@
     // "30 de septiembre" / "September 30"
     const dayMonth = (date) => (lang === 'en' ? `${MONTH_NAMES[date.getMonth()]} ${date.getDate()}` : `${date.getDate()} de ${MONTH_NAMES[date.getMonth()].toLowerCase()}`);
 
-    const Fmt = { MONTH_NAMES, MONTH_SHORT, DOW_SHORT, WEEKDAYS, monthLower, CURRENCIES, setCurrency, currency, money, money0, pct, esc, parseNum, monthsAsYears, monthYear, setLang, dayMonth, get lang() { return lang; } };
+    const Fmt = { setHidden, get hidden() { return hidden; }, MONTH_NAMES, MONTH_SHORT, DOW_SHORT, WEEKDAYS, monthLower, CURRENCIES, setCurrency, currency, money, money0, pct, esc, parseNum, monthsAsYears, monthYear, setLang, dayMonth, get lang() { return lang; } };
     if (typeof module !== 'undefined' && module.exports) module.exports = Fmt;
     else root.Fmt = Fmt;
 })(this);
