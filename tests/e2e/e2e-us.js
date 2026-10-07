@@ -844,6 +844,13 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   const gc3 = await page.evaluate((id) => { const g = Store.state.goals.find(x => x.id === id), a = Store.state.accounts.find(x => x.id === g.accountId); return { cur: g.current, bal: a && a.balance }; }, gid);
   ok(gc3.bal !== undefined && gc3.cur === Math.max(0, gc3.bal), 'goals: linked to a savings account, its balance is what is saved', gc3);
   ok(await page.evaluate(() => !!document.querySelector('#goal-cards [data-g="velocity"] svg')), 'goals: saved per month');
+  // The monthly amount: the slider stops at your monthly income; any amount can be typed.
+  const cap = await page.evaluate((id) => { const el = document.querySelector(`#goal-cards [data-goal="${id}"] [data-input="goal.slide"]`); el.value = el.max; el.dispatchEvent(new Event('input', { bubbles: true })); App.update(); const again = document.querySelector(`#goal-cards [data-goal="${id}"] [data-input="goal.slide"]`); return { max1: Number(el.max), max2: Number(again.max), income: App.buildContext().monthBudget.income, label: document.querySelector(`#goal-cards [data-goal="${id}"] [data-g="cap"]`).textContent }; }, gid);
+  ok(cap.max1 === cap.max2 && cap.max1 >= cap.income && cap.max1 < cap.income + 50 && /monthly income/.test(cap.label), 'goals: the slider stops at your monthly income (it doesn\'t keep growing)', cap);
+  await page.fill(`#goal-cards [data-goal="${gid}"] [data-change="goal.typeMonthly"]`, '1234.5');
+  await page.dispatchEvent(`#goal-cards [data-goal="${gid}"] [data-change="goal.typeMonthly"]`, 'change');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate((id) => Store.state.goals.find(g => g.id === id).monthly === 1234.5, gid), 'goals: the monthly amount can be typed');
   // Goals like the bank's: total a month, the timeline, Add a goal (savings / debt payoff /
   // retirement), Manage (savings top amount, debt extra and order, details), overbudget warning.
   await page.evaluate(() => { Store.reset('example'); Store.ui.gmStart = 0; App.changed({ structural: true }); App.go('futuro/metas', { focus: 'metas-goals' }); });
@@ -911,6 +918,18 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(150);
   ok(/You've overbudgeted your goals/.test(await page.textContent('#gm-body')) && await page.evaluate(() => !document.getElementById('gm-badge').classList.contains('hidden')), 'goals: overbudget warning and the ! on Manage');
   await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
+  // The timeline: zoom 5Y / 10Y / 20Y / All; ‹ › move exactly one year; the slider is under the road.
+  await page.evaluate(() => { Store.ui.gmSpan = null; Store.ui.gmStart = 0; App.update(); });
+  const z = await page.evaluate(() => [...document.querySelectorAll('[data-action="gm.zoom"]')].map(b => b.dataset.span));
+  ok(z.includes('5') && z.includes('all'), 'goals timeline: zoom buttons', z);
+  await page.click('[data-action="gm.zoom"][data-span="5"]');
+  await page.waitForTimeout(150);
+  const tl0 = await page.evaluate(() => ({ label: document.getElementById('gm-range-label').textContent, max: Number(document.querySelector('.gm-range').max), w: document.querySelector('.gm-range').getBoundingClientRect().width, step: document.querySelector('.gm-step').getBoundingClientRect().width }));
+  await page.click('[data-action="gm.step"][data-dir="1"]');
+  await page.waitForTimeout(450);
+  const tl1 = await page.evaluate(() => ({ start: Store.ui.gmStart, label: document.getElementById('gm-range-label').textContent, rebuilt: !document.querySelector('.gm-dot') }));
+  const y = new Date().getFullYear();
+  ok(tl0.label === `${y} – ${y + 5}` && tl1.start === 1 && tl1.label === `${y + 1} – ${y + 6}` && tl0.max > 1 && tl0.w > 150 && tl0.step >= 40, 'goals timeline: 5 years shown, › moves one year, big slider and buttons', { tl0, tl1 });
   // Slide to far-off goals; with no goals: Welcome to Goals.
   await page.evaluate(() => { const el = document.querySelector('[data-input="gm.scroll"]'); if (!el.disabled) { el.value = el.max; el.dispatchEvent(new Event('input', { bubbles: true })); } });
   ok(await page.evaluate(() => { const el = document.querySelector('[data-input="gm.scroll"]'); return el.disabled || Store.ui.gmStart === Number(el.max); }), 'goals: the slider moves the timeline to far-off goals');

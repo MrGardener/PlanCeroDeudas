@@ -35,35 +35,63 @@
                 <button type="button" class="btn btn-primary" data-action="gm.add">Get started</button></div>`;
             return;
         }
-        // Years from now to the farthest goal; the slider picks where the view starts.
-        const y0 = ctx.today.getFullYear(), far = Math.max(1, ...t.items.map(x => (x.months === null ? 0 : x.months / 12)));
-        const span = Math.max(3, Math.min(12, Math.ceil(far) + 1));
-        const maxStart = Math.max(0, Math.ceil(far) - span + 2);
-        const start = Math.min(maxStart, Math.max(0, Number(Store.ui.gmStart) || 0));
-        // Near years take more room (perspective): height from the bottom = sqrt(fraction of the view);
-        // nearer goals are bigger. The road narrows to 28% of the width at the far end.
-        const pos = (years) => Math.sqrt(Math.max(0, Math.min(1, (years - start) / span)));
-        const edge = (p) => 36 * p;   // % from each side where the road's edge is at that height
-        const lines = Array.from({ length: span + 1 }, (_, i) => start + i).map(k => { const p = pos(k); return `<div class="gm-year" style="bottom:${(p * 100).toFixed(1)}%;left:${edge(p).toFixed(1)}%;right:${edge(p).toFixed(1)}%"><span style="font-size:${(0.95 - 0.4 * p).toFixed(2)}rem">${y0 + k}</span></div>`; }).join('');
-        const shown = t.items.filter(x => x.months !== null && x.months / 12 >= start - 0.01 && x.months / 12 <= start + span)
-            .sort((a, b) => b.months - a.months);   // far ones first, so near ones sit on top
-        // Place them nearest first, sliding sideways until they don't cover one another.
-        const W = Math.max(220, (host.clientWidth || 340) - 50), H = 344, placed = [];
-        const dots = shown.slice().reverse().map(x => {
-            const p = pos(x.months / 12), size = Math.round(78 - 44 * p), r = size / 2, cy = H * (1 - p) - r * 0.3;
-            let cx = W / 2;
-            for (let k = 1; k < 40 && placed.some(o => Math.hypot(o.x - cx, o.y - cy) < o.r + r + 4); k++) cx = W / 2 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (r * 0.9);
-            placed.push({ x: cx, y: cy, r });
-            return `<button type="button" class="gm-dot is-${x.type} ${x.attention ? 'needs' : ''}" style="top:${(cy - r).toFixed(0)}px;left:${(cx - r).toFixed(0)}px;width:${size}px;height:${size}px;font-size:${(size / 2.6).toFixed(0)}px"
-                data-action="gm.open" data-type="${x.type}" data-id="${esc(String(x.id))}" aria-label="${esc(`${I18n.t(x.name)}: ${when(ctx.today, x.months)}`)}"><i class="fa-solid ${kindIcon(x)}"></i></button>`;
-        }).join('');
+        // The road shows `span` years starting `start` years from now (zoom 5Y / 10Y / 20Y / All);
+        // ‹ › and the slider under it move it one year at a time. Everything is built once and
+        // only moved (place), so it glides instead of jumping.
+        const y0 = ctx.today.getFullYear(), farY = Math.max(1, Math.ceil(Math.max(0, ...t.items.map(x => (x.months === null ? 0 : x.months / 12)))));
+        const zooms = [5, 10, 20].filter(z => z < farY + 1);
+        const zoom = zooms.includes(Number(Store.ui.gmSpan)) ? Number(Store.ui.gmSpan) : (Store.ui.gmSpan === 'all' || farY <= 10 ? 'all' : 10);   // first look: 10 years, so the slider has room to move
+        const span = zoom === 'all' ? Math.max(3, farY + 1) : zoom;
+        const maxStart = Math.max(0, farY + 1 - span);
+        const start = Math.min(maxStart, Math.max(0, Math.round(Number(Store.ui.gmStart) || 0)));
+        Store.ui.gmStart = start;
+        const lines = Array.from({ length: farY + 2 }, (_, k) => `<div class="gm-year" data-k="${k}"><span>${y0 + k}</span></div>`).join('');
+        const placed = t.items.filter(x => x.months !== null);
+        const dots = placed.map(x => `<button type="button" class="gm-dot is-${x.type} ${x.attention ? 'needs' : ''}" data-m="${x.months}"
+                data-action="gm.open" data-type="${x.type}" data-id="${esc(String(x.id))}" aria-label="${esc(`${I18n.t(x.name)}: ${when(ctx.today, x.months)}`)}"><i class="fa-solid ${kindIcon(x)}"></i></button>`).join('');
         const never = t.items.filter(x => x.months === null);
-        host.innerHTML = `<div class="gm-wrap">
-                <div class="gm-slider"><span>${y0 + start + span}</span><input type="range" min="0" max="${maxStart}" step="1" value="${start}" data-input="gm.scroll" aria-label="Move the timeline" ${maxStart ? '' : 'disabled'}><span>Now</span></div>
-                <div class="gm-road"><div class="gm-track"></div>${lines}${dots}</div>
+        host.innerHTML = `<div class="gm-zoom segmented" role="group" aria-label="How many years to show">${zooms.map(z => `<button type="button" data-action="gm.zoom" data-span="${z}" class="${zoom === z ? 'active' : ''}">${z}Y</button>`).join('')}<button type="button" data-action="gm.zoom" data-span="all" class="${zoom === 'all' ? 'active' : ''}">All</button></div>
+            <div class="gm-road" id="gm-road"><div class="gm-track"></div>${lines}${dots}</div>
+            <div class="gm-nav">
+                <button type="button" class="gm-step" data-action="gm.step" data-dir="-1" aria-label="Nearer years" ${maxStart ? '' : 'disabled'}><i class="fa-solid fa-chevron-left"></i></button>
+                <div class="flex-1 min-w-0"><input type="range" class="gm-range" min="0" max="${maxStart}" step="1" value="${start}" data-input="gm.scroll" aria-label="Move the timeline" ${maxStart ? '' : 'disabled'}>
+                    <div class="gm-range-label" id="gm-range-label"></div></div>
+                <button type="button" class="gm-step" data-action="gm.step" data-dir="1" aria-label="Farther years" ${maxStart ? '' : 'disabled'}><i class="fa-solid fa-chevron-right"></i></button>
             </div>
-            <p class="text-xs text-slate-500 mt-1">${esc(Fmt.MONTH_NAMES[ctx.today.getMonth()])} ${y0}. Tap a goal for its details; slide to see goals farther away.</p>
+            <p class="text-xs text-slate-500 mt-1">Tap a goal for its details. Pick how many years to show, then slide (or use ‹ ›) to move along them.</p>
             ${never.length ? `<p class="text-xs text-red-600 mt-1"><i class="fa-solid fa-circle-exclamation"></i> Not on the line (nothing goes in yet): <span data-i18n-skip>${never.map(x => esc(I18n.t(x.name))).join(', ')}</span></p>` : ''}`;
+        geo = { y0, span, maxStart };
+        place(start);
+    }
+
+    // Where everything sits for a view starting `start` years from now. Near years take more room
+    // (perspective: height = sqrt of the fraction); nearer goals are bigger and never cover each other.
+    let geo = null;
+    function place(start) {
+        const road = document.getElementById('gm-road');
+        if (!road || !geo) return;
+        const { y0, span } = geo, H = road.clientHeight || 300, W = road.clientWidth || 300;
+        const pos = (years) => Math.sqrt(Math.max(0, Math.min(1, (years - start) / span)));
+        const inView = (years) => years >= start - 0.001 && years <= start + span + 0.001;
+        road.querySelectorAll('.gm-year').forEach(el => {
+            const k = Number(el.dataset.k), p = pos(k), edge = 36 * p;
+            el.style.bottom = (p * 100).toFixed(2) + '%'; el.style.left = edge.toFixed(2) + '%'; el.style.right = edge.toFixed(2) + '%';
+            el.style.opacity = inView(k) ? '1' : '0';
+            el.firstElementChild.style.fontSize = (0.95 - 0.4 * p).toFixed(2) + 'rem';
+        });
+        const taken = [];
+        [...road.querySelectorAll('.gm-dot')].sort((a, b) => Number(a.dataset.m) - Number(b.dataset.m)).forEach(el => {
+            const years = Number(el.dataset.m) / 12, p = pos(years), size = Math.round(78 - 44 * p), r = size / 2, cy = H * (1 - p) - r * 0.3, show = inView(years);
+            let cx = W / 2;
+            if (show) for (let k = 1; k < 40 && taken.some(o => Math.hypot(o.x - cx, o.y - cy) < o.r + r + 4); k++) cx = W / 2 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (r * 0.9);
+            if (show) taken.push({ x: cx, y: cy, r });
+            Object.assign(el.style, { top: (cy - r).toFixed(0) + 'px', left: (cx - r).toFixed(0) + 'px', width: size + 'px', height: size + 'px', fontSize: (size / 2.6).toFixed(0) + 'px', opacity: show ? '1' : '0', pointerEvents: show ? '' : 'none' });
+            el.tabIndex = show ? 0 : -1;
+        });
+        const label = document.getElementById('gm-range-label');
+        if (label) label.textContent = `${y0 + start} – ${y0 + start + span}`;
+        const range = road.parentElement.querySelector('.gm-range');
+        if (range && Number(range.value) !== start) range.value = start;
     }
 
     // ------------------------------------------------------------------ sheets
@@ -189,7 +217,9 @@
         'gm.add': () => open('type'),
         'gm.manage': () => open('manage'),
         'gm.view': (el) => { if (!sh) open(el.dataset.view); else { sh.view = el.dataset.view; sh.menu = false; sh.editExtra = false; if (el.dataset.view === 'retire') sh.draft = null; draw(); } },
-        'gm.scroll': (el) => { Store.ui.gmStart = Number(el.value) || 0; render(App.buildContext()); },
+        'gm.scroll': (el) => { Store.ui.gmStart = Number(el.value) || 0; place(Store.ui.gmStart); },
+        'gm.step': (el) => { if (!geo) return; Store.ui.gmStart = Math.max(0, Math.min(geo.maxStart, (Number(Store.ui.gmStart) || 0) + Number(el.dataset.dir))); place(Store.ui.gmStart); },
+        'gm.zoom': (el) => { Store.ui.gmSpan = el.dataset.span === 'all' ? 'all' : Number(el.dataset.span); Store.ui.gmStart = 0; render(App.buildContext()); },
         'gm.open': (el) => {
             const back = sh && sh.view ? sh.view : null;
             if (el.dataset.type === 'retirement') { open('retire', { draft: null }); return; }

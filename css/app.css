@@ -1008,9 +1008,15 @@ button.sheet-row:hover { background: var(--surface-3); }
 .cev-actions button:hover { background: var(--surface-3); }
 /* Goals like the bank's: the bar, the timeline (a road into the distance), the sheets. */
 .gm-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .5rem 0 .75rem; border-bottom: 1px solid var(--line); margin-bottom: .75rem; }
-.gm-wrap { display: grid; grid-template-columns: 2.6rem 1fr; gap: .5rem; height: 22rem; }
-.gm-slider { display: flex; flex-direction: column; align-items: center; justify-content: space-between; font-size: .65rem; color: var(--muted); }
-.gm-slider input { writing-mode: vertical-lr; direction: rtl; width: 1.6rem; flex: 1; margin: .3rem 0; accent-color: var(--brand); }
+.gm-zoom { margin-bottom: .5rem; }
+/* The timeline glides when it moves (only positions change, never rebuilt). */
+.gm-year, .gm-dot { transition: bottom .35s var(--ease), left .35s var(--ease), right .35s var(--ease), top .35s var(--ease), width .35s var(--ease), height .35s var(--ease), opacity .3s, font-size .35s; }
+.gm-nav { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; }
+.gm-step { width: 2.75rem; height: 2.75rem; border-radius: 50%; display: grid; place-items: center; background: var(--surface-3); color: var(--ink); flex: none; }
+.gm-step:disabled { opacity: .35; }
+.gm-range { width: 100%; height: 2.75rem; accent-color: var(--brand); touch-action: pan-y; }
+.gm-range::-webkit-slider-thumb { width: 1.6rem; height: 1.6rem; }
+.gm-range-label { text-align: center; font-size: .78rem; font-weight: 700; color: var(--ink-2); margin-top: -.35rem; }
 .gm-road { position: relative; overflow: hidden; height: 22rem; }
 .gm-track { position: absolute; inset: 0; background: linear-gradient(to top, var(--surface-3), transparent 95%); clip-path: polygon(0 100%, 100% 100%, 64% 0, 36% 0); }
 .gm-year { position: absolute; border-top: 2px solid var(--surface); }
@@ -1031,3 +1037,6 @@ button.sheet-row:hover { background: var(--surface-3); }
 button.gm-row:hover { background: var(--surface-3); }
 .gm-bullet { width: .55rem; height: .55rem; border-radius: 50%; flex: none; }
 .gm-bullet.is-savings { background: #3fa76a; } .gm-bullet.is-debt { background: #4d8fd0; } .gm-bullet.is-retirement { background: #8e7cc3; }
+/* Goal cards: the monthly amount can be typed; the slider is easy to grab on a phone. */
+.goal-monthly { width: 7rem; text-align: right; }
+.range-slider { height: 2.25rem; touch-action: pan-y; }
