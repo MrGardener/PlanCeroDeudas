@@ -1101,6 +1101,18 @@
                 s.netWorthHistory.push({ month: `${y}-${pad2(m)}`, assets, liabilities, value: round2(assets - liabilities) });
             }
         }
+        // Each account's value per month for the example's gains and losses: today's accounts,
+        // scaled to that month's totals, with a small deterministic wobble per account.
+        const hubNow = Engine.accountsHub({ accounts: s.accounts, holdings: s.holdings, polizas: s.polizas, assets: s.assets, debts: s.debts, years: s.years, year: cur });
+        const itemsNow = Engine.hubItems(hubNow), last = s.netWorthHistory[s.netWorthHistory.length - 1];
+        const ownNow = itemsNow.filter(x => x[2] > 0).reduce((a, x) => a + x[2], 0), oweNow = -itemsNow.filter(x => x[2] < 0).reduce((a, x) => a + x[2], 0);
+        if (last && ownNow > 0) {
+            s.netWorthHistory.forEach((h, i) => {
+                if (h === last) { h.items = itemsNow; return; }
+                const fa = h.assets / ownNow, fl = oweNow > 0 ? h.liabilities / oweNow : 0;
+                h.items = itemsNow.map(([k, n, v], j) => [k, n, round2(v * (v > 0 ? fa : fl) * (1 + (((i * 7 + j * 13) % 9) - 4) / 400))]);
+            });
+        }
         // When each net-worth step was first reached (App dates the rest as "already had it").
         const seed = s.settings.milestonesSeed = {};
         [0, 10000, 25000, 50000, 100000, 250000, 500000, 1000000].forEach(v => {

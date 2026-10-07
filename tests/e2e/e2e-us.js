@@ -358,7 +358,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await go(page, 'patrimonio');
   await page.waitForTimeout(200);
   const prog = await page.evaluate(() => ({ points: (UI.chartInstance('nw-month-chart') || { data: { datasets: [{ data: [] }] } }).data.datasets[0].data.length, txt: document.getElementById('nw-milestones').textContent, hist: Store.state.netWorthHistory.length }));
-  ok(prog.points === Math.min(12, prog.hist) && prog.hist >= 12, 'the example shows net worth month by month', prog.points);
+  ok(prog.points === Math.min(6, prog.hist) && prog.hist >= 12, 'the example shows net worth month by month (6 months first)', prog.points);
   ok(/Reached \(\d+\)/.test(prog.txt) && /Up next/.test(prog.txt) && /Net worth of \$/.test(prog.txt), 'milestones: reached and up next', prog.txt.slice(0, 160));
   const er = await page.evaluate(() => Store.state.debts.find(d => /ER bill/.test(d.name)));
   await go(page, 'futuro/metas');
@@ -572,7 +572,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   const ds = await page.evaluate(() => { const c = UI.chartInstance('debt-stack-chart'), p = App.buildContext().debts; const sets = c.data.datasets; const last = c.data.labels.length - 1; return { n: sets.length, debts: Store.state.debts.filter(d => d.balance > 0).length, stacked: c.options.scales.y.stacked, len: c.data.labels.length, months: p.months, endZero: sets.every(d => d.data[last] === 0), start: Math.round(sets.reduce((t, d) => t + d.data[0], 0)), total: Math.round(Store.state.debts.reduce((t, d) => t + (Number(d.balance) || 0), 0)), head: [...document.querySelectorAll('#debt-ladder-table')].length && document.querySelector('#debt-ladder-table').closest('table').querySelector('thead').textContent, row: document.querySelector('#debt-ladder-table tr').textContent }; });
   ok(ds.n === ds.debts && ds.stacked && ds.len === ds.months + 1 && ds.endZero && Math.abs(ds.start - ds.total) <= ds.n && /Rate/.test(ds.head) && /Payment/.test(ds.head) && /%/.test(ds.row), 'debts: stacked per debt to debt-free, table with rate and payment', ds);
   // Net worth over time: assets up, liabilities down, the net worth line; 6M / 1Y / All; table.
-  await page.evaluate(() => { Store.reset('example'); Store.ui.nwRange = 12; App.changed({ structural: true }); App.go('patrimonio'); });
+  await page.evaluate(() => { Store.reset('example'); Store.ui.nwRange = 12; Store.ui.nwView = 'bars'; App.changed({ structural: true }); App.go('patrimonio'); });
   await page.waitForTimeout(300);
   const nwm = await page.evaluate(() => { const c = UI.chartInstance('nw-month-chart'), h = Store.state.netWorthHistory.slice(-12), [line, a, l] = c.data.datasets; return { n: c.data.labels.length, line: line.type === 'line' && line.data.at(-1) === h.at(-1).value, a: a.data.at(-1) === h.at(-1).assets, l: l.data.at(-1) === -h.at(-1).liabilities, rows: document.querySelectorAll('#nw-month-table tr').length, change: document.getElementById('nw-month-change').textContent }; });
   ok(nwm.n === 12 && nwm.line && nwm.a && nwm.l && nwm.rows === 12 && /since/.test(nwm.change), 'net worth: assets, liabilities and the line, 1 year', nwm);
@@ -582,6 +582,30 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('[data-action="nw.range"][data-months="0"]');
   await page.waitForTimeout(150);
   ok(n6 === 6 && await page.evaluate(() => UI.chartInstance('nw-month-chart').data.labels.length === Store.state.netWorthHistory.length), 'net worth: 6M and All', n6);
+  // Like the bank's: the line (green up, gray down), 9M, current net worth; tap a month: its net
+  // worth, the change from the month before, and its gains & losses account by account.
+  await page.click('[data-action="nw.view"][data-view="line"]');
+  await page.click('[data-action="nw.range"][data-months="9"]');
+  await page.waitForTimeout(200);
+  const nwl = await page.evaluate(() => { const c = UI.chartInstance('nw-month-chart'), h = Store.state.netWorthHistory; return { type: c.config.type, n: c.data.labels.length, cur: document.getElementById('nw-current').textContent, last: Fmt.money(h.at(-1).value), seg: typeof c.data.datasets[0].segment.borderColor === 'function', link: !!document.querySelector('#nw-progress [data-focus="nw-sheet"]') }; });
+  ok(nwl.type === 'line' && nwl.n === 9 && /Current net worth/.test(nwl.cur) && nwl.cur.includes(nwl.last) && nwl.seg && nwl.link, 'net worth: the line, 9 months, current net worth and View assets & liabilities', nwl);
+  const nwPt = await page.evaluate(() => { const c = UI.chartInstance('nw-month-chart'); c.canvas.scrollIntoView({ block: 'center' }); const p = c.getDatasetMeta(0).data[3], r = c.canvas.getBoundingClientRect(); return { x: r.left + p.x, y: r.top + p.y }; });
+  await page.mouse.click(nwPt.x, nwPt.y);
+  await page.waitForTimeout(200);
+  const nwp = await page.evaluate(() => { const h = Store.state.netWorthHistory, i = h.findIndex(x => x.month === Store.ui.nwPick); return { i, n: h.length, txt: document.getElementById('nw-month-pick').textContent, diff: Fmt.money(Math.abs(h[i].value - h[i - 1].value)), btn: !!document.querySelector('[data-action="nw.gains"]') }; });
+  ok(nwp.i === nwp.n - 6 && /net worth/.test(nwp.txt) && /From the previous month/.test(nwp.txt) && nwp.txt.includes(nwp.diff) && nwp.btn, 'net worth: tapping a month shows it and the change from the month before', nwp);
+  await page.click('[data-action="nw.gains"]');
+  await page.waitForTimeout(200);
+  const gl = await page.evaluate(() => { const m = document.querySelector('.modal-backdrop.sheet'); return { title: m.querySelector('.modal-title').textContent, rows: m.querySelectorAll('.gl-row').length, heads: [...m.querySelectorAll('.gl-head')].map(x => x.textContent) }; });
+  ok(/Gains & losses/.test(gl.title) && gl.rows >= 2 && /Gains/.test(gl.heads[0]) && /Losses/.test(gl.heads[1]), 'net worth: a month\'s gains & losses by account', gl);
+  await page.click('[data-action="nw.gainsBack"]');
+  // Each account's history (its value at the end of each month).
+  await page.evaluate(() => { Store.ui.nwOpen = 'checking'; App.update(); });
+  await page.click('#nw-sheet-body [data-action="nw.history"] >> nth=0');
+  await page.waitForTimeout(200);
+  ok(await page.evaluate(() => { const c = UI.chartInstance('nw-hist-chart'); return !!c && c.data.labels.length === 6 && c.data.datasets[0].data.every(v => v > 0) && /Account history/.test(document.querySelector('.modal-backdrop.sheet').textContent); }), 'net worth: an account\'s history, month by month');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
   // Money tools bar: every tool one tap away; Help grid with a how-to per tool that opens it.
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('resumen'); });
   await page.waitForTimeout(200);
@@ -796,7 +820,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   ok(Math.round(bs2.net - bs1.net) === 10000 && /Net worth/i.test(bs2.headline), 'balance sheet: a property value changes net worth', { bs1: bs1.net, bs2 });
   await page.click('[data-action="sheet.toggle"][data-key="loan"]');
   await page.waitForTimeout(150);
-  await page.click('#nw-sheet-body .sheet-rows button.sheet-row >> nth=0');
+  await page.click('#nw-sheet-body .sheet-rows [data-action="hub.open"] >> nth=0');
   await page.waitForTimeout(200);
   ok(await page.evaluate(() => /Account details/.test(document.querySelector('.modal-backdrop.sheet').textContent)), 'balance sheet: an account opens its details');
   await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));

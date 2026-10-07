@@ -1503,9 +1503,34 @@
     // the budget doesn't assign. A minimums-only run gives the time/interest the plan saves.
     // ------------------------------------------------- net worth month by month & milestones
     // One entry per month (the latest figure of that month), oldest first, at most 20 years.
-    function recordNetWorthMonth(history, key, { assets, liabilities }) {
+    // items (optional): each account's value that month, [key, name, value] with what's owed
+    // negative (from hubItems), so a month's gains and losses can be listed later.
+    function recordNetWorthMonth(history, key, { assets, liabilities }, items) {
         const row = { month: key, assets: cents(num(assets)), liabilities: cents(num(liabilities)), value: cents(num(assets) - num(liabilities)) };
+        if (Array.isArray(items) && items.length) row.items = items.map(x => [String(x[0]), String(x[1]), cents(num(x[2]))]);
         return (history || []).filter(h => h.month !== key).concat([row]).sort((a, b) => a.month.localeCompare(b.month)).slice(-240);
+    }
+
+    // Every account, property and debt in the hub as [key, name, value]: what's owed is negative.
+    function hubItems(hub) {
+        const out = [];
+        (hub.groups || []).forEach(g => g.rows.forEach(r => out.push([`${r.ref.type}:${r.ref.id}`, r.name, cents((g.owed ? -1 : 1) * num(r.balance))])));
+        return out;
+    }
+    // A month vs the month before, account by account (the bank's "Gains & losses"): a gain is an
+    // account that grew or a debt that shrank. Accounts only in one of the two months count from 0.
+    function gainsLosses(prevItems, curItems) {
+        const prev = {}, cur = {}, names = {};
+        (prevItems || []).forEach(([k, n, v]) => { prev[k] = num(v); names[k] = n; });
+        (curItems || []).forEach(([k, n, v]) => { cur[k] = num(v); names[k] = n; });
+        const rows = [...new Set(Object.keys(prev).concat(Object.keys(cur)))].map(k => ({ key: k, name: names[k], change: cents((cur[k] || 0) - (prev[k] || 0)) })).filter(r => Math.abs(r.change) >= 0.005);
+        const gains = rows.filter(r => r.change > 0).sort((a, b) => b.change - a.change), losses = rows.filter(r => r.change < 0).sort((a, b) => a.change - b.change);
+        return { gains, losses, gainTotal: cents(sum(gains, r => r.change)), lossTotal: cents(sum(losses, r => r.change)) };
+    }
+    // One account's value at the end of each saved month (from the history's items); null where
+    // the month has no details for it.
+    function itemHistory(history, key, months = 6) {
+        return (history || []).slice(-months).map(h => { const it = (h.items || []).find(x => x[0] === key); return { month: h.month, value: it ? Math.abs(num(it[2])) : null }; });
     }
 
     // The moments worth celebrating on the way, each with how close you are (0–1).
@@ -2775,7 +2800,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalVelocity, buildAlerts, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalVelocity, buildAlerts, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

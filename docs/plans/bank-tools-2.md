@@ -40,7 +40,7 @@ Ask: **"Do step N of docs/plans/bank-tools-2.md"** (or "continue the bank tools 
    - + → "Add sub-budget": the category's subcategories (pick one to give it its own budget) and
      "+ Add a subcategory".
 
-4. **Net Worth like the bank's**
+4. ✅ **Net Worth like the bank's**
    - 6M | 9M | 1Y; "Current net worth" and "View assets & liabilities"; a line with points and a soft fill
      (green going up, gray going down from the month before).
    - Tap a month: "Jan 2026 net worth" and "From previous month" (green +, red −), and a

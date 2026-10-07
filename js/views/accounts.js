@@ -72,9 +72,13 @@
         const open = Store.ui.nwOpen || null;
         const groupHTML = (g, owed) => `<div class="sheet-type">
                 <button type="button" class="sheet-head" data-action="sheet.toggle" data-key="${g.key}" aria-expanded="${open === g.key}"><span><i class="fa-solid ${ICONS[g.key]} text-slate-400"></i> ${esc(g.label)}</span><span class="flex items-center gap-2"><strong class="${owed ? 'text-red-600' : ''}">${money(g.total)}</strong><i class="fa-solid fa-chevron-${open === g.key ? 'up' : 'down'} text-[10px] text-slate-400"></i></span></button>
-                ${open === g.key ? `<div class="sheet-rows">${g.rows.map(r => r.ref.type === 'asset'
-                    ? `<label class="sheet-row"><span class="truncate" data-i18n-skip>${esc(r.name)}</span><input type="number" class="cell-input num money" style="max-width:9rem" min="0" step="any" value="${Math.round(r.balance * 100) / 100}" data-change="sheet.assetValue" data-id="${r.ref.id}" aria-label="Value of ${esc(r.name)}"></label>`
-                    : `<button type="button" class="sheet-row" data-action="hub.open" data-type="${r.ref.type}" data-id="${esc(String(r.ref.id))}"><span class="truncate" data-i18n-skip>${esc(r.name)}</span><span class="font-semibold ${owed ? 'text-red-600' : ''}">${money(r.balance)}</span></button>`).join('')}</div>` : ''}
+                ${open === g.key ? `<div class="sheet-rows">${g.rows.map(r => {
+                    // ⏱ its value month by month (Account history).
+                    const hist = `<button type="button" class="sheet-row-hist" data-action="nw.history" data-key="${esc(`${r.ref.type}:${r.ref.id}`)}" data-name="${esc(r.name)}" aria-label="History of ${esc(r.name)}"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
+                    return r.ref.type === 'asset'
+                    ? `<div class="sheet-row"><span class="truncate" data-i18n-skip>${esc(r.name)}</span><span class="flex items-center">${hist}<input type="number" class="cell-input num money" style="max-width:9rem" min="0" step="any" value="${Math.round(r.balance * 100) / 100}" data-change="sheet.assetValue" data-id="${r.ref.id}" aria-label="Value of ${esc(r.name)}"></span></div>`
+                    : `<div class="sheet-row"><button type="button" class="truncate text-left flex-1" data-action="hub.open" data-type="${r.ref.type}" data-id="${esc(String(r.ref.id))}" data-i18n-skip>${esc(r.name)}</button><span class="flex items-center">${hist}<span class="font-semibold ${owed ? 'text-red-600' : ''}">${money(r.balance)}</span></span></div>`;
+                }).join('')}</div>` : ''}
             </div>`;
         // Each side by section (cash & bank, investments & retirement, property / debts) with its subtotal.
         const side = (owed) => hub.sections.filter(x => hub.groups.some(g => g.section === x.key && g.owed === owed && g.rows.length)).map(x => {
