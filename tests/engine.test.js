@@ -1447,6 +1447,55 @@ test('categoryTrend: spending by category per month, income line, account and ca
     assert.deepEqual(f.series.map(x => [x.key, x.values[0]]), [['A', 30], [null, 57]]);
 });
 
+test('autoBudget: a line per category at its 3-month average, debts left out', () => {
+    const tx = [
+        { date: '2026-07-04', amount: 300, type: 'Gasto', parentCategory: 'Alimentación' },
+        { date: '2026-08-04', amount: 330, type: 'Gasto', parentCategory: 'Alimentación' },
+        { date: '2026-09-04', amount: 312, type: 'Gasto', parentCategory: 'Alimentación' },
+        { date: '2026-09-10', amount: 37, type: 'Gasto', parentCategory: 'Mascotas' },
+        { date: '2026-09-11', amount: 500, type: 'Gasto', parentCategory: 'Deudas' },
+        { date: '2026-10-02', amount: 999, type: 'Gasto', parentCategory: 'Alimentación' },   // this month: not counted
+        { date: '2026-06-30', amount: 999, type: 'Gasto', parentCategory: 'Alimentación' }    // too old
+    ];
+    const r = E.autoBudget(tx, new Date(2026, 9, 7));
+    assert.deepEqual(r.map(x => [x.category, x.suggested]), [['Alimentación', 310], ['Mascotas', 10]]);
+    assert.equal(Math.round(r[0].avg * 100) / 100, 314);
+});
+
+test('categoryMonths: 12 months of one category, spent and budgeted', () => {
+    const tx = [
+        { date: '2026-10-01', amount: 1400, type: 'Gasto', parentCategory: 'Vivienda' },
+        { date: '2026-09-15', amount: 1450, type: 'Gasto', parentCategory: 'Vivienda' },
+        { date: '2026-09-16', amount: 50, type: 'Gasto', parentCategory: 'Alimentación' },
+        { date: '2025-10-31', amount: 1300, type: 'Gasto', parentCategory: 'Vivienda' }    // 13 months back
+    ];
+    const r = E.categoryMonths(tx, { category: 'Vivienda', end: new Date(2026, 9, 7), budgetOf: (y, m) => (y === 2026 && m >= 9 ? 1453 : 1400) });
+    assert.equal(r.length, 12);
+    assert.equal(r[0].key, '2025-11');
+    assert.deepEqual(r.slice(-2).map(x => [x.key, x.spent, x.budget]), [['2026-09', 1450, 1453], ['2026-10', 1400, 1453]]);
+    assert.equal(r[0].spent, 0);
+});
+
+test('packCircles: bubbles end up apart, inside the box, and a held one stays put', () => {
+    const radii = [60, 45, 45, 30, 30, 20, 20, 15];
+    const W = 360, H = 360;
+    const out = E.packCircles(E.spiralStart(radii, W, H), { width: W, height: H, rounds: 300 });
+    for (let i = 0; i < out.length; i++) {
+        const a = out[i];
+        assert.ok(a.x >= a.r - 1e-6 && a.x <= W - a.r + 1e-6 && a.y >= a.r - 1e-6 && a.y <= H - a.r + 1e-6, 'inside the box');
+        for (let j = i + 1; j < out.length; j++) assert.ok(Math.hypot(out[j].x - a.x, out[j].y - a.y) >= a.r + out[j].r - 0.5, `${i} and ${j} don't overlap`);
+    }
+    // Drag the big one onto another: it stays where it's held, the other moves out of the way.
+    const held = out.map(x => Object.assign({}, x));
+    held[0].x = held[1].x; held[0].y = held[1].y;
+    const after = E.packCircles(held, { width: W, height: H, rounds: 200, fixed: 0 });
+    assert.equal(after[0].x, held[0].x);
+    assert.equal(after[0].y, held[0].y);
+    assert.ok(Math.hypot(after[1].x - after[0].x, after[1].y - after[0].y) >= 60 + 45 - 0.5);
+    // Same input, same output (no randomness).
+    assert.deepEqual(E.packCircles(E.spiralStart(radii, W, H), { width: W, height: H }), E.packCircles(E.spiralStart(radii, W, H), { width: W, height: H }));
+});
+
 test('budgetBubbles: lines grouped by category, planned vs spent, state by share spent', () => {
     const items = [
         { id: 1, name: 'Rent', real: 1000, linkedCategory: 'Vivienda' }, { id: 2, name: 'Repairs', real: 100, linkedCategory: 'Vivienda' },

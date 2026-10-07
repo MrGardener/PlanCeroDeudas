@@ -21,7 +21,7 @@ Ask: **"Do step N of docs/plans/bank-tools-2.md"** (or "continue the bank tools 
    a transaction opens its details; its category opens "Select a category" (search, expandable,
    "+ Add new subcategory"); picking one says "Category updated" and Back returns to the list.
 
-2. **Budgets — start and summary**
+2. ✅ **Budgets — start and summary**
    - First visit (no plan for the month yet): "Understand the health of your finances" with the bubble legend
      (green 0–79% used, yellow 80–100%, red over budget), **Auto-generate budgets** (from the last 90 days,
      `Engine.suggestBudget`) and "No thanks, I'll start from scratch".
@@ -31,7 +31,7 @@ Ask: **"Do step N of docs/plans/bank-tools-2.md"** (or "continue the bank tools 
    - Bottom panel (collapsible ˄/˅): Spent bar "Spent $4,696 of $5,059 budgeted"; Income bar "Earned $5,986
      of $5,981 projected income" (projected income editable); "$922 unbudgeted".
 
-3. **Budgets — a bubble's details**
+3. ✅ **Budgets — a bubble's details**
    - Tap a bubble: header ← and the month; the bubble big with **pencil** (edit) and **+** (sub-budgets).
    - 12-month bar chart of its spending, this month darker, a dashed line at the budget; tap a month: its
      value. "View transactions".
@@ -75,9 +75,41 @@ Ask: **"Do step N of docs/plans/bank-tools-2.md"** (or "continue the bank tools 
      **Debt payoff** ("Select debts to track": the debts with checkboxes, one goal each), **Retirement**.
    - Manage: Retirement ("Add retirement goal"), Savings (n goals, "needs attention", $ a month), Debt payoff
      (n goals) and the total monthly contribution.
-   - Debt payoff: "Additional monthly contribution to the top debt" (editable), In progress ordered by
-     "Fastest payoff first" (or snowball / highest interest), each "Pay off X — projected Jun 2028 — $120 +
+   - Debt payoff: "Additional monthly contribution to the top debt" (pencil → field and Save; the dates move),
+     In progress ordered by a menu: Highest interest first, Fastest payoff first, Lowest balance first
+     (the snowball, our default), Highest balance first; each "Pay off X — projected Jun 2028 — $120 +
      monthly"; tap one: Goal details (account, minimum payment, interest, payment due, progress) and "…".
+   - Savings (from Manage): "Monthly contribution to the top savings goal" and Save; In progress with the
+     projected date and a red ! when it needs attention (date too far or behind).
+   - Retirement goal: birthday, retirement age (65), desired savings, current savings = the retirement
+     accounts you tick ("Include all accounts contributing to your retirement", "Add it here"), "Assumes a
+     6.0% annual rate of return"; progress "$0 / $500,000".
+   - Manage shows "You've overbudgeted your goals: your total contribution is $621 higher than what's left
+     in your budget" when the goals ask more than the month's unassigned money.
+   - The timeline scrolls (a slider on the left from Now to the farthest goal's year) to reach far-off goals.
+
+7. **Security A: PIN wipe and encrypted exports** (asked 2026-10-07)
+   - The wrong-PIN count is saved on the device, so reloading doesn't reset it. After 5 wrong tries
+     there's a 30-second wait. The 10th wrong PIN erases everything this app saved on the device
+     (budget, backups kept in the browser, device settings) and closes the app on the phone. The lock
+     screen counts down ("3 tries left before the data is erased").
+   - Backups are always encrypted with a password you choose: AES-GCM 256 with a key from PBKDF2-SHA-256
+     (600,000 rounds, random salt and IV). The file is `.zdpbackup`. Loading one asks for the password.
+     Older plain `.json` backups still load.
+   - Other downloads (transactions CSV, reports) are encrypted the same way by default. "Download
+     unencrypted" needs an explicit confirmation. Settings → "Open an encrypted file" decrypts one.
+   - Unit tests cover encrypt → decrypt, a wrong password and a changed byte (tamper). Browser tests
+     cover the 10-try wipe.
+8. **Security B: data encrypted on the device** — with a PIN or passcode set, the saved budget is stored
+   encrypted with a key derived from it (it's decrypted in memory after unlocking and never written in
+   the clear). A longer passcode (letters allowed) is offered, because a 4-digit PIN can be guessed
+   offline by someone who copies the storage. Also: the clipboard is never used for amounts; there's an
+   optional "hide amounts" privacy mode; the screen is hidden in the phone's app switcher (Android
+   FLAG_SECURE).
+9. **Full check of the phone app and the computer file** — every screen, button, field and label, in
+   portrait and landscape (phone and tablet sizes); a parity list showing that every tool works the
+   same in the phone app and the HTML file; fix what's broken without removing features. Browser suites
+   for landscape layouts (no sideways scroll, sheets fit, keyboard doesn't hide inputs).
 
 ## Notes
 - English in the code, Spanish in `es.js`; the Ecuador edition gets the same tools.
