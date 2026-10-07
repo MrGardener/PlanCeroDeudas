@@ -1656,3 +1656,10 @@ test('bandAt: which stacked band a tap lands in', () => {
     assert.equal(E.bandAt(vals, 1, 250), null);       // above the stack
     assert.equal(E.bandAt(vals, 0, -5), null);
 });
+
+test('spendingBreakdown: the income side, by income category', () => {
+    const list = [{ date: '2026-10-01', type: 'Ingreso', parentCategory: 'Sueldo', amount: 3000 }, { date: '2026-10-15', type: 'Ingreso', parentCategory: 'Sueldo', amount: 3000 },
+        { date: '2026-10-09', type: 'Ingreso', parentCategory: 'Otros Ingresos', amount: 120 }, { date: '2026-10-09', type: 'Gasto', parentCategory: 'Vivienda', amount: 900 }];
+    const r = E.spendingBreakdown(list, { from: '2026-10-01', to: '2026-10-31', type: 'Ingreso' });
+    assert.deepEqual(r.rows.map(x => [x.key, x.total]), [['Sueldo', 6000], ['Otros Ingresos', 120]]);
+});

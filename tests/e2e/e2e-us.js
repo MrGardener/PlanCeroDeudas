@@ -401,23 +401,59 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(400);
   const sp = await page.evaluate(() => { const t = new Date(), y = t.getFullYear(), m = t.getMonth(); const r = Engine.spendingBreakdown(Store.state.transactions, { from: Engine.isoDate(new Date(y, m, 1)), to: Engine.isoDate(new Date(y, m + 1, 0)) }); return { total: Fmt.money(r.total), first: r.rows[0].key, n: r.rows.length, rows: document.querySelectorAll('#spend-legend .spend-row').length, center: document.getElementById('spend-center').textContent, chart: !!UI.chartInstance('spend-donut') }; });
   ok(sp.chart && sp.rows === sp.n && sp.n <= 7 && sp.center.includes(sp.total), 'spending: donut, total in the middle, one row per slice', sp);
+  // Tap a row: selected (tinted, the middle shows it); tap again: its subcategories in an inner ring.
   await page.click('#spend-legend .spend-row >> nth=0');
   await page.waitForTimeout(150);
-  const lvl2 = await page.evaluate(() => ({ cat: Store.ui.spending.cat, banner: document.getElementById('spend-detail').textContent, center: document.getElementById('spend-center').textContent, rows: document.querySelectorAll('#spend-legend .spend-row').length, back: !!document.querySelector('[data-action="spend.back"]') }));
-  ok(lvl2.cat === 'Vivienda' && /Housing/.test(lvl2.banner) && /of all spending/.test(lvl2.banner) && /period before/.test(lvl2.banner) && /Housing/.test(lvl2.center) && lvl2.rows >= 1 && lvl2.back, 'spending: a category opens its subcategories with a banner', lvl2);
-  await page.click('#spend-legend .spend-row >> nth=0');
-  await page.click('[data-action="spend.txns"]');
+  const sel1 = await page.evaluate(() => ({ pick: Store.ui.spending.pick, cat: Store.ui.spending.cat, picked: !!document.querySelector('#spend-legend .spend-row.is-picked'), center: document.getElementById('spend-center').textContent, open: !!document.querySelector('[data-action="spend.open"]') }));
+  ok(sel1.pick === 'Vivienda' && !sel1.cat && sel1.picked && /Housing/.test(sel1.center) && /Select to view transactions/.test(sel1.center) && sel1.open, 'spending: a tap selects a category (middle shows it)', sel1);
+  await page.click('#spend-legend .spend-row.is-picked');
   await page.waitForTimeout(150);
-  const lvl3 = await page.evaluate(() => ({ sub: Store.ui.spending.sub, payees: document.querySelectorAll('#spend-detail .acd-txn').length }));
-  ok(!!lvl3.sub && lvl3.payees >= 1, 'spending: a subcategory and its transactions by payee', lvl3);
+  const lvl2 = await page.evaluate(() => ({ cat: Store.ui.spending.cat, rings: UI.chartInstance('spend-donut').data.datasets.length, text: document.getElementById('spend-legend').textContent, center: document.getElementById('spend-center').textContent, rows: document.querySelectorAll('#spend-legend .spend-row').length, back: !!document.querySelector('[data-action="spend.back"]') }));
+  ok(lvl2.cat === 'Vivienda' && lvl2.rings === 2 && /of all spending/.test(lvl2.text) && /period before/.test(lvl2.text) && /Total:/.test(lvl2.text) && /Housing/.test(lvl2.center) && lvl2.rows >= 1 && lvl2.back, 'spending: a second tap opens its subcategories (inner ring, Back, total)', lvl2);
+  // The middle: the transactions of what's selected, in a sheet with ←; one opens its details.
+  await page.click('#spend-legend .spend-row >> nth=0');
+  await page.click('#spend-center');
+  await page.waitForTimeout(200);
+  const lvl3 = await page.evaluate(() => { const sh = document.querySelector('.modal-backdrop.sheet'); return { sub: Store.ui.spending.pick, rows: sh ? sh.querySelectorAll('[data-action="spend.txnOpen"]').length : 0, end: sh ? /End of the list/.test(sh.textContent) : false, back: !!(sh && sh.querySelector('[data-action="spend.txnsBack"]')) }; });
+  ok(!!lvl3.sub && lvl3.rows >= 1 && lvl3.end && lvl3.back, 'spending: the middle lists the transactions with ← back', lvl3);
+  const spTid = await page.evaluate(() => Number(document.querySelector('[data-action="spend.txnOpen"]').dataset.id));
+  await page.click('[data-action="spend.txnOpen"] >> nth=0');
+  await page.waitForTimeout(200);
+  ok(await page.evaluate(() => /Transaction details/.test(document.querySelector('.modal-backdrop.sheet').textContent) && !!document.querySelector('[data-action="tdt.backTo"]')), 'spending: a transaction opens its details with Back');
+  // Change its category: the picker, "Category updated", Back returns to the list.
+  await page.click('[data-action="tdt.category"]');
+  await page.evaluate(() => document.querySelector('[data-action="tdt.catOpen"][data-parent="Alimentación"]').click());
+  await page.evaluate(() => document.querySelector('[data-action="tdt.catSet"][data-parent="Alimentación"]:not([data-sub=""])').click());
+  await page.waitForTimeout(150);
+  const spChanged = await page.evaluate((id) => ({ cat: Store.state.transactions.find(t => t.id === id).parentCategory, toast: /Category updated/.test(document.body.textContent) }), spTid);
+  ok(spChanged.cat === 'Alimentación' && spChanged.toast, 'spending: changing the category saves it and says so', spChanged);
+  await page.click('[data-action="tdt.backTo"]');
+  await page.waitForTimeout(200);
+  ok(await page.evaluate(() => !!document.querySelector('.modal-backdrop.sheet [data-action="spend.txnsBack"]')), 'spending: Back from the details returns to the list');
+  await page.click('[data-action="spend.txnsBack"]');
+  await page.waitForTimeout(300);
   await page.click('[data-action="spend.back"]');
   await page.waitForTimeout(150);
-  ok(await page.evaluate(() => !Store.ui.spending.cat && document.getElementById('spend-detail').textContent === ''), 'spending: back to all categories');
-  await page.click('[data-action="spend.range"][data-range="6m"]');
+  ok(await page.evaluate(() => !Store.ui.spending.cat && !document.querySelector('.modal-backdrop.sheet') && UI.chartInstance('spend-donut').data.datasets.length === 1), 'spending: back to all categories');
+  // Dates: ‹ steps a month back; the picker sets Last 90 days; household only.
+  const spFrom = await page.evaluate(() => Store.ui.spending.from);
+  await page.click('[data-action="spend.rangeStep"][data-dir="-1"]');
+  await page.waitForTimeout(150);
+  const spPrev = await page.evaluate(() => ({ from: Store.ui.spending.from, to: Store.ui.spending.to, label: document.getElementById('spend-range-label').textContent }));
+  ok(spPrev.from < spFrom && spPrev.from.slice(8) === '01' && spPrev.label.includes(spPrev.from.slice(0, 4)), 'spending: ‹ steps one month back', spPrev);
+  await page.click('[data-action="spend.rangePick"]');
+  await page.click('[data-action="spend.rangeSet"][data-range="90d"]');
   await page.selectOption('#spend-who', String(-1));
   await page.waitForTimeout(150);
-  const sp6 = await page.evaluate(() => ({ center: document.getElementById('spend-center').textContent, active: document.querySelector('[data-action="spend.range"].active').dataset.range }));
-  ok(sp6.active === '6m' && /Spent/.test(sp6.center) && !sp6.center.includes(sp.total), 'spending: 6 months, household only', sp6);
+  const sp6 = await page.evaluate(() => ({ center: document.getElementById('spend-center').textContent, range: Store.ui.spending.range, label: document.getElementById('spend-range-label').textContent }));
+  ok(sp6.range === '90d' && /Last 90 days/.test(sp6.label) && /Total amount/.test(sp6.center) && !sp6.center.includes(sp.total), 'spending: last 90 days, household only', sp6);
+  // Income tab: where the money came from (90 days, everyone: paydays are in there).
+  await page.selectOption('#spend-who', '');
+  await page.click('[data-action="spend.kind"][data-kind="income"]');
+  await page.waitForTimeout(150);
+  const spInc = await page.evaluate(() => ({ kind: Store.ui.spending.kind, active: document.querySelector('[data-action="spend.kind"].active').dataset.kind, rows: document.querySelectorAll('#spend-legend .spend-row').length, first: Engine.spendingBreakdown(Store.state.transactions, { from: Store.ui.spending.from, to: Store.ui.spending.to, type: 'Ingreso' }).rows[0] }));
+  ok(spInc.kind === 'income' && spInc.active === 'income' && spInc.rows >= 1 && !!spInc.first, 'spending: the Income tab shows income by category', spInc);
+  await page.click('[data-action="spend.kind"][data-kind="spend"]');
   // Trends: stacked areas by category with an income line; 1Y; one category; one account.
   await page.click('[data-action="trends.months"][data-months="12"]');
   await page.waitForTimeout(200);

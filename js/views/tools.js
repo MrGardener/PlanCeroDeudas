@@ -13,8 +13,8 @@
             'Log what you spend with the + button, or import your bank\'s CSV / OFX file.',
             'Search, filter by month, category, person or where it came from; tap one to change it.']],
         ['spending', 'fa-chart-pie', 'Spending', ['transacciones/reportes', 'spend-card'], [
-            'A donut of where the money went, by category, for a month or the last 3 / 6 months.',
-            'Tap a slice to see its transactions.']],
+            'A donut of where the money went (or came from: Income), by category, for any dates; ‹ › step back and forward.',
+            'Tap a category to select it, again to see its subcategories; tap the middle for the transactions.']],
         ['budgets', 'fa-circle-nodes', 'Budgets', ['presupuesto/plan', ''], [
             'Give every dollar a job: plan each line until what\'s left to assign is $0.',
             'Bubbles show each category: green on track, yellow almost spent, red over.']],

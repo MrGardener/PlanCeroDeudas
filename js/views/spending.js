@@ -1,82 +1,148 @@
-/* Reports → Spending: a donut of where the money went, by category, for a month or the last
-   3 / 6 months; everyone, the household or one person. Tap a slice (or its row) to list that
-   category's transactions under it.
+/* Reports → Spending (like the bank's): a donut of where the money went (or came from: Income
+   tab), by category, for any date range stepped with ‹ ›; everyone, the household or one person.
+   Tap a slice or row to select it, again to open its subcategories (inner ring, "‹ Back"); the
+   middle lists the transactions of what's selected, and each opens its details.
    Reports → Trends: the same categories month by month as stacked areas, with income as a line;
    3 / 6 / 9 / 12 months, all categories or one (then its subcategories), any account. */
 (function () {
     'use strict';
     const { money, money0, esc } = Fmt;
-    const RANGES = ['this-month', 'last-month', '3m', '6m'];
-    const opts = () => (Store.ui.spending = Object.assign({ range: 'this-month', who: '', cat: null, sub: null, txns: false }, Store.ui.spending));
-
-    function period(range, today) {
-        const y = today.getFullYear(), m = today.getMonth(), iso = Engine.isoDate;
-        if (range === 'last-month') return [iso(new Date(y, m - 1, 1)), iso(new Date(y, m, 0))];
-        if (range === '3m') return [iso(new Date(y, m - 2, 1)), iso(today)];
-        if (range === '6m') return [iso(new Date(y, m - 5, 1)), iso(today)];
-        return [iso(new Date(y, m, 1)), iso(new Date(y, m + 1, 0))];
-    }
+    // State: the date range (a preset or from–to, stepped with ‹ ›), whose, Spending or Income,
+    // the opened category (its subcategories in an inner ring) and the selected slice.
+    const opts = () => {
+        const o = (Store.ui.spending = Object.assign({ range: 'this-month', from: null, to: null, who: '', kind: 'spend', cat: null, pick: null }, Store.ui.spending));
+        if (!o.from || !o.to || ['this-month', 'last-month', '3m', '6m'].includes(o.range) && !o.fixed) {
+            const legacy = { '3m': '90d', '6m': '90d' }[o.range];
+            if (legacy) o.range = legacy;
+            Object.assign(o, Engine.rangeFor(o.range === 'custom' ? 'this-month' : o.range, new Date()));
+            o.fixed = true;
+        }
+        return o;
+    };
+    const RANGE_LABELS = { today: 'Today', 'this-month': 'This month', 'last-month': 'Last month', '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', 'this-year': 'This year' };
+    const dayLabel = (iso) => { const d = new Date(iso + 'T00:00:00'); return `${Fmt.dayMonth(d)}, ${d.getFullYear()}`; };
     const whoValue = (v) => (v === '' || v === undefined ? undefined : Number(v));
-    const name = (r) => (r.key === null ? 'Other categories' : r.key);
+    // Shades of a category's color for its subcategories (lighter as they go).
+    function shade(hex, t) {
+        const n = parseInt(String(hex).slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255, m = (c) => Math.round(c + (255 - c) * t);
+        return `#${[m(r), m(g), m(b)].map(c => c.toString(16).padStart(2, '0')).join('')}`;
+    }
 
-    // Level 1: categories. Tap one → level 2: its subcategories, with a banner (total, share of all
-    // spending, vs the period before) and "View transactions" (grouped by payee). Back returns.
+    // Level 1: categories; tap one to select it (center and total show it), tap again to open it:
+    // its subcategories in an inner ring, the rest faded, "‹ Back" in the list. The middle lists the
+    // transactions of what's selected.
+    let view = null;
     function update(ctx) {
         if (!document.getElementById('spend-donut')) return;
-        const o = opts(), pal = UI.palette(), who = whoValue(o.who);
-        const [from, to] = period(o.range, ctx.today);
-        const all = Engine.spendingBreakdown(ctx.state.transactions, { from, to, who });
-        if (o.cat && !all.rows.some(x => x.key === o.cat)) { o.cat = null; o.sub = null; o.txns = false; }
-        const r = o.cat ? Engine.spendingBreakdown(ctx.state.transactions, { from, to, who, category: o.cat }) : all;
-        if (o.sub && !r.rows.some(x => x.key === o.sub)) o.sub = null;
-        UI.$$('[data-action="spend.range"]').forEach(b => b.classList.toggle('active', b.dataset.range === o.range));
+        const o = opts(), pal = UI.palette(), who = whoValue(o.who), type = o.kind === 'income' ? 'Ingreso' : 'Gasto';
+        UI.text('spend-range-label', o.range !== 'custom' && RANGE_LABELS[o.range] ? `${I18n.t(RANGE_LABELS[o.range])} · ${dayLabel(o.from)} – ${dayLabel(o.to)}` : `${dayLabel(o.from)} – ${dayLabel(o.to)}`);
         UI.html('spend-who', Views.whoOptions(o.who, 'Everyone'));
-        // Colors in fixed order; the folded "other" row is gray.
-        const color = (row, i) => (row.key === null ? pal.muted : pal.series[i % pal.series.length]);
+        UI.$$('[data-action="spend.kind"]').forEach(b => b.classList.toggle('active', b.dataset.kind === o.kind));
+        const all = Engine.spendingBreakdown(ctx.state.transactions, { from: o.from, to: o.to, who, type });
+        if (o.cat && !all.rows.some(x => x.key === o.cat)) { o.cat = null; o.pick = null; }
+        const subs = o.cat ? Engine.spendingBreakdown(ctx.state.transactions, { from: o.from, to: o.to, who, type, category: o.cat }) : null;
+        const level = subs || all;
+        if (o.pick !== null && !level.rows.some(x => x.key === o.pick)) o.pick = null;
+        // Income has one color family (it's one kind of money); spending uses the categorical palette.
+        const color = (row, i) => (row.key === null ? pal.muted : o.kind === 'income' ? shade(pal.text, Math.min(0.75, i * 0.18)) : pal.series[i % pal.series.length]);
+        const catIndex = o.cat ? all.rows.findIndex(x => x.key === o.cat) : -1;
+        const catColor = o.cat ? color(all.rows[catIndex], catIndex) : null;
+        const subColor = (row, i) => (row.key === null ? pal.muted : shade(catColor, Math.min(0.7, i * 0.2)));
         const nameOf = (row) => (row.key === null ? (o.cat ? 'Other subcategories' : 'Other categories') : row.key);
+        view = { o, all, subs, level, from: o.from, to: o.to, who, type };
         UI.show('spend-empty', !all.rows.length);
-        UI.show('spend-body', all.rows.length > 0);
-        const picked = o.cat ? o.sub : null;
-        UI.html('spend-center', `<span class="donut-total">${money(r.total)}</span><span class="donut-label">${o.cat ? esc(I18n.t(o.cat)) : o.range === 'this-month' ? 'Spent this month' : o.range === 'last-month' ? 'Spent last month' : 'Spent'}</span>`);
-        UI.html('spend-legend', (o.cat ? `<button type="button" class="link text-xs mb-1 text-left" data-action="spend.back"><i class="fa-solid fa-arrow-left"></i> All categories</button>` : '')
-            + r.rows.map((row, i) => `<button type="button" class="spend-row ${picked === row.key && row.key !== null ? 'is-picked' : ''}" data-action="spend.pick" data-key="${row.key === null ? '' : esc(row.key)}" ${row.key === null ? 'disabled' : ''}>
-                <i style="background:${color(row, i)}"></i><span class="spend-name">${esc(nameOf(row))}</span><span class="spend-pct">${Math.round(row.share * 100)}%</span><span class="spend-amt">${money(row.total)}</span></button>`).join('')
-            + (r.rows.some(x => x.key === null) ? `<p class="help mt-1">${o.cat ? 'Other subcategories' : 'Other categories'}: ${esc(r.rows.find(x => x.key === null).other.map(k => I18n.t(k)).join(', '))}.</p>` : ''));
+        UI.show('spend-legend', all.rows.length > 0);
+        const sel = o.pick !== null ? level.rows.find(x => x.key === o.pick) : null;
+        const centerName = sel ? nameOf(sel) : o.cat ? o.cat : 'Total amount';
+        const centerAmt = sel ? sel.total : level.total;
+        UI.html('spend-center', `<span class="donut-label font-bold" data-i18n-skip>${esc(I18n.t(centerName))}</span><span class="donut-total">${money(centerAmt)}</span><span class="donut-label">Select to view transactions</span>`);
+        const rowsHTML = level.rows.map((row, i) => {
+            const c = o.cat ? subColor(row, i) : color(row, i), picked = o.pick !== null && row.key === o.pick;
+            return `<button type="button" class="spend-row ${picked ? 'is-picked' : ''}" style="${picked ? `background:${c}26;box-shadow:inset 4px 0 0 ${c}` : ''}" data-action="spend.pick" data-key="${row.key === null ? '' : esc(row.key)}" ${row.key === null ? 'disabled' : ''}>
+                <i style="background:${c}"></i><span class="spend-name">${esc(I18n.t(nameOf(row)))}</span><span class="spend-pct">${Math.round(row.share * 100)}%</span><span class="spend-amt">${money(row.total)}</span></button>`;
+        }).join('');
+        // An opened category: its share of everything and how it compares with the period before.
+        let compare = '';
+        if (o.cat) {
+            const pr = Engine.shiftRange(o.from, o.to, -1), prev = Engine.spendingBreakdown(ctx.state.transactions, { from: pr.from, to: pr.to, who, type, category: o.cat, max: 999 });
+            const diff = level.total - prev.total, kindWord = o.kind === 'income' ? 'of all income' : 'of all spending';
+            compare = `<p class="text-xs text-slate-500 mb-1"><span>${all.total ? Math.round(level.total / all.total * 100) : 0}% ${kindWord}</span> · <span class="${o.kind === 'income' ? '' : diff > 0.5 ? 'text-red-600' : diff < -0.5 ? 'text-emerald-700' : ''}">${Math.abs(diff) < 0.5 ? 'Same as the period before' : `${diff > 0 ? '▲' : '▼'} ${money(Math.abs(diff))} vs the period before`}</span></p>`;
+        }
+        UI.html('spend-legend', (o.cat ? '<button type="button" class="link text-sm mb-1 text-left" data-action="spend.back"><i class="fa-solid fa-chevron-left"></i> Back</button>' + compare : '')
+            + rowsHTML
+            + (level.rows.some(x => x.key === null) ? `<p class="help mt-1">${o.cat ? 'Other subcategories' : 'Other categories'}: ${esc(level.rows.find(x => x.key === null).other.map(k => I18n.t(k)).join(', '))}.</p>` : '')
+            + `<div class="spend-total">Total: ${money(sel ? sel.total : level.total)}</div>`
+            + (!o.cat && sel && sel.key !== null ? `<button type="button" class="btn btn-secondary btn-sm mt-2" data-action="spend.open" data-key="${esc(sel.key)}">Open ${esc(I18n.t(sel.key))} <i class="fa-solid fa-arrow-right"></i></button>` : ''));
+        const ring = (rows, colors, faded) => ({ data: rows.map(x => Math.round(x.total * 100) / 100), backgroundColor: rows.map((x, i) => (faded ? colors(x, i) + '59' : colors(x, i))), borderColor: pal.surface, borderWidth: 2, hoverOffset: faded ? 0 : 6,
+            offset: rows.map(x => (!faded && o.pick !== null && x.key === o.pick ? 8 : 0)) });
+        const datasets = o.cat ? [ring(all.rows, color, true), ring(subs.rows, subColor, false)] : [ring(all.rows, color, false)];
         UI.chart('spend-donut', {
             type: 'doughnut',
-            data: { labels: r.rows.map(nameOf), datasets: [{ label: 'Spending', data: r.rows.map(x => Math.round(x.total * 100) / 100), backgroundColor: r.rows.map(color), borderColor: pal.surface, borderWidth: 2, hoverOffset: 6, offset: r.rows.map(x => (picked && x.key === picked ? 10 : 0)) }] },
+            data: { labels: (o.cat ? all.rows : level.rows).map(x => nameOf(x)), datasets },
             options: {
-                cutout: '66%',
+                cutout: o.cat ? '50%' : '66%',
                 interaction: { mode: 'nearest', intersect: true },
-                plugins: { legend: { display: false }, tooltip: { callbacks: { title: () => '', label: (c) => `${c.label}: ${money(c.parsed)} (${Math.round(c.parsed / (r.total || 1) * 100)}%)` } } },
-                onClick: (e, els) => { const row = els.length && r.rows[els[0].index]; if (row && row.key !== null) pick(row.key); }
+                plugins: { legend: { display: false }, tooltip: { callbacks: { title: () => '', label: (c) => { const rows = o.cat && c.datasetIndex === 1 ? subs.rows : all.rows; const x = rows[c.dataIndex]; return x ? `${I18n.t(x.key === null ? (o.cat && c.datasetIndex === 1 ? 'Other subcategories' : 'Other categories') : x.key)}: ${money(x.total)}` : ''; } } } },
+                onClick: (e, els) => {
+                    if (!els.length) return;
+                    const el = els[0];
+                    if (o.cat && el.datasetIndex === 0) { const x = all.rows[el.index]; if (x && x.key !== null) { o.cat = x.key; o.pick = null; App.update(); } return; }
+                    const x = level.rows[el.index];
+                    if (x && x.key !== null) pick(x.key);
+                }
             }
         });
-        detail(ctx, { from, to, who, all, r, o });
     }
 
-    // The banner of the picked category (or subcategory) and, on request, its transactions by payee.
-    function detail(ctx, { from, to, who, all, r, o }) {
-        if (!o.cat) { UI.html('spend-detail', ''); return; }
-        const key = o.sub || o.cat, total = o.sub ? (r.rows.find(x => x.key === o.sub) || {}).total || 0 : r.total;
-        const prevRange = Engine.shiftRange(from, to, -1);
-        const prev = Engine.spendingBreakdown(ctx.state.transactions, { from: prevRange.from, to: prevRange.to, who, category: o.cat, max: 999 });
-        const prevTotal = o.sub ? (prev.rows.find(x => x.key === o.sub) || {}).total || 0 : prev.total;
-        const diff = total - prevTotal;
-        const inCat = (t) => (t.type || 'Gasto') === 'Gasto' && t.date >= from && t.date <= to && (t.parentCategory || 'Otros') === o.cat && (!o.sub || (t.category || o.cat) === o.sub) && (who === undefined || t.memberId === who);
-        let list = '';
-        if (o.txns) {
-            const byPayee = {};
-            ctx.state.transactions.filter(inCat).forEach(t => { const k = (t.description || t.store || '—').trim(); const g = byPayee[k] || (byPayee[k] = { name: k, total: 0, n: 0 }); g.total += Engine.spendAmount(t); g.n++; });
-            const rows = Object.values(byPayee).sort((a, b) => b.total - a.total);
-            list = `<div class="acd-txns mt-2">${rows.map(g => `<div class="acd-txn" style="grid-template-columns:1fr auto auto"><span class="truncate font-semibold" data-i18n-skip>${esc(g.name)}</span><span class="text-xs text-slate-500 whitespace-nowrap">${g.n}×</span><span class="font-semibold whitespace-nowrap">${money(g.total)}</span></div>`).join('')}</div>`;
-        }
-        UI.html('spend-detail', `<div class="spend-banner">
-                <div><strong>${esc(I18n.t(key))}</strong>${o.sub ? ` <span class="text-slate-500 text-xs">· ${esc(I18n.t(o.cat))}</span>` : ''}</div>
-                <div class="text-sm"><span class="font-bold">${money(total)}</span> · ${all.total ? Math.round(total / all.total * 100) : 0}% of all spending</div>
-                <div class="text-xs ${diff > 0.5 ? 'text-red-600' : diff < -0.5 ? 'text-emerald-700' : 'text-slate-500'}">${Math.abs(diff) < 0.5 ? 'Same as the period before' : `${diff > 0 ? '▲' : '▼'} ${money(Math.abs(diff))} vs the period before`}</div>
-                <button type="button" class="btn btn-secondary btn-sm mt-2" data-action="spend.txns" aria-pressed="${!!o.txns}"><i class="fa-solid fa-list-ul"></i> ${o.txns ? 'Hide transactions' : 'View transactions'}</button>
-            </div>${list}`);
+    // Tap: select; tap the selected one again: open it (categories only).
+    function pick(key) {
+        const o = opts();
+        if (!key) return;
+        if (o.pick === key && !o.cat) { o.cat = key; o.pick = null; }
+        else o.pick = o.pick === key ? null : key;
+        App.update();
+    }
+
+    // The transactions of what's selected (or of everything shown), in a sheet with ← back; a
+    // transaction opens its details, whose ← comes back here.
+    let spendSheet = null;
+    function openSpendTxns() {
+        const v = view;
+        if (!v) return;
+        const o = v.o, sel = o.pick, accts = Store.state.accounts || [];
+        const inLevel = (t) => (t.type || 'Gasto') === v.type && !Engine.isTransfer(t) && t.date >= v.from && t.date <= v.to && (v.who === undefined || t.memberId === v.who);
+        const match = (t) => {
+            const cat = t.parentCategory || 'Otros', sub = t.category || cat;
+            if (!o.cat) return sel === null || cat === sel;
+            return cat === o.cat && (sel === null || sub === sel);
+        };
+        const list = Store.state.transactions.filter(t => inLevel(t) && match(t)).sort((a, b) => b.date.localeCompare(a.date));
+        const title = sel !== null ? I18n.t(sel) : o.cat ? I18n.t(o.cat) : I18n.t(o.kind === 'income' ? 'Income' : 'Spending');
+        spendSheet = UI.sheet({ title: 'Transactions', icon: 'fa-list-ul', wide: true, html: `
+            <div class="flex items-center gap-2 mb-2"><button type="button" class="icon-btn icon-btn-light" data-action="spend.txnsBack" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button><strong data-i18n-skip>${esc(title)} · ${esc(dayLabel(v.from))} – ${esc(dayLabel(v.to))}</strong></div>
+            <div class="acd-txns">${list.map(t => { const a = accts.find(z => z.id === t.accountId), inc = (t.type || 'Gasto') === 'Ingreso'; return `<button type="button" class="acd-txn w-full text-left" style="grid-template-columns:4.6rem 1fr auto" data-action="spend.txnOpen" data-id="${t.id}">
+                <span class="text-xs text-slate-500 whitespace-nowrap">${esc(Fmt.dayMonth(new Date(t.date + 'T00:00:00')))}</span>
+                <span class="min-w-0"><span class="block truncate font-semibold" data-i18n-skip>${esc(t.description || '—')}</span><span class="block truncate text-[11px] text-slate-500"><span>${esc(I18n.t(t.category || t.parentCategory || ''))}</span>${a ? ` · <span data-i18n-skip>${esc(a.name)}</span>` : ''}</span></span>
+                <span class="font-semibold whitespace-nowrap ${inc ? 'text-emerald-700' : ''}">${inc ? '+' : ''}${money(inc ? Number(t.amount) || 0 : Engine.spendAmount(t))}</span></button>`; }).join('')}</div>
+            <p class="text-center text-xs text-slate-400 mt-3">${list.length ? 'End of the list' : 'No transactions.'}</p>` });
+    }
+
+    // Date range picker: presets or from–to (like Transactions).
+    let rangeSheet = null;
+    function pickRange() {
+        const o = opts();
+        rangeSheet = UI.sheet({ title: 'Select a range', icon: 'fa-calendar', html: `
+            <div class="range-list">${Object.keys(RANGE_LABELS).map(k => `<button type="button" class="${o.range === k ? 'active' : ''}" data-action="spend.rangeSet" data-range="${k}">${o.range === k ? '<i class="fa-solid fa-circle-check"></i>' : '<i class="fa-regular fa-circle"></i>'} ${RANGE_LABELS[k]}</button>`).join('')}</div>
+            <div class="grid grid-cols-2 gap-3 mt-3">
+                <label class="field"><span class="field-label">From</span><input type="date" id="spend-range-from" class="input" value="${esc(o.from || '')}"></label>
+                <label class="field"><span class="field-label">To</span><input type="date" id="spend-range-to" class="input" value="${esc(o.to || '')}"></label>
+            </div>
+            <div class="flex justify-end mt-3"><button type="button" class="btn btn-primary" data-action="spend.rangeCustom">Show these dates</button></div>` });
+    }
+    function setRange(patch) {
+        Object.assign(opts(), patch, { cat: null, pick: null });
+        if (rangeSheet) { rangeSheet.close(); rangeSheet = null; }
+        App.update();
     }
 
     // ------------------------------------------------------------------ trends
@@ -213,20 +279,23 @@
                 <span class="spend-amt">${money(x.value)}</span></button>`).join('') || '<p class="help">No spending that month.</p>'}</div>`;
     }
 
-    function pick(key) {
-        const o = opts();
-        if (!key) { o.cat = null; o.sub = null; o.txns = false; }
-        else if (!o.cat) { o.cat = key; o.sub = null; o.txns = false; }
-        else o.sub = o.sub === key ? null : key;
-        App.update();
-    }
-
     UI.register({
-        'spend.range': (el) => { if (RANGES.includes(el.dataset.range)) { opts().range = el.dataset.range; App.update(); } },
+        'spend.rangeStep': (el) => { const o = opts(); setRange(Object.assign({ range: 'custom' }, Engine.shiftRange(o.from, o.to, Number(el.dataset.dir) || 0))); },
+        'spend.rangePick': () => pickRange(),
+        'spend.rangeSet': (el) => { if (RANGE_LABELS[el.dataset.range]) setRange(Object.assign({ range: el.dataset.range }, Engine.rangeFor(el.dataset.range, new Date()))); },
+        'spend.rangeCustom': () => {
+            const f = (document.getElementById('spend-range-from') || {}).value, t = (document.getElementById('spend-range-to') || {}).value;
+            if (!/^\d{4}-\d\d-\d\d$/.test(f || '') || !/^\d{4}-\d\d-\d\d$/.test(t || '')) return;
+            setRange(f <= t ? { range: 'custom', from: f, to: t } : { range: 'custom', from: t, to: f });
+        },
         'spend.who': (el) => { opts().who = el.value; App.update(); },
+        'spend.kind': (el) => { const o = opts(); if (o.kind === el.dataset.kind) return; o.kind = el.dataset.kind === 'income' ? 'income' : 'spend'; o.cat = null; o.pick = null; App.update(); },
         'spend.pick': (el) => pick(el.dataset.key || null),
-        'spend.back': () => pick(null),
-        'spend.txns': () => { const o = opts(); o.txns = !o.txns; App.update(); },
+        'spend.open': (el) => { const o = opts(); o.cat = el.dataset.key; o.pick = null; App.update(); },
+        'spend.back': () => { const o = opts(); o.cat = null; o.pick = null; App.update(); },
+        'spend.txns': () => openSpendTxns(),
+        'spend.txnsBack': () => { if (spendSheet) { spendSheet.close(); spendSheet = null; } },
+        'spend.txnOpen': (el) => { if (spendSheet) { spendSheet.close(); spendSheet = null; } if (window.TxnDetails) TxnDetails.open(Number(el.dataset.id), { back: openSpendTxns }); },
         'trends.open': (el) => openCategory(el.dataset.key),
         'trends.txns': () => {
             const o = topts(), ctx = App.buildContext();

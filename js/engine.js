@@ -1054,15 +1054,16 @@
     // who: undefined = everyone, HOUSEHOLD, or a member id. The smallest categories fold into one
     // "other" row so the donut never needs more than `max` colors. Refunds lower their category.
     // category: one category's subcategories instead (the wheel's second ring).
-    function spendingBreakdown(transactions, { from, to, who, max = 7, category = null } = {}) {
+    // type 'Ingreso': the same for income (the Spending tool's Income tab).
+    function spendingBreakdown(transactions, { from, to, who, max = 7, category = null, type = 'Gasto' } = {}) {
         const by = {};
         (transactions || []).forEach(t => {
-            if (txnType(t) !== 'Gasto' || isTransfer(t) || !t.date || t.date < from || t.date > to) return;
+            if (txnType(t) !== type || isTransfer(t) || !t.date || (from && t.date < from) || (to && t.date > to)) return;
             if (who !== undefined && who !== null && who !== '' && t.memberId !== who) return;
             if (category && (t.parentCategory || 'Otros') !== category) return;
             const k = category ? (t.category || category) : (t.parentCategory || 'Otros');
             const r = by[k] || (by[k] = { key: k, total: 0, count: 0 });
-            r.total += amt(t); r.count++;
+            r.total += type === 'Gasto' ? amt(t) : num(t.amount); r.count++;
         });
         let rows = Object.values(by).filter(r => r.total > 0.005).sort((a, b) => b.total - a.total);
         if (rows.length > max) {

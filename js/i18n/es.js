@@ -2,6 +2,14 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "A donut of where the money went (or came from: Income), by category, for any dates; ‹ › step back and forward.": "Una dona de a dónde se fue el dinero (o de dónde vino: Ingresos), por categoría, para cualquier fecha; ‹ › van hacia atrás y adelante.",
+    "Tap a category to select it, again to see its subcategories; tap the middle for the transactions.": "Toca una categoría para elegirla, otra vez para ver sus subcategorías; toca el centro para ver las transacciones.",
+    "Category updated.": "Categoría actualizada.",
+    "Nothing in this period.": "Nada en este período.",
+    "Select to view transactions": "Toca para ver las transacciones",
+    "Total amount": "Monto total",
+    "of all income": "de todos los ingresos",
+    "of all spending": "de todo el gasto",
     "Back to all categories": "Volver a todas las categorías",
     "Back to the chart": "Volver al gráfico",
     "End of the list": "Fin de la lista",
