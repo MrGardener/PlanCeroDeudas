@@ -2,6 +2,9 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Erase the data": "Borrar los datos",
+    "It's saved encrypted, and this device no longer has its PIN. Erase it and load your backup file to start again.": "Está guardado cifrado y este dispositivo ya no tiene su PIN. Bórralo y carga tu copia de respaldo para empezar otra vez.",
+    "Your plan is locked": "Tu plan está bloqueado",
     "Add a goal": "Agregar una meta",
     "Add a retirement goal": "Agregar una meta de jubilación",
     "Add it here": "Agrégala aquí",

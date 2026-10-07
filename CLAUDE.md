@@ -73,7 +73,8 @@ While developing, run `npm test` and the one suite you touched; run `npm run che
 - Device settings (theme, language, PIN) live apart from the budget: not in backups, not undoable.
 - Files leave the app encrypted: `Native.saveSecure` (password → `js/vault.js`, AES-256-GCM). Use it for any
   new export; plain `Native.saveFile` only for a copy the person decrypts on purpose.
-- The 10th wrong PIN erases the app's data on the device (`Device.wipeAll`).
+- The 10th wrong PIN erases the app's data on the device (`Device.wipeAll`). With a PIN the saved plan is
+  encrypted (js/device.js): the store saves through `Device.storage()`; App starts after `Device.whenReady`.
 
 ## Workflow
 - `main` is releasable. One short branch per feature or batch; open a PR; merge when CI is green.

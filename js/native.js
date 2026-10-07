@@ -91,14 +91,17 @@
                 // Stop the store from writing the empty plan back on the way out.
                 try { localStorage.setItem(KEY, value); root.Store.storage = null; location.reload(); return; } catch (e) { /* fall through */ }
             }
+            // The copy is what's on the device (encrypted when there's a PIN), never the plan in memory.
             let last = null;
             const mirror = () => {
-                const data = root.Store._lastSaved;
+                let data = null;
+                try { data = localStorage.getItem(KEY); } catch (e) { data = null; }
                 if (!data || data === last) return;
                 last = data;
                 prefs.set({ key: KEY, value: data }).catch(() => { last = null; });
             };
             root.Store.onChange(mirror);
+            document.addEventListener('zdp:stored', mirror);
             mirror();
         }).catch(() => { /* the web view copy still works */ });
     }
