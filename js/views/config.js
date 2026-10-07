@@ -53,8 +53,9 @@
         if (link) link.value = location.href.split('#')[0] + '#rapido';
         const sel = document.getElementById('cfg-theme');
         if (sel) sel.value = Device.read().theme || 'light';
+        Device.applyPrivacy();
         UI.html('cfg-lock', Device.hasPin()
-            ? `<span class="badge badge-ok"><i class="fa-solid fa-lock"></i> On</span>
+            ? `<span class="badge badge-ok"><i class="fa-solid fa-lock"></i> On · ${esc(I18n.t(Device.isPasscode() ? 'passcode' : 'PIN'))}</span>
                <button class="btn btn-secondary btn-sm" data-action="device.lockNow"><i class="fa-solid fa-lock"></i> Lock now</button>
                <button class="btn btn-secondary btn-sm" data-action="device.setPin">Change PIN</button>
                <button class="btn btn-ghost btn-sm" data-action="device.removePin">Remove</button>`
@@ -62,14 +63,19 @@
                <button class="btn btn-secondary btn-sm" data-action="device.setPin"><i class="fa-solid fa-lock"></i> Turn on PIN</button>`);
     }
 
+    // A PIN (4–8 digits) or a passcode (8+ characters, letters too). The passcode is much harder to
+    // guess for someone who copies the device's storage, so it's the safer choice.
     async function askPin(title) {
         const r = await UI.form({
-            title, confirmText: 'Save PIN',
-            fields: [{ name: 'pin', label: 'PIN (4 to 8 digits)', type: 'password', inputmode: 'numeric' }, { name: 'again', label: 'Repeat the PIN', type: 'password', inputmode: 'numeric' }],
-            validate: v => !/^\d{4,8}$/.test(v.pin) ? 'Use 4 to 8 digits.' : (v.pin !== v.again ? 'The two PINs don\'t match.' : null)
+            title, confirmText: 'Save',
+            fields: [{ name: 'kind', label: 'Type', options: [{ value: 'passcode', label: 'Passcode: 8 or more characters, letters too (safer)' }, { value: 'pin', label: 'PIN: 4 to 8 digits' }] },
+                { name: 'pin', label: 'PIN or passcode', type: 'password' }, { name: 'again', label: 'Type it again', type: 'password' }],
+            validate: v => (v.kind === 'pin' ? (!/^\d{4,8}$/.test(v.pin) ? 'Use 4 to 8 digits.' : null) : (String(v.pin).length < 8 ? 'Use at least 8 characters.' : null)) || (v.pin !== v.again ? 'The two don\'t match.' : null)
         });
-        return r ? r.pin : null;
+        return r ? { pin: r.pin, kind: r.kind } : null;
     }
+    const currentLabel = () => (Device.isPasscode() ? 'Your current passcode' : 'Your current PIN');
+    const currentField = () => Object.assign({ name: 'pin', label: currentLabel(), type: 'password' }, Device.isPasscode() ? {} : { inputmode: 'numeric' });
 
     // Household members: fixed colors in the order they're added (color follows the person).
     const MEMBER_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
@@ -85,22 +91,24 @@
         'device.theme': (el) => Device.setTheme(el.value),
         'device.lang': (el) => Device.setLang(el.value),
         'device.toggleLang': () => Device.setLang(Device.getLang() === 'en' ? 'es' : 'en'),
+        'device.togglePrivacy': () => Device.setPrivacy(!Device.hidden()),
+        'device.privacy': (el) => Device.setPrivacy(el.checked),
         'device.toggleTheme': () => Device.setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'),
         'device.setPin': async () => {
             if (Device.hasPin()) {
-                const cur = await UI.form({ title: 'Change PIN', confirmText: 'Continue', fields: [{ name: 'pin', label: 'Your current PIN', type: 'password', inputmode: 'numeric' }] });
+                const cur = await UI.form({ title: 'Change PIN', confirmText: 'Continue', fields: [currentField()] });
                 if (!cur) return;
                 const lock = Device.read().lock;
                 if (await Device.hashPin(cur.pin, lock.salt) !== lock.hash) { UI.toast('That\'s not your current PIN.', 'error'); return; }
             }
-            const pin = await askPin(Device.hasPin() ? 'New PIN' : 'Turn on PIN lock');
-            if (!pin) return;
-            if (!await Device.setPin(pin)) { UI.toast('Couldn\'t save the PIN in this browser.', 'error'); return; }
+            const got = await askPin(Device.hasPin() ? 'New PIN or passcode' : 'Turn on the lock');
+            if (!got) return;
+            if (!await Device.setPin(got.pin, got.kind)) { UI.toast('Couldn\'t save the PIN in this browser.', 'error'); return; }
             renderDevice();
             UI.toast('PIN saved. The app will ask for it when it opens. If you forget it, you\'ll have to erase the data and load your backup.');
         },
         'device.removePin': async () => {
-            const cur = await UI.form({ title: 'Remove the PIN', confirmText: 'Remove', fields: [{ name: 'pin', label: 'Your current PIN', type: 'password', inputmode: 'numeric' }] });
+            const cur = await UI.form({ title: 'Remove the PIN', confirmText: 'Remove', fields: [currentField()] });
             if (!cur) return;
             const lock = Device.read().lock;
             if (await Device.hashPin(cur.pin, lock.salt) !== lock.hash) { UI.toast('That\'s not your PIN.', 'error'); return; }

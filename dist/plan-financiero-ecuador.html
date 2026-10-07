@@ -193,8 +193,14 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 .alert-item { display: flex; gap: .6rem; align-items: flex-start; font-size: .78rem; padding: .6rem .7rem; border-radius: .6rem; border-width: 1px; border-style: solid; }
 
 /* ---------------------------------------------------------------- modal & toast */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); backdrop-filter: blur(3px); z-index: 60; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-.modal { background: var(--surface); border-radius: var(--r-xl); max-width: 28rem; width: 100%; padding: 1.4rem; box-shadow: var(--sh-3); border-top: 4px solid var(--brand); }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); backdrop-filter: blur(3px); z-index: 60; display: flex; align-items: center; justify-content: center;
+    padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); }
+/* Never taller than the screen (the phone's own bars included: dvh): long content scrolls inside,
+   so the top (title, ← back, ×) is always reachable. */
+.modal { background: var(--surface); border-radius: var(--r-xl); max-width: 28rem; width: 100%; padding: 1.4rem; box-shadow: var(--sh-3); border-top: 4px solid var(--brand);
+    max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* A sheet's own top row (its ← back) stays in reach while the list under it scrolls. */
+.sheet-sticky { position: sticky; top: -1.4rem; z-index: 2; background: var(--surface); margin: -1.4rem -1.4rem .5rem; padding: 1.4rem 1.4rem .5rem; }
 .modal-danger { border-top-color: #dc2626; }
 .modal-title { font-size: 1.05rem; font-weight: 800; color: var(--ink); display: flex; gap: .55rem; align-items: center; margin-bottom: .6rem; }
 .modal-title i { color: #059669; } .modal-danger .modal-title i { color: #dc2626; }
@@ -401,7 +407,7 @@ body:has(section:not(.hidden) > [data-view]:not(.hidden) #txn-bulk:not(.hidden))
 .insight-ico { flex: 0 0 auto; width: 1.9rem; height: 1.9rem; border-radius: 999px; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; }
 .bs-add-group { border: 2px dashed #cbd5e1; border-radius: 1rem; padding: 1.25rem; color: #2563eb; font-weight: 700; font-size: .85rem; text-align: center; background: transparent; min-height: 6rem; }
 .bs-add-group:hover { border-color: #3b82f6; background: #eff6ff; }
-.modal.modal-wide { max-width: 46rem; width: calc(100% - 2rem); max-height: calc(100vh - 2rem); overflow-y: auto; }
+.modal.modal-wide { max-width: 46rem; width: calc(100% - 2rem); }
 
 /* ---------------------------------------------------------------- quick entry */
 .fab { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 40; width: 3.5rem; height: 3.5rem; border-radius: 999px; background: var(--brand); color: #fff; font-size: 1.35rem; box-shadow: 0 8px 20px rgba(5, 150, 105, .35); display: grid; place-items: center; transition: transform var(--dur) var(--ease); }
@@ -935,7 +941,7 @@ button.donut-center .donut-label.font-bold { color: var(--ink); max-width: 100%;
 .tdt-menu { position: absolute; right: 0; top: 2.6rem; z-index: 5; min-width: 10rem; background: var(--surface); border: 1px solid var(--line); border-radius: .6rem; box-shadow: var(--sh-2); padding: .25rem; display: flex; flex-direction: column; }
 .tdt-menu button { display: flex; align-items: center; gap: .6rem; padding: .55rem .7rem; border-radius: .4rem; font-size: .85rem; color: var(--ink); text-align: left; }
 .tdt-menu button:hover { background: var(--surface-3); }
-.cat-pick { border-bottom: 1px solid var(--line-soft); }
+.cat-pick { border-bottom: 1px solid var(--line-soft); scroll-margin-top: 7.5rem; }
 .cat-pick-head { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: .65rem .25rem; font-weight: 700; color: var(--brand-dark); font-size: .88rem; }
 .cat-pick-subs { display: flex; flex-direction: column; padding: 0 0 .5rem .75rem; }
 .cat-pick-subs > button { text-align: left; padding: .45rem .25rem; font-size: .85rem; color: var(--ink); border-radius: .35rem; }
@@ -1069,6 +1075,7 @@ button.gm-row:hover { background: var(--surface-3); }
             <button class="icon-btn" id="hist-undo" data-action="app.undo" title="Undo the last change (Ctrl+Z)" aria-label="Undo" disabled><i class="fa-solid fa-rotate-left"></i></button>
             <button class="icon-btn hide-mobile" id="hist-redo" data-action="app.redo" title="Redo (Ctrl+Y)" aria-label="Redo" disabled><i class="fa-solid fa-rotate-right"></i></button>
             <button class="icon-btn lang-btn hide-mobile" id="lang-toggle" data-action="device.toggleLang" title="Switch to English" aria-label="Language / Idioma">EN</button>
+            <button class="icon-btn" id="privacy-toggle" data-action="device.togglePrivacy" title="Hide amounts" aria-label="Hide amounts" aria-pressed="false"><i class="fa-solid fa-eye"></i></button>
             <button class="icon-btn hide-mobile" id="theme-toggle" data-action="device.toggleTheme" title="Use dark theme" aria-label="Change theme"><i class="fa-solid fa-moon"></i></button>
             <button class="icon-btn hide-mobile" data-action="app.help" title="How to use the app" aria-label="Help"><i class="fa-solid fa-circle-question"></i></button>
             <button class="icon-btn" id="cfg-gear" data-goto="config" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
@@ -2623,7 +2630,9 @@ button.gm-row:hover { background: var(--surface-3); }
                     <label class="field"><span class="field-label">Appearance</span>
                         <select id="cfg-theme" class="input" data-change="device.theme"><option value="light">Claro</option><option value="dark">Dark</option><option value="auto">Automatic (follow your system)</option></select></label>
                     <div class="field"><span class="field-label">PIN lock</span>
-                        <div id="cfg-lock" class="flex flex-wrap gap-2 items-center"></div></div>
+                        <div id="cfg-lock" class="flex flex-wrap gap-2 items-center"></div>
+                        <span class="help">With a PIN or passcode your plan is saved encrypted on this device. A passcode (letters too) is much harder to guess than a short PIN. The 10th wrong try erases the data.</span></div>
+                    <label class="field flex-row items-center gap-2"><input type="checkbox" id="cfg-hide-amounts" data-change="device.privacy" class="w-4 h-4"> <span class="field-label mb-0">Hide amounts on screen (the 👁 button at the top does the same)</span></label>
                 </div>
                 <div class="field mt-3 max-w-2xl" data-web-only><span class="field-label">Shortcut to quick entry</span>
                     <div class="flex gap-2"><input id="cfg-quick-link" class="input" readonly aria-label="Quick entry link"><button type="button" class="btn btn-secondary btn-sm" data-action="device.copyQuick"><i class="fa-regular fa-copy"></i> Copy</button></div>
@@ -5795,6 +5804,22 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Hide amounts": "Ocultar montos",
+    "Hide amounts on screen (the 👁 button at the top does the same)": "Ocultar los montos en pantalla (el botón 👁 de arriba hace lo mismo)",
+    "New PIN or passcode": "Nuevo PIN o contraseña",
+    "PIN or passcode": "PIN o contraseña",
+    "Passcode": "Contraseña",
+    "passcode": "contraseña",
+    "Passcode: 8 or more characters, letters too (safer)": "Contraseña: 8 o más caracteres, también letras (más segura)",
+    "PIN: 4 to 8 digits": "PIN: de 4 a 8 dígitos",
+    "Show amounts": "Mostrar montos",
+    "The two don't match.": "No coinciden.",
+    "Turn on the lock": "Activar el bloqueo",
+    "Type your passcode to get in.": "Escribe tu contraseña para entrar.",
+    "Use at least 8 characters.": "Usa al menos 8 caracteres.",
+    "With a PIN or passcode your plan is saved encrypted on this device. A passcode (letters too) is much harder to guess than a short PIN. The 10th wrong try erases the data.": "Con un PIN o contraseña tu plan se guarda cifrado en este dispositivo. Una contraseña (con letras) es mucho más difícil de adivinar que un PIN corto. El décimo intento fallido borra los datos.",
+    "Your current passcode": "Tu contraseña actual",
+    "On · {0}": "Activado · {0}",
     "Erase the data": "Borrar los datos",
     "It's saved encrypted, and this device no longer has its PIN. Erase it and load your backup file to start again.": "Está guardado cifrado y este dispositivo ya no tiene su PIN. Bórralo y carga tu copia de respaldo para empezar otra vez.",
     "Your plan is locked": "Tu plan está bloqueado",
@@ -9170,6 +9195,25 @@ I18n.override('EC', 'es', {
         if (root.App && App.render) App.render();
     }
 
+    // ------------------------------------------------------------------ hide amounts
+    // For when someone can see your screen: amounts show as •••. Per device, like the theme.
+    function applyPrivacy() {
+        const on = !!read().hideAmounts;
+        if (root.Fmt && Fmt.setHidden) Fmt.setHidden(on);
+        document.documentElement.classList.toggle('amounts-hidden', on);
+        const b = document.getElementById('privacy-toggle');
+        if (b) { b.innerHTML = `<i class="fa-solid ${on ? 'fa-eye-slash' : 'fa-eye'}"></i>`; b.title = on ? 'Show amounts' : 'Hide amounts'; b.setAttribute('aria-pressed', String(on)); }
+        const c = document.getElementById('cfg-hide-amounts');
+        if (c) c.checked = on;
+    }
+    function setPrivacy(on) {
+        const d = read();
+        if (on) d.hideAmounts = true; else delete d.hideAmounts;
+        write(d);
+        applyPrivacy();
+        if (root.App && App.render) App.render();
+    }
+
     // ------------------------------------------------------------------ PIN
     function randomSalt() {
         const a = new Uint8Array(16);
@@ -9304,8 +9348,9 @@ I18n.override('EC', 'es', {
             <form class="lock-box" autocomplete="off">
                 <div class="brand-logo mx-auto mb-3"><i class="fa-solid fa-lock"></i></div>
                 <div class="lock-title" data-i18n-skip>${(root.APP_EDITION && APP_EDITION.appName) || 'Plan Financiero Ecuador'}</div>
-                <p class="lock-sub">Type your PIN to get in.</p>
-                <input id="lock-pin" class="lock-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" aria-label="PIN" autofocus>
+                ${read().lock && read().lock.kind === 'passcode'
+                    ? '<p class="lock-sub">Type your passcode to get in.</p><input id="lock-pin" class="lock-input" type="password" maxlength="64" autocomplete="current-password" aria-label="Passcode" autofocus>'
+                    : '<p class="lock-sub">Type your PIN to get in.</p><input id="lock-pin" class="lock-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" aria-label="PIN" autofocus>'}
                 <p id="lock-msg" class="lock-msg" role="alert"></p>
                 <button type="submit" class="btn btn-primary w-full justify-center">Enter</button>
                 <button type="button" class="lock-forgot" id="lock-forgot">I forgot my PIN</button>
@@ -9372,11 +9417,13 @@ I18n.override('EC', 'es', {
     }
 
     // Turning the PIN on encrypts the saved plan; changing it re-wraps the same data key.
-    async function setPin(pin) {
+    // kind: 'pin' (4–8 digits) or 'passcode' (8+ characters, letters too: much harder to guess).
+    async function setPin(pin, kind = 'pin') {
         const salt = randomSalt();
         const d = read();
         const keep = d.lock && d.lock.wrap && dataKey;
         d.lock = { salt, hash: await hashPin(pin, salt) };
+        if (kind === 'passcode') d.lock.kind = 'passcode';
         if (!write(d)) return false;
         if (!c()) return true;
         if (keep) {
@@ -9412,9 +9459,9 @@ I18n.override('EC', 'es', {
         if (root.I18n && I18n.apply) { applyLang(); I18n.apply(el); }
         el.querySelector('#lock-wipe').addEventListener('click', async () => { await wipeAll(); location.reload(); });
     }
-    document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); if (dataLocked() && !hasPin()) showLost(); else showLock(); });
+    document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); applyPrivacy(); if (dataLocked() && !hasPin()) showLost(); else showLock(); });
 
-    root.Device = { storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
+    root.Device = { applyPrivacy, setPrivacy, hidden: () => !!read().hideAmounts, isPasscode: () => !!(read().lock && read().lock.kind === 'passcode'), storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
 })(this);
 </script>
 <script>/* js/native.js */
@@ -9641,7 +9688,11 @@ I18n.override('EC', 'es', {
     const setCurrency = (code) => { cur = CURRENCIES.find(c => c.code === code) || CURRENCIES[0]; return cur; };
     const currency = () => cur;
 
+    // "Hide amounts" (a device setting): every amount on screen shows as •••; files and data are untouched.
+    let hidden = false;
+    const setHidden = (on) => { hidden = !!on; };
     function fmt(n, decimals) {
+        if (hidden) return cur.after ? `••• ${cur.symbol}` : `${cur.symbol}•••`;
         const v = Number(n) || 0;
         const d = Math.min(decimals, cur.decimals);
         const num = Math.abs(v).toLocaleString(cur.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -9694,7 +9745,7 @@ I18n.override('EC', 'es', {
     // "30 de septiembre" / "September 30"
     const dayMonth = (date) => (lang === 'en' ? `${MONTH_NAMES[date.getMonth()]} ${date.getDate()}` : `${date.getDate()} de ${MONTH_NAMES[date.getMonth()].toLowerCase()}`);
 
-    const Fmt = { MONTH_NAMES, MONTH_SHORT, DOW_SHORT, WEEKDAYS, monthLower, CURRENCIES, setCurrency, currency, money, money0, pct, esc, parseNum, monthsAsYears, monthYear, setLang, dayMonth, get lang() { return lang; } };
+    const Fmt = { setHidden, get hidden() { return hidden; }, MONTH_NAMES, MONTH_SHORT, DOW_SHORT, WEEKDAYS, monthLower, CURRENCIES, setCurrency, currency, money, money0, pct, esc, parseNum, monthsAsYears, monthYear, setLang, dayMonth, get lang() { return lang; } };
     if (typeof module !== 'undefined' && module.exports) module.exports = Fmt;
     else root.Fmt = Fmt;
 })(this);
@@ -21194,9 +21245,12 @@ I18n.override('EC', 'es', {
         draw();
     }
     function drawCategoryView(host) {
-        host.innerHTML = `<div class="flex items-center gap-2 mb-2"><button type="button" class="icon-btn icon-btn-light" data-action="tdt.back" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button><strong>Select a category</strong></div>
-            <input type="search" class="input mb-2" id="tdt-cat-q" placeholder="Search for a category" data-input="tdt.catSearch" aria-label="Search for a category"><div id="tdt-cats"></div>`;
+        // The ← and the search stay at the top while the categories scroll under them.
+        host.innerHTML = `<div class="sheet-sticky"><div class="flex items-center gap-2 mb-2"><button type="button" class="icon-btn icon-btn-light" data-action="tdt.back" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button><strong>Select a category</strong></div>
+            <input type="search" class="input" id="tdt-cat-q" placeholder="Search for a category" data-input="tdt.catSearch" aria-label="Search for a category"></div><div id="tdt-cats"></div>`;
         drawCats('');
+        const m = host.closest('.modal');
+        if (m) m.scrollTop = 0;
     }
     function drawCats(q) {
         const t = find(txnId), host = document.getElementById('tdt-cats');
@@ -21262,7 +21316,13 @@ I18n.override('EC', 'es', {
         'tdt.back': () => { view = 'details'; draw(); },
         'tdt.backTo': () => { const b = backTo; if (sheet) sheet.close(); if (b) b(); },
         'tdt.catSearch': (el) => drawCats(el.value),
-        'tdt.catOpen': (el) => { catOpen = catOpen === el.dataset.parent ? null : el.dataset.parent; drawCats((document.getElementById('tdt-cat-q') || {}).value || ''); },
+        'tdt.catOpen': (el) => {
+            catOpen = catOpen === el.dataset.parent ? null : el.dataset.parent;
+            drawCats((document.getElementById('tdt-cat-q') || {}).value || '');
+            // Bring the opened category and its subcategories into view (a long list on a phone).
+            const head = catOpen && [...document.querySelectorAll('#tdt-cats .cat-pick-head')].find(b => b.dataset.parent === catOpen);
+            if (head) head.closest('.cat-pick').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        },
         'tdt.catSet': (el) => {
             const p = el.dataset.parent, sub = el.dataset.sub || '';
             view = 'details';
@@ -22803,7 +22863,7 @@ I18n.override('EC', 'es', {
 
     // ------------------------------------------------------------------ money calendar
     const DOW = Fmt.DOW_SHORT;
-    const short = (v) => { const a = Math.abs(v); const t = a >= 10000 ? `${Math.round(a / 1000)}k` : a >= 1000 ? `${(a / 1000).toFixed(1)}k` : Math.round(a).toString(); return `${v < 0 ? '−' : ''}${Fmt.currency().symbol}${t}`; };
+    const short = (v) => { if (Fmt.hidden) return Fmt.money0(v); const a = Math.abs(v); const t = a >= 10000 ? `${Math.round(a / 1000)}k` : a >= 1000 ? `${(a / 1000).toFixed(1)}k` : Math.round(a).toString(); return `${v < 0 ? '−' : ''}${Fmt.currency().symbol}${t}`; };
 
     function calendarData(offset, today = new Date()) {
         const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -25190,7 +25250,7 @@ I18n.override('EC', 'es', {
                 data: { labels: h.map(label), datasets: [{ label: 'Net worth', data: h.map(x => x.value), fill: 'start', backgroundColor: 'rgba(22, 163, 74, .12)', borderWidth: 2.5, tension: 0,
                     segment: { borderColor: (c) => (c.p1.parsed.y >= c.p0.parsed.y ? up : down) },
                     pointRadius: h.map((x, i) => (i === pick ? 8 : h.length > 24 ? 2 : 5)), pointHoverRadius: 8, pointBackgroundColor: h.map((x, i) => (i === pick ? up : pal.surface)), pointBorderColor: up, pointBorderWidth: 2.5 }] },
-                options: { onClick, scales: { y: { beginAtZero: false, ticks: { callback: (v) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v } } }, plugins: { legend: { display: false } } }
+                options: { onClick, scales: { y: { beginAtZero: false, ticks: { callback: (v) => Fmt.hidden ? Fmt.money0(v) : Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v } } }, plugins: { legend: { display: false } } }
             });
             const cur = all[all.length - 1];
             UI.html('nw-current', `<span class="text-xs text-slate-500">Current net worth</span><strong class="text-2xl font-black ${cur.value < 0 ? 'text-red-600' : ''}">${money(cur.value)}</strong>`);
@@ -25958,8 +26018,9 @@ I18n.override('EC', 'es', {
         if (link) link.value = location.href.split('#')[0] + '#rapido';
         const sel = document.getElementById('cfg-theme');
         if (sel) sel.value = Device.read().theme || 'light';
+        Device.applyPrivacy();
         UI.html('cfg-lock', Device.hasPin()
-            ? `<span class="badge badge-ok"><i class="fa-solid fa-lock"></i> On</span>
+            ? `<span class="badge badge-ok"><i class="fa-solid fa-lock"></i> On · ${esc(I18n.t(Device.isPasscode() ? 'passcode' : 'PIN'))}</span>
                <button class="btn btn-secondary btn-sm" data-action="device.lockNow"><i class="fa-solid fa-lock"></i> Lock now</button>
                <button class="btn btn-secondary btn-sm" data-action="device.setPin">Change PIN</button>
                <button class="btn btn-ghost btn-sm" data-action="device.removePin">Remove</button>`
@@ -25967,14 +26028,19 @@ I18n.override('EC', 'es', {
                <button class="btn btn-secondary btn-sm" data-action="device.setPin"><i class="fa-solid fa-lock"></i> Turn on PIN</button>`);
     }
 
+    // A PIN (4–8 digits) or a passcode (8+ characters, letters too). The passcode is much harder to
+    // guess for someone who copies the device's storage, so it's the safer choice.
     async function askPin(title) {
         const r = await UI.form({
-            title, confirmText: 'Save PIN',
-            fields: [{ name: 'pin', label: 'PIN (4 to 8 digits)', type: 'password', inputmode: 'numeric' }, { name: 'again', label: 'Repeat the PIN', type: 'password', inputmode: 'numeric' }],
-            validate: v => !/^\d{4,8}$/.test(v.pin) ? 'Use 4 to 8 digits.' : (v.pin !== v.again ? 'The two PINs don\'t match.' : null)
+            title, confirmText: 'Save',
+            fields: [{ name: 'kind', label: 'Type', options: [{ value: 'passcode', label: 'Passcode: 8 or more characters, letters too (safer)' }, { value: 'pin', label: 'PIN: 4 to 8 digits' }] },
+                { name: 'pin', label: 'PIN or passcode', type: 'password' }, { name: 'again', label: 'Type it again', type: 'password' }],
+            validate: v => (v.kind === 'pin' ? (!/^\d{4,8}$/.test(v.pin) ? 'Use 4 to 8 digits.' : null) : (String(v.pin).length < 8 ? 'Use at least 8 characters.' : null)) || (v.pin !== v.again ? 'The two don\'t match.' : null)
         });
-        return r ? r.pin : null;
+        return r ? { pin: r.pin, kind: r.kind } : null;
     }
+    const currentLabel = () => (Device.isPasscode() ? 'Your current passcode' : 'Your current PIN');
+    const currentField = () => Object.assign({ name: 'pin', label: currentLabel(), type: 'password' }, Device.isPasscode() ? {} : { inputmode: 'numeric' });
 
     // Household members: fixed colors in the order they're added (color follows the person).
     const MEMBER_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
@@ -25990,22 +26056,24 @@ I18n.override('EC', 'es', {
         'device.theme': (el) => Device.setTheme(el.value),
         'device.lang': (el) => Device.setLang(el.value),
         'device.toggleLang': () => Device.setLang(Device.getLang() === 'en' ? 'es' : 'en'),
+        'device.togglePrivacy': () => Device.setPrivacy(!Device.hidden()),
+        'device.privacy': (el) => Device.setPrivacy(el.checked),
         'device.toggleTheme': () => Device.setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'),
         'device.setPin': async () => {
             if (Device.hasPin()) {
-                const cur = await UI.form({ title: 'Change PIN', confirmText: 'Continue', fields: [{ name: 'pin', label: 'Your current PIN', type: 'password', inputmode: 'numeric' }] });
+                const cur = await UI.form({ title: 'Change PIN', confirmText: 'Continue', fields: [currentField()] });
                 if (!cur) return;
                 const lock = Device.read().lock;
                 if (await Device.hashPin(cur.pin, lock.salt) !== lock.hash) { UI.toast('That\'s not your current PIN.', 'error'); return; }
             }
-            const pin = await askPin(Device.hasPin() ? 'New PIN' : 'Turn on PIN lock');
-            if (!pin) return;
-            if (!await Device.setPin(pin)) { UI.toast('Couldn\'t save the PIN in this browser.', 'error'); return; }
+            const got = await askPin(Device.hasPin() ? 'New PIN or passcode' : 'Turn on the lock');
+            if (!got) return;
+            if (!await Device.setPin(got.pin, got.kind)) { UI.toast('Couldn\'t save the PIN in this browser.', 'error'); return; }
             renderDevice();
             UI.toast('PIN saved. The app will ask for it when it opens. If you forget it, you\'ll have to erase the data and load your backup.');
         },
         'device.removePin': async () => {
-            const cur = await UI.form({ title: 'Remove the PIN', confirmText: 'Remove', fields: [{ name: 'pin', label: 'Your current PIN', type: 'password', inputmode: 'numeric' }] });
+            const cur = await UI.form({ title: 'Remove the PIN', confirmText: 'Remove', fields: [currentField()] });
             if (!cur) return;
             const lock = Device.read().lock;
             if (await Device.hashPin(cur.pin, lock.salt) !== lock.hash) { UI.toast('That\'s not your PIN.', 'error'); return; }

@@ -41,6 +41,7 @@
             <button class="icon-btn" id="hist-undo" data-action="app.undo" title="Undo the last change (Ctrl+Z)" aria-label="Undo" disabled><i class="fa-solid fa-rotate-left"></i></button>
             <button class="icon-btn hide-mobile" id="hist-redo" data-action="app.redo" title="Redo (Ctrl+Y)" aria-label="Redo" disabled><i class="fa-solid fa-rotate-right"></i></button>
             <button class="icon-btn lang-btn hide-mobile" id="lang-toggle" data-action="device.toggleLang" title="Switch to English" aria-label="Language / Idioma">EN</button>
+            <button class="icon-btn" id="privacy-toggle" data-action="device.togglePrivacy" title="Hide amounts" aria-label="Hide amounts" aria-pressed="false"><i class="fa-solid fa-eye"></i></button>
             <button class="icon-btn hide-mobile" id="theme-toggle" data-action="device.toggleTheme" title="Use dark theme" aria-label="Change theme"><i class="fa-solid fa-moon"></i></button>
             <button class="icon-btn hide-mobile" data-action="app.help" title="How to use the app" aria-label="Help"><i class="fa-solid fa-circle-question"></i></button>
             <button class="icon-btn" id="cfg-gear" data-goto="config" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
@@ -1595,7 +1596,9 @@
                     <label class="field"><span class="field-label">Appearance</span>
                         <select id="cfg-theme" class="input" data-change="device.theme"><option value="light">Claro</option><option value="dark">Dark</option><option value="auto">Automatic (follow your system)</option></select></label>
                     <div class="field"><span class="field-label">PIN lock</span>
-                        <div id="cfg-lock" class="flex flex-wrap gap-2 items-center"></div></div>
+                        <div id="cfg-lock" class="flex flex-wrap gap-2 items-center"></div>
+                        <span class="help">With a PIN or passcode your plan is saved encrypted on this device. A passcode (letters too) is much harder to guess than a short PIN. The 10th wrong try erases the data.</span></div>
+                    <label class="field flex-row items-center gap-2"><input type="checkbox" id="cfg-hide-amounts" data-change="device.privacy" class="w-4 h-4"> <span class="field-label mb-0">Hide amounts on screen (the 👁 button at the top does the same)</span></label>
                 </div>
                 <div class="field mt-3 max-w-2xl" data-web-only><span class="field-label">Shortcut to quick entry</span>
                     <div class="flex gap-2"><input id="cfg-quick-link" class="input" readonly aria-label="Quick entry link"><button type="button" class="btn btn-secondary btn-sm" data-action="device.copyQuick"><i class="fa-regular fa-copy"></i> Copy</button></div>

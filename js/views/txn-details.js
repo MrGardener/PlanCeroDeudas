@@ -67,9 +67,12 @@
         draw();
     }
     function drawCategoryView(host) {
-        host.innerHTML = `<div class="flex items-center gap-2 mb-2"><button type="button" class="icon-btn icon-btn-light" data-action="tdt.back" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button><strong>Select a category</strong></div>
-            <input type="search" class="input mb-2" id="tdt-cat-q" placeholder="Search for a category" data-input="tdt.catSearch" aria-label="Search for a category"><div id="tdt-cats"></div>`;
+        // The ← and the search stay at the top while the categories scroll under them.
+        host.innerHTML = `<div class="sheet-sticky"><div class="flex items-center gap-2 mb-2"><button type="button" class="icon-btn icon-btn-light" data-action="tdt.back" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button><strong>Select a category</strong></div>
+            <input type="search" class="input" id="tdt-cat-q" placeholder="Search for a category" data-input="tdt.catSearch" aria-label="Search for a category"></div><div id="tdt-cats"></div>`;
         drawCats('');
+        const m = host.closest('.modal');
+        if (m) m.scrollTop = 0;
     }
     function drawCats(q) {
         const t = find(txnId), host = document.getElementById('tdt-cats');
@@ -135,7 +138,13 @@
         'tdt.back': () => { view = 'details'; draw(); },
         'tdt.backTo': () => { const b = backTo; if (sheet) sheet.close(); if (b) b(); },
         'tdt.catSearch': (el) => drawCats(el.value),
-        'tdt.catOpen': (el) => { catOpen = catOpen === el.dataset.parent ? null : el.dataset.parent; drawCats((document.getElementById('tdt-cat-q') || {}).value || ''); },
+        'tdt.catOpen': (el) => {
+            catOpen = catOpen === el.dataset.parent ? null : el.dataset.parent;
+            drawCats((document.getElementById('tdt-cat-q') || {}).value || '');
+            // Bring the opened category and its subcategories into view (a long list on a phone).
+            const head = catOpen && [...document.querySelectorAll('#tdt-cats .cat-pick-head')].find(b => b.dataset.parent === catOpen);
+            if (head) head.closest('.cat-pick').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        },
         'tdt.catSet': (el) => {
             const p = el.dataset.parent, sub = el.dataset.sub || '';
             view = 'details';

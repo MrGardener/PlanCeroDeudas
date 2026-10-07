@@ -115,7 +115,7 @@
                 data: { labels: h.map(label), datasets: [{ label: 'Net worth', data: h.map(x => x.value), fill: 'start', backgroundColor: 'rgba(22, 163, 74, .12)', borderWidth: 2.5, tension: 0,
                     segment: { borderColor: (c) => (c.p1.parsed.y >= c.p0.parsed.y ? up : down) },
                     pointRadius: h.map((x, i) => (i === pick ? 8 : h.length > 24 ? 2 : 5)), pointHoverRadius: 8, pointBackgroundColor: h.map((x, i) => (i === pick ? up : pal.surface)), pointBorderColor: up, pointBorderWidth: 2.5 }] },
-                options: { onClick, scales: { y: { beginAtZero: false, ticks: { callback: (v) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v } } }, plugins: { legend: { display: false } } }
+                options: { onClick, scales: { y: { beginAtZero: false, ticks: { callback: (v) => Fmt.hidden ? Fmt.money0(v) : Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v } } }, plugins: { legend: { display: false } } }
             });
             const cur = all[all.length - 1];
             UI.html('nw-current', `<span class="text-xs text-slate-500">Current net worth</span><strong class="text-2xl font-black ${cur.value < 0 ? 'text-red-600' : ''}">${money(cur.value)}</strong>`);

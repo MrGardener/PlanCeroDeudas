@@ -2,6 +2,22 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Hide amounts": "Ocultar montos",
+    "Hide amounts on screen (the 👁 button at the top does the same)": "Ocultar los montos en pantalla (el botón 👁 de arriba hace lo mismo)",
+    "New PIN or passcode": "Nuevo PIN o contraseña",
+    "PIN or passcode": "PIN o contraseña",
+    "Passcode": "Contraseña",
+    "passcode": "contraseña",
+    "Passcode: 8 or more characters, letters too (safer)": "Contraseña: 8 o más caracteres, también letras (más segura)",
+    "PIN: 4 to 8 digits": "PIN: de 4 a 8 dígitos",
+    "Show amounts": "Mostrar montos",
+    "The two don't match.": "No coinciden.",
+    "Turn on the lock": "Activar el bloqueo",
+    "Type your passcode to get in.": "Escribe tu contraseña para entrar.",
+    "Use at least 8 characters.": "Usa al menos 8 caracteres.",
+    "With a PIN or passcode your plan is saved encrypted on this device. A passcode (letters too) is much harder to guess than a short PIN. The 10th wrong try erases the data.": "Con un PIN o contraseña tu plan se guarda cifrado en este dispositivo. Una contraseña (con letras) es mucho más difícil de adivinar que un PIN corto. El décimo intento fallido borra los datos.",
+    "Your current passcode": "Tu contraseña actual",
+    "On · {0}": "Activado · {0}",
     "Erase the data": "Borrar los datos",
     "It's saved encrypted, and this device no longer has its PIN. Erase it and load your backup file to start again.": "Está guardado cifrado y este dispositivo ya no tiene su PIN. Bórralo y carga tu copia de respaldo para empezar otra vez.",
     "Your plan is locked": "Tu plan está bloqueado",

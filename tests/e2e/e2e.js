@@ -981,6 +981,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
 
   // PIN lock
   await page.click('#cfg-lock [data-action="device.setPin"]');
+  await page.selectOption('.modal select[name="kind"]', 'pin');
   await page.fill('.modal input[name="pin"]', '12');
   await page.fill('.modal input[name="again"]', '12');
   await page.click('[data-dialog-ok]');
