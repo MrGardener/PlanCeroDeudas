@@ -17,7 +17,7 @@
             'Tap a category to select it, again to see its subcategories; tap the middle for the transactions.']],
         ['budgets', 'fa-circle-nodes', 'Budgets', ['presupuesto/plan', ''], [
             'Give every dollar a job: plan each line until what\'s left to assign is $0.',
-            'Bubbles show each category: green on track, yellow almost spent, red over.']],
+            'Bubbles show each category: green on track, yellow almost spent, red over. Drag them around; tap one to change its budget or add a sub-budget.']],
         ['trends', 'fa-clock-rotate-left', 'Trends', ['transacciones/reportes', 'trends-card'], [
             'Spending by category month by month, with your income as a line.',
             'Pick 3, 6, 9 or 12 months, one category or one account.']],

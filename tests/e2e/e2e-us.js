@@ -477,10 +477,48 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(200);
   const bub = await page.evaluate(() => { const b = [...document.querySelectorAll('#bs-bubbles .bubble')]; const sizes = b.map(x => x.offsetWidth); return { n: b.length, grid: document.querySelector('#bud-simple .bs-grid').classList.contains('hidden'), first: b[0] && b[0].textContent.replace(/\s+/g, ' '), desc: sizes.every((v, i) => !i || v <= sizes[i - 1]), states: new Set(b.map(x => x.className.match(/is-(\w+)/)[1])).size, pressed: document.querySelector('[data-action="budget.bubbles"]').getAttribute('aria-pressed') }; });
   ok(bub.n >= 5 && bub.grid && /Housing/.test(bub.first) && bub.desc && bub.states >= 2 && bub.pressed === 'true', 'bubbles: one per category, biggest plan first, colored by spending', bub);
+  // They don't overlap, they show the month with ‹ ›, and the summary opens to spent / earned / unbudgeted.
+  const bubLay = await page.evaluate(() => { const r = [...document.querySelectorAll('#bub-field .bubble')].map(b => { const q = b.getBoundingClientRect(); return { x: q.x + q.width / 2, y: q.y + q.height / 2, r: q.width / 2 }; }); let over = 0; r.forEach((a, i) => r.slice(i + 1).forEach(c => { if (Math.hypot(a.x - c.x, a.y - c.y) < a.r + c.r - 2) over++; })); return { over, month: document.getElementById('bub-month').textContent, icons: document.querySelectorAll('#bub-field .bubble-icon').length, n: r.length }; });
+  ok(bubLay.over === 0 && /\d{4}/.test(bubLay.month) && bubLay.icons === bubLay.n, 'bubbles: packed without overlaps, each with its icon, month shown', bubLay);
+  await page.click('[data-action="budget.sumToggle"]');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => { const t = document.querySelector('.bub-sum').textContent; return /Spent .* of .* budgeted/.test(t) && /Earned .* of .* projected income/.test(t) && /unbudgeted|over your income/.test(t); }), 'bubbles: the summary shows spent of budgeted, earned of projected and unbudgeted');
+  // Drag a bubble: it moves where it's dropped and the others make room (still no overlaps).
+  await page.evaluate(() => document.getElementById('bub-field').scrollIntoView({ block: 'center' }));
+  const dragFrom = await page.evaluate(() => { const b = document.querySelectorAll('#bub-field .bubble')[3].getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; });
+  const dragTo = await page.evaluate(() => { const b = document.querySelectorAll('#bub-field .bubble')[0].getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; });
+  await page.mouse.move(dragFrom.x, dragFrom.y); await page.mouse.down();
+  for (let k = 1; k <= 8; k++) await page.mouse.move(dragFrom.x + (dragTo.x - dragFrom.x) * k / 8, dragFrom.y + (dragTo.y - dragFrom.y) * k / 8);
+  await page.mouse.up();
+  await page.waitForTimeout(900);
+  const dragged = await page.evaluate(([to, from]) => { const b = [...document.querySelectorAll('#bub-field .bubble')].map(x => { const q = x.getBoundingClientRect(); return { x: q.x + q.width / 2, y: q.y + q.height / 2, r: q.width / 2 }; }); let over = 0; b.forEach((a, i) => b.slice(i + 1).forEach(c => { if (Math.hypot(a.x - c.x, a.y - c.y) < a.r + c.r - 2) over++; })); return { near: Math.hypot(b[3].x - to.x, b[3].y - to.y) < Math.hypot(from.x - to.x, from.y - to.y) * 0.6, over, sheet: !!document.querySelector('.modal-backdrop.sheet') }; }, [dragTo, dragFrom]);
+  ok(dragged.near && dragged.over === 0 && !dragged.sheet, 'bubbles: dragging one moves it and the others make room (no sheet opens)', dragged);
   await page.click('#bs-bubbles .bubble >> nth=0');
-  await page.waitForTimeout(200);
-  const bsheet = await page.evaluate(() => { const m = document.querySelector('.modal-backdrop.sheet'); return m ? { title: m.querySelector('.modal-title').textContent, rows: m.querySelectorAll('.bub-line').length, pace: !!m.querySelector('#bub-pace') } : null; });
-  ok(bsheet && /Housing/.test(bsheet.title) && bsheet.rows >= 1, 'bubbles: tapping one lists its lines', bsheet);
+  await page.waitForTimeout(300);
+  const bsheet = await page.evaluate(() => { const m = document.querySelector('.modal-backdrop.sheet'); const c = UI.chartInstance('bub-months'); return m ? { title: m.querySelector('.modal-title').textContent, head: m.querySelector('.bub-detail-head').textContent, rows: m.querySelectorAll('.bub-line').length, pace: !!m.querySelector('#bub-pace'), bars: c ? c.data.datasets[0].data.length : 0, dashed: c ? !!c.data.datasets[1].borderDash : false, edit: !!m.querySelector('.bub-actions [data-action="budget.bubEdit"]'), add: !!m.querySelector('[data-action="budget.bubAdd"]') } : null; });
+  ok(bsheet && /\d{4}/.test(bsheet.title) && /Housing/.test(bsheet.head) && bsheet.rows >= 1 && bsheet.bars === 12 && bsheet.dashed && bsheet.edit && bsheet.add, 'bubbles: tapping one shows it with ✎ and +, 12 months of bars with the budget dashed, and its lines', bsheet);
+  // ✎: edit the budget (the change goes to its biggest line), Save; Cancel goes back.
+  await page.click('.bub-actions [data-action="budget.bubEdit"]');
+  const bEdit = await page.evaluate(() => ({ q: document.getElementById('bub-detail').textContent, v: Number(document.getElementById('bub-edit-amt').value), del: !!document.querySelector('[data-action="budget.bubDelete"]') }));
+  ok(/Edit budget: Housing/.test(bEdit.q) && /Total unbudgeted/.test(bEdit.q) && bEdit.v > 0 && bEdit.del, 'bubbles: ✎ asks for the new budget, shows what is unbudgeted and offers Delete', bEdit);
+  await page.fill('#bub-edit-amt', String(Math.round(bEdit.v + 100)));
+  await page.click('[data-action="budget.bubSave"]');
+  await page.waitForTimeout(250);
+  const bSaved = await page.evaluate(() => Engine.monthItems(Store.active(), 'base').filter(it => !it.link && it.linkedCategory === 'Vivienda').reduce((a, it) => a + Number(it.real), 0));
+  ok(Math.abs(bSaved - Math.round(bEdit.v + 100)) < 0.01 && await page.evaluate(() => !!document.querySelector('.bub-detail-head')), 'bubbles: saving changes the budget and returns to the bubble', [bSaved, bEdit.v]);
+  // +: a sub-budget from the category's subcategories.
+  await page.click('[data-action="budget.bubAdd"]');
+  const subName = await page.evaluate(() => { const b = document.querySelector('[data-action="budget.bubSub"]:not([disabled])'); return b && b.dataset.sub; });
+  await page.click('[data-action="budget.bubSub"]:not([disabled]) >> nth=0');
+  await page.fill('#bub-edit-amt', '40');
+  await page.click('[data-action="budget.bubSave"]');
+  await page.waitForTimeout(250);
+  const bSub = await page.evaluate((sub) => { const it = Engine.monthItems(Store.active(), 'base').find(x => x.linkedCategory === 'Vivienda' && x.name === I18n.t(sub)); return it ? Number(it.real) : null; }, subName);
+  ok(bSub === 40, 'bubbles: + adds a sub-budget from the subcategories', [subName, bSub]);
+  // View transactions: in the sheet, ← back to the bubble.
+  await page.click('[data-action="budget.bubTxns"]');
+  ok(await page.evaluate(() => document.querySelectorAll('#bub-detail [data-action="budget.bubTxn"]').length >= 1 && /End of the list/.test(document.getElementById('bub-detail').textContent)), 'bubbles: View transactions lists the month\'s transactions');
+  await page.click('#bub-detail [data-action="budget.bubBack"]');
   // The slider changes the line's planned amount; the pace says where spending would be by today.
   const slid = await page.evaluate(() => { const el = document.querySelector('.bub-slider'); const id = el.dataset.id; el.value = '1500'; el.dispatchEvent(new Event('input', { bubbles: true })); const it = Engine.monthItems(Store.active(), 'base').find(x => String(x.id) === id); return { real: it.real, label: el.closest('.bub-line').querySelector('[data-planned]').textContent, pace: document.getElementById('bub-pace').textContent }; });
   ok(slid.real === 1500 && /1,500/.test(slid.label) && /By today|spent of/.test(slid.pace), 'bubbles: a slider changes the plan; the pace shows', slid);
@@ -492,6 +530,23 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('[data-action="budget.bubbles"]');
   await page.waitForTimeout(150);
   ok(await page.evaluate(() => !document.querySelector('#bud-simple .bs-grid').classList.contains('hidden') && document.getElementById('bs-bubbles').classList.contains('hidden')), 'bubbles: back to cards');
+  // Month ‹ ›: another month; a month with nothing planned shows the intro with Auto-generate.
+  await page.evaluate(() => { Store.ui.budgetBubbles = true; App.update(); });
+  const bm0 = await page.evaluate(() => document.getElementById('bub-month').textContent);
+  await page.click('[data-action="budget.bubMonth"][data-dir="1"]');
+  await page.waitForTimeout(200);
+  ok(await page.evaluate((m0) => document.getElementById('bub-month').textContent !== m0 && Store.ui.month !== 'base', bm0), 'bubbles: › shows the next month');
+  await page.evaluate(() => { const yd = Store.active(), m = Store.ui.month; yd.monthOverrides[m] = []; App.changed({ structural: true }); });
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => /Understand the health of your finances/.test(document.getElementById('bs-bubbles').textContent) && !!document.querySelector('[data-action="budget.autoGen"]')), 'bubbles: an empty month shows the intro with Auto-generate budgets');
+  await page.click('[data-action="budget.autoGen"]');
+  await page.waitForTimeout(250);
+  const bAuto = await page.evaluate(() => ({ lines: Engine.monthItems(Store.active(), Store.ui.month).length, bubbles: document.querySelectorAll('#bub-field .bubble').length }));
+  ok(bAuto.lines >= 3 && bAuto.bubbles >= 3, 'bubbles: Auto-generate makes budgets from the last 3 months', bAuto);
+  await page.evaluate(() => App.undo());
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => Engine.monthItems(Store.active(), Store.ui.month).length === 0), 'bubbles: Auto-generate is undoable');
+  await page.evaluate(() => { Store.ui.month = 'base'; Store.ui.budgetBubbles = false; App.changed({ structural: true }); });
   // Cash flow: daily balance ahead, red below $0, cash events added, shown and removed (undoable).
   await page.evaluate(() => { Store.reset('example'); Store.ui.flowDays = 30; App.changed({ structural: true }); App.go('resumen'); });
   await page.waitForTimeout(300);

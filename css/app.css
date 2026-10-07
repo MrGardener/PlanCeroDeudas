@@ -810,17 +810,44 @@ button.donut-center .donut-label.font-bold { color: var(--ink); max-width: 100%;
 
 /* Budget bubbles: area = money planned; green / yellow / red = how much of it is spent. */
 .bubbles { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .4rem; padding: .25rem 0 .5rem; }
-.bubble { border-radius: 9999px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; padding: .4rem; text-align: center; border: 2px solid; color: var(--ink); line-height: 1.15; transition: transform var(--dur) var(--ease); }
+/* Budgets (the bank's): a field where the bubbles pack and can be dragged; each is filled with its
+   state's color and a ring shows how much of it is used (--p, 0–100). */
+.bub-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; }
+.bub-bar .segmented button { min-width: 2.4rem; }
+.bub-field { position: relative; width: 100%; overflow: hidden; touch-action: pan-y; }
+.bubble { position: absolute; border-radius: 9999px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; padding: .35rem; text-align: center; color: #fff; line-height: 1.15; border: 0; touch-action: none; user-select: none; -webkit-user-select: none; transition: transform var(--dur) var(--ease); }
+.bub-field .bubble { cursor: grab; }
+.bubble.is-dragging { cursor: grabbing; transform: scale(1.06); z-index: 2; transition: none; box-shadow: 0 10px 24px rgba(15, 23, 42, .25); }
+.bubble::before { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: conic-gradient(rgba(255,255,255,.85) calc(var(--p, 0) * 1%), rgba(255,255,255,.28) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); pointer-events: none; }
 .bubble:hover, .bubble:focus-visible { transform: scale(1.04); }
-.bubble-name { font-size: 1em; font-weight: 700; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; hyphens: auto; overflow-wrap: break-word; }
+.bubble-icon { font-size: 1.5em; opacity: .95; }
+.bubble-name { font-size: 1em; font-weight: 700; max-width: 85%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: break-word; }
 .bubble-pct { font-size: 1em; font-weight: 800; white-space: nowrap; }
-.bubble-amt { font-size: .85em; color: var(--muted); white-space: nowrap; }
-.bubble.is-ok { background: rgba(27, 175, 122, .16); border-color: #1baf7a; }
-.bubble.is-warn { background: rgba(237, 161, 0, .2); border-color: #eda100; }
-.bubble.is-over { background: rgba(208, 59, 59, .16); border-color: #d03b3b; }
+.bubble-amt { font-size: .95em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bubble-amt b { font-size: 1.15em; }
+.bubble.is-ok { background: #138a5e; }
+.bubble.is-warn { background: #c17d00; }
+.bubble.is-over { background: #c43030; }
+.bubbles .bubble, .bub-intro-key .bubble, .bub-detail-head .bubble { position: relative; }
 .bubble-key { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem 1rem; font-size: .72rem; color: var(--muted); margin-top: .5rem; }
-.bubble-key .is-ok i { color: #1baf7a; } .bubble-key .is-warn i { color: #c98500; } .bubble-key .is-over i { color: #d03b3b; }
-.bubble.is-ok .bubble-pct i { color: #128a5f; } .bubble.is-warn .bubble-pct i { color: #a86f00; } .bubble.is-over .bubble-pct i { color: #d03b3b; }
+.bubble-key .is-ok i { color: #138a5e; } .bubble-key .is-warn i { color: #c98500; } .bubble-key .is-over i { color: #d03b3b; }
+.bub-intro { display: flex; flex-direction: column; align-items: center; gap: .6rem; text-align: center; padding: 1rem .5rem 1.5rem; max-width: 34rem; margin: 0 auto; }
+.bub-intro-key { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .5rem .75rem; text-align: left; font-size: .85rem; margin: .5rem 0; }
+.bub-intro-key .bubble { width: 2.6rem; height: 2.6rem; font-size: 10px; }
+.bub-sum { position: relative; border: 1px solid var(--line); border-radius: .75rem; padding: .6rem 2.6rem .6rem .75rem; margin-top: .5rem; background: var(--surface); display: flex; flex-direction: column; gap: .3rem; }
+.bub-sum-toggle { position: absolute; right: .4rem; top: .35rem; width: 2rem; height: 2rem; border-radius: .5rem; color: var(--muted); }
+.bub-sum-row { display: flex; align-items: center; gap: .5rem; }
+.bub-sum-bar { flex: 1; height: .7rem; border-radius: 9999px; background: var(--surface-3); overflow: hidden; }
+.bub-sum-bar span { display: block; height: 100%; border-radius: inherit; }
+.bub-sum-bar .is-spent { background: #c43030; } .bub-sum-bar .is-over { background: #8f1d1d; } .bub-sum-bar .is-income { background: #138a5e; }
+.bub-sum-label { font-size: .72rem; color: var(--muted); width: 3.2rem; }
+.bub-detail-head { display: flex; align-items: center; justify-content: center; gap: .75rem; margin: .25rem 0 .75rem; }
+.bub-actions { display: flex; flex-direction: column; gap: .6rem; }
+.bub-act { width: 2.6rem; height: 2.6rem; border-radius: 50%; background: var(--surface-3); color: var(--ink); display: grid; place-items: center; }
+.bub-act:hover { background: var(--line); }
+.bub-edit-amt { font-size: 1.4rem; text-align: center; margin-top: .5rem; }
+.bub-edit { max-width: 24rem; margin: 0 auto; }
 .bs-view.active { background: var(--surface-3); }
 
 /* Money tools bar (Overview): every tool one tap away; scrolls sideways on a phone. */
@@ -940,3 +967,4 @@ button.sheet-row:hover { background: var(--surface-3); }
 .trend-months span { font-size: .68rem; color: var(--muted); }
 .trend-months strong { font-size: .9rem; font-variant-numeric: tabular-nums; }
 @media (min-width: 640px) { .trend-months { grid-template-columns: repeat(6, 1fr); } }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

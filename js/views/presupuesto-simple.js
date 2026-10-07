@@ -274,7 +274,9 @@
             el.classList.toggle('text-red-600', md === 'remaining' && v < -0.005);
         });
 
-        bubbles(ctx, m, spentOf);
+        // For the bubbles' summary: spent of budgeted, earned of projected, still unbudgeted.
+        const budgeted = m.plannedItems.reduce((t, it) => t + (Number(it.real) || 0), 0);
+        bubbles(ctx, m, spentOf, { budgeted, spent: m.plannedItems.reduce((t, it) => t + spentOf(it.id).spent, 0), earned: incReceived, projected: incPlanned, unbudgeted: mb.balanceReal });
 
         // Spending that isn't on any line yet
         const un = document.getElementById('bs-unassigned');
@@ -290,12 +292,18 @@
         }
     }
 
-    // Bubbles: one per category, sized by what's planned (area), colored by how much of it is
-    // spent — under 80%, 80–100%, over — with an icon and a word too, never color alone. Tap one to
-    // see its lines. Another way to read the same cards; the toggle sits next to the modes.
+    // Bubbles (the bank's Budgets): one per category, sized by what's planned (area), filled by
+    // how much of it is spent — under 80%, 80–100%, over — with an icon and a word too, never
+    // color alone. They pack like soap bubbles (Engine.packCircles); drag one and the others move
+    // aside. Tap one for its details. Above: Bubbles | List, the month ‹ › and "+ Manage budgets";
+    // below: spent of budgeted, earned of projected and what's still unbudgeted.
     const BUBBLE_STATE = { ok: { icon: 'fa-circle-check', label: 'On track' }, warn: { icon: 'fa-circle-exclamation', label: 'Almost spent' }, over: { icon: 'fa-triangle-exclamation', label: 'Over budget' } };
-    let lastBubbles = [];
-    function bubbles(ctx, m, spentOf) {
+    const catIcon = (c) => (root.Defaults && Defaults.categoryIcon ? Defaults.categoryIcon(c) : 'fa-tag');
+    let lastBubbles = [], bubCtx = null;
+    const bubPos = {};          // category → {x, y} where it was left (kept while the app is open)
+    let field = null;           // { circles, list, W, H }
+    function monthLabel(y, m) { return `${Fmt.MONTH_NAMES[m - 1]} ${y}`; }
+    function bubbles(ctx, m, spentOf, totals) {
         const on = !!Store.ui.budgetBubbles;
         const box = document.getElementById('bs-bubbles');
         const btn = document.querySelector('#bud-simple [data-action="budget.bubbles"]');
@@ -304,43 +312,197 @@
         if (!box) return;
         box.classList.toggle('hidden', !on);
         if (!on) return;
-        if (!m.sm) { box.innerHTML = '<p class="bs-empty">Pick a month to see what was spent.</p>'; return; }
-        const list = lastBubbles = Engine.budgetBubbles(m.plannedItems, id => spentOf(id).spent);
-        if (!list.length) { box.innerHTML = '<p class="bs-empty">No lines with money planned yet.</p>'; return; }
-        const top = Math.max(...list.map(x => x.planned), 1);
-        const small = window.innerWidth < 640, minD = small ? 52 : 64, maxD = small ? 150 : 190;
-        box.innerHTML = `<div class="bubbles">${list.map((x, i) => {
-            const d = Math.round(minD + (maxD - minD) * Math.sqrt(Math.max(0, x.planned) / top)), info = BUBBLE_STATE[x.state];
-            const pct = x.share === null ? money0(x.spent) : Math.round(x.share * 100) + '%';
-            const name = I18n.t(x.category);
-            return `<button type="button" class="bubble is-${x.state}" style="width:${d}px;height:${d}px;font-size:${Math.max(8.5, Math.min(12, d / 11)).toFixed(1)}px" data-action="budget.bubble" data-index="${i}"
-                aria-label="${esc(`${name}: ${money0(x.spent)} / ${money0(x.planned)} · ${I18n.t(info.label)}`)}">
-                <span class="bubble-name" data-i18n-skip>${esc(name)}</span>
-                <span class="bubble-pct"><i class="fa-solid ${info.icon}"></i> ${pct}</span>
-                ${d >= 96 ? `<span class="bubble-amt">${money0(x.spent)} / ${money0(x.planned)}</span>` : ''}</button>`;
-        }).join('')}</div>
+        bubCtx = { ctx, m, spentOf, totals };
+        const y = ctx.state.activeYear, sm = Number(m.sm) || 0;
+        const bar = `<div class="bub-bar">
+                <div class="segmented" role="group" aria-label="View"><button type="button" class="active" aria-pressed="true" aria-label="Bubbles"><i class="fa-solid fa-circle-nodes"></i></button><button type="button" data-action="budget.view" data-view="list" aria-label="List"><i class="fa-solid fa-list-ul"></i></button></div>
+                <div class="txn-range" role="group" aria-label="Month"><button type="button" class="txn-range-step" data-action="budget.bubMonth" data-dir="-1" aria-label="Previous month"><i class="fa-solid fa-chevron-left"></i></button>
+                    <span class="txn-range-pick" id="bub-month" data-i18n-skip>${sm ? esc(monthLabel(y, sm)) : esc(String(y))}</span>
+                    <button type="button" class="txn-range-step" data-action="budget.bubMonth" data-dir="1" aria-label="Next month"><i class="fa-solid fa-chevron-right"></i></button></div>
+                <button type="button" class="link text-sm" data-action="budget.view" data-view="manage"><i class="fa-solid fa-plus"></i> Manage budgets</button>
+            </div>`;
+        if (!m.sm) { box.innerHTML = bar + '<p class="bs-empty">Pick a month to see what was spent.</p>'; return; }
+        const list = lastBubbles = Engine.budgetBubbles(m.plannedItems, id => spentOf(id).spent).filter(x => x.planned > 0.005);
+        // Nothing planned yet besides debt and goal payments: the intro.
+        if (!m.plannedItems.some(it => !it.link && !it.sweep && Number(it.real) > 0.005)) { box.innerHTML = bar + intro(); return; }
+        box.innerHTML = `${bar}<div class="bub-field" id="bub-field"></div>${summary(totals)}
             <p class="bubble-key">${Object.keys(BUBBLE_STATE).map(k => `<span class="is-${k}"><i class="fa-solid ${BUBBLE_STATE[k].icon}"></i> ${BUBBLE_STATE[k].label}</span>`).join('')}<span>Size: money planned</span></p>
-            <p class="help">Under 80% spent, 80–100%, or over. Tap a bubble to see its lines.</p>`;
+            <p class="help">Green under 80% spent, yellow 80–100%, red over. Tap a bubble for its details; drag it to move it.</p>`;
+        layoutField(list);
     }
-    // A category's lines: planned (a slider to change it), spent, the month's pace, and a link to
-    // each line's details. Debt and goal lines change in Debts & Goals.
-    let bubbleMonth = null;
+    function bubbleHTML(x, i, d, style) {
+        const info = BUBBLE_STATE[x.state], name = I18n.t(x.category);
+        const p = x.planned > 0 ? Math.min(100, Math.round(x.spent / x.planned * 100)) : 100;
+        return `<button type="button" class="bubble is-${x.state}" style="${style}width:${d}px;height:${d}px;font-size:${Math.max(9, Math.min(13, d / 10)).toFixed(1)}px;--p:${p}" data-action="budget.bubble" data-index="${i}"
+            aria-label="${esc(`${name}: ${money0(x.spent)} / ${money0(x.planned)} · ${I18n.t(info.label)}`)}">
+            <i class="fa-solid ${catIcon(x.category)} bubble-icon" aria-hidden="true"></i>
+            <span class="bubble-name ${d >= 104 ? '' : 'sr-only'}" data-i18n-skip>${esc(name)}</span>
+            ${d >= 64 ? `<span class="bubble-amt"><b>${money0(x.spent)}</b> /<br>${money0(x.planned)}</span>` : ''}
+            <span class="sr-only"><i class="fa-solid ${info.icon}"></i> ${x.share === null ? '' : Math.round(x.share * 100) + '%'}</span></button>`;
+    }
+    // Sizes by area (they fill about half the field), positions from where they were or a spiral.
+    function layoutField(list) {
+        const el = document.getElementById('bub-field');
+        if (!el) return;
+        const W = Math.max(280, el.clientWidth || 340), H = Math.round(Math.min(560, Math.max(320, W * (W < 640 ? 1.1 : 0.6))));
+        el.style.height = H + 'px';
+        const total = list.reduce((a, x) => a + x.planned, 0) || 1, area = W * H * 0.5;
+        const maxR = Math.min(W, H) * 0.28, minR = 24;
+        let radii = list.map(x => Math.max(minR, Math.min(maxR, Math.sqrt(area * x.planned / total / Math.PI)))), circles = null;
+        // Pack; if some still overlap (too many for the box), shrink them a little and pack again.
+        for (let k = 0; k < 8; k++) {
+            const start = Engine.spiralStart(radii, W, H).map((c, i) => { const p = bubPos[list[i].category]; return p ? { x: p.x * W, y: p.y * H, r: c.r } : c; });
+            circles = Engine.packCircles(start, { width: W, height: H, rounds: 300 });
+            const overlap = circles.some((a, i) => circles.slice(i + 1).some(c => Math.hypot(a.x - c.x, a.y - c.y) < a.r + c.r - 0.5));
+            if (!overlap) break;
+            radii = radii.map(r => Math.max(16, r * 0.92));
+        }
+        field = { circles, list, W, H };
+        el.innerHTML = list.map((x, i) => bubbleHTML(x, i, Math.round(circles[i].r * 2), `left:${(circles[i].x - circles[i].r).toFixed(1)}px;top:${(circles[i].y - circles[i].r).toFixed(1)}px;`)).join('');
+        list.forEach((x, i) => { bubPos[x.category] = { x: circles[i].x / W, y: circles[i].y / H }; });
+    }
+    function placeAll() {
+        const el = document.getElementById('bub-field');
+        if (!el || !field) return;
+        const nodes = el.querySelectorAll('.bubble');
+        field.circles.forEach((c, i) => { const n = nodes[i]; if (n) { n.style.left = (c.x - c.r).toFixed(1) + 'px'; n.style.top = (c.y - c.r).toFixed(1) + 'px'; } bubPos[field.list[i].category] = { x: c.x / field.W, y: c.y / field.H }; });
+    }
+    // Drag: the held bubble follows the finger, the others make room; let go and they settle.
+    let drag = null, justDragged = false;
+    if (typeof document !== 'undefined') {
+        document.addEventListener('pointerdown', (e) => {
+            const b = e.target.closest && e.target.closest('#bub-field .bubble');
+            if (!b || !field || e.button > 0) return;
+            const r = document.getElementById('bub-field').getBoundingClientRect();
+            drag = { i: Number(b.dataset.index), ox: e.clientX, oy: e.clientY, r, moved: false, el: b };
+        });
+        document.addEventListener('pointermove', (e) => {
+            if (!drag || !field) return;
+            if (!drag.moved && Math.hypot(e.clientX - drag.ox, e.clientY - drag.oy) < 6) return;
+            if (!drag.moved) { drag.moved = true; drag.el.classList.add('is-dragging'); try { drag.el.setPointerCapture(e.pointerId); } catch (err) { /* ok */ } }
+            const c = field.circles[drag.i];
+            c.x = Math.min(field.W - c.r, Math.max(c.r, e.clientX - drag.r.left));
+            c.y = Math.min(field.H - c.r, Math.max(c.r, e.clientY - drag.r.top));
+            field.circles = Engine.packCircles(field.circles, { width: field.W, height: field.H, rounds: 6, fixed: drag.i, pull: 0.004 });
+            placeAll();
+            e.preventDefault();
+        });
+        const end = () => {
+            if (!drag) return;
+            const d = drag; drag = null;
+            if (!d.moved) return;
+            d.el.classList.remove('is-dragging');
+            justDragged = true; setTimeout(() => { justDragged = false; }, 50);
+            // The dropped bubble stays where it was let go; the others settle around it.
+            let n = 0;
+            const settle = () => {
+                if (!field) return;
+                const last = ++n >= 20;
+                field.circles = Engine.packCircles(field.circles, { width: field.W, height: field.H, rounds: last ? 80 : 3, fixed: d.i, pull: last ? 0 : 0.004 });
+                // Wedged against an edge: let the dropped one give way a little too.
+                const c = field.circles;
+                if (last && c.some((a, i) => c.slice(i + 1).some(b => Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r - 0.5))) field.circles = Engine.packCircles(c, { width: field.W, height: field.H, rounds: 200, pull: 0 });
+                placeAll();
+                if (!last) requestAnimationFrame(settle);
+            };
+            requestAnimationFrame(settle);
+        };
+        document.addEventListener('pointerup', end);
+        document.addEventListener('pointercancel', end);
+    }
+
+    // The first screen when the month has nothing planned: what the colors mean, and a budget made
+    // from the last 3 months' spending, or a blank one.
+    function intro() {
+        return `<div class="bub-intro">
+            <h3 class="text-lg font-bold">Understand the health of your finances</h3>
+            <p class="text-sm text-slate-500">And keep your budget on track.</p>
+            <div class="bub-intro-key">
+                <span class="bubble is-ok" style="--p:50"><i class="fa-solid fa-utensils bubble-icon"></i></span><span><b>Green</b> · 0–79% used</span>
+                <span class="bubble is-warn" style="--p:90"><i class="fa-solid fa-house bubble-icon"></i></span><span><b>Yellow</b> · 80–100% used</span>
+                <span class="bubble is-over" style="--p:100"><i class="fa-solid fa-car bubble-icon"></i></span><span><b>Red</b> · over budget</span>
+            </div>
+            <p class="text-sm">Bubbles show which budgets need attention first: the bigger the bubble, the more money it has.</p>
+            <p class="text-sm">Get started with budgets made from what you spent in the last 3 months.</p>
+            <button type="button" class="btn btn-primary" data-action="budget.autoGen"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto-generate budgets</button>
+            <button type="button" class="link text-sm" data-action="budget.view" data-view="manage">No thanks. I'll start from scratch.</button>
+        </div>`;
+    }
+    // Spent of budgeted and earned of projected, as two bars; open it for the words and what's
+    // still unbudgeted.
+    function summary(t) {
+        const open = !!Store.ui.bubSumOpen, pct = (a, b) => Math.max(0, Math.min(100, b > 0 ? a / b * 100 : 0)).toFixed(1);
+        return `<div class="bub-sum ${open ? 'is-open' : ''}">
+            <button type="button" class="bub-sum-toggle" data-action="budget.sumToggle" aria-expanded="${open}" aria-label="${open ? 'Hide details' : 'Show details'}"><i class="fa-solid ${open ? 'fa-chevron-down' : 'fa-chevron-up'}"></i></button>
+            <div class="bub-sum-row"><div class="bub-sum-bar"><span class="${t.spent > t.budgeted + 0.005 ? 'is-over' : 'is-spent'}" style="width:${pct(t.spent, t.budgeted)}%"></span></div><span class="bub-sum-label">Spent</span></div>
+            ${open ? `<p class="text-sm">Spent <b>${money0(t.spent)}</b> of <b>${money0(t.budgeted)}</b> budgeted</p>` : ''}
+            <div class="bub-sum-row"><div class="bub-sum-bar"><span class="is-income" style="width:${pct(t.earned, t.projected)}%"></span></div><span class="bub-sum-label">Income</span></div>
+            ${open ? `<p class="text-sm">Earned <b>${money0(t.earned)}</b> of <a href="#" class="link" data-goto="presupuesto/ingresos">${money0(t.projected)}</a> projected income</p>
+                <p class="text-sm ${t.unbudgeted < -0.005 ? 'text-red-600' : 'text-slate-500'}">${t.unbudgeted < -0.005 ? `${money0(-t.unbudgeted)} budgeted over your income` : `${money0(t.unbudgeted)} unbudgeted`}</p>` : ''}
+        </div>`;
+    }
+
+    // ------------------------------------------------------------------ a bubble's details
+    // The bubble big, with ✎ (edit its budget) and + (a sub-budget: one of its subcategories), its
+    // spending for 12 months (this month darker, the budget as a dashed line; tap a month for its
+    // value), "View transactions", the month's pace and its lines. Everything stays in one sheet.
+    let bubbleMonth = null, bubView = 'main', bubTarget = null;
     function openBubble(i) {
         const b = lastBubbles[i];
-        if (!b) return;
-        const items = Engine.monthItems(Store.active(), Store.ui.month);
+        if (!b || justDragged) return;
+        bubbleMonth = b; bubView = 'main'; bubTarget = null;
+        const y = Store.state.activeYear, m = Number(spendMonth(App.buildContext())) || (new Date().getMonth() + 1);
+        bubbleSheet = UI.sheet({ title: monthLabel(y, m), icon: 'fa-circle-nodes', wide: true, html: '<div id="bub-detail"></div>', onClose: () => { bubbleSheet = null; } });
+        drawBubble();
+    }
+    function bubItems() { return Engine.monthItems(Store.active(), Store.ui.month); }
+    const editableOf = (cat) => bubItems().filter(it => !it.link && !it.sweep && (it.linkedCategory || 'Otros') === cat);
+    function refreshBubble() {
+        const ctx = App.buildContext(), m = model(ctx);
+        const sp = (id) => (m.spend.byLine[String(id)] || { spent: 0 }).spent;
+        const b = Engine.budgetBubbles(m.plannedItems, sp).find(x => x.category === bubbleMonth.category);
+        bubbleMonth = b || Object.assign({}, bubbleMonth, { planned: 0, lines: [], share: null, state: 'ok' });
+    }
+    function drawBubble() {
+        const host = document.getElementById('bub-detail'), b = bubbleMonth;
+        if (!host || !b) return;
+        if (bubView === 'edit') { drawEdit(host); return; }
+        if (bubView === 'add') { drawAdd(host); return; }
+        const items = bubItems();
         const editable = (l) => { const it = items.find(x => String(x.id) === String(l.id)); return it && !it.link && !it.sweep; };
         const row = (l) => {
             const max = Math.max(50, Math.ceil(Math.max(l.planned, l.spent) * 2 / 10) * 10);
             return `<div class="bub-line" data-line="${esc(String(l.id))}">
-                <div class="flex justify-between gap-2 text-sm"><span class="font-semibold truncate" data-i18n-skip>${esc(I18n.t(l.name))}</span><button type="button" class="mini-btn" data-action="budget.bubbleLine" data-id="${esc(String(l.id))}">Details</button></div>
+                <div class="flex justify-between gap-2 text-sm"><span class="font-semibold truncate" data-i18n-skip>${esc(I18n.t(l.name))}</span><span class="flex gap-1">${editable(l) ? `<button type="button" class="mini-btn" data-action="budget.bubEdit" data-id="${esc(String(l.id))}" aria-label="Edit ${esc(I18n.t(l.name))}"><i class="fa-solid fa-pen"></i></button>` : ''}<button type="button" class="mini-btn" data-action="budget.bubbleLine" data-id="${esc(String(l.id))}">Details</button></span></div>
                 <div class="flex justify-between text-xs text-slate-500 mt-1"><span>Planned <strong class="text-slate-800" data-planned>${money(l.planned)}</strong></span><span class="${l.spent > l.planned + 0.005 ? 'text-red-600 font-bold' : ''}">Spent ${money(l.spent)}</span></div>
                 ${editable(l) ? `<input type="range" class="bub-slider" min="0" max="${max}" step="5" value="${Math.round(l.planned)}" data-input="budget.slide" data-id="${esc(String(l.id))}" data-field="real" data-sync="prep" aria-label="Planned for ${esc(I18n.t(l.name))}">` : ''}
             </div>`;
         };
-        const sheet = UI.sheet({ title: I18n.t(b.category), icon: 'fa-circle-nodes', html: `<div id="bub-pace"></div>${b.lines.map(row).join('')}` });
-        bubbleSheet = sheet; bubbleMonth = b;
+        host.innerHTML = `<div class="bub-detail-head">
+                <div class="bub-actions"><button type="button" class="bub-act" data-action="budget.bubAdd" aria-label="Add a sub-budget" title="Add a sub-budget"><i class="fa-solid fa-plus"></i></button>
+                    <button type="button" class="bub-act" data-action="budget.bubEdit" aria-label="Edit the budget" title="Edit the budget"><i class="fa-solid fa-pen"></i></button></div>
+                ${bubbleHTML(b, -1, 150, 'position:relative;')}
+            </div>
+            <div class="chart-box" style="height:11rem"><canvas id="bub-months" aria-label="${esc(I18n.t(b.category))}: 12 months"></canvas></div>
+            <div class="flex justify-center my-2"><button type="button" class="btn btn-secondary btn-sm" data-action="budget.bubTxns"><i class="fa-solid fa-list-ul"></i> View transactions</button></div>
+            <div id="bub-pace"></div>${b.lines.map(row).join('')}`;
+        host.querySelector('.bub-detail-head .bubble').removeAttribute('data-action');
+        drawMonths();
         drawPace();
+    }
+    function drawMonths() {
+        const b = bubbleMonth, ctx = App.buildContext(), pal = UI.palette();
+        const y = ctx.state.activeYear, m = Number(spendMonth(ctx)) || (ctx.today.getMonth() + 1);
+        const budgetOf = (yy, mm) => { if (!ctx.state.years[yy]) return 0; return Engine.monthItems(Store.effective(yy), String(mm)).filter(it => !it.sweep && (it.linkedCategory || 'Otros') === b.category).reduce((a, it) => a + (Number(it.real) || 0), 0); };
+        const r = Engine.categoryMonths(ctx.state.transactions, { category: b.category, end: new Date(y, m - 1, 1), months: 12, budgetOf });
+        UI.chart('bub-months', {
+            type: 'bar',
+            data: { labels: r.map(x => Fmt.MONTH_SHORT[x.month - 1]), datasets: [
+                { type: 'bar', label: 'Spent', data: r.map(x => Math.round(x.spent * 100) / 100), backgroundColor: r.map((x, i) => (i === r.length - 1 ? pal.series[0] : pal.series[0] + '66')), borderRadius: 4, order: 2 },
+                { type: 'line', label: 'Budget', data: r.map(x => Math.round(x.budget * 100) / 100), borderColor: pal.muted, borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0, stepped: 'middle', fill: false, order: 1 }
+            ] },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: (v) => money0(v) } } } }
+        });
     }
     // The category's month so far: where spending should be by today, and what's left per day.
     function drawPace() {
@@ -358,6 +520,85 @@
             <div class="flex justify-between text-xs mt-1"><span>${money(b.spent)} of ${money(planned)}</span><span class="text-slate-500">By today: ${money(p.expected)}</span></div>
             <p class="text-sm mt-1 ${p.state === 'ok' ? 'text-emerald-700' : 'text-red-600'}"><i class="fa-solid ${p.state === 'ok' ? 'fa-circle-check' : 'fa-triangle-exclamation'}"></i> ${p.state === 'over' ? 'Over the plan for this month.' : p.state === 'fast' ? 'Spending faster than planned.' : 'On pace.'} ${money(p.perDay)} a day left for ${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'}.</p>
         </div>`;
+    }
+    // ✎: "Edit Housing budget?" — the amount (the difference goes to its biggest line), what's
+    // still unbudgeted, Cancel / Save, and "Delete Housing budget" (undoable).
+    function drawEdit(host) {
+        const b = bubbleMonth, line = bubTarget ? bubItems().find(it => String(it.id) === String(bubTarget)) : null;
+        const name = line ? I18n.t(line.name) : I18n.t(b.category);
+        const amount = line ? Number(line.real) || 0 : editableOf(b.category).reduce((a, it) => a + (Number(it.real) || 0), 0);
+        const unb = bubCtx && bubCtx.totals ? bubCtx.totals.unbudgeted : 0;
+        host.innerHTML = `<div class="bub-edit">
+            <div class="flex items-center gap-2 mb-2"><button type="button" class="icon-btn icon-btn-light" data-action="budget.bubBack" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button><strong><span>Edit budget:</span> <span data-i18n-skip>${esc(name)}</span></strong></div>
+            <p class="text-sm text-slate-500 text-center">Total unbudgeted: <span class="${unb < -0.005 ? 'text-red-600' : ''}">${money0(unb)}</span></p>
+            <input type="number" class="input bub-edit-amt" id="bub-edit-amt" min="0" step="1" value="${Math.round(amount * 100) / 100}" aria-label="Budget for ${esc(name)}">
+            ${!line && editableOf(b.category).length > 1 ? `<p class="help">This budget has ${editableOf(b.category).length} lines: the change goes to the biggest one. Edit a line with its ✎ for more control.</p>` : ''}
+            ${!line && !editableOf(b.category).length ? '<p class="help">Its lines are debt or goal payments: change them in Debts & Goals. Saving adds a line for the rest.</p>' : ''}
+            <div class="grid grid-cols-2 gap-2 mt-3"><button type="button" class="btn btn-secondary justify-center" data-action="budget.bubBack">Cancel</button><button type="button" class="btn btn-primary justify-center" data-action="budget.bubSave">Save</button></div>
+            ${line || editableOf(b.category).length ? `<button type="button" class="link text-sm text-red-600 mt-4 mx-auto block" data-action="budget.bubDelete"><i class="fa-solid fa-trash-can"></i> <span>Delete budget:</span> <span data-i18n-skip>${esc(name)}</span></button>` : ''}
+        </div>`;
+        setTimeout(() => { const i = document.getElementById('bub-edit-amt'); if (i) { i.focus(); i.select(); } }, 30);
+    }
+    // +: "Add sub-budget": the category's subcategories (one with its own line is checked); pick one
+    // to give it a budget, or add a new subcategory.
+    function drawAdd(host) {
+        const b = bubbleMonth, subs = (Store.state.taxonomy.expense || {})[b.category] || [];
+        const have = new Set(editableOf(b.category).map(it => String(it.name).toLowerCase()));
+        host.innerHTML = `<div class="flex items-center gap-2 mb-2"><button type="button" class="icon-btn icon-btn-light" data-action="budget.bubBack" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button><strong>Add a sub-budget</strong></div>
+            <div class="cat-pick"><div class="cat-pick-head"><span><i class="fa-solid ${catIcon(b.category)}"></i> ${esc(I18n.t(b.category))}</span></div>
+            <div class="cat-pick-subs">${subs.map(s => { const on = have.has(I18n.t(s).toLowerCase()) || have.has(s.toLowerCase()); return `<button type="button" data-action="budget.bubSub" data-sub="${esc(s)}" ${on ? 'disabled' : ''}>${esc(I18n.t(s))}${on ? ' <i class="fa-solid fa-circle-check text-emerald-600"></i>' : ''}</button>`; }).join('')}
+                <button type="button" class="link" data-action="budget.bubSubNew"><i class="fa-solid fa-plus"></i> Add a subcategory</button></div></div>`;
+    }
+    function monthList() {
+        const yd = Store.active(), m = Store.ui.month;
+        if (m !== 'base' && !yd.monthOverrides[m]) yd.monthOverrides[m] = Defaults.clone(yd.budgetBase);
+        return Engine.monthItems(yd, m);
+    }
+    const lineType = (cat) => (['Vivienda', 'Servicios Básicos y Comunicación', 'Seguros y Protección'].includes(cat) ? 'Gasto Fijo' : cat === 'Ahorro e Inversión' ? 'Ahorro' : 'Gasto Variable');
+    function setLineAmount(it, v) {
+        if (Math.abs((Number(it.prep) || 0) - (Number(it.real) || 0)) < 0.005) it.prep = v;
+        it.real = v;
+    }
+    function addLine(list, cat, name, amount) {
+        const it = { id: Store.nextId(list), name, type: lineType(cat), isDeductible: false, prep: amount, real: amount, linkedCategory: cat };
+        list.push(it);
+        return it;
+    }
+    function autoGenerate() {
+        const rows = Engine.autoBudget(Store.state.transactions, new Date());
+        if (!rows.length) { UI.toast('No spending in the last 3 months yet: log or import a few months first, or start from scratch.', 'error'); return; }
+        App.undoable(`Budgets made from your last 3 months: ${rows.length} categor${rows.length === 1 ? 'y' : 'ies'}`, () => {
+            const list = monthList();
+            rows.forEach(r => {
+                const same = list.filter(it => !it.link && !it.sweep && (it.linkedCategory || 'Otros') === r.category);
+                if (same.length) { if (!same.some(it => Number(it.real) > 0)) setLineAmount(same[0], r.suggested); }
+                else addLine(list, r.category, I18n.t(r.category), r.suggested);
+            });
+        });
+    }
+    function bubMonthStep(dir) {
+        const ctx = App.buildContext(), s = ctx.state;
+        let y = s.activeYear, m = (Number(spendMonth(ctx)) || (ctx.today.getMonth() + 1)) + dir;
+        if (m < 1) { y--; m = 12; } else if (m > 12) { y++; m = 1; }
+        if (y < s.configStartYear || y > s.configEndYear) { UI.toast('That month is outside the years in your plan (Settings).', 'error'); return; }
+        if (y !== s.activeYear) { s.activeYear = y; Store.year(y); }
+        Store.ui.month = String(m);
+        App.changed({ structural: true });
+    }
+    // Transactions of the category in the month, in the same sheet, with ← back to the bubble.
+    function drawBubTxns() {
+        const host = document.getElementById('bub-detail'), b = bubbleMonth;
+        if (!host || !b) return;
+        const ctx = App.buildContext(), y = ctx.state.activeYear, m = Number(spendMonth(ctx)) || (ctx.today.getMonth() + 1);
+        const from = `${y}-${String(m).padStart(2, '0')}-01`, to = Engine.isoDate(new Date(y, m, 0)), accts = Store.state.accounts || [];
+        const list = Store.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && !Engine.isTransfer(t) && t.date >= from && t.date <= to && (t.parentCategory || 'Otros') === b.category).sort((a, c) => c.date.localeCompare(a.date));
+        bubView = 'txns';
+        host.innerHTML = `<div class="flex items-center gap-2 mb-2"><button type="button" class="icon-btn icon-btn-light" data-action="budget.bubBack" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button><strong data-i18n-skip>${esc(I18n.t(b.category))} · ${esc(monthLabel(y, m))}</strong></div>
+            <div class="acd-txns">${list.map(t => { const a = accts.find(z => z.id === t.accountId); return `<button type="button" class="acd-txn w-full text-left" style="grid-template-columns:4.6rem 1fr auto" data-action="budget.bubTxn" data-id="${t.id}">
+                <span class="text-xs text-slate-500 whitespace-nowrap">${esc(Fmt.dayMonth(new Date(t.date + 'T00:00:00')))}</span>
+                <span class="min-w-0"><span class="block truncate font-semibold" data-i18n-skip>${esc(t.description || '—')}</span><span class="block truncate text-[11px] text-slate-500"><span>${esc(I18n.t(t.category || t.parentCategory || ''))}</span>${a ? ` · <span data-i18n-skip>${esc(a.name)}</span>` : ''}</span></span>
+                <span class="font-semibold whitespace-nowrap">${money(Engine.spendAmount(t))}</span></button>`; }).join('')}</div>
+            <p class="text-center text-xs text-slate-400 mt-3">${list.length ? 'End of the list' : 'No transactions.'}</p>`;
     }
 
     // "Suggest from my last 90 days": each everyday line's average of the last 3 full months, in a
@@ -579,6 +820,72 @@
         'budget.mode': (el) => { Store.ui.budgetMode = el.dataset.mode; App.update(); },
         'budget.bubbles': () => { Store.ui.budgetBubbles = !Store.ui.budgetBubbles; App.update(); },
         'budget.bubble': (el) => openBubble(Number(el.dataset.index)),
+        // List: the cards; Manage: the cards with the planned column, to add and change lines.
+        'budget.view': (el) => { Store.ui.budgetBubbles = false; if (el.dataset.view === 'manage') Store.ui.budgetMode = 'planned'; App.update(); const g = document.querySelector('#bud-simple .bs-grid'); if (g && el.dataset.view === 'manage') g.scrollIntoView({ block: 'start', behavior: 'smooth' }); },
+        // Tools bar → Budgets: the bubbles (the bank's way in).
+        'budget.openBubbles': () => { Store.ui.budgetBubbles = true; App.update(); },
+        'budget.bubMonth': (el) => bubMonthStep(Number(el.dataset.dir) || 0),
+        'budget.sumToggle': () => { Store.ui.bubSumOpen = !Store.ui.bubSumOpen; App.update(); },
+        'budget.autoGen': () => autoGenerate(),
+        'budget.bubEdit': (el) => { bubTarget = el.dataset.id || null; bubView = 'edit'; drawBubble(); },
+        'budget.bubAdd': () => { bubView = 'add'; drawBubble(); },
+        'budget.bubBack': () => { bubView = 'main'; bubTarget = null; drawBubble(); },
+        'budget.bubTxns': () => drawBubTxns(),
+        'budget.bubTxn': (el) => {
+            const id = Number(el.dataset.id), b = bubbleMonth;
+            if (bubbleSheet) bubbleSheet.close();
+            // Back from the transaction returns to this bubble's list.
+            if (window.TxnDetails) TxnDetails.open(id, { back: () => { const i = lastBubbles.findIndex(x => x.category === b.category); if (i >= 0) { openBubble(i); drawBubTxns(); } } });
+        },
+        'budget.bubSave': () => {
+            const v = Math.max(0, Fmt.parseNum((document.getElementById('bub-edit-amt') || {}).value, NaN));
+            if (!isFinite(v)) { UI.toast('Type an amount.', 'error'); return; }
+            const b = bubbleMonth, target = bubTarget;
+            App.undoable(`Budget for ${I18n.t(b.category)}: ${money0(v)}`, () => {
+                const list = monthList();
+                if (target) { const it = list.find(x => String(x.id) === String(target)); if (it) setLineAmount(it, v); return; }
+                const mine = list.filter(it => !it.link && !it.sweep && (it.linkedCategory || 'Otros') === b.category);
+                const fixed = b.planned - mine.reduce((a, it) => a + (Number(it.real) || 0), 0);   // debt/goal lines
+                if (!mine.length) { if (v - fixed > 0.005) addLine(list, b.category, I18n.t(b.category), Math.round((v - fixed) * 100) / 100); return; }
+                const big = mine.slice().sort((x, y) => (Number(y.real) || 0) - (Number(x.real) || 0))[0];
+                const others = mine.reduce((a, it) => a + (it === big ? 0 : Number(it.real) || 0), 0);
+                setLineAmount(big, Math.max(0, Math.round((v - fixed - others) * 100) / 100));
+            });
+            refreshBubble(); bubView = 'main'; bubTarget = null; drawBubble();
+        },
+        'budget.bubDelete': async () => {
+            const b = bubbleMonth, target = bubTarget;
+            const ok = await UI.confirm({ title: 'Delete this budget?', message: target ? 'This line is removed from the month\'s budget. You can undo it.' : 'Its lines are removed from the month\'s budget (debt and goal payments stay). You can undo it.', confirmText: 'Delete', danger: true });
+            if (!ok) return;
+            App.undoable(`Budget for ${I18n.t(b.category)} deleted`, () => {
+                const list = monthList();
+                for (let i = list.length - 1; i >= 0; i--) {
+                    const it = list[i];
+                    if (target ? String(it.id) === String(target) : (!it.link && !it.sweep && (it.linkedCategory || 'Otros') === b.category)) list.splice(i, 1);
+                }
+            });
+            refreshBubble();
+            if (!target || !bubbleMonth.lines.length) { if (bubbleSheet) bubbleSheet.close(); return; }
+            bubView = 'main'; bubTarget = null; drawBubble();
+        },
+        'budget.bubSub': (el) => {
+            const b = bubbleMonth, sub = el.dataset.sub;
+            let created = null;
+            App.undoable(`Sub-budget added: ${I18n.t(sub)}`, () => { created = addLine(monthList(), b.category, I18n.t(sub), 0); });
+            refreshBubble(); bubTarget = created ? created.id : null; bubView = 'edit'; drawBubble();
+        },
+        'budget.bubSubNew': async () => {
+            const b = bubbleMonth;
+            const r = await UI.form({ title: 'Add a subcategory', fields: [{ name: 'name', label: `Subcategory of ${I18n.t(b.category)}`, value: '' }], confirmText: 'Add' });
+            if (!r || !r.name.trim()) return;
+            const name = r.name.trim().slice(0, 60), tax = Store.state.taxonomy.expense;
+            let created = null;
+            App.undoable(`Sub-budget added: ${name}`, () => {
+                if (!(tax[b.category] || []).includes(name)) (tax[b.category] = tax[b.category] || []).push(name);
+                created = addLine(monthList(), b.category, name, 0);
+            });
+            refreshBubble(); bubTarget = created ? created.id : null; bubView = 'edit'; drawBubble();
+        },
         'budget.slide': (el) => {
             const yd = Store.active(), m = Store.ui.month, v = Math.max(0, Fmt.parseNum(el.value, 0));
             if (m !== 'base' && !yd.monthOverrides[m]) yd.monthOverrides[m] = Defaults.clone(yd.budgetBase);

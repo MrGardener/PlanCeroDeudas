@@ -1138,6 +1138,30 @@
         });
     }
 
+    // "Auto-generate budgets" (the bank's first Budgets screen): one line per category you spent on
+    // in the last 3 full months before `today`, at its monthly average (rounded to $5, or $10 from
+    // $100). Debts and transfers are left out: debt lines come from the debts list.
+    function autoBudget(transactions, today, { months = 3, skip = ['Deudas'] } = {}) {
+        const t = today instanceof Date ? today : new Date(today);
+        const from = isoDate(new Date(t.getFullYear(), t.getMonth() - months, 1)), to = isoDate(new Date(t.getFullYear(), t.getMonth(), 0));
+        return spendingBreakdown(transactions, { from, to, max: 999 }).rows.filter(r => !skip.includes(r.key)).map(r => {
+            const avg = r.total / months, step = avg >= 100 ? 10 : 5;
+            return { category: r.key, avg, suggested: Math.max(step, Math.round(avg / step) * step) };
+        });
+    }
+
+    // One budget category over the last `months` months up to `end`: what was spent each month
+    // (transactions of that category) and what was budgeted (budgetOf(year, month) → amount).
+    function categoryMonths(transactions, { category, end, months = 12, budgetOf = () => 0 } = {}) {
+        const e = end instanceof Date ? end : new Date(end);
+        return Array.from({ length: months }, (_, i) => {
+            const d = new Date(e.getFullYear(), e.getMonth() - months + 1 + i, 1), y = d.getFullYear(), m = d.getMonth() + 1;
+            const key = `${y}-${pad2(m)}`, from = `${key}-01`, to = isoDate(new Date(y, m, 0));
+            const spent = sum((transactions || []).filter(x => txnType(x) === 'Gasto' && !isTransfer(x) && x.date >= from && x.date <= to && (x.parentCategory || 'Otros') === category), amt);
+            return { key, year: y, month: m, spent, budget: num(budgetOf(y, m)) };
+        });
+    }
+
     // How a line's month is going: where spending "should" be by today if spread evenly, and
     // what's left per day for the days left (today included).
     function spendPace({ planned, spent, day, daysInMonth }) {
@@ -1163,6 +1187,42 @@
             share: b.planned > 0 ? b.spent / b.planned : null,
             state: b.spent > b.planned + 0.005 ? 'over' : b.planned > 0 && b.spent / b.planned >= 0.8 ? 'warn' : 'ok'
         })).sort((a, b) => b.planned - a.planned || b.spent - a.spent);
+    }
+
+    // Packs circles in a box, like soap bubbles: overlapping ones push apart (half each, or all of
+    // it onto the one that isn't held), and every one drifts toward the middle. Pure: returns new
+    // positions; run it a few rounds per frame to animate, or many to settle. `fixed` is the index of
+    // a bubble being dragged (it stays where the finger is).
+    function packCircles(circles, { width, height, rounds = 120, gap = 4, pull = 0.02, fixed = -1 } = {}) {
+        const c = circles.map(x => ({ x: num(x.x), y: num(x.y), r: num(x.r) }));
+        const cx = width / 2, cy = height / 2;
+        for (let k = 0; k < rounds; k++) {
+            // The pull fades out so the last rounds only separate (they end apart, not squeezed).
+            const p = pull * Math.max(0, 1 - k / (rounds * 0.7));
+            c.forEach((a, i) => { if (i !== fixed) { a.x += (cx - a.x) * p; a.y += (cy - a.y) * p; } });
+            for (let i = 0; i < c.length; i++) {
+                for (let j = i + 1; j < c.length; j++) {
+                    const a = c[i], b = c[j];
+                    let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+                    const min = a.r + b.r + gap;
+                    if (d >= min) continue;
+                    if (d < 1e-6) { dx = 1; dy = 0; d = 1; }    // same spot: split sideways
+                    const push = min - d, ux = dx / d, uy = dy / d;
+                    const wa = i === fixed ? 0 : j === fixed ? 1 : 0.5, wb = 1 - wa;
+                    a.x -= ux * push * wa; a.y -= uy * push * wa;
+                    b.x += ux * push * wb; b.y += uy * push * wb;
+                }
+            }
+            c.forEach((a, i) => { if (i !== fixed) { a.x = Math.min(width - a.r, Math.max(a.r, a.x)); a.y = Math.min(height - a.r, Math.max(a.r, a.y)); } });
+        }
+        return c;
+    }
+    // Where bubbles start: biggest in the middle, the rest on a spiral around it.
+    function spiralStart(radii, width, height) {
+        return radii.map((r, i) => {
+            const t = i * 2.39996, d = i === 0 ? 0 : 18 * Math.sqrt(i) * 3;
+            return { x: width / 2 + Math.cos(t) * d, y: height / 2 + Math.sin(t) * d, r };
+        });
     }
 
     // ------------------------------------------------------------ recurring
@@ -2715,7 +2775,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalVelocity, buildAlerts, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalVelocity, buildAlerts, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

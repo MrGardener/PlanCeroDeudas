@@ -256,7 +256,18 @@
         ]
     });
 
-    const Defaults = { clone, annualIdeas, collegeTypes, collegeDefaults, checklists, BUDGET_TEMPLATE, BUDGET_TYPES, EXPENSE_TAXONOMY, INCOME_TAXONOMY, COOPERATIVAS, sriBrackets, newYear, newState, emptyState };
+    // An icon per expense category (bubbles, spending); anything else gets the generic one.
+    const CATEGORY_ICONS = {
+        'Vivienda': 'fa-house', 'Servicios Básicos y Comunicación': 'fa-lightbulb', 'Transporte': 'fa-car', 'Alimentación': 'fa-utensils',
+        'Suscripciones y Entretenimiento Digital': 'fa-tv', 'Entretenimiento y Ocio': 'fa-film', 'Cuidado Personal': 'fa-spa', 'Vestimenta': 'fa-shirt',
+        'Salud': 'fa-heart-pulse', 'Educación': 'fa-graduation-cap', 'Familia e Hijos': 'fa-children', 'Mascotas': 'fa-paw', 'Deudas': 'fa-credit-card',
+        'Seguros y Protección': 'fa-shield-heart', 'Financiero y Legal': 'fa-scale-balanced', 'Ahorro e Inversión': 'fa-piggy-bank',
+        'Viajes y Vacaciones': 'fa-plane', 'Regalos, Celebraciones y Donaciones': 'fa-gift', 'Remesas y Ayuda Familiar': 'fa-hand-holding-dollar',
+        'Negocio Propio / Freelance': 'fa-briefcase', 'Otros': 'fa-ellipsis'
+    };
+    const categoryIcon = (c) => CATEGORY_ICONS[c] || 'fa-tag';
+
+    const Defaults = { clone, CATEGORY_ICONS, categoryIcon, annualIdeas, collegeTypes, collegeDefaults, checklists, BUDGET_TEMPLATE, BUDGET_TYPES, EXPENSE_TAXONOMY, INCOME_TAXONOMY, COOPERATIVAS, sriBrackets, newYear, newState, emptyState };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = Defaults;
     else root.Defaults = Defaults;
