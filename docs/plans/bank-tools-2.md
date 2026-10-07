@@ -106,7 +106,7 @@ Ask: **"Do step N of docs/plans/bank-tools-2.md"** (or "continue the bank tools 
    offline by someone who copies the storage. Also: the clipboard is never used for amounts; there's an
    optional "hide amounts" privacy mode; the screen is hidden in the phone's app switcher (Android
    FLAG_SECURE).
-9. **Full check of the phone app and the computer file** — every screen, button, field and label, in
+9. ✅ **Full check of the phone app and the computer file** — every screen, button, field and label, in
    portrait and landscape (phone and tablet sizes); a parity list showing that every tool works the
    same in the phone app and the HTML file; fix what's broken without removing features. Browser suites
    for landscape layouts (no sideways scroll, sheets fit, keyboard doesn't hide inputs).

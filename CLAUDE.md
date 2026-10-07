@@ -28,7 +28,8 @@ npm ci && (cd mobile && npm ci)   # once per machine
 npm run build                     # writes dist/ (tests fail if dist/ is stale)
 npm test                          # unit tests (fast; run often)
 npm run build:mobile              # phone build (must run from mobile/ — the script does that)
-npm run e2e                       # all browser suites (~4 min); `node tests/e2e/run.js us` runs matching ones
+npm run e2e                       # all browser suites (~6 min); `node tests/e2e/run.js us` runs matching ones
+                                  # (e2e-sweep: every screen, phone + file, portrait + landscape)
 npm run check                     # all of the above, before pushing
 npm run i18n:missing              # English text with no Spanish yet (report)
 npm run i18n:spanish              # Spanish text left in the code (only shrinks)

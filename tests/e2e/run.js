@@ -2,7 +2,7 @@
 // Needs the phone build first (`npm run build:mobile`) for the phone-app suite.
 const { spawnSync } = require('child_process');
 const path = require('path');
-const suites = ['e2e.js', 'e2e-us.js', 'e2e-mobile.js', 'i18n-scan.js', 'i18n-scan-us.js'];
+const suites = ['e2e.js', 'e2e-us.js', 'e2e-mobile.js', 'e2e-sweep.js', 'i18n-scan.js', 'i18n-scan-us.js'];
 const only = process.argv.slice(2);
 let failed = [];
 for (const s of suites.filter(x => !only.length || only.some(o => x.includes(o)))) {
