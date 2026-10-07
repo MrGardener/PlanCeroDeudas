@@ -671,7 +671,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   const wallet = await page.evaluate(() => Store.state.accounts.find(a => a.kind === 'efectivo').id);
   r1 = await rows();
   ok(r1.length > 0 && r1.every(r => r.a === wallet) && await page.textContent('#txn-accts-label') === '1 account', 'transactions: one account', r1.length);
-  const csv = await page.evaluate(async () => { let got = null; const keep = Native.saveFile; Native.saveFile = (name, text) => { got = { name, text }; return Promise.resolve('saved'); }; UI.run('txn.download', {}); Native.saveFile = keep; return got; });
+  const csv = await page.evaluate(async () => { let got = null; const keep = Native.saveSecure; Native.saveSecure = (name, text) => { got = { name, text }; return Promise.resolve('saved'); }; UI.run('txn.download', {}); Native.saveSecure = keep; return got; });
   ok(csv && /^transactions_\d{4}-\d\d-01_/.test(csv.name) && csv.text.trim().split('\n').length === r1.length + 1 && /Date,Payee,Category/.test(csv.text), 'transactions: download what is shown', csv && csv.name);
   // A Month close link (year + month) still works: it becomes that month.
   await page.evaluate(() => { Store.ui.txnFilters = { year: '2026', month: '3', type: 'Gasto', category: 'all', member: 'all' }; App.update(); });
@@ -989,12 +989,32 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('#lock-screen button[type="submit"]');
   await page.waitForTimeout(400);
   const wrong = await page.textContent('#lock-msg');
-  ok(/Type your PIN to get in/.test(lockTxt) && /ZeroDebtPlan/.test(lockTxt) && /Wrong PIN\. 4 tries left/.test(wrong), 'PIN screen and its messages in English', [lockTxt, wrong]);
+  ok(/Type your PIN to get in/.test(lockTxt) && /ZeroDebtPlan/.test(lockTxt) && /Wrong PIN\. Tries left before a 30-second wait: 4/.test(wrong), 'PIN screen and its messages in English', [lockTxt, wrong]);
   await page.fill('#lock-pin', '1234');
   await page.click('#lock-screen button[type="submit"]');
   await page.waitForTimeout(400);
   ok(!(await page.$('#lock-screen')) && await page.evaluate(() => I18n.lang) === 'en' && /Overview|Budget/.test(await page.textContent('#main-nav')), 'unlocking keeps the app in English');
   await page.evaluate(() => Device.removePin());
+  // 10 wrong PINs erase everything this app keeps on the device (the count survives a reload).
+  await page.evaluate(async () => { await Device.setPin('1234'); Store.saveNow(); Device.lockNow(); });
+  const pinKey = await page.evaluate(() => Store.KEY);
+  const wrongPin = async () => { await page.fill('#lock-pin', '0000'); await page.click('#lock-screen button[type="submit"]'); await page.waitForTimeout(350); };
+  for (let k = 0; k < 4; k++) await wrongPin();
+  ok(await page.evaluate(() => Device.read().lock.fails) === 4, 'wrong PINs are counted on the device');
+  await wrongPin();
+  const waitMsg = await page.textContent('#lock-msg');
+  ok(/Tries left before everything on this device is erased: 5/.test(waitMsg) && /Wait 30 seconds/.test(waitMsg), 'after 5 wrong PINs: a 30-second wait and a warning', waitMsg);
+  await wrongPin();
+  ok(/Too many tries\. Wait \d+ seconds/.test(await page.textContent('#lock-msg')) && await page.evaluate(() => Device.read().lock.fails) === 5, 'during the wait a PIN is not even checked');
+  // Skip the waits (as if 30 seconds passed each time) and use up the rest.
+  for (let k = 0; k < 4; k++) { await page.evaluate(() => { const d = Device.read(); d.lock.waitUntil = 0; localStorage.setItem(Device.KEY, JSON.stringify(d)); }); await wrongPin(); }
+  ok(await page.evaluate(() => Device.read().lock.fails) === 9 && !!(await page.evaluate((k) => localStorage.getItem(k), pinKey)), 'nine wrong PINs: the data is still there');
+  await page.evaluate(() => { const d = Device.read(); d.lock.waitUntil = 0; localStorage.setItem(Device.KEY, JSON.stringify(d)); window.__noReloadCheck = 1; });
+  await page.fill('#lock-pin', '0000');
+  await Promise.all([page.waitForEvent('load', { timeout: 8000 }).catch(() => null), page.click('#lock-screen button[type="submit"]')]);
+  await page.waitForTimeout(600);
+  const wiped = await page.evaluate((k) => ({ data: localStorage.getItem(k), dev: localStorage.getItem(Device.KEY), pin: Device.hasPin(), lock: !!document.getElementById('lock-screen') }), pinKey);
+  ok(!wiped.pin && !wiped.lock && (!wiped.data || !JSON.parse(wiped.data).transactions.length), 'the 10th wrong PIN erases the data and the PIN, and the app starts empty', wiped);
   ok(errors.length === 0, 'no console errors', errors);
   console.log(`\n${pass} passed, ${fail} failed`);
   await browser.close();

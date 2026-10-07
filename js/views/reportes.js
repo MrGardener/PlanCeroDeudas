@@ -173,7 +173,7 @@
 
     // A download in the browser; the share sheet in the phone app (js/native.js).
     function download(name, text) {
-        Native.saveFile(name, text, 'text/csv;charset=utf-8').catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
+        Native.saveSecure(name, text, 'text/csv;charset=utf-8').catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
     }
 
     UI.register({

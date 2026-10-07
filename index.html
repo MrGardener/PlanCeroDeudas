@@ -1592,10 +1592,13 @@
             <div class="panel tone-indigo">
                 <div class="section-label text-indigo-900"><i class="fa-solid fa-file-shield"></i> Backup</div>
                 <div class="flex flex-wrap gap-2">
-                    <button class="btn btn-primary" data-action="cfg.download"><i class="fa-solid fa-download"></i> Download backup (.json)</button>
+                    <button class="btn btn-primary" data-action="cfg.download"><i class="fa-solid fa-lock"></i> Download backup (encrypted)</button>
                     <button class="btn btn-secondary" data-action="cfg.upload"><i class="fa-solid fa-upload"></i> Load backup</button>
+                    <button class="btn btn-secondary" data-action="cfg.openVault"><i class="fa-solid fa-lock-open"></i> Open an encrypted file</button>
                     <input type="file" id="cfg-file" accept="application/json,.json" class="hidden" data-change="cfg.fileChosen">
+                    <input type="file" id="cfg-vault-file" accept="application/json,.json" class="hidden" data-change="cfg.vaultChosen">
                 </div>
+                <p class="help mt-2">Backups and downloads (CSV, reports) are encrypted with a password you choose (AES-256). Without the password nobody can read them, not even us. "Open an encrypted file" saves a readable copy when you need one.</p>
             </div>
             <div class="panel tone-blue">
                 <div class="section-label text-blue-900"><i class="fa-solid fa-copy"></i> Copy budget between years</div>
@@ -1779,6 +1782,7 @@
 <script src="js/i18n/ec.js"></script>
 <script src="js/device.js"></script>
 <script src="js/native.js"></script>
+<script src="js/vault.js"></script>
 <script src="js/format.js"></script>
 <script src="js/defaults.js"></script>
 <script src="js/defaults-us.js"></script>

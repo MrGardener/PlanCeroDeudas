@@ -29,6 +29,7 @@ const bridge = (prefs) => {
   };
 };
 
+const Vault_ok = (d) => { try { const o = JSON.parse(d); return o.cipher === 'AES-256-GCM' && !/years|transactions/.test(d); } catch (e) { return false; } };
 (async () => {
   const browser = await launch();
   const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
@@ -88,11 +89,16 @@ const bridge = (prefs) => {
   // Backup → Filesystem + share sheet.
   await page.evaluate(() => App.go('config'));
   await page.click('[data-action="cfg.download"]');
-  await page.waitForTimeout(400);
+  await page.waitForSelector('.modal input[name="pw"]');
+  await page.fill('.modal input[name="pw"]', 'test-pass-123');
+  await page.fill('.modal input[name="pw2"]', 'test-pass-123');
+  await page.click('.modal [data-dialog-ok]');
+  await page.waitForTimeout(2500);
   const calls = await page.evaluate(() => window.__calls.filter(c => c[0] !== 'Preferences'));
   const w = calls.find(c => c[0] === 'Filesystem' && c[1] === 'writeFile');
-  ok(w && /^zerodebtplan_\d{4}-\d\d-\d\d\.json$/.test(w[2].path) && w[2].directory === 'CACHE', 'writeFile ' + JSON.stringify(w && w[2].path));
-  ok(w && !/priceKey/.test(w[2].data), 'no price key in backup');
+  ok(w && /^zerodebtplan_\d{4}-\d\d-\d\d\.json\.enc\.json$/.test(w[2].path) && w[2].directory === 'CACHE', 'writeFile (encrypted) ' + JSON.stringify(w && w[2].path));
+  const plainBackup = w && await page.evaluate((d) => Vault.decrypt(d, 'test-pass-123').then(r => r.text), w[2].data);
+  ok(w && Vault_ok(w[2].data) && !/priceKey/.test(plainBackup) && /"years"/.test(plainBackup), 'backup encrypted, no price key inside');
   ok(calls.some(c => c[0] === 'Share' && c[2].files[0].startsWith('file:///cache/zerodebtplan_')), 'share sheet');
   ok(/Backup ready/i.test(await page.textContent('#toast-host')), 'toast: ' + await page.textContent('#toast-host'));
 
@@ -114,7 +120,15 @@ const bridge = (prefs) => {
   await page.evaluate(() => App.go('presupuesto/reportes'));
   await page.waitForTimeout(300);
   const csvBtn = await page.$('[data-action^="rep."][data-action*="csv"], [data-action="rep.export"]');
-  if (csvBtn) { await csvBtn.click(); await page.waitForTimeout(300); ok(await page.evaluate(() => window.__calls.some(c => c[0] === 'Filesystem' && /\.csv$/.test(c[2].path))), 'csv shared'); }
+  if (csvBtn) {
+    await csvBtn.click();
+    await page.waitForSelector('.modal input[name="pw"]');
+    await page.fill('.modal input[name="pw"]', 'test-pass-123');
+    await page.fill('.modal input[name="pw2"]', 'test-pass-123');
+    await page.click('.modal [data-dialog-ok]');
+    await page.waitForTimeout(2500);
+    ok(await page.evaluate(() => window.__calls.some(c => c[0] === 'Filesystem' && /\.csv\.enc\.json$/.test(c[2].path) && !/,/.test(JSON.parse(c[2].data).data))), 'csv shared, encrypted');
+  }
   else console.log('note: no CSV button found');
 
   // Restore: web storage wiped, native copy present.

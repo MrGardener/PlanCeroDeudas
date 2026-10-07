@@ -47,6 +47,30 @@
         return 'share';
     }
 
+    // Every file that leaves the app is encrypted: ask for a password (twice), encrypt (js/vault.js)
+    // and save "<name>.enc.json". Returns false when the person cancels.
+    async function askPassword({ title = 'Encrypt the file', confirm = true, message } = {}) {
+        const min = root.Vault ? Vault.MIN_PASSWORD : 8;
+        const fields = [{ name: 'pw', label: 'Password', type: 'password', help: `At least ${min} characters. Without it the file can't be opened: keep it somewhere safe.` }];
+        if (confirm) fields.push({ name: 'pw2', label: 'Type it again', type: 'password' });
+        const r = await root.UI.form({ title, icon: 'fa-lock', message: message || 'Files leave the app encrypted (AES-256). You need this password to open the file again.', fields, confirmText: confirm ? 'Encrypt and save' : 'Open',
+            validate: (v) => (String(v.pw || '').length < min ? `The password needs at least ${min} characters.` : confirm && v.pw !== v.pw2 ? 'The passwords don\'t match.' : null) });
+        return r ? r.pw : null;
+    }
+    async function saveSecure(name, text, type = 'text/plain', opts = {}) {
+        const pw = await askPassword(opts);
+        if (!pw) return false;
+        const env = await root.Vault.encrypt(text, pw, { name, type });
+        return saveFile(name + root.Vault.EXT, env, 'application/json');
+    }
+    // Erase everything this app keeps on the device: its storage entries and the phone's copy.
+    async function wipe(keys) {
+        keys.forEach(k => { try { localStorage.removeItem(k); } catch (e) { /* gone */ } });
+        try { sessionStorage.clear(); } catch (e) { /* none */ }
+        const prefs = plugin('Preferences');
+        if (prefs) { try { await Promise.all(keys.map(k => prefs.remove({ key: k }))); } catch (e) { /* best effort */ } }
+    }
+
     // Android back button.
     function onBack() {
         const dlg = document.querySelector('.modal-backdrop:not(.hidden) [data-dialog-cancel]');
@@ -85,5 +109,5 @@
         document.addEventListener('DOMContentLoaded', () => setTimeout(startMirror, 0));
     }
 
-    root.Native = { isApp, saveFile, platform: isApp ? cap.getPlatform() : 'web' };
+    root.Native = { isApp, saveFile, saveSecure, askPassword, wipe, exit, platform: isApp ? cap.getPlatform() : 'web' };
 })(this);

@@ -330,7 +330,7 @@
             return [t.date, t.description || '', tr(t.parentCategory || ''), tr(t.category || ''), ((accts.find(a => a.id === t.accountId) || {}).name) || '', sign * Math.abs(Number(t.amount) || 0), Views.whoName(t.memberId) || '', (t.tags || []).map(g => '#' + g).join(' ')];
         }));
         const f = Store.ui.txnFilters;
-        Native.saveFile(`transactions_${f.from || 'start'}_${f.to || 'today'}.csv`, Importers.toCSV(rows), 'text/csv;charset=utf-8').catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
+        Native.saveSecure(`transactions_${f.from || 'start'}_${f.to || 'today'}.csv`, Importers.toCSV(rows), 'text/csv;charset=utf-8').catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
     }
 
     function update(ctx) {
