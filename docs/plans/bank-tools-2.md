@@ -66,7 +66,7 @@ Ask: **"Do step N of docs/plans/bank-tools-2.md"** (or "continue the bank tools 
      the card turns into "Created") | **All transactions** | search | **Create manual event** (payee, amount
      with Expense/Income switch, account, category, Occurs… with the same picker).
 
-6. **Goals like the bank's**
+6. ✅ **Goals like the bank's**
    - First visit: "Welcome to Goals" and Get started.
    - Header: "Total monthly contribution", "+ Add a goal", "Manage".
    - A timeline (years going into the distance) with each goal's icon at its projected date.

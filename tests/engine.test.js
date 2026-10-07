@@ -1447,6 +1447,38 @@ test('categoryTrend: spending by category per month, income line, account and ca
     assert.deepEqual(f.series.map(x => [x.key, x.values[0]]), [['A', 30], [null, 57]]);
 });
 
+test('debt order: snowball, highest interest, fastest payoff, highest balance', () => {
+    const debts = [
+        { id: 1, name: 'Card A', balance: 2817, rate: 14.99, minPayment: 120, monthly: 120 },
+        { id: 2, name: 'Card B', balance: 1798, rate: 22.9, minPayment: 65, monthly: 65 },
+        { id: 3, name: 'Student loan', balance: 35184, rate: 4.5, minPayment: 250, monthly: 250 }
+    ];
+    const first = (k) => E.debtPayoff(debts, k, 100).items.map(x => x.id);
+    assert.deepEqual(first('snowball'), [2, 1, 3]);
+    assert.deepEqual(first('avalanche'), [2, 1, 3]);
+    assert.deepEqual(first('highest-balance'), [3, 1, 2]);
+    assert.deepEqual(first('fastest'), [1, 2, 3]);   // 2817/120 = 23.5 months beats 1798/65 = 27.7
+});
+
+test('goalTimeline: savings, debts and retirement on one line, total a month, over budget', () => {
+    const today = new Date(2026, 9, 7);
+    const debts = [{ id: 1, name: 'Card', balance: 1000, rate: 20, minPayment: 50, monthly: 150 }, { id: 2, name: 'Hidden', balance: 500, rate: 5, minPayment: 25, monthly: 25, track: false }];
+    const plan = E.debtPayoff(debts, 'snowball', 0);
+    const r = E.goalTimeline({ goals: [{ id: 9, name: 'Emergency fund', kind: 'emergency', target: 1000, current: 0, monthly: 200, rate: 0 }, { id: 8, name: 'Car', target: 5000, current: 0, monthly: 0 }],
+        debts, debtPlan: plan, retirement: { goalOn: true, goalTarget: 500000, goalSaved: 106551, aporteMensual: 1000, birthday: '1969-01-01', edadJubilacion: 65 }, today, toAssign: -621 });
+    const by = (t) => r.items.filter(x => x.type === t);
+    assert.equal(by('savings')[0].months, 5);
+    assert.equal(by('savings')[1].attention, true);           // nothing goes in: needs attention
+    assert.deepEqual(by('debt').map(x => [x.name, x.extra]), [['Card', 100]]);   // not tracked: left out
+    assert.ok(by('debt')[0].months > 0);
+    // $106,551 + $1,000 a month at 6% reaches $500,000 in about 166 months: after 65 (born 1969).
+    assert.equal(by('retirement')[0].months, 166);
+    assert.equal(by('retirement')[0].attention, true);
+    assert.equal(r.total, 200 + 0 + 100 + 1000);
+    assert.equal(r.overBy, 621);
+    assert.equal(r.attention, 2);
+});
+
 test('cash events: once or repeating (1st Friday, monthly…), suggestions and paid / due / upcoming', () => {
     assert.deepEqual(E.occurrences({ startDate: '2026-10-02', frequency: 'monthlyNth' }, '2026-10-01', '2027-02-28'), ['2026-10-02', '2026-11-06', '2026-12-04', '2027-01-01', '2027-02-05']);
     // A 5th Friday becomes the month's last one.

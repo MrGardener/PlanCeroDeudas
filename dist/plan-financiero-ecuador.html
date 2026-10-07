@@ -1021,6 +1021,31 @@ button.sheet-row:hover { background: var(--surface-3); }
 .cev-actions { display: flex; justify-content: center; gap: 1.5rem; border-top: 1px solid var(--line-soft); width: 100%; padding-top: .3rem; }
 .cev-actions button { width: 2.4rem; height: 2.2rem; border-radius: .5rem; font-size: 1rem; }
 .cev-actions button:hover { background: var(--surface-3); }
+/* Goals like the bank's: the bar, the timeline (a road into the distance), the sheets. */
+.gm-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .5rem 0 .75rem; border-bottom: 1px solid var(--line); margin-bottom: .75rem; }
+.gm-wrap { display: grid; grid-template-columns: 2.6rem 1fr; gap: .5rem; height: 22rem; }
+.gm-slider { display: flex; flex-direction: column; align-items: center; justify-content: space-between; font-size: .65rem; color: var(--muted); }
+.gm-slider input { writing-mode: vertical-lr; direction: rtl; width: 1.6rem; flex: 1; margin: .3rem 0; accent-color: var(--brand); }
+.gm-road { position: relative; overflow: hidden; height: 22rem; }
+.gm-track { position: absolute; inset: 0; background: linear-gradient(to top, var(--surface-3), transparent 95%); clip-path: polygon(0 100%, 100% 100%, 64% 0, 36% 0); }
+.gm-year { position: absolute; border-top: 2px solid var(--surface); }
+.gm-year span { position: absolute; left: .2rem; transform: translateY(-100%); color: var(--muted); font-weight: 600; white-space: nowrap; }
+.gm-dot { position: absolute; border-radius: 50%; display: grid; place-items: center; color: #fff; box-shadow: 0 6px 12px rgba(15, 23, 42, .18); transition: transform var(--dur) var(--ease); }
+.gm-dot:hover, .gm-dot:focus-visible { transform: scale(1.08); z-index: 2; }
+.gm-dot.is-savings, .gm-dot-static.is-savings { background: #3fa76a; } .gm-dot.is-debt, .gm-dot-static.is-debt { background: #4d8fd0; } .gm-dot.is-retirement, .gm-dot-static.is-retirement { background: #8e7cc3; }
+.gm-dot.needs::after { content: '!'; position: absolute; top: -2px; right: -2px; width: 1rem; height: 1rem; border-radius: 50%; background: #d03b3b; color: #fff; font-size: .65rem; font-weight: 800; display: grid; place-items: center; }
+.gm-dot-static { width: 3.6rem; height: 3.6rem; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 1.4rem; flex: none; }
+.gm-dot-static.sm { width: 2rem; height: 2rem; font-size: .85rem; }
+.gm-goal-top { display: flex; align-items: center; gap: .75rem; }
+.gm-welcome { display: flex; flex-direction: column; align-items: center; gap: .6rem; text-align: center; padding: 1.5rem .5rem; }
+.gm-type { display: flex; align-items: center; gap: 1rem; width: 100%; text-align: left; border: 1px solid var(--line); border-radius: .75rem; padding: .75rem; margin-bottom: .6rem; }
+.gm-type:hover { background: var(--surface-3); }
+.gm-type-icon { width: 3.4rem; height: 3.4rem; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 1.3rem; flex: none; }
+.gm-type.is-savings .gm-type-icon { background: #3fa76a; } .gm-type.is-debt .gm-type-icon { background: #4d8fd0; } .gm-type.is-retirement .gm-type-icon { background: #8e7cc3; }
+.gm-row { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .6rem .25rem; border-bottom: 1px solid var(--line-soft); font-size: .88rem; }
+button.gm-row:hover { background: var(--surface-3); }
+.gm-bullet { width: .55rem; height: .55rem; border-radius: 50%; flex: none; }
+.gm-bullet.is-savings { background: #3fa76a; } .gm-bullet.is-debt { background: #4d8fd0; } .gm-bullet.is-retirement { background: #8e7cc3; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -2033,8 +2058,10 @@ button.sheet-row:hover { background: var(--surface-3); }
                     <select class="input" data-bind="debtPlan.strategy">
                         <option value="snowball">Debt Snowball</option>
                         <option value="avalanche">Avalanche</option>
+                        <option value="fastest">Fastest payoff first</option>
+                        <option value="highest-balance">Highest balance first</option>
                     </select>
-                    <span class="help">Snowball: smallest balance first. Avalanche: highest rate first.</span>
+                    <span class="help">Snowball: smallest balance first. Avalanche: highest rate first. Fastest: fewest months at its own payment.</span>
                 </label>
                 <div class="kpi tone-slate" id="debt-funding">
                     <span class="kpi-label">Your debt budget</span>
@@ -2082,8 +2109,16 @@ button.sheet-row:hover { background: var(--surface-3); }
                     <div class="card-title"><i class="fa-solid fa-bullseye text-purple-600"></i> Debt-Free Savings Goals</div>
                     <div class="card-sub">How long you need to buy something 100% in cash by saving. Each goal is added automatically to the Savings section of your <a href="#" class="link" data-goto="presupuesto/plan">budget</a>: if you don't assign money to it, it never arrives.</div>
                 </div>
-                <button class="btn btn-secondary" data-action="goal.add"><i class="fa-solid fa-plus"></i> New Goal</button>
             </div>
+            <div class="gm-bar">
+                <span><strong id="gm-total" class="text-lg"></strong> <span class="text-sm text-slate-500">Total monthly contribution</span></span>
+                <span class="flex gap-2 ml-auto">
+                    <button type="button" class="btn btn-secondary btn-sm" data-action="gm.add"><i class="fa-solid fa-circle-plus"></i> Add a goal</button>
+                    <button type="button" class="btn btn-secondary btn-sm relative" data-action="gm.manage"><i class="fa-solid fa-list-ul"></i> Manage<b class="tools-badge hidden" id="gm-badge" aria-label="Needs attention">!</b></button>
+                </span>
+            </div>
+            <div id="gm-map" class="mb-4"></div>
+            <div class="flex justify-end mb-2"><button class="link text-xs" data-action="goal.add"><i class="fa-solid fa-plus"></i> Quick add (a blank goal)</button></div>
             <div id="goal-cards" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4"></div>
             <details class="mb-4" id="goal-table"><summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Edit every field in a table</summary>
             <div class="table-wrap table-cards-wrap mt-2">
@@ -5760,6 +5795,84 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Add a goal": "Agregar una meta",
+    "Add a retirement goal": "Agregar una meta de jubilación",
+    "Add it here": "Agrégala aquí",
+    "Additional monthly contribution to the top debt": "Aporte mensual adicional a la primera deuda",
+    "Amount to save": "Monto a ahorrar",
+    "Assumes a 6.0% annual rate of return.": "Supone un rendimiento anual de 6.0%.",
+    "Automobile": "Automóvil",
+    "Birthday": "Fecha de nacimiento",
+    "Change it": "Cambiarlo",
+    "Change the amount, the date or the account in the goal's card below.": "Cambia el monto, la fecha o la cuenta en la tarjeta de la meta, más abajo.",
+    "Change the balance, rate or payments in the Debts card.": "Cambia el saldo, la tasa o los pagos en la tarjeta de Deudas.",
+    "Create a new goal": "Crear una meta nueva",
+    "Current savings": "Ahorro actual",
+    "Debt no longer on the goals timeline": "La deuda ya no está en la línea de metas",
+    "Debt payoff": "Pagar deudas",
+    "Delete this goal?": "¿Eliminar esta meta?",
+    "Desired savings": "Ahorro deseado",
+    "Electronic": "Electrónica",
+    "Enter an amount": "Escribe un monto",
+    "Fastest payoff first": "Primero la que se paga más rápido",
+    "Goal added to your budget's Savings.": "Meta agregada al Ahorro de tu presupuesto.",
+    "Goal added: {0}": "Meta agregada: {0}",
+    "Goal deleted: {0}": "Meta eliminada: {0}",
+    "Goal details": "Detalle de la meta",
+    "Goals help you plan your money in order and reach financial freedom. Plan months, years and even decades ahead.": "Las metas te ayudan a planificar tu dinero en orden y a llegar a la libertad financiera. Planifica meses, años y hasta décadas.",
+    "Highest balance first": "Primero el saldo más alto",
+    "Highest interest first": "Primero el interés más alto",
+    "Home": "Vivienda",
+    "Include all the accounts that save for your retirement. Don't see one?": "Incluye todas las cuentas que ahorran para tu jubilación. ¿No ves alguna?",
+    "It's removed from your goals and your budget. You can undo it.": "Se quita de tus metas y de tu presupuesto. Puedes deshacerlo.",
+    "Lowest balance first": "Primero el saldo más bajo",
+    "Lowest balance first is Dave Ramsey's debt snowball: quick wins keep you going.": "Primero el saldo más bajo es la bola de nieve de Dave Ramsey: las victorias rápidas te mantienen en marcha.",
+    "Manage": "Administrar",
+    "Manage goals": "Administrar metas",
+    "Monthly contribution to the top savings goal{0}": "Aporte mensual a la primera meta de ahorro{0}",
+    "Move the timeline": "Mover la línea de tiempo",
+    "Needs attention": "Necesita atención",
+    "Never at this pace": "Nunca a este ritmo",
+    "No debts being tracked.": "No hay deudas en seguimiento.",
+    "No debts. Add one in the Debts card (or as a card or loan in Accounts).": "No hay deudas. Agrega una en la tarjeta de Deudas (o como tarjeta o préstamo en Cuentas).",
+    "No savings goals yet.": "Todavía no hay metas de ahorro.",
+    "No savings or retirement accounts yet.": "Todavía no hay cuentas de ahorro o jubilación.",
+    "Not on the line (nothing goes in yet):": "Fuera de la línea (todavía no entra nada):",
+    "Now": "Ahora",
+    "Once you have an emergency fund, the best thing for your finances is to pay off your debts.": "Cuando tengas un fondo de emergencia, lo mejor para tus finanzas es pagar tus deudas.",
+    "Pay off": "Pagar",
+    "Payment due": "Fecha de pago",
+    "Projected": "Proyectado",
+    "Quick add (a blank goal)": "Agregar rápido (una meta en blanco)",
+    "Recreational": "Recreación",
+    "Remove the retirement goal": "Quitar la meta de jubilación",
+    "Retirement age": "Edad de jubilación",
+    "Retirement goal removed": "Meta de jubilación quitada",
+    "Retirement goal saved": "Meta de jubilación guardada",
+    "Save for…": "Ahorrar para…",
+    "Select a goal type": "Elige un tipo de meta",
+    "Select an account (or none)": "Elige una cuenta (o ninguna)",
+    "Select debts to track": "Elige las deudas a seguir",
+    "Snowball: smallest balance first. Avalanche: highest rate first. Fastest: fewest months at its own payment.": "Bola de nieve: primero el saldo más pequeño. Avalancha: primero la tasa más alta. Más rápida: la de menos meses con su propio pago.",
+    "Start with an emergency fund. Then save for college, a new car, a dream vacation or anything else.": "Empieza con un fondo de emergencia. Luego ahorra para la universidad, un carro nuevo, el viaje soñado o lo que quieras.",
+    "Stop tracking": "Dejar de seguir",
+    "The earlier you start saving for retirement, the more you'll enjoy those years.": "Cuanto antes empieces a ahorrar para la jubilación, más disfrutarás esos años.",
+    "The goal goes into your budget's Savings with this amount each month. A linked account's balance is what's saved.": "La meta entra al Ahorro de tu presupuesto con este monto cada mes. El saldo de la cuenta vinculada es lo ahorrado.",
+    "Ticked debts show on your goals timeline. Every debt stays in your snowball either way.": "Las deudas marcadas se ven en tu línea de metas. Todas siguen en tu bola de nieve igual.",
+    "Total monthly contribution": "Aporte mensual total",
+    "Total monthly contribution: {0}": "Aporte mensual total: {0}",
+    "Type how much you want to have saved.": "Escribe cuánto quieres tener ahorrado.",
+    "Type the amount to save.": "Escribe el monto a ahorrar.",
+    "Type your birthday.": "Escribe tu fecha de nacimiento.",
+    "Vacation": "Vacaciones",
+    "Welcome to Goals!": "¡Bienvenido a Metas!",
+    "You've overbudgeted your goals.": "Tus metas pasan tu presupuesto.",
+    "need attention": "necesitan atención",
+    "Your goals ask {0} more than what's left in your budget.": "Tus metas piden {0} más de lo que queda en tu presupuesto.",
+    "Tap a goal for its details; slide to see goals farther away.": "Toca una meta para ver su detalle; desliza para ver metas más lejanas.",
+    "Projected {0}": "Proyectado {0}",
+    "{0} goal{1}": "{0} meta{1|s|}",
+    "Add a goal (savings, debt payoff or retirement): see when each one is reached on the timeline; Manage sets what goes in each month and the order debts are paid.": "Agrega una meta (ahorro, pagar deudas o jubilación): mira en la línea de tiempo cuándo llega cada una; Administrar define cuánto entra cada mes y en qué orden se pagan las deudas.",
     "Add cash events (suggested from your payments, or by hand), once or repeating; pick which accounts count. Red means you'd go below $0.": "Agrega eventos de efectivo (sugeridos de tus pagos, o a mano), una vez o repetidos; elige qué cuentas cuentan. Rojo significa que quedarías bajo $0.",
     "Add a cash event": "Agregar un evento de efectivo",
     "Add a checking or cash account first (Net Worth → Accounts).": "Agrega primero una cuenta corriente o de efectivo (Patrimonio → Cuentas).",
@@ -13053,7 +13166,12 @@ I18n.override('EC', 'es', {
                 // First month the debt gets more than its own line (the snowball reaches it).
                 attackMonth: null
             }));
+            // The order the extra goes in (the bank's "In progress" menu): snowball = lowest balance
+            // first (Dave Ramsey's), avalanche = highest interest, fastest payoff = fewest months at
+            // its own payment, or highest balance first.
             if (strategy === 'avalanche') items.sort((a, b) => b.rate - a.rate || a.balance - b.balance);
+            else if (strategy === 'highest-balance') items.sort((a, b) => b.balance - a.balance);
+            else if (strategy === 'fastest') items.sort((a, b) => a.balance / Math.max(1, a.line) - b.balance / Math.max(1, b.line) || a.balance - b.balance);
             else items.sort((a, b) => a.balance - b.balance);
 
             let month = 0, totalInterest = 0;
@@ -13180,6 +13298,32 @@ I18n.override('EC', 'es', {
         if (m.status === 'never') return { state: 'never', months: null, pct, required: sch ? sch.required : null };
         if (!sch) return { state: 'no-date', months: m.months, pct };
         return { state: sch.onTrack ? 'on-track' : 'behind', months: m.months, pct, required: sch.required, gap: sch.gap };
+    }
+
+    // Goals on one timeline (the bank's Goals screen): savings goals (when they're reached), debts
+    // (when they're paid off, in the plan's order) and retirement, each with its months from today,
+    // what goes in each month and whether it needs attention. Also the total a month and how much
+    // of it the budget can't cover (overBy, from the budget's still-to-assign: below 0 = over).
+    function goalTimeline({ goals = [], debts = [], debtPlan, retirement = null, today = new Date(), toAssign = 0 } = {}) {
+        const out = [];
+        (goals || []).forEach(g => {
+            const st = goalStatus(g, today);
+            out.push({ type: 'savings', id: g.id, name: g.name, kind: g.kind || 'other', months: st.months, monthly: num(g.monthly), saved: num(g.current), target: num(g.target), state: st.state, attention: st.state === 'behind' || st.state === 'never' });
+        });
+        const plan = debtPlan || { items: [] };
+        (plan.items || []).forEach((it, i) => {
+            const d = (debts || []).find(x => x.id === it.id);
+            if (!d || d.track === false || !(num(d.balance) > 0)) return;
+            out.push({ type: 'debt', id: d.id, name: d.name, kind: d.kind, months: it.payoffMonth, order: i + 1, monthly: Math.max(num(d.monthly), num(d.minPayment)), extra: Math.max(0, num(d.monthly) - num(d.minPayment)), minPayment: num(d.minPayment), rate: num(d.rate), balance: num(d.balance), original: Math.max(num(d.originalBalance), num(d.balance)), attention: !it.payoffMonth });
+        });
+        if (retirement && retirement.goalOn) {
+            const m = goalMonths({ target: retirement.goalTarget, current: retirement.goalSaved, monthly: retirement.aporteMensual, rate: retirement.goalRate === undefined ? 6 : retirement.goalRate });
+            const left = retirement.birthday ? Math.max(0, Math.round(((parseISO(retirement.birthday).getFullYear() + num(retirement.edadJubilacion || 65)) - new Date(today).getFullYear()) * 12)) : null;
+            out.push({ type: 'retirement', id: 'retirement', name: 'Retirement', kind: 'retirement', months: m.months, monthly: num(retirement.aporteMensual), saved: num(retirement.goalSaved), target: num(retirement.goalTarget), retireIn: left,
+                attention: m.status === 'never' || (left !== null && m.months !== null && m.months > left) });
+        }
+        const total = cents(sum(out.filter(x => x.type !== 'debt'), x => x.monthly) + sum(out.filter(x => x.type === 'debt'), x => x.extra));
+        return { items: out, total, overBy: cents(Math.max(0, -num(toAssign))), attention: out.filter(x => x.attention).length };
     }
 
     // What went into a goal each month (deposits logged on its budget line, "goal-<id>"), for the
@@ -13958,7 +14102,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -23408,7 +23552,7 @@ I18n.override('EC', 'es', {
             }
         });
         const first = rows.find(r => r.payoffMonth);
-        UI.text('debt-ladder-note', `${s.debtPlan.strategy === 'avalanche' ? 'Avalanche' : 'Snowball'}: each bar runs from today to the month that debt is paid off. The light part is while it gets only its minimum; the dark part, once the snowball reaches it.${first ? ` The first to go: ${first.debt.name}, in ${when(first.payoffMonth)}.` : ''}`);
+        UI.text('debt-ladder-note', `${({ avalanche: 'Avalanche', fastest: 'Fastest payoff first', 'highest-balance': 'Highest balance first' })[s.debtPlan.strategy] || 'Snowball'}: each bar runs from today to the month that debt is paid off. The light part is while it gets only its minimum; the dark part, once the snowball reaches it.${first ? ` The first to go: ${first.debt.name}, in ${when(first.payoffMonth)}.` : ''}`);
 
         // Total owed: this plan vs. minimums only (one axis, same money).
         const start = rows.reduce((t, r) => t + (Number(r.debt.balance) || 0), 0);
@@ -23500,6 +23644,7 @@ I18n.override('EC', 'es', {
         debtLadder(ctx);
         debtWhatIf(ctx);
         goalCards(ctx);
+        if (window.GoalMap) GoalMap.render(ctx);
 
         // Emergency fund
         const ef = ctx.ef;
@@ -23749,6 +23894,286 @@ I18n.override('EC', 'es', {
     });
 
     App.defineView('futuro/metas', { render, update });
+})();
+</script>
+<script>/* js/views/goalmap.js */
+/* Goals like the bank's (Future → Debts & Goals): the total that goes to your goals each month,
+   "+ Add a goal" (Savings, Debt payoff, Retirement), "Manage" (each kind with what it gets a month,
+   the order debts are paid, a warning when the goals ask more than the budget has left), and a
+   timeline that runs into the distance with each goal at the date it's reached. A slider moves the
+   view to goals far away. Savings goals stay the budget's goal lines; debts stay the snowball. */
+(function () {
+    'use strict';
+    const { money, money0, esc } = Fmt;
+
+    const SAVE_KINDS = [
+        ['emergency', 'fa-heart-pulse', 'Emergency fund'], ['auto', 'fa-car', 'Automobile'], ['college', 'fa-graduation-cap', 'College'],
+        ['home', 'fa-house', 'Home'], ['recreational', 'fa-bicycle', 'Recreational'], ['vacation', 'fa-map-location-dot', 'Vacation'],
+        ['electronic', 'fa-desktop', 'Electronic'], ['other', 'fa-money-bill-wave', 'Other']
+    ];
+    const kindIcon = (x) => x.type === 'retirement' ? 'fa-umbrella-beach' : x.type === 'debt' ? (x.kind === 'tarjeta' ? 'fa-credit-card' : 'fa-file-invoice-dollar') : ((SAVE_KINDS.find(k => k[0] === x.kind) || SAVE_KINDS[7])[1]);
+    const ORDERS = [['avalanche', 'Highest interest first'], ['fastest', 'Fastest payoff first'], ['snowball', 'Lowest balance first'], ['highest-balance', 'Highest balance first']];
+    const when = (today, m) => (m === null || m === undefined ? 'Never at this pace' : Fmt.monthYear(Engine.addMonths(today, m)));
+
+    let last = null;   // the timeline as last drawn
+    function timeline(ctx) {
+        const s = ctx.state, r = s.retirement || {};
+        return Engine.goalTimeline({ goals: s.goals, debts: s.debts, debtPlan: ctx.debts, retirement: r.goalOn ? r : null, today: ctx.today, toAssign: ctx.monthBudget ? ctx.monthBudget.balanceReal : 0 });
+    }
+
+    function render(ctx) {
+        const host = document.getElementById('gm-map');
+        if (!host) return;
+        const t = last = timeline(ctx);
+        UI.text('gm-total', money(t.total));
+        const badge = document.getElementById('gm-badge');
+        if (badge) badge.classList.toggle('hidden', !(t.attention || t.overBy > 0));
+        if (!t.items.length) {
+            host.innerHTML = `<div class="gm-welcome"><h3 class="text-xl font-bold">Welcome to Goals!</h3>
+                <p class="text-sm text-slate-600 max-w-md">Goals help you plan your money in order and reach financial freedom. Plan months, years and even decades ahead.</p>
+                <button type="button" class="btn btn-primary" data-action="gm.add">Get started</button></div>`;
+            return;
+        }
+        // Years from now to the farthest goal; the slider picks where the view starts.
+        const y0 = ctx.today.getFullYear(), far = Math.max(1, ...t.items.map(x => (x.months === null ? 0 : x.months / 12)));
+        const span = Math.max(3, Math.min(12, Math.ceil(far) + 1));
+        const maxStart = Math.max(0, Math.ceil(far) - span + 2);
+        const start = Math.min(maxStart, Math.max(0, Number(Store.ui.gmStart) || 0));
+        // Near years take more room (perspective): height from the bottom = sqrt(fraction of the view);
+        // nearer goals are bigger. The road narrows to 28% of the width at the far end.
+        const pos = (years) => Math.sqrt(Math.max(0, Math.min(1, (years - start) / span)));
+        const edge = (p) => 36 * p;   // % from each side where the road's edge is at that height
+        const lines = Array.from({ length: span + 1 }, (_, i) => start + i).map(k => { const p = pos(k); return `<div class="gm-year" style="bottom:${(p * 100).toFixed(1)}%;left:${edge(p).toFixed(1)}%;right:${edge(p).toFixed(1)}%"><span style="font-size:${(0.95 - 0.4 * p).toFixed(2)}rem">${y0 + k}</span></div>`; }).join('');
+        const shown = t.items.filter(x => x.months !== null && x.months / 12 >= start - 0.01 && x.months / 12 <= start + span)
+            .sort((a, b) => b.months - a.months);   // far ones first, so near ones sit on top
+        // Place them nearest first, sliding sideways until they don't cover one another.
+        const W = Math.max(220, (host.clientWidth || 340) - 50), H = 344, placed = [];
+        const dots = shown.slice().reverse().map(x => {
+            const p = pos(x.months / 12), size = Math.round(78 - 44 * p), r = size / 2, cy = H * (1 - p) - r * 0.3;
+            let cx = W / 2;
+            for (let k = 1; k < 40 && placed.some(o => Math.hypot(o.x - cx, o.y - cy) < o.r + r + 4); k++) cx = W / 2 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (r * 0.9);
+            placed.push({ x: cx, y: cy, r });
+            return `<button type="button" class="gm-dot is-${x.type} ${x.attention ? 'needs' : ''}" style="top:${(cy - r).toFixed(0)}px;left:${(cx - r).toFixed(0)}px;width:${size}px;height:${size}px;font-size:${(size / 2.6).toFixed(0)}px"
+                data-action="gm.open" data-type="${x.type}" data-id="${esc(String(x.id))}" aria-label="${esc(`${I18n.t(x.name)}: ${when(ctx.today, x.months)}`)}"><i class="fa-solid ${kindIcon(x)}"></i></button>`;
+        }).join('');
+        const never = t.items.filter(x => x.months === null);
+        host.innerHTML = `<div class="gm-wrap">
+                <div class="gm-slider"><span>${y0 + start + span}</span><input type="range" min="0" max="${maxStart}" step="1" value="${start}" data-input="gm.scroll" aria-label="Move the timeline" ${maxStart ? '' : 'disabled'}><span>Now</span></div>
+                <div class="gm-road"><div class="gm-track"></div>${lines}${dots}</div>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">${esc(Fmt.MONTH_NAMES[ctx.today.getMonth()])} ${y0}. Tap a goal for its details; slide to see goals farther away.</p>
+            ${never.length ? `<p class="text-xs text-red-600 mt-1"><i class="fa-solid fa-circle-exclamation"></i> Not on the line (nothing goes in yet): <span data-i18n-skip>${never.map(x => esc(I18n.t(x.name))).join(', ')}</span></p>` : ''}`;
+    }
+
+    // ------------------------------------------------------------------ sheets
+    let sh = null;   // { sheet, view, ... } — one sheet, its views drawn inside
+    function open(view, extra = {}) {
+        if (sh && sh.sheet && document.body.contains(sh.sheet.el)) { Object.assign(sh, { view }, extra); draw(); return; }
+        sh = Object.assign({ view }, extra);
+        sh.sheet = UI.sheet({ title: 'Goals', icon: 'fa-location-arrow', wide: true, html: '<div id="gm-body"></div>', onClose: () => { sh = null; } });
+        draw();
+    }
+    const head = (title, back) => `<div class="flex items-center gap-2 mb-3">${back ? `<button type="button" class="icon-btn icon-btn-light" data-action="gm.view" data-view="${back}" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button>` : ''}<strong>${title}</strong></div>`;
+    function draw() {
+        const host = document.getElementById('gm-body');
+        if (!host || !sh) return;
+        const ctx = App.buildContext(), s = ctx.state, t = last = timeline(ctx);
+        const accounts = s.accounts || [];
+        const bal = (a) => (['tarjeta', 'hipoteca'].includes(a.kind) ? -Math.abs(Number(a.balance) || 0) : Number(a.balance) || 0);
+        switch (sh.view) {
+            case 'type':
+                host.innerHTML = head('Add a goal') + `<p class="text-sm font-semibold mb-2">Select a goal type</p>
+                    ${[['savings', 'fa-piggy-bank', 'Savings', 'Start with an emergency fund. Then save for college, a new car, a dream vacation or anything else.'],
+                        ['debt', 'fa-sack-dollar', 'Debt payoff', 'Once you have an emergency fund, the best thing for your finances is to pay off your debts.'],
+                        ['retirement', 'fa-umbrella-beach', 'Retirement', 'The earlier you start saving for retirement, the more you\'ll enjoy those years.']].map(k => `<button type="button" class="gm-type is-${k[0]}" data-action="gm.view" data-view="${k[0] === 'savings' ? 'kinds' : k[0] === 'debt' ? 'debts' : 'retire'}"><span class="gm-type-icon"><i class="fa-solid ${k[1]}"></i></span><span><strong class="block">${esc(k[2])}</strong><span class="text-xs text-slate-500">${esc(k[3])}</span></span></button>`).join('')}`;
+                return;
+            case 'kinds':
+                host.innerHTML = head('Save for…', 'type') + `<div class="range-list">${SAVE_KINDS.map(k => `<button type="button" data-action="gm.kind" data-kind="${k[0]}"><i class="fa-solid ${k[1]} text-emerald-600"></i> ${esc(k[2])}</button>`).join('')}</div>`;
+                return;
+            case 'newSaving': {
+                const d = sh.draft, acct = accounts.find(a => String(a.id) === String(d.accountId));
+                const saved = acct ? Math.max(0, bal(acct)) : 0, target = Fmt.parseNum(d.target, 0);
+                host.innerHTML = head('Create a new goal', 'kinds') + `<div class="gm-goal-top"><span class="gm-dot-static is-savings"><i class="fa-solid ${(SAVE_KINDS.find(k => k[0] === d.kind) || SAVE_KINDS[7])[1]}"></i></span>
+                        <div class="flex-1 min-w-0"><div class="text-lg font-semibold truncate" data-i18n-skip>${esc(d.name)}</div><div class="flex justify-between text-xs text-slate-500"><span>${money0(saved)} / ${money0(target)}</span><span>${target > 0 ? Math.round(Math.min(1, saved / target) * 100) : 0}%</span></div>
+                        <div class="progress-track mt-1"><div class="progress-fill" style="width:${target > 0 ? Math.min(100, saved / target * 100).toFixed(1) : 0}%"></div></div></div></div>
+                    <div class="acd-fields mt-3">
+                        <label class="acd-field"><span>Goal name</span><input class="input" id="gm-name" maxlength="40" value="${esc(d.name)}" data-change="gm.draft" data-f="name"></label>
+                        <label class="acd-field"><span>Amount to save</span><input type="number" class="input" id="gm-target" min="0" step="any" placeholder="Enter an amount" value="${esc(d.target)}" data-change="gm.draft" data-f="target"></label>
+                        <label class="acd-field"><span>Account</span><select class="input" id="gm-account" data-change="gm.draft" data-f="accountId"><option value="">Select an account (or none)</option>${accounts.filter(a => !['tarjeta', 'hipoteca'].includes(a.kind)).map(a => `<option value="${a.id}" ${String(d.accountId) === String(a.id) ? 'selected' : ''}>${esc(a.name)} · ${money(bal(a))}</option>`).join('')}</select></label>
+                        <label class="acd-field"><span>Each month</span><input type="number" class="input" id="gm-monthly" min="0" step="any" value="${esc(d.monthly)}" data-change="gm.draft" data-f="monthly"></label>
+                    </div>
+                    <p class="help mt-2">The goal goes into your budget's Savings with this amount each month. A linked account's balance is what's saved.</p>
+                    <div class="flex justify-end mt-3"><button type="button" class="btn btn-primary" data-action="gm.saveSaving"><i class="fa-regular fa-circle-check"></i> Save</button></div>`;
+                return;
+            }
+            case 'debts':
+                host.innerHTML = head('Select debts to track', 'type') + (s.debts.filter(d => Number(d.balance) > 0).length ? `<div class="gm-list">${s.debts.filter(d => Number(d.balance) > 0).map(d => `<label class="fa-row"><input type="checkbox" data-change="gm.track" data-id="${d.id}" ${d.track === false ? '' : 'checked'}><span class="gm-dot-static is-debt sm"><i class="fa-solid ${d.kind === 'tarjeta' ? 'fa-credit-card' : 'fa-file-invoice-dollar'}"></i></span><span class="flex-1 min-w-0 truncate" data-i18n-skip>${esc(d.name)}</span><strong>${money(Number(d.balance) || 0)}</strong></label>`).join('')}</div>
+                    <p class="help mt-2">Ticked debts show on your goals timeline. Every debt stays in your snowball either way.</p>`
+                    : '<p class="help">No debts. Add one in the Debts card (or as a card or loan in Accounts).</p>');
+                return;
+            case 'retire': {
+                const r = s.retirement || {}, d = sh.draft || (sh.draft = { birthday: r.birthday || '', age: r.edadJubilacion || 65, target: r.goalTarget || '', accounts: r.goalAccounts || accounts.filter(a => Engine.isRetirementMoney(a)).map(a => a.id), monthly: r.aporteMensual || 0 });
+                const ret = accounts.filter(a => Engine.isRetirementMoney(a) || a.kind === 'ahorros' || a.kind === 'retiro');
+                const saved = ret.filter(a => d.accounts.map(String).includes(String(a.id))).reduce((x, a) => x + Math.max(0, bal(a)), 0);
+                host.innerHTML = head('Retirement', 'type') + `<div class="acd-fields">
+                        <label class="acd-field"><span>Birthday</span><input type="date" class="input" id="gm-bday" value="${esc(d.birthday)}" data-change="gm.rdraft" data-f="birthday"></label>
+                        <label class="acd-field"><span>Retirement age</span><input type="number" class="input" min="40" max="80" value="${esc(d.age)}" data-change="gm.rdraft" data-f="age"></label>
+                        <label class="acd-field"><span>Desired savings</span><input type="number" class="input" id="gm-rtarget" min="0" step="any" value="${esc(d.target)}" data-change="gm.rdraft" data-f="target"></label>
+                        <label class="acd-field"><span>Each month</span><input type="number" class="input" min="0" step="any" value="${esc(d.monthly)}" data-change="gm.rdraft" data-f="monthly"></label>
+                    </div>
+                    <div class="gl-head mt-3"><span>Current savings</span><span>${money0(saved)}</span></div>
+                    <p class="help">Include all the accounts that save for your retirement. Don't see one? <a href="#" class="link" data-goto="patrimonio" data-focus="acct-hub">Add it here</a>.</p>
+                    ${ret.map(a => `<label class="fa-row"><input type="checkbox" data-change="gm.raccount" data-id="${a.id}" ${d.accounts.map(String).includes(String(a.id)) ? 'checked' : ''}><span class="flex-1 truncate" data-i18n-skip>${esc(a.name)}</span><strong>${money(bal(a))}</strong></label>`).join('') || '<p class="help">No savings or retirement accounts yet.</p>'}
+                    <p class="text-xs text-slate-500 mt-2">Assumes a 6.0% annual rate of return.</p>
+                    <div class="flex justify-between mt-3">${r.goalOn ? '<button type="button" class="link text-red-600 text-sm" data-action="gm.retireOff">Remove the retirement goal</button>' : '<span></span>'}<button type="button" class="btn btn-primary" data-action="gm.saveRetire"><i class="fa-regular fa-circle-check"></i> Save</button></div>`;
+                return;
+            }
+            case 'manage': {
+                const by = (k) => t.items.filter(x => x.type === k), sum = (l, f) => l.reduce((a, x) => a + f(x), 0);
+                const sav = by('savings'), debts = by('debt'), ret = by('retirement');
+                const row = (dot, label, sub, amount, view) => `<button type="button" class="gm-row" data-action="gm.view" data-view="${view}"><span class="gm-bullet is-${dot}"></span><span class="flex-1 text-left"><span class="block font-semibold">${esc(I18n.t(label))}</span><span class="text-xs text-slate-500">${sub}</span></span><strong>${money0(amount)}</strong></button>`;
+                host.innerHTML = head('Manage goals') + (t.overBy > 0 ? `<div class="bs-banner bad mb-3"><i class="fa-solid fa-circle-exclamation"></i> <span>You've overbudgeted your goals.</span> <span>Your goals ask ${money(t.overBy)} more than what's left in your budget.</span></div>` : '')
+                    + (ret.length ? row('retirement', 'Retirement', `${ret.length} goal${ret.length === 1 ? '' : 's'}${ret[0].attention ? ` · <span class="text-red-600">${esc(I18n.t('Needs attention'))}</span>` : ''}`, ret[0].monthly, 'retire')
+                        : '<div class="gm-row"><span class="gm-bullet is-retirement"></span><span class="flex-1 font-semibold">Retirement</span><button type="button" class="btn btn-secondary btn-sm" data-action="gm.view" data-view="retire">Add a retirement goal</button></div>')
+                    + row('savings', 'Savings', `${sav.length} goal${sav.length === 1 ? '' : 's'}${sav.some(x => x.attention) ? `, <span class="text-red-600">${sav.filter(x => x.attention).length} ${esc(I18n.t('need attention'))}</span>` : ''}`, sum(sav, x => x.monthly), 'savings')
+                    + row('debt', 'Debt payoff', `${debts.length} goal${debts.length === 1 ? '' : 's'}`, sum(debts, x => x.extra), 'debtPlan')
+                    + `<div class="text-right font-bold mt-3">Total monthly contribution: ${money0(t.total)}</div>`;
+                return;
+            }
+            case 'savings': {
+                const sav = t.items.filter(x => x.type === 'savings'), top = sav.find(x => x.state !== 'reached');
+                host.innerHTML = head('Savings', 'manage') + `<label class="field"><span class="field-label">Monthly contribution to the top savings goal${top ? ` (<span data-i18n-skip>${esc(top.name)}</span>)` : ''}</span><input type="number" class="input" id="gm-top-sav" min="0" step="any" value="${top ? top.monthly : 0}" ${top ? '' : 'disabled'}></label>
+                    <div class="flex justify-center my-2"><button type="button" class="btn btn-secondary" data-action="gm.saveTopSav" ${top ? '' : 'disabled'}>Save</button></div>
+                    <div class="gl-head mt-2"><span>In progress</span></div>
+                    ${sav.map(x => `<button type="button" class="gm-row" data-action="gm.open" data-type="savings" data-id="${x.id}">${x.attention ? '<i class="fa-solid fa-circle-exclamation text-red-600"></i>' : '<span class="gm-bullet is-savings"></span>'}<span class="flex-1 text-left"><span class="block font-semibold" data-i18n-skip>${esc(x.name)}</span><span class="text-xs text-slate-500">${x.state === 'reached' ? 'Reached' : `Projected ${esc(when(ctx.today, x.months))}`}</span></span><span class="text-right"><strong class="block">${money0(x.monthly)}</strong><span class="text-xs text-slate-500">Monthly</span></span></button>`).join('') || '<p class="help">No savings goals yet.</p>'}`;
+                return;
+            }
+            case 'debtPlan': {
+                const debts = t.items.filter(x => x.type === 'debt'), extra = debts.reduce((a, x) => a + x.extra, 0), order = s.debtPlan.strategy || 'snowball';
+                host.innerHTML = head('Debt payoff', 'manage') + `<p class="text-sm font-semibold">Additional monthly contribution to the top debt</p>
+                    ${sh.editExtra ? `<div class="flex gap-2 items-center my-2"><input type="number" class="input" id="gm-extra" min="0" step="any" value="${Math.round(extra * 100) / 100}" style="max-width:10rem"><button type="button" class="btn btn-secondary" data-action="gm.saveExtra">Save</button></div>`
+                        : `<div class="flex items-center gap-2 my-2"><span class="text-2xl font-black">${money0(extra)}</span><button type="button" class="icon-btn icon-btn-light" data-action="gm.editExtra" aria-label="Change it"><i class="fa-solid fa-pen"></i></button></div>`}
+                    <div class="flex items-center justify-between gap-2 mt-3 border-b pb-2" style="border-color:var(--line)"><span class="font-semibold">In progress</span>
+                        <select class="cell-input" style="width:auto" data-change="gm.order" aria-label="Order">${ORDERS.map(o => `<option value="${o[0]}" ${o[0] === order ? 'selected' : ''}>${esc(I18n.t(o[1]))}</option>`).join('')}</select></div>
+                    ${debts.map(x => `<button type="button" class="gm-row" data-action="gm.open" data-type="debt" data-id="${x.id}"><span class="text-blue-600 font-bold w-5">${x.order}</span><span class="flex-1 text-left"><span class="block font-semibold"><span>Pay off</span> <span data-i18n-skip>${esc(x.name)}</span></span><span class="text-xs text-slate-500">Projected ${esc(when(ctx.today, x.months))}</span></span><span class="text-right"><strong class="block">${money0(x.minPayment)}${x.order === 1 && extra > 0 ? ' +' : ''}</strong><span class="text-xs text-slate-500">Monthly</span></span></button>`).join('') || '<p class="help">No debts being tracked.</p>'}
+                    <p class="help mt-2">Lowest balance first is Dave Ramsey's debt snowball: quick wins keep you going.</p>`;
+                return;
+            }
+            case 'details': {
+                const x = t.items.find(i => i.type === sh.type && String(i.id) === String(sh.id));
+                if (!x) { sh.view = 'manage'; draw(); return; }
+                const pct = x.type === 'debt' ? (x.original > 0 ? 1 - x.balance / x.original : 0) : (x.target > 0 ? Math.min(1, x.saved / x.target) : 0);
+                const progress = x.type === 'debt' ? `${money0(x.original - x.balance)} / ${money0(x.original)}` : `${money0(x.saved)} / ${money0(x.target)}`;
+                const d = x.type === 'debt' ? s.debts.find(z => z.id === x.id) : null, g = x.type === 'savings' ? s.goals.find(z => z.id === x.id) : null;
+                const acct = (d && (accounts.find(a => a.debtId === d.id) || null)) || (g && g.accountId && accounts.find(a => a.id === g.accountId));
+                const due = d && Number(d.dueDay) >= 1 ? (() => { const n = new Date(ctx.today.getFullYear(), ctx.today.getMonth() + (ctx.today.getDate() > d.dueDay ? 1 : 0), d.dueDay); return Fmt.dayMonth(n) + ', ' + n.getFullYear(); })() : '—';
+                const field = (label, v) => `<div class="acd-field"><span>${esc(I18n.t(label))}</span><span data-i18n-skip>${v}</span></div>`;
+                host.innerHTML = `<div class="flex items-center gap-2 mb-3"><button type="button" class="icon-btn icon-btn-light" data-action="gm.view" data-view="${sh.back || 'manage'}" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button><strong>Goal details</strong>
+                        <div class="relative ml-auto"><button type="button" class="icon-btn icon-btn-light" data-action="gm.menu" aria-label="More"><i class="fa-solid fa-ellipsis"></i></button>${sh.menu ? `<div class="tdt-menu" role="menu"><button type="button" role="menuitem" data-action="gm.remove"><i class="fa-solid ${x.type === 'debt' ? 'fa-eye-slash' : 'fa-trash-can'}"></i> ${x.type === 'debt' ? 'Stop tracking' : 'Delete goal'}</button></div>` : ''}</div></div>
+                    <div class="gm-goal-top"><span class="gm-dot-static is-${x.type}"><i class="fa-solid ${kindIcon(x)}"></i></span><div class="flex-1 min-w-0"><div class="text-lg font-semibold truncate">${x.type === 'debt' ? `<span>Pay off</span> <span data-i18n-skip>${esc(x.name)}</span>` : `<span data-i18n-skip>${esc(I18n.t(x.name))}</span>`}</div>
+                        <div class="flex justify-between text-xs text-slate-500"><span>${progress}</span><span>${Math.round(pct * 100)}%</span></div><div class="progress-track mt-1"><div class="progress-fill" style="width:${(pct * 100).toFixed(1)}%"></div></div></div></div>
+                    <div class="acd-fields mt-3">
+                        ${acct ? field('Account', esc(acct.name)) : ''}
+                        ${x.type === 'debt' ? field('Minimum payment', money(x.minPayment)) + field('Interest', `${x.rate}%`) + field('Payment due', esc(due)) : field('Each month', money(x.monthly))}
+                        ${field('Projected', esc(when(ctx.today, x.months)))}
+                    </div>
+                    ${x.type === 'savings' ? '<p class="help mt-2">Change the amount, the date or the account in the goal\'s card below.</p>' : x.type === 'debt' ? '<p class="help mt-2">Change the balance, rate or payments in the Debts card.</p>' : ''}`;
+                return;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ actions
+    UI.register({
+        'gm.add': () => open('type'),
+        'gm.manage': () => open('manage'),
+        'gm.view': (el) => { if (!sh) open(el.dataset.view); else { sh.view = el.dataset.view; sh.menu = false; sh.editExtra = false; if (el.dataset.view === 'retire') sh.draft = null; draw(); } },
+        'gm.scroll': (el) => { Store.ui.gmStart = Number(el.value) || 0; render(App.buildContext()); },
+        'gm.open': (el) => {
+            const back = sh && sh.view ? sh.view : null;
+            if (el.dataset.type === 'retirement') { open('retire', { draft: null }); return; }
+            open('details', { type: el.dataset.type, id: el.dataset.id, back: back && back !== 'details' ? back : 'manage', menu: false });
+        },
+        'gm.kind': (el) => {
+            const k = SAVE_KINDS.find(x => x[0] === el.dataset.kind) || SAVE_KINDS[7];
+            sh.draft = { kind: k[0], name: I18n.t(k[2]), target: '', accountId: '', monthly: '' };
+            sh.view = 'newSaving'; draw();
+            setTimeout(() => { const i = document.getElementById('gm-target'); if (i) i.focus(); }, 30);
+        },
+        'gm.draft': (el) => { sh.draft[el.dataset.f] = el.value; draw(); },
+        'gm.saveSaving': () => {
+            const d = sh.draft, target = Math.max(0, Fmt.parseNum(d.target, 0));
+            if (!(target > 0)) { UI.toast('Type the amount to save.', 'error'); return; }
+            let created = null;
+            App.undoable(`Goal added: ${d.name}`, () => {
+                const goals = Store.state.goals, acct = d.accountId ? (Store.state.accounts || []).find(a => String(a.id) === String(d.accountId)) : null;
+                created = { id: Store.nextId(goals), name: (d.name || I18n.t('Other')).slice(0, 40), kind: d.kind, target, current: acct ? Math.max(0, Number(acct.balance) || 0) : 0, monthly: Math.max(0, Fmt.parseNum(d.monthly, 0)), rate: Number(Store.active().tasa) || 0, createdYear: new Date().getFullYear() };
+                if (acct) created.accountId = acct.id;
+                goals.push(created);
+            });
+            if (sh && sh.sheet) sh.sheet.close();
+            UI.toast('Goal added to your budget\'s Savings.', 'ok');
+        },
+        'gm.track': (el) => {
+            const d = Store.state.debts.find(x => x.id === Number(el.dataset.id));
+            if (!d) return;
+            if (el.checked) delete d.track; else d.track = false;
+            App.changed({ structural: true });
+        },
+        'gm.rdraft': (el) => { sh.draft[el.dataset.f] = el.value; draw(); },
+        'gm.raccount': (el) => { const id = Number(el.dataset.id), a = sh.draft.accounts.map(Number); sh.draft.accounts = el.checked ? [...new Set(a.concat([id]))] : a.filter(x => x !== id); draw(); },
+        'gm.saveRetire': () => {
+            const d = sh.draft, target = Math.max(0, Fmt.parseNum(d.target, 0));
+            if (!/^\d{4}-\d\d-\d\d$/.test(d.birthday || '')) { UI.toast('Type your birthday.', 'error'); return; }
+            if (!(target > 0)) { UI.toast('Type how much you want to have saved.', 'error'); return; }
+            App.undoable('Retirement goal saved', () => {
+                const r = Store.state.retirement, accts = Store.state.accounts || [];
+                const b = new Date(d.birthday + 'T00:00:00'), t = new Date();
+                r.goalOn = true; r.birthday = d.birthday; r.goalTarget = target; r.goalAccounts = d.accounts.map(Number);
+                r.goalSaved = accts.filter(a => r.goalAccounts.includes(a.id)).reduce((x, a) => x + Math.max(0, Number(a.balance) || 0), 0);
+                r.edadJubilacion = Math.max(40, Math.min(80, Math.round(Fmt.parseNum(d.age, 65))));
+                r.edadActual = t.getFullYear() - b.getFullYear() - (t < new Date(t.getFullYear(), b.getMonth(), b.getDate()) ? 1 : 0);
+                r.aporteMensual = Math.max(0, Fmt.parseNum(d.monthly, 0));
+            });
+            open('manage');
+        },
+        'gm.retireOff': () => { App.undoable('Retirement goal removed', () => { Store.state.retirement.goalOn = false; }); open('manage'); },
+        'gm.saveTopSav': () => {
+            const top = last && last.items.find(x => x.type === 'savings' && x.state !== 'reached');
+            const v = Math.max(0, Fmt.parseNum((document.getElementById('gm-top-sav') || {}).value, 0));
+            if (!top) return;
+            App.undoable(`${top.name}: ${money0(v)} a month`, () => { const g = Store.state.goals.find(x => x.id === top.id); if (g) g.monthly = v; });
+            draw();
+        },
+        'gm.editExtra': () => { sh.editExtra = true; draw(); const i = document.getElementById('gm-extra'); if (i) { i.focus(); i.select(); } },
+        // The extra goes to the debt first in the order; the others get their minimum (the snowball
+        // rolls each paid-off payment into the next one by itself).
+        'gm.saveExtra': () => {
+            const v = Math.max(0, Fmt.parseNum((document.getElementById('gm-extra') || {}).value, 0));
+            const ctx = App.buildContext(), first = ctx.debts.items.find(i => { const d = Store.state.debts.find(z => z.id === i.id); return d && Number(d.balance) > 0; });
+            App.undoable(`Extra for debts: ${money0(v)} a month`, () => {
+                Store.state.debts.forEach(d => { if (Number(d.balance) > 0) d.monthly = Number(d.minPayment) || 0; });
+                const d = first && Store.state.debts.find(z => z.id === first.id);
+                if (d) d.monthly = Math.round(((Number(d.minPayment) || 0) + v) * 100) / 100;
+            });
+            sh.editExtra = false; draw();
+        },
+        'gm.order': (el) => { Store.state.debtPlan.strategy = el.value; App.changed({ structural: true, step: true }); draw(); },
+        'gm.menu': () => { sh.menu = !sh.menu; draw(); },
+        'gm.remove': async () => {
+            const type = sh.type, id = sh.id;
+            if (type === 'debt') {
+                App.undoable('Debt no longer on the goals timeline', () => { const d = Store.state.debts.find(x => String(x.id) === String(id)); if (d) d.track = false; });
+            } else {
+                const g = Store.state.goals.find(x => String(x.id) === String(id));
+                if (!g || !(await UI.confirm({ title: 'Delete this goal?', message: 'It\'s removed from your goals and your budget. You can undo it.', confirmText: 'Delete', danger: true }))) return;
+                App.undoable(`Goal deleted: ${g.name}`, () => { Store.state.goals = Store.state.goals.filter(x => x !== g); });
+            }
+            sh.view = sh.back || 'manage'; sh.menu = false; draw();
+        }
+    });
+
+    window.GoalMap = { render, open };
 })();
 </script>
 <script>/* js/views/runway.js */
@@ -25820,7 +26245,8 @@ I18n.override('EC', 'es', {
             'What you own minus what you owe, saved on its own every month.',
             'Pick 6 months, 9 months or a year; tap a month to see how much it changed and its gains & losses, account by account.']],
         ['goals', 'fa-bullseye', 'Goals', ['futuro/metas', 'metas-goals'], [
-            'Save for something in cash: set the amount and the date, and the monthly amount goes into your budget.']],
+            'Save for something in cash: set the amount and the date, and the monthly amount goes into your budget.',
+            'Add a goal (savings, debt payoff or retirement): see when each one is reached on the timeline; Manage sets what goes in each month and the order debts are paid.']],
         ['cashflow', 'fa-calendar-days', 'Cash Flow', ['resumen', 'dash-flow-card'], [
             'Your balance day by day for the next 30, 60 or 90 days: pay, bills and everyday spending.',
             'Add cash events (suggested from your payments, or by hand), once or repeating; pick which accounts count. Red means you\'d go below $0.']],

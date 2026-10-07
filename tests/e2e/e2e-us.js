@@ -844,6 +844,79 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   const gc3 = await page.evaluate((id) => { const g = Store.state.goals.find(x => x.id === id), a = Store.state.accounts.find(x => x.id === g.accountId); return { cur: g.current, bal: a && a.balance }; }, gid);
   ok(gc3.bal !== undefined && gc3.cur === Math.max(0, gc3.bal), 'goals: linked to a savings account, its balance is what is saved', gc3);
   ok(await page.evaluate(() => !!document.querySelector('#goal-cards [data-g="velocity"] svg')), 'goals: saved per month');
+  // Goals like the bank's: total a month, the timeline, Add a goal (savings / debt payoff /
+  // retirement), Manage (savings top amount, debt extra and order, details), overbudget warning.
+  await page.evaluate(() => { Store.reset('example'); Store.ui.gmStart = 0; App.changed({ structural: true }); App.go('futuro/metas', { focus: 'metas-goals' }); });
+  await page.waitForTimeout(300);
+  const gm1 = await page.evaluate(() => ({ total: document.getElementById('gm-total').textContent, dots: document.querySelectorAll('#gm-map .gm-dot').length, years: document.querySelectorAll('#gm-map .gm-year').length, slider: !!document.querySelector('[data-input="gm.scroll"]') }));
+  ok(/\$/.test(gm1.total) && gm1.dots >= 3 && gm1.years >= 4 && gm1.slider, 'goals: total monthly contribution and the timeline with each goal', gm1);
+  await page.click('[data-action="gm.add"]');
+  await page.click('[data-action="gm.view"][data-view="kinds"]');
+  await page.click('[data-action="gm.kind"][data-kind="emergency"]');
+  await page.fill('#gm-target', '1000');
+  await page.dispatchEvent('#gm-target', 'change');
+  const sav0 = await page.evaluate(() => { const a = Store.state.accounts.find(x => x.kind === 'ahorros'); const el = document.getElementById('gm-account'); el.value = String(a.id); el.dispatchEvent(new Event('change', { bubbles: true })); return a.id; });
+  ok(/\$[\d,]+ \/ \$1,000/.test(await page.textContent('#gm-body')), 'goals: the new goal shows saved / target from its account');
+  await page.click('[data-action="gm.saveSaving"]');
+  await page.waitForTimeout(200);
+  const gNew = await page.evaluate(() => Store.state.goals.at(-1));
+  ok(gNew.kind === 'emergency' && gNew.target === 1000 && gNew.accountId === sav0 && /Emergency fund/.test(gNew.name), 'goals: Savings → Emergency fund → amount and account → Save', gNew);
+  // Debt payoff: pick which debts show on the timeline.
+  await page.click('[data-action="gm.add"]');
+  await page.click('[data-action="gm.view"][data-view="debts"]');
+  const nTrack = await page.evaluate(() => document.querySelectorAll('[data-change="gm.track"]').length);
+  await page.click('[data-change="gm.track"] >> nth=0');
+  await page.waitForTimeout(150);
+  ok(nTrack >= 2 && await page.evaluate(() => Store.state.debts.filter(d => d.track === false).length === 1), 'goals: Debt payoff → select debts to track', nTrack);
+  await page.click('[data-change="gm.track"] >> nth=0');
+  // Retirement: birthday, desired savings, the retirement accounts; 6% return.
+  await page.click('[data-action="gm.view"][data-view="type"]');
+  await page.click('[data-action="gm.view"][data-view="retire"]');
+  await page.fill('#gm-bday', '1969-01-01'); await page.dispatchEvent('#gm-bday', 'change');
+  await page.fill('#gm-rtarget', '500000'); await page.dispatchEvent('#gm-rtarget', 'change');
+  ok(/Assumes a 6\.0% annual rate of return/.test(await page.textContent('#gm-body')) && /Current savings/.test(await page.textContent('#gm-body')), 'goals: Retirement asks birthday, desired savings and accounts');
+  await page.click('[data-action="gm.saveRetire"]');
+  await page.waitForTimeout(200);
+  const ret = await page.evaluate(() => ({ r: Store.state.retirement, manage: document.getElementById('gm-body').textContent }));
+  ok(ret.r.goalOn && ret.r.goalTarget === 500000 && ret.r.birthday === '1969-01-01' && /Manage goals/.test(ret.manage) && /Retirement/.test(ret.manage), 'goals: the retirement goal is saved and Manage lists it', ret.r.goalTarget);
+  // Manage → Savings: the top goal's monthly amount.
+  await page.click('[data-action="gm.view"][data-view="savings"]');
+  await page.fill('#gm-top-sav', '250');
+  await page.click('[data-action="gm.saveTopSav"]');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => Store.state.goals.some(g => g.monthly === 250)) && /In progress/.test(await page.textContent('#gm-body')), 'goals: Manage → Savings sets the top goal\'s monthly amount');
+  // Manage → Debt payoff: the extra goes to the first debt; the order menu; a debt's details.
+  await page.click('[data-action="gm.view"][data-view="manage"]');
+  await page.click('[data-action="gm.view"][data-view="debtPlan"]');
+  await page.click('[data-action="gm.editExtra"]');
+  await page.fill('#gm-extra', '100');
+  await page.click('[data-action="gm.saveExtra"]');
+  await page.waitForTimeout(150);
+  const ex = await page.evaluate(() => { const plan = App.buildContext().debts, first = Store.state.debts.find(d => d.id === plan.items[0].id); return { extra: first.monthly - first.minPayment, others: Store.state.debts.filter(d => d !== first && d.balance > 0).every(d => d.monthly === d.minPayment), txt: document.getElementById('gm-body').textContent }; });
+  ok(Math.abs(ex.extra - 100) < 0.01 && ex.others && /\$100/.test(ex.txt) && /Pay off/.test(ex.txt) && /Projected/.test(ex.txt), 'goals: the extra goes to the top debt and the dates move', ex.extra);
+  await page.selectOption('[data-change="gm.order"]', 'avalanche');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => Store.state.debtPlan.strategy === 'avalanche' && document.querySelector('[data-change="gm.order"]').value === 'avalanche'), 'goals: debts sorted by highest interest first');
+  await page.selectOption('[data-change="gm.order"]', 'snowball');
+  await page.click('#gm-body [data-action="gm.open"][data-type="debt"] >> nth=0');
+  const gmDet = await page.textContent('#gm-body');
+  ok(/Goal details/.test(gmDet) && /Minimum payment/.test(gmDet) && /Interest/.test(gmDet) && /Payment due/.test(gmDet) && /%/.test(gmDet), 'goals: a debt\'s goal details', gmDet.slice(0, 120));
+  await page.click('[data-action="gm.menu"]');
+  await page.click('[data-action="gm.remove"]');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => Store.state.debts.some(d => d.track === false)), 'goals: … → Stop tracking a debt');
+  // Overbudget: goals asking more than the budget has left.
+  await page.evaluate(() => { Store.state.retirement.aporteMensual = 99999; App.changed({ structural: true }); });
+  await page.click('[data-action="gm.view"][data-view="manage"]').catch(() => page.evaluate(() => GoalMap.open('manage')));
+  await page.waitForTimeout(150);
+  ok(/You've overbudgeted your goals/.test(await page.textContent('#gm-body')) && await page.evaluate(() => !document.getElementById('gm-badge').classList.contains('hidden')), 'goals: overbudget warning and the ! on Manage');
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
+  // Slide to far-off goals; with no goals: Welcome to Goals.
+  await page.evaluate(() => { const el = document.querySelector('[data-input="gm.scroll"]'); if (!el.disabled) { el.value = el.max; el.dispatchEvent(new Event('input', { bubbles: true })); } });
+  ok(await page.evaluate(() => { const el = document.querySelector('[data-input="gm.scroll"]'); return el.disabled || Store.ui.gmStart === Number(el.max); }), 'goals: the slider moves the timeline to far-off goals');
+  await page.evaluate(() => { Store.reset('empty'); App.changed({ structural: true }); App.go('futuro/metas'); });
+  await page.waitForTimeout(200);
+  ok(/Welcome to Goals!/.test(await page.textContent('#gm-map')), 'goals: with none yet, Welcome to Goals and Get started');
   // Cash flow calendar: Chart | Calendar; tap a day for its panel; add an expected transaction; repeating list.
   await page.evaluate(() => { Store.reset('example'); Store.ui.flowView = 'chart'; Store.ui.flowDay = null; Store.ui.flowDays = 30; App.changed({ structural: true }); App.go('resumen'); document.getElementById('dash-flow-card').open = true; });
   await page.waitForTimeout(250);

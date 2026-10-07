@@ -1949,7 +1949,12 @@
                 // First month the debt gets more than its own line (the snowball reaches it).
                 attackMonth: null
             }));
+            // The order the extra goes in (the bank's "In progress" menu): snowball = lowest balance
+            // first (Dave Ramsey's), avalanche = highest interest, fastest payoff = fewest months at
+            // its own payment, or highest balance first.
             if (strategy === 'avalanche') items.sort((a, b) => b.rate - a.rate || a.balance - b.balance);
+            else if (strategy === 'highest-balance') items.sort((a, b) => b.balance - a.balance);
+            else if (strategy === 'fastest') items.sort((a, b) => a.balance / Math.max(1, a.line) - b.balance / Math.max(1, b.line) || a.balance - b.balance);
             else items.sort((a, b) => a.balance - b.balance);
 
             let month = 0, totalInterest = 0;
@@ -2076,6 +2081,32 @@
         if (m.status === 'never') return { state: 'never', months: null, pct, required: sch ? sch.required : null };
         if (!sch) return { state: 'no-date', months: m.months, pct };
         return { state: sch.onTrack ? 'on-track' : 'behind', months: m.months, pct, required: sch.required, gap: sch.gap };
+    }
+
+    // Goals on one timeline (the bank's Goals screen): savings goals (when they're reached), debts
+    // (when they're paid off, in the plan's order) and retirement, each with its months from today,
+    // what goes in each month and whether it needs attention. Also the total a month and how much
+    // of it the budget can't cover (overBy, from the budget's still-to-assign: below 0 = over).
+    function goalTimeline({ goals = [], debts = [], debtPlan, retirement = null, today = new Date(), toAssign = 0 } = {}) {
+        const out = [];
+        (goals || []).forEach(g => {
+            const st = goalStatus(g, today);
+            out.push({ type: 'savings', id: g.id, name: g.name, kind: g.kind || 'other', months: st.months, monthly: num(g.monthly), saved: num(g.current), target: num(g.target), state: st.state, attention: st.state === 'behind' || st.state === 'never' });
+        });
+        const plan = debtPlan || { items: [] };
+        (plan.items || []).forEach((it, i) => {
+            const d = (debts || []).find(x => x.id === it.id);
+            if (!d || d.track === false || !(num(d.balance) > 0)) return;
+            out.push({ type: 'debt', id: d.id, name: d.name, kind: d.kind, months: it.payoffMonth, order: i + 1, monthly: Math.max(num(d.monthly), num(d.minPayment)), extra: Math.max(0, num(d.monthly) - num(d.minPayment)), minPayment: num(d.minPayment), rate: num(d.rate), balance: num(d.balance), original: Math.max(num(d.originalBalance), num(d.balance)), attention: !it.payoffMonth });
+        });
+        if (retirement && retirement.goalOn) {
+            const m = goalMonths({ target: retirement.goalTarget, current: retirement.goalSaved, monthly: retirement.aporteMensual, rate: retirement.goalRate === undefined ? 6 : retirement.goalRate });
+            const left = retirement.birthday ? Math.max(0, Math.round(((parseISO(retirement.birthday).getFullYear() + num(retirement.edadJubilacion || 65)) - new Date(today).getFullYear()) * 12)) : null;
+            out.push({ type: 'retirement', id: 'retirement', name: 'Retirement', kind: 'retirement', months: m.months, monthly: num(retirement.aporteMensual), saved: num(retirement.goalSaved), target: num(retirement.goalTarget), retireIn: left,
+                attention: m.status === 'never' || (left !== null && m.months !== null && m.months > left) });
+        }
+        const total = cents(sum(out.filter(x => x.type !== 'debt'), x => x.monthly) + sum(out.filter(x => x.type === 'debt'), x => x.extra));
+        return { items: out, total, overBy: cents(Math.max(0, -num(toAssign))), attention: out.filter(x => x.attention).length };
     }
 
     // What went into a goal each month (deposits logged on its budget line, "goal-<id>"), for the
@@ -2854,7 +2885,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

@@ -182,7 +182,7 @@
             }
         });
         const first = rows.find(r => r.payoffMonth);
-        UI.text('debt-ladder-note', `${s.debtPlan.strategy === 'avalanche' ? 'Avalanche' : 'Snowball'}: each bar runs from today to the month that debt is paid off. The light part is while it gets only its minimum; the dark part, once the snowball reaches it.${first ? ` The first to go: ${first.debt.name}, in ${when(first.payoffMonth)}.` : ''}`);
+        UI.text('debt-ladder-note', `${({ avalanche: 'Avalanche', fastest: 'Fastest payoff first', 'highest-balance': 'Highest balance first' })[s.debtPlan.strategy] || 'Snowball'}: each bar runs from today to the month that debt is paid off. The light part is while it gets only its minimum; the dark part, once the snowball reaches it.${first ? ` The first to go: ${first.debt.name}, in ${when(first.payoffMonth)}.` : ''}`);
 
         // Total owed: this plan vs. minimums only (one axis, same money).
         const start = rows.reduce((t, r) => t + (Number(r.debt.balance) || 0), 0);
@@ -274,6 +274,7 @@
         debtLadder(ctx);
         debtWhatIf(ctx);
         goalCards(ctx);
+        if (window.GoalMap) GoalMap.render(ctx);
 
         // Emergency fund
         const ef = ctx.ef;
