@@ -28,7 +28,8 @@
             'What you own minus what you owe, saved on its own every month.',
             'Pick 6 months, 9 months or a year; tap a month to see how much it changed and its gains & losses, account by account.']],
         ['goals', 'fa-bullseye', 'Goals', ['futuro/metas', 'metas-goals'], [
-            'Save for something in cash: set the amount and the date, and the monthly amount goes into your budget.']],
+            'Save for something in cash: set the amount and the date, and the monthly amount goes into your budget.',
+            'Add a goal (savings, debt payoff or retirement): see when each one is reached on the timeline; Manage sets what goes in each month and the order debts are paid.']],
         ['cashflow', 'fa-calendar-days', 'Cash Flow', ['resumen', 'dash-flow-card'], [
             'Your balance day by day for the next 30, 60 or 90 days: pay, bills and everyday spending.',
             'Add cash events (suggested from your payments, or by hand), once or repeating; pick which accounts count. Red means you\'d go below $0.']],

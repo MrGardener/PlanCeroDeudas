@@ -1030,8 +1030,10 @@
                     <select class="input" data-bind="debtPlan.strategy">
                         <option value="snowball">Debt Snowball</option>
                         <option value="avalanche">Avalanche</option>
+                        <option value="fastest">Fastest payoff first</option>
+                        <option value="highest-balance">Highest balance first</option>
                     </select>
-                    <span class="help">Snowball: smallest balance first. Avalanche: highest rate first.</span>
+                    <span class="help">Snowball: smallest balance first. Avalanche: highest rate first. Fastest: fewest months at its own payment.</span>
                 </label>
                 <div class="kpi tone-slate" id="debt-funding">
                     <span class="kpi-label">Your debt budget</span>
@@ -1079,8 +1081,16 @@
                     <div class="card-title"><i class="fa-solid fa-bullseye text-purple-600"></i> Debt-Free Savings Goals</div>
                     <div class="card-sub">How long you need to buy something 100% in cash by saving. Each goal is added automatically to the Savings section of your <a href="#" class="link" data-goto="presupuesto/plan">budget</a>: if you don't assign money to it, it never arrives.</div>
                 </div>
-                <button class="btn btn-secondary" data-action="goal.add"><i class="fa-solid fa-plus"></i> New Goal</button>
             </div>
+            <div class="gm-bar">
+                <span><strong id="gm-total" class="text-lg"></strong> <span class="text-sm text-slate-500">Total monthly contribution</span></span>
+                <span class="flex gap-2 ml-auto">
+                    <button type="button" class="btn btn-secondary btn-sm" data-action="gm.add"><i class="fa-solid fa-circle-plus"></i> Add a goal</button>
+                    <button type="button" class="btn btn-secondary btn-sm relative" data-action="gm.manage"><i class="fa-solid fa-list-ul"></i> Manage<b class="tools-badge hidden" id="gm-badge" aria-label="Needs attention">!</b></button>
+                </span>
+            </div>
+            <div id="gm-map" class="mb-4"></div>
+            <div class="flex justify-end mb-2"><button class="link text-xs" data-action="goal.add"><i class="fa-solid fa-plus"></i> Quick add (a blank goal)</button></div>
             <div id="goal-cards" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4"></div>
             <details class="mb-4" id="goal-table"><summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> Edit every field in a table</summary>
             <div class="table-wrap table-cards-wrap mt-2">
@@ -1824,6 +1834,7 @@
 <script src="js/views/whatif.js"></script>
 <script src="js/views/quick.js"></script>
 <script src="js/views/metas.js"></script>
+<script src="js/views/goalmap.js"></script>
 <script src="js/views/runway.js"></script>
 <script src="js/views/seguros.js"></script>
 <script src="js/views/universidad.js"></script>
