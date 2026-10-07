@@ -52,7 +52,7 @@ Ask: **"Do step N of docs/plans/bank-tools-2.md"** (or "continue the bank tools 
      each with its total and per-account change. Needs per-account month-end balances (snapshots).
    - Accounts → a property: "Account history" bars by month; tap a month: its value and "View transactions".
 
-5. **Cash Flow like the bank's**
+5. ✅ **Cash Flow like the bank's**
    - First visit: 3 intro pages with dots (Your cash past, present & future → Forecast your cash flow →
      Cash events: paid / past due / upcoming) and **Get started**.
    - Header: Chart | Calendar, "N account(s) ˅" picker (All, grouped by type with checkboxes; unchecking one

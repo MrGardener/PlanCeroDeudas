@@ -158,15 +158,17 @@
                 { id: 3, type: 'Ingreso', description: 'Remesa mensual de mi hermano', store: 'Western Union', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: iso, paymentType: 'Tarjeta de Débito' }
             ],
             taxonomy: { expense: clone(EXPENSE_TAXONOMY), income: clone(INCOME_TAXONOMY) },
-            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', paydays: [], paySchedule: null, cashBuffer: 0, alertsDismissed: {} },
+            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', paydays: [], paySchedule: null, cashBuffer: 0, alertsDismissed: {}, flowExclude: [], flowIntroSeen: false, dismissedEvents: [] },
             // "Description contains X → category / budget line", used on import and new transactions.
             rules: [],
             // Investments: { id, ticker, name, kind, shares, price, priceAt, auto }
             holdings: [],
             // Household members: { id, name, color }. Transactions can say who (memberId).
             members: [],
-            // One-off money you know is coming in or going out: { id, date, name, amount } (+ in,
-            // − out). Shown on the cash flow chart and the money calendar.
+            // Money you know is coming in or going out: { id, date, name, amount (+ in, − out),
+            // frequency? ('once' | 'weekly' | 'biweekly' | 'monthly' | 'monthlyNth' | 'quarterly' |
+            // 'yearly'), key?, category?, accountId? }. Forecast only (never posted): shown on the
+            // cash flow chart, the money calendar and the month's events.
             cashEvents: [],
             // Repeating / scheduled transactions (posted automatically when due).
             recurring: [],

@@ -214,19 +214,27 @@
         const canvas = document.getElementById('flow-chart');
         if (!canvas) return;
         const s = Store.state, pal = UI.palette();
+        // First visit: the three intro pages (like the bank's), then the tool.
+        const intro = !s.settings.flowIntroSeen;
+        UI.show('flow-intro', intro);
+        UI.show('flow-main', !intro);
+        if (intro) { drawIntro(); return; }
         const days = [30, 60, 90].includes(Number(Store.ui.flowDays)) ? Number(Store.ui.flowDays) : 30;
         UI.$$('[data-action="flow.days"]').forEach(b => b.classList.toggle('active', Number(b.dataset.days) === days));
         const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
         const end = new Date(t.getFullYear(), t.getMonth(), t.getDate() + days - 1);
-        const dateEl = document.getElementById('flow-date');
-        if (dateEl && !dateEl.value) dateEl.value = iso(new Date(t.getFullYear(), t.getMonth(), t.getDate() + 7));
-        const upcoming = (s.cashEvents || []).filter(e => e.date >= iso(t)).sort((a, b) => a.date.localeCompare(b.date));
-        UI.html('flow-events', upcoming.length ? upcoming.map(e => `<div class="flex items-center justify-between gap-2 text-sm"><span><span class="text-slate-500">${esc(Fmt.dayMonth(new Date(e.date + 'T00:00:00')))}</span> · <span data-i18n-skip>${esc(e.name || '—')}</span></span>
+        const upcoming = (s.cashEvents || []).filter(e => e.date >= iso(t) || (e.frequency && e.frequency !== 'once')).sort((a, b) => a.date.localeCompare(b.date));
+        UI.html('flow-events', upcoming.length ? upcoming.map(e => `<div class="flex items-center justify-between gap-2 text-sm"><span><span class="text-slate-500">${esc(Fmt.dayMonth(new Date(e.date + 'T00:00:00')))}</span> · <span data-i18n-skip>${esc(e.name || '—')}</span>${e.frequency && e.frequency !== 'once' ? ` · <span class="text-xs text-slate-500">${esc(freqLabel(e.frequency, e.date))}</span>` : ''}</span>
                 <span class="flex items-center gap-1"><strong class="${e.amount < 0 ? 'text-red-600' : 'text-emerald-700'}">${e.amount < 0 ? '−' : '+'}${money(Math.abs(e.amount))}</strong><button type="button" class="row-del" data-action="flow.del" data-id="${e.id}" aria-label="Remove"><i class="fa-solid fa-xmark"></i></button></span></div>`).join('')
             : '<p class="text-xs text-slate-400">None yet.</p>');
-        const cash = Engine.cashNow(s.accounts, s.transactions, t);
+        // Only the accounts picked in "N accounts ˅" (all by default).
+        const picked = flowAccounts();
+        UI.text('flow-accts-label', `${picked.length} account${picked.length === 1 ? '' : 's'}`);
+        const cash = Engine.cashNow(picked, s.transactions, t);
         UI.show('flow-body', !!cash);
-        if (!cash) { UI.html('flow-note', '<p class="help mb-3">Add your checking account balance (Net Worth → Accounts) to see your cash flow.</p>'); return; }
+        UI.html('flow-cash', cash ? `<span class="text-xs text-blue-700 font-semibold">Current cash available</span><strong class="text-2xl font-black">${money0(cash.total)}</strong>` : '');
+        monthEvents(t);
+        if (!cash) { UI.html('flow-note', `<p class="help mb-3">${cashAccounts().length ? 'Pick at least one account above to see your cash flow.' : 'Add your checking account balance (Net Worth → Accounts) to see your cash flow.'}</p>`); return; }
         const ev = events(iso(new Date(t.getFullYear(), t.getMonth(), 1)), iso(end), { assume: true });
         const buffer = Math.max(0, Number(s.settings.cashBuffer) || 0);
         const f = Engine.cashForecast({ from: iso(t), to: iso(end), start: cash.total, events: ev.list, dailyByMonth: dailyByMonth(ev.months, t), buffer });
@@ -311,26 +319,219 @@
             <a href="#" class="link text-xs" data-goto="transacciones/lista" data-focus="rec-card">Change repeating transactions</a>` : '');
     }
 
+    // ------------------------------------------------------------------ like the bank's
+    // Accounts the cash flow counts: checking and cash, minus the ones unticked (settings.flowExclude).
+    const cashAccounts = () => (Store.state.accounts || []).filter(a => !a.kind || a.kind === 'corriente' || a.kind === 'efectivo');
+    const flowAccounts = () => { const no = new Set((Store.state.settings.flowExclude || []).map(String)); return cashAccounts().filter(a => !no.has(String(a.id))); };
+
+    const INTRO = [
+        ['fa-chart-area', 'Your cash: past, present and future', 'See your income and expenses on any day, including what\'s coming. Know ahead of time if you can afford that big purchase.'],
+        ['fa-calendar-days', 'Forecast your cash flow', 'Keep track of your repeating bills and deposits to see how they change your future balance.'],
+        ['fa-list-check', 'Cash events', 'Cash events are the important dates for your money: paid ✓, past due ! and upcoming ○. Adding them makes your forecast better. Let\'s add some now.']
+    ];
+    function drawIntro() {
+        const i = Math.max(0, Math.min(INTRO.length - 1, Number(Store.ui.flowIntro) || 0)), p = INTRO[i];
+        UI.html('flow-intro', `<div class="flow-intro">
+            <i class="fa-solid ${p[0]} flow-intro-icon" aria-hidden="true"></i>
+            <h3 class="text-xl font-bold">${esc(p[1])}</h3>
+            <p class="text-sm text-slate-600 max-w-md">${esc(p[2])}</p>
+            ${i < INTRO.length - 1 ? '<button type="button" class="btn btn-secondary" data-action="flow.introNext">Next</button>' : '<button type="button" class="btn btn-primary" data-action="flow.introDone">Get started</button>'}
+            <div class="flow-dots-nav" aria-label="Page ${i + 1} of ${INTRO.length}">${INTRO.map((x, j) => `<i class="${j === i ? 'on' : ''}"></i>`).join('')}</div>
+        </div>`);
+    }
+
+    // The month's events beside the chart, each paid ✓, past due ! or upcoming ○ (Engine.cashEventStatus).
+    function monthEvents(t) {
+        const host = document.getElementById('flow-month');
+        if (!host) return;
+        const y = t.getFullYear(), m = t.getMonth();
+        const list = events(iso(new Date(y, m, 1)), iso(lastOfMonth(y, m + 1)), { assume: true }).list.filter(e => Math.abs(e.amount) >= 0.005 || e.kind === 'bill');
+        const rows = list.map(e => {
+            const st = Engine.cashEventStatus(e, t, Store.state.transactions), d = new Date(e.date + 'T00:00:00');
+            const when = st.state === 'paid' ? (st.on ? `Paid ${Fmt.dayMonth(new Date(st.on + 'T00:00:00'))}` : 'Paid')
+                : st.state === 'due' ? `${-st.days} day${st.days === -1 ? '' : 's'} ago`
+                : st.days === 0 ? 'Today' : st.days === 1 ? 'Tomorrow' : `In ${st.days} days`;
+            const icon = st.state === 'paid' ? 'fa-solid fa-circle-check text-blue-600' : st.state === 'due' ? 'fa-solid fa-circle-exclamation text-red-600' : 'fa-regular fa-circle text-slate-400';
+            const shown = e.kind === 'bill' && Math.abs(e.amount) < 0.005 ? e.planned : Math.abs(e.amount);
+            return `<div class="fm-row is-${st.state}"><i class="${icon}" aria-hidden="true"></i>
+                <div class="min-w-0 flex-1"><div class="truncate font-semibold" data-i18n-skip>${esc(I18n.t(e.name || ''))}</div><div class="text-[11px] text-slate-500">${esc(Fmt.WEEKDAYS ? Fmt.WEEKDAYS[d.getDay()].slice(0, 3) : '')} ${esc(Fmt.dayMonth(d))}</div></div>
+                <div class="text-right"><div class="font-semibold ${e.amount > 0 ? 'text-emerald-700' : ''}">${e.amount > 0 ? '+ ' : ''}${money0(shown || 0)}</div><div class="text-[11px] ${st.state === 'due' ? 'text-red-600' : 'text-slate-500'}"><span class="sr-only">${st.state === 'paid' ? 'Paid' : st.state === 'due' ? 'Past due' : 'Upcoming'}: </span>${esc(when)}</div></div></div>`;
+        });
+        host.innerHTML = `<div class="fm-head">${esc(Fmt.MONTH_NAMES[m])} ${y}</div>${rows.join('') || '<p class="help">Nothing scheduled this month yet.</p>'}`;
+    }
+
+    // "N accounts ˅": tick the accounts the cash flow counts (All, grouped by type).
+    let acctSheet = null;
+    function openAccounts() {
+        const all = cashAccounts(), no = new Set((Store.state.settings.flowExclude || []).map(String));
+        if (!all.length) { UI.toast('Add a checking or cash account first (Net Worth → Accounts).', 'error'); return; }
+        const group = (label, list) => list.length ? `<div class="fa-group">${esc(I18n.t(label))}</div>${list.map(a => `<label class="fa-row"><input type="checkbox" data-change="flow.acct" data-id="${a.id}" ${no.has(String(a.id)) ? '' : 'checked'}><span data-i18n-skip>${esc(a.name)}</span><span class="ml-auto text-slate-500">${money0(Number(a.balance) || 0)}</span></label>`).join('')}` : '';
+        acctSheet = UI.sheet({ title: 'Accounts', icon: 'fa-building-columns', html: `<label class="fa-row font-bold"><input type="checkbox" data-change="flow.acctAll" ${no.size ? '' : 'checked'}><span>All</span></label>
+            ${group('Checking', all.filter(a => a.kind !== 'efectivo'))}${group('Cash', all.filter(a => a.kind === 'efectivo'))}
+            <p class="help mt-2">Only the ticked accounts count in the cash flow (current cash, chart and calendar).</p>` });
+    }
+
+    // How often: labels that name the day, from the start date (like the bank's picker).
+    const ORD = (n) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
+    function freqLabel(f, startISO) {
+        const d = new Date(startISO + 'T00:00:00'), wd = Fmt.WEEKDAYS ? Fmt.WEEKDAYS[d.getDay()] : '', q = [0, 3, 6, 9].map(k => Fmt.MONTH_SHORT[(d.getMonth() + k) % 12]).join(', ');
+        const t = (x) => I18n.t(x);
+        switch (f) {
+            case 'once': return `${t('No repeat')} (${t('one time only')})`;
+            case 'weekly': return `${t('Weekly')} (${wd})`;
+            case 'biweekly': return `${t('Every other week')} (${wd})`;
+            case 'monthly': return `${t('Monthly')} (${t('on the')} ${ORD(d.getDate())})`;
+            case 'monthlyNth': return `${t('Monthly')} (${t('on the')} ${ORD(Math.ceil(d.getDate() / 7))} ${wd})`;
+            case 'quarterly': return `${t('Quarterly')} (${q})`;
+            default: return `${t('Yearly')} (${Fmt.dayMonth(d)})`;
+        }
+    }
+    const FREQS = ['once', 'weekly', 'biweekly', 'monthly', 'monthlyNth', 'quarterly', 'yearly'];
+
+    // "+ Add an event": Suggested | All transactions (search), Create manual event, and the
+    // "Occurs… / Starting…" picker. Everything in one sheet; events are forecasts, never transactions.
+    let ev = null;
+    function openAddEvent(opts = {}) {
+        const t = new Date();
+        ev = { view: opts.manual ? 'manual' : 'list', tab: 'suggested', q: '', pick: null, freq: 'monthly', start: opts.date || iso(t), created: new Set(),
+            draft: { name: '', amount: '', dir: 'out', account: '', category: '', freq: 'once', start: opts.date || iso(t) } };
+        ev.sheet = UI.sheet({ title: 'Add a cash event', icon: 'fa-calendar-plus', wide: true, html: '<div id="cev-body"></div>', onClose: () => { ev = null; } });
+        drawEvent();
+        if (opts.manual) setTimeout(() => { const n = document.getElementById('flow-name'); if (n) n.focus(); }, 30);
+    }
+    function suggestions() {
+        // Not what's already an event or a repeating transaction (the forecast counts those).
+        const s = Store.state, have = (s.cashEvents || []).map(e => e.key).concat((s.recurring || []).flatMap(r => [Engine.repeatKey(r), Engine.repeatKey({ description: r.description })])).filter(Boolean);
+        // The ones made in this sheet stay, shown as "Created".
+        const made = ev ? ev.created : new Set();
+        return Engine.suggestCashEvents(s.transactions, { today: new Date(), skip: have.filter(k => !made.has(k)).concat(s.settings.dismissedEvents || []) });
+    }
+    function allTxns() {
+        const from = iso(new Date(Date.now() - 60 * 864e5));
+        return Store.state.transactions.filter(x => x.date >= from && !Engine.isTransfer(x)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 80).map(x => {
+            const inc = (x.type || 'Gasto') === 'Ingreso';
+            return { key: Engine.repeatKey(x), name: x.description || x.store || '', category: x.category || x.parentCategory || '', parentCategory: x.parentCategory || '', last: x.date, amount: (inc ? 1 : -1) * Math.abs(Number(x.amount) || 0), accountId: x.accountId || null, id: x.id };
+        });
+    }
+    function drawEvent() {
+        const host = document.getElementById('cev-body');
+        if (!host || !ev) return;
+        const back = (to) => `<button type="button" class="icon-btn icon-btn-light" data-action="cev.back" data-to="${to}" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button>`;
+        if (ev.view === 'freq') {
+            const p = ev.pick || {};
+            host.innerHTML = `<div class="flex items-center gap-2 mb-3">${back(ev.from || 'list')}<strong data-i18n-skip>${esc(p.name || I18n.t('New event'))}</strong></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><div class="text-sm font-bold text-blue-700 mb-1">Occurs…</div><div class="range-list">${FREQS.map(f => `<button type="button" class="${ev.freq === f ? 'active' : ''}" data-action="cev.freq" data-freq="${f}"><i class="${ev.freq === f ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'}"></i> ${esc(freqLabel(f, ev.start))}</button>`).join('')}</div></div>
+                    <div><div class="text-sm font-bold text-blue-700 mb-1">Starting…</div><input type="date" class="input" id="cev-start" value="${esc(ev.start)}" data-change="cev.start" aria-label="Starting"></div>
+                </div>
+                <div class="flex justify-end mt-4"><button type="button" class="btn btn-primary" data-action="${ev.from === 'manual' ? 'cev.freqOk' : 'cev.create'}">${ev.from === 'manual' ? 'OK' : 'Create'}</button></div>`;
+            return;
+        }
+        if (ev.view === 'manual') {
+            const d = ev.draft, s = Store.state, cats = Object.keys((d.dir === 'in' ? s.taxonomy.income : s.taxonomy.expense) || {});
+            host.innerHTML = `<div class="flex items-center gap-2 mb-3">${back('list')}<strong>New cash event</strong><button type="button" class="btn btn-primary btn-sm ml-auto" data-action="flow.add">Create</button></div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label class="field sm:col-span-2"><span class="field-label">Payee (event name)</span><input id="flow-name" class="input" maxlength="40" placeholder="E.g. Phone bill" value="${esc(d.name)}" data-input="cev.draft" data-f="name"></label>
+                    <label class="field"><span class="field-label">Amount</span><input type="number" id="flow-amount" class="input" inputmode="decimal" min="0" step="any" placeholder="45.00" value="${esc(d.amount)}" data-input="cev.draft" data-f="amount"></label>
+                    <label class="field"><span class="field-label">Expense or income</span><select id="flow-dir" class="input" data-change="cev.draft" data-f="dir"><option value="out" ${d.dir === 'out' ? 'selected' : ''}>Money out (expense)</option><option value="in" ${d.dir === 'in' ? 'selected' : ''}>Money in (income)</option></select></label>
+                    <label class="field"><span class="field-label">Account</span><select id="flow-acct" class="input" data-change="cev.draft" data-f="account"><option value="">Select an account</option>${cashAccounts().map(a => `<option value="${a.id}" ${String(d.account) === String(a.id) ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label>
+                    <label class="field"><span class="field-label">Category</span><select id="flow-cat" class="input" data-change="cev.draft" data-f="category"><option value="">Choose a category</option>${cats.map(c => `<option value="${esc(c)}" ${d.category === c ? 'selected' : ''}>${esc(I18n.t(c))}</option>`).join('')}</select></label>
+                    <label class="field"><span class="field-label">Date</span><input type="date" id="flow-date" class="input" value="${esc(d.start)}" data-change="cev.draft" data-f="start"></label>
+                    <div class="field"><span class="field-label">Occurs</span><button type="button" class="input text-left" id="flow-freq" data-action="cev.occurs">${esc(freqLabel(d.freq, d.start))} <i class="fa-solid fa-pen text-[10px] text-slate-400"></i></button></div>
+                </div>`;
+            return;
+        }
+        const q = ev.q.trim().toLowerCase();
+        const list = (ev.tab === 'all' ? allTxns() : suggestions()).filter(x => !q || x.name.toLowerCase().includes(q) || I18n.t(x.category).toLowerCase().includes(q));
+        const card = (x, i) => ev.created.has(x.key + ':' + (x.id || '')) || (ev.tab === 'suggested' && ev.created.has(x.key)) ? `<div class="cev-card is-created"><div class="font-bold" data-i18n-skip>${esc(x.name)}</div><i class="fa-solid fa-circle-check text-3xl"></i><div class="text-sm">Created</div></div>`
+            : `<div class="cev-card"><div class="font-bold truncate" data-i18n-skip>${esc(x.name)}</div><div class="text-[11px] text-slate-500">${esc(I18n.t(x.category))}</div><div class="text-[11px] text-slate-500">Last occurred: ${esc(Fmt.dayMonth(new Date(x.last + 'T00:00:00')))}</div>
+                <div class="text-xl font-bold my-1 ${x.amount > 0 ? 'text-emerald-700' : ''}">${x.amount > 0 ? '+ ' : ''}${money(Math.abs(x.amount))}</div>
+                <div class="cev-actions"><button type="button" class="text-emerald-700" data-action="cev.accept" data-i="${i}" aria-label="Add ${esc(x.name)}"><i class="fa-solid fa-check"></i></button>${ev.tab === 'suggested' ? `<button type="button" class="text-red-600" data-action="cev.dismiss" data-i="${i}" aria-label="Not this one"><i class="fa-solid fa-xmark"></i></button>` : ''}</div></div>`;
+        ev.list = list;
+        host.innerHTML = `<div class="flex flex-wrap items-center gap-2 mb-3">
+                <div class="spend-tabs mb-0" role="tablist"><button type="button" class="${ev.tab === 'suggested' ? 'active' : ''}" data-action="cev.tab" data-tab="suggested">Suggested</button><button type="button" class="${ev.tab === 'all' ? 'active' : ''}" data-action="cev.tab" data-tab="all">All transactions</button></div>
+                <button type="button" class="btn btn-secondary btn-sm ml-auto" data-action="cev.manual">Create manual event</button>
+            </div>
+            <input type="search" class="input mb-3" id="cev-q" placeholder="Search" value="${esc(ev.q)}" data-input="cev.search" aria-label="Search">
+            <div class="cev-grid">${list.map(card).join('') || `<p class="help">${ev.tab === 'suggested' ? 'No repeating payments found in the last 3 months. Try All transactions, or create a manual event.' : 'No transactions match.'}</p>`}</div>`;
+    }
+    function addCashEvent(e) {
+        let created = null;
+        App.undoable(`Cash event added: ${e.name || money(Math.abs(e.amount))}`, () => {
+            const list = Store.state.cashEvents || (Store.state.cashEvents = []);
+            created = Object.assign({ id: Store.nextId(list) }, e);
+            if (!created.frequency || created.frequency === 'once') delete created.frequency;
+            Object.keys(created).forEach(k => { if (created[k] === '' || created[k] === null || created[k] === undefined) delete created[k]; });
+            list.push(created);
+        });
+        return created;
+    }
+
     UI.register({
         'flow.view': (el) => { Store.ui.flowView = el.dataset.view; renderFlow(new Date()); },
         'flow.day': (el) => { Store.ui.flowDay = Store.ui.flowDay === el.dataset.date ? null : el.dataset.date; UI.$$('.flow-cell').forEach(c => c.classList.toggle('picked', c.dataset.date === Store.ui.flowDay)); flowDayPanel(); },
-        'flow.addOn': (el) => {
-            const d = document.getElementById('flow-date'), n = document.getElementById('flow-name');
-            if (d) d.value = el.dataset.date;
-            if (n) { n.scrollIntoView({ block: 'center', behavior: 'smooth' }); n.focus({ preventScroll: true }); }
-        },
+        'flow.addOn': (el) => openAddEvent({ manual: true, date: el.dataset.date }),
         'flow.days': (el) => { Store.ui.flowDays = Number(el.dataset.days); renderFlow(new Date()); },
         'flow.add': () => {
-            const date = (document.getElementById('flow-date') || {}).value, name = ((document.getElementById('flow-name') || {}).value || '').trim();
-            const amount = Math.abs(Fmt.parseNum((document.getElementById('flow-amount') || {}).value, 0));
-            if (!date || !(amount > 0)) { UI.toast('Type a date and an amount.', 'error'); return; }
-            const dir = (document.getElementById('flow-dir') || {}).value === 'in' ? 1 : -1;
-            App.undoable(`Cash event added: ${name || money(amount)}`, () => {
-                const list = Store.state.cashEvents || (Store.state.cashEvents = []);
-                list.push({ id: Store.nextId(list), date, name: name.slice(0, 40), amount: dir * amount });
-            });
-            ['flow-name', 'flow-amount'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            const d = ev && ev.draft;
+            if (!d) return;
+            const amount = Math.abs(Fmt.parseNum(d.amount, 0)), name = d.name.trim();
+            if (!d.start || !(amount > 0)) { UI.toast('Type a date and an amount.', 'error'); return; }
+            addCashEvent({ date: d.start, name: name.slice(0, 40), amount: (d.dir === 'in' ? 1 : -1) * amount, frequency: d.freq, key: Engine.repeatKey({ description: name }), category: d.category, accountId: d.account ? Number(d.account) : null });
+            if (ev && ev.sheet) ev.sheet.close();
+            UI.toast('Cash event created.', 'ok');
         },
+        'flow.newEvent': () => openAddEvent(),
+        'flow.accounts': () => openAccounts(),
+        'flow.acct': (el) => {
+            const st = Store.state.settings, no = new Set((st.flowExclude || []).map(String));
+            if (el.checked) no.delete(String(el.dataset.id)); else no.add(String(el.dataset.id));
+            st.flowExclude = [...no].map(Number);
+            const all = document.querySelector('[data-change="flow.acctAll"]'); if (all) all.checked = !no.size;
+            App.changed({ structural: true });
+        },
+        'flow.acctAll': (el) => {
+            Store.state.settings.flowExclude = el.checked ? [] : cashAccounts().map(a => a.id);
+            UI.$$('[data-change="flow.acct"]').forEach(c => { c.checked = el.checked; });
+            App.changed({ structural: true });
+        },
+        'flow.introNext': () => { Store.ui.flowIntro = (Number(Store.ui.flowIntro) || 0) + 1; drawIntro(); },
+        'flow.introDone': () => { Store.state.settings.flowIntroSeen = true; Store.ui.flowIntro = 0; App.changed({ structural: true }); openAddEvent(); },
+        'cev.tab': (el) => { ev.tab = el.dataset.tab; ev.q = ''; drawEvent(); },
+        'cev.search': (el) => { ev.q = el.value; const pos = el.selectionStart; drawEvent(); const n = document.getElementById('cev-q'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } },
+        'cev.manual': () => { ev.view = 'manual'; drawEvent(); },
+        'cev.back': (el) => { ev.view = el.dataset.to || 'list'; drawEvent(); },
+        'cev.accept': (el) => {
+            const x = ev.list[Number(el.dataset.i)];
+            if (!x) return;
+            // Starts on its next date: the last one plus its rhythm (or today for a one-time copy).
+            const tomorrow = iso(new Date(Date.now() + 864e5));
+            const next = x.frequency ? Engine.occurrences({ startDate: x.last, frequency: x.frequency }, tomorrow, iso(new Date(Date.now() + 400 * 864e5)))[0] || tomorrow : tomorrow;
+            ev.pick = x; ev.freq = x.frequency || 'once'; ev.start = next; ev.from = 'list'; ev.view = 'freq';
+            drawEvent();
+        },
+        'cev.dismiss': (el) => {
+            const x = ev.list[Number(el.dataset.i)];
+            if (!x) return;
+            const st = Store.state.settings;
+            st.dismissedEvents = [...new Set((st.dismissedEvents || []).concat([x.key]))];
+            Store.scheduleSave();
+            drawEvent();
+        },
+        'cev.freq': (el) => { ev.freq = el.dataset.freq; drawEvent(); },
+        'cev.start': (el) => { if (/^\d{4}-\d\d-\d\d$/.test(el.value)) { ev.start = el.value; drawEvent(); } },
+        'cev.create': () => {
+            const x = ev.pick;
+            if (!x) return;
+            addCashEvent({ date: ev.start, name: x.name.slice(0, 40), amount: x.amount, frequency: ev.freq, key: x.key, category: x.parentCategory || '', accountId: x.accountId });
+            ev.created.add(x.key + ':' + (x.id || ''));
+            if (ev.tab === 'suggested') ev.created.add(x.key);
+            ev.view = 'list';
+            drawEvent();
+        },
+        'cev.occurs': () => { ev.freq = ev.draft.freq; ev.start = ev.draft.start; ev.from = 'manual'; ev.pick = { name: ev.draft.name }; ev.view = 'freq'; drawEvent(); },
+        'cev.freqOk': () => { ev.draft.freq = ev.freq; ev.draft.start = ev.start; ev.view = 'manual'; drawEvent(); },
+        'cev.draft': (el) => { ev.draft[el.dataset.f] = el.value; if (el.dataset.f === 'dir' || el.dataset.f === 'start') drawEvent(); },
         'flow.del': (el) => {
             const id = Number(el.dataset.id), e = (Store.state.cashEvents || []).find(x => x.id === id);
             if (!e) return;
@@ -369,5 +570,5 @@
         return { days: Engine.cashForecast({ from: iso(t), to: iso(end), start: cash.total, events: ev.list, dailyByMonth: dailyByMonth(ev.months, t), buffer }), events: ev.list, buffer };
     }
 
-    window.Cash = { forecastInputs, paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar, renderFlow, flowForecast };
+    window.Cash = { openAddEvent, freqLabel, forecastInputs, paySchedule, safeContext, events, dailyByMonth, monthsBetween, renderSafe, calendarData, renderCalendar, renderFlow, flowForecast };
 })();

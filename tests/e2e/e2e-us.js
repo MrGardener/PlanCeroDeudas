@@ -552,9 +552,13 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(300);
   const fl1 = await page.evaluate(() => { const c = UI.chartInstance('flow-chart'); return { n: c.data.labels.length, today: c.options.plugins.todayLine.index, note: document.getElementById('flow-note').textContent }; });
   ok(fl1.n === 30 && fl1.today === 0 && /lowest point|Below \$0/i.test(fl1.note), 'cash flow: 30 days from today', fl1);
-  await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 5); document.getElementById('flow-date').value = Engine.isoDate(d); document.getElementById('dash-flow-card').open = true; });
+  // "+ Add an event" → Create manual event: payee, amount, date (once).
+  await page.evaluate(() => { document.getElementById('dash-flow-card').open = true; });
+  await page.click('[data-action="flow.newEvent"]');
+  await page.click('[data-action="cev.manual"]');
   await page.fill('#flow-name', 'Car repair');
   await page.fill('#flow-amount', '25000');
+  await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 5); const el = document.getElementById('flow-date'); el.value = Engine.isoDate(d); el.dispatchEvent(new Event('change', { bubbles: true })); });
   await page.click('[data-action="flow.add"]');
   await page.waitForTimeout(300);
   const fl2 = await page.evaluate(() => { const c = UI.chartInstance('flow-chart'); const ds = c.data.datasets[0]; return { ev: Store.state.cashEvents.map(e => e.name + ':' + e.amount).join(), marked: ds.pointRadius.filter(r => r > 0).length, neg: Math.min(...ds.data) < 0, below: typeof ds.fill === 'object' && !!ds.fill.below, list: document.getElementById('flow-events').textContent, cal: Cash.events(Engine.isoDate(new Date()), Engine.isoDate(new Date(Date.now() + 9 * 864e5))).list.some(e => e.kind === 'oneoff') }; });
@@ -853,11 +857,51 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   const fd = await page.evaluate(() => document.getElementById('flow-day').textContent);
   ok(/Add expected transaction/.test(fd) && /[+−]\$/.test(fd), 'cash flow calendar: a day shows what comes in and goes out', fd.slice(0, 120));
   await page.click('[data-action="flow.addOn"]');
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(200);
   ok(await page.evaluate((d) => document.getElementById('flow-date').value === d && document.activeElement === document.getElementById('flow-name'), busy), 'cash flow calendar: add an expected transaction on that day');
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
   await page.click('[data-action="flow.view"][data-view="chart"]');
   await page.waitForTimeout(150);
   ok(await page.evaluate(() => !document.getElementById('flow-chart-box').classList.contains('hidden') && document.getElementById('flow-cal').classList.contains('hidden')), 'cash flow calendar: back to the chart');
+  // Cash Flow like the bank's: intro pages, current cash, accounts picker, the month's events with
+  // paid / past due / upcoming, and Suggested events with the Occurs… / Starting… picker.
+  await page.evaluate(() => { Store.reset('example'); Store.state.settings.flowIntroSeen = false; Store.ui.flowIntro = 0; Store.ui.flowView = 'chart'; App.changed({ structural: true }); App.go('resumen'); document.getElementById('dash-flow-card').open = true; });
+  await page.waitForTimeout(250);
+  ok(await page.evaluate(() => /Your cash: past, present and future/.test(document.getElementById('flow-intro').textContent) && document.getElementById('flow-main').classList.contains('hidden')), 'cash flow: the first visit shows the intro');
+  await page.click('[data-action="flow.introNext"]');
+  ok(/Forecast your cash flow/.test(await page.textContent('#flow-intro')), 'cash flow intro: Next');
+  await page.click('[data-action="flow.introNext"]');
+  await page.click('[data-action="flow.introDone"]');
+  await page.waitForTimeout(250);
+  ok(await page.evaluate(() => Store.state.settings.flowIntroSeen && !!document.getElementById('cev-body') && !document.getElementById('flow-main').classList.contains('hidden')), 'cash flow intro: Get started opens Add a cash event');
+  const cevSug = await page.evaluate(() => ({ cards: document.querySelectorAll('#cev-body .cev-card').length, txt: document.getElementById('cev-body').textContent, recurring: (Store.state.recurring || []).map(r => r.description) }));
+  ok(cevSug.cards >= 2 && /Last occurred/.test(cevSug.txt) && !cevSug.recurring.some(n => cevSug.txt.includes(n + 'Video')), 'cash events: suggestions from repeating payees', cevSug.cards);
+  const sugName = await page.evaluate(() => document.querySelector('#cev-body .cev-card .font-bold').textContent);
+  await page.click('[data-action="cev.accept"] >> nth=0');
+  const fq = await page.evaluate(() => ({ opts: [...document.querySelectorAll('[data-action="cev.freq"]')].map(b => b.textContent.trim()), start: document.getElementById('cev-start').value }));
+  ok(fq.opts.length === 7 && /No repeat/.test(fq.opts[0]) && /Monthly \(on the \d+(st|nd|rd|th)\)/.test(fq.opts[3]) && /Monthly \(on the \d(st|nd|rd|th) \w+day\)/.test(fq.opts[4]) && fq.start > new Date().toISOString().slice(0, 10), 'cash events: Occurs… names the day; Starting… after today', fq);
+  await page.click('[data-action="cev.freq"][data-freq="monthly"]');
+  await page.click('[data-action="cev.create"]');
+  await page.waitForTimeout(200);
+  const made = await page.evaluate((n) => ({ ev: Store.state.cashEvents.find(e => e.name === n), created: !!document.querySelector('#cev-body .cev-card.is-created') }), sugName);
+  ok(made.ev && made.ev.frequency === 'monthly' && made.created, 'cash events: Create makes a monthly event and the card says Created', made);
+  await page.click('[data-action="cev.dismiss"] >> nth=0');
+  ok(await page.evaluate(() => (Store.state.settings.dismissedEvents || []).length === 1), 'cash events: ✗ hides a suggestion');
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
+  const fm = await page.evaluate(() => ({ head: document.querySelector('#flow-month .fm-head').textContent, paid: document.querySelectorAll('#flow-month .fm-row.is-paid').length, up: document.querySelectorAll('#flow-month .fm-row.is-upcoming').length, cash: document.getElementById('flow-cash').textContent, label: document.getElementById('flow-accts-label').textContent }));
+  ok(/\d{4}/.test(fm.head) && fm.paid + fm.up >= 3 && /Current cash available/.test(fm.cash) && /\d+ accounts?/.test(fm.label), 'cash flow: current cash, accounts and the month\'s events with their status', fm);
+  // Untick an account: current cash changes.
+  const cash0 = await page.evaluate(() => Engine.cashNow(Store.state.accounts.filter(a => !a.kind || a.kind === 'corriente' || a.kind === 'efectivo'), Store.state.transactions, new Date()).total);
+  await page.click('[data-action="flow.accounts"]');
+  const nAcc = await page.evaluate(() => document.querySelectorAll('[data-change="flow.acct"]').length);
+  await page.click('[data-change="flow.acct"] >> nth=0');
+  await page.waitForTimeout(200);
+  const cash1 = await page.evaluate(() => ({ ex: Store.state.settings.flowExclude.length, label: document.getElementById('flow-accts-label').textContent, txt: document.getElementById('flow-cash').textContent }));
+  ok(nAcc >= 1 && cash1.ex === 1 && cash1.label.startsWith(String(nAcc - 1)), 'cash flow: unticking an account leaves it out', { nAcc, cash1, cash0 });
+  await page.click('[data-change="flow.acctAll"]');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => Store.state.settings.flowExclude.length === 0), 'cash flow: All ticks them all again');
+  await page.evaluate(() => document.querySelectorAll('.modal-backdrop.sheet').forEach(m => m.remove()));
   // Alerts: the bell's count, the inbox, open one, dismiss one (it doesn't come back).
   await page.evaluate(() => { Store.reset('example'); const s = Store.state; s.transactions.push({ id: 990001, date: Engine.isoDate(new Date()), type: 'Gasto', parentCategory: 'Entretenimiento y Ocio', category: '', description: 'Big screen TV', amount: 1899 }); App.changed({ structural: true }); App.go('resumen'); });
   await page.waitForTimeout(300);

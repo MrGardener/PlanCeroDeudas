@@ -1226,9 +1226,11 @@
     }
 
     // ------------------------------------------------------------ recurring
-    // A repeating transaction: { frequency: 'weekly'|'biweekly'|'monthly'|'yearly',
-    // startDate, endDate?, lastPosted? }. Monthly/yearly keep the start's day of month
-    // (clamped to short months: the 31st becomes the 30th/28th).
+    // A repeating transaction: { frequency: 'weekly'|'biweekly'|'monthly'|'monthlyNth'|'quarterly'|
+    // 'semiannual'|'yearly'|'once', startDate, endDate?, lastPosted? }. Monthly/yearly keep the
+    // start's day of month (clamped to short months: the 31st becomes the 30th/28th); monthlyNth
+    // keeps its weekday and which one it is in the month (the 1st Friday; a 5th that doesn't exist
+    // becomes the last).
     const MONTH_STEP = { monthly: 1, quarterly: 3, semiannual: 6 };
     const parseISO = (s) => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
     function occurrences(rec, fromISO, toISO) {
@@ -1239,7 +1241,15 @@
         const day = start.getDate();
         for (let i = 0; i < 1000; i++) {
             let d;
-            if (rec.frequency === 'weekly') { d = new Date(start); d.setDate(start.getDate() + 7 * i); }
+            if (rec.frequency === 'once') { if (i) break; d = start; }
+            else if (rec.frequency === 'weekly') { d = new Date(start); d.setDate(start.getDate() + 7 * i); }
+            else if (rec.frequency === 'monthlyNth') {
+                const nth = Math.ceil(day / 7), wd = start.getDay(), first = new Date(start.getFullYear(), start.getMonth() + i, 1);
+                const firstWd = 1 + ((wd - first.getDay() + 7) % 7), dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+                let dd = firstWd + 7 * (nth - 1);
+                if (dd > dim) dd -= 7;
+                d = new Date(first.getFullYear(), first.getMonth(), dd);
+            }
             else if (rec.frequency === 'biweekly') { d = new Date(start); d.setDate(start.getDate() + 14 * i); }
             else if (rec.frequency === 'yearly') { const y = start.getFullYear() + i; d = new Date(y, start.getMonth(), Math.min(day, new Date(y, start.getMonth() + 1, 0).getDate())); }
             else { const mm = start.getMonth() + i * (MONTH_STEP[rec.frequency] || 1); d = new Date(start.getFullYear(), mm, Math.min(day, new Date(start.getFullYear(), mm + 1, 0).getDate())); }
@@ -2688,8 +2698,52 @@
             });
         }
         // Cash events you added by hand (a tax refund, a car repair…).
-        (oneOff || []).forEach(e => { if (e.date >= from && e.date <= to && num(e.amount)) out.push({ date: e.date, kind: 'oneoff', name: e.name || '', amount: num(e.amount), id: e.id }); });
+        // Cash events you added (a tax refund, a car repair…), once or repeating (forecast only:
+        // they never create transactions).
+        (oneOff || []).forEach(e => {
+            if (!num(e.amount)) return;
+            const dates = e.frequency && e.frequency !== 'once' ? occurrences({ startDate: e.date, frequency: e.frequency, endDate: e.endDate }, from, to) : (e.date >= from && e.date <= to ? [e.date] : []);
+            dates.forEach(date => out.push({ date, kind: 'oneoff', name: e.name || '', amount: num(e.amount), id: e.id, key: e.key || repeatKey({ description: e.name }) }));
+        });
         return out.sort((a, b) => a.date.localeCompare(b.date) || a.amount - b.amount);
+    }
+
+    // "Add a cash event" → Suggested: payees and payers that came up at least twice in the last
+    // `days` days (money in or out), with how often they seem to repeat, newest first. Skips
+    // transfers, what already has an event (keys) and what was dismissed.
+    function suggestCashEvents(transactions, { today = new Date(), days = 100, skip = [] } = {}) {
+        const t = new Date(today), from = isoDate(new Date(t.getFullYear(), t.getMonth(), t.getDate() - days)), to = isoDate(t);
+        const no = new Set(skip || []), groups = {};
+        (transactions || []).forEach(x => {
+            if (!x.date || x.date < from || x.date > to || isTransfer(x) || x.refund) return;
+            const k = repeatKey(x);
+            if (k.length < 3 || no.has(k)) return;
+            (groups[k] = groups[k] || []).push(x);
+        });
+        return Object.keys(groups).filter(k => groups[k].length >= 2).map(k => {
+            const list = groups[k].slice().sort((a, b) => a.date.localeCompare(b.date)), last = list[list.length - 1];
+            const gaps = list.slice(1).map((x, i) => (parseISO(x.date) - parseISO(list[i].date)) / 86400000).filter(g => g > 0);
+            const g = gaps.length ? median(gaps) : 30;
+            const frequency = g <= 10 ? 'weekly' : g <= 20 ? 'biweekly' : g <= 50 ? 'monthly' : g <= 120 ? 'quarterly' : 'yearly';
+            const inc = txnType(last) === 'Ingreso';
+            return { key: k, name: last.description || last.store || '', category: last.category || last.parentCategory || '', parentCategory: last.parentCategory || '', last: last.date, count: list.length,
+                amount: cents((inc ? 1 : -1) * (inc ? num(last.amount) : amt(last))), frequency, accountId: last.accountId || null };
+        }).sort((a, b) => b.last.localeCompare(a.last) || a.name.localeCompare(b.name));
+    }
+
+    // Where a cash event stands (the bank's ✓ / ! / ○): paid when a transaction like it (same payee,
+    // about the same amount, within 4 days) is there, or a bill is covered, or pay day is past;
+    // past due when its date passed without that; else upcoming, with how many days to go.
+    function cashEventStatus(e, today, transactions) {
+        const t = isoDate(new Date(today)), days = Math.round((parseISO(e.date) - parseISO(t)) / 86400000);
+        const near = (x) => Math.abs((parseISO(x.date) - parseISO(e.date)) / 86400000) <= 4;
+        const amount = Math.abs(num(e.amount));
+        const match = (transactions || []).filter(x => x.date && near(x) && !isTransfer(x) && repeatKey(x) && repeatKey(x) === (e.key || repeatKey({ description: e.name }))
+            && Math.abs((txnType(x) === 'Ingreso' ? num(x.amount) : amt(x)) - amount) <= Math.max(1, amount * 0.15)).sort((a, b) => a.date.localeCompare(b.date))[0];
+        if (match) return { state: 'paid', on: match.date, days };
+        if (e.kind === 'bill' && amount < 0.005) return { state: 'paid', on: null, days };
+        if (days < 0) return (e.kind === 'payday' || e.kind === 'income' || e.kind === 'scheduled') ? { state: 'paid', on: e.date, days } : { state: 'due', on: null, days };
+        return { state: 'upcoming', on: null, days };
     }
 
     // How much of today's cash is free to spend: minus what must go out before the next payday
@@ -2800,7 +2854,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalVelocity, buildAlerts, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

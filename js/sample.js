@@ -1113,6 +1113,8 @@
                 h.items = itemsNow.map(([k, n, v], j) => [k, n, round2(v * (v > 0 ? fa : fl) * (1 + (((i * 7 + j * 13) % 9) - 4) / 400))]);
             });
         }
+        // The example family has seen the Cash Flow intro.
+        s.settings.flowIntroSeen = true;
         // When each net-worth step was first reached (App dates the rest as "already had it").
         const seed = s.settings.milestonesSeed = {};
         [0, 10000, 25000, 50000, 100000, 250000, 500000, 1000000].forEach(v => {

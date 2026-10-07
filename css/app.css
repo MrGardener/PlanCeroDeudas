@@ -979,3 +979,24 @@ button.sheet-row:hover { background: var(--surface-3); }
 .gl-head { display: flex; justify-content: space-between; font-weight: 700; padding: .45rem 0; border-bottom: 1px solid var(--line); color: var(--brand); }
 .gl-row { display: flex; justify-content: space-between; gap: .75rem; padding: .45rem 0; border-bottom: 1px solid var(--line-soft); font-size: .88rem; }
 .sheet-row-hist { color: var(--muted); padding: 0 .35rem; }
+/* Cash Flow like the bank's: the month's events beside the chart, the intro pages, the add sheet. */
+.flow-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+@media (min-width: 900px) { .flow-grid { grid-template-columns: minmax(0, 1fr) 17rem; } .flow-month { border-left: 1px solid var(--line); padding-left: 1rem; } }
+.fm-head { font-weight: 700; font-size: .95rem; margin-bottom: .35rem; }
+.fm-row { display: flex; align-items: center; gap: .6rem; padding: .45rem 0; border-bottom: 1px solid var(--line-soft); font-size: .84rem; }
+.fm-row > i { font-size: 1.05rem; width: 1.1rem; text-align: center; }
+.flow-intro { display: flex; flex-direction: column; align-items: center; gap: .75rem; text-align: center; padding: 1.5rem .5rem; }
+.flow-intro-icon { font-size: 2.6rem; color: #16a34a; }
+.flow-dots-nav { display: flex; gap: .4rem; }
+.flow-dots-nav i { width: .5rem; height: .5rem; border-radius: 50%; background: var(--line); }
+.flow-dots-nav i.on { background: var(--ink); }
+.fa-group { font-size: .72rem; font-weight: 700; color: var(--brand); text-transform: uppercase; letter-spacing: .04em; margin: .75rem 0 .25rem; }
+.fa-row { display: flex; align-items: center; gap: .6rem; padding: .5rem .25rem; border-bottom: 1px solid var(--line-soft); font-size: .88rem; }
+.fa-row input { width: 1.1rem; height: 1.1rem; accent-color: var(--brand); }
+.cev-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: .6rem; }
+.cev-card { border: 1px solid var(--line); border-radius: .75rem; padding: .7rem .75rem .4rem; display: flex; flex-direction: column; align-items: center; text-align: center; gap: .1rem; background: var(--surface); min-width: 0; }
+.cev-card > * { max-width: 100%; }
+.cev-card.is-created { background: var(--brand); color: #fff; justify-content: center; gap: .4rem; min-height: 9rem; }
+.cev-actions { display: flex; justify-content: center; gap: 1.5rem; border-top: 1px solid var(--line-soft); width: 100%; padding-top: .3rem; }
+.cev-actions button { width: 2.4rem; height: 2.2rem; border-radius: .5rem; font-size: 1rem; }
+.cev-actions button:hover { background: var(--surface-3); }
