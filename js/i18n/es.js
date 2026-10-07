@@ -2,6 +2,23 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Pick 6 months, 9 months or a year; tap a month to see how much it changed and its gains & losses, account by account.": "Elige 6 meses, 9 meses o un año; toca un mes para ver cuánto cambió y sus ganancias y pérdidas, cuenta por cuenta.",
+    "Account history": "Historial de la cuenta",
+    "Bars": "Barras",
+    "Current net worth": "Patrimonio actual",
+    "From the previous month": "Desde el mes anterior",
+    "Gains": "Ganancias",
+    "History of {0}": "Historial de {0}",
+    "Losses": "Pérdidas",
+    "No months saved for it yet: its value is kept every month from now on.": "Todavía no hay meses guardados: desde ahora su valor se guarda cada mes.",
+    "None.": "Ninguna.",
+    "This month was saved before the app kept each account's value. From now on every month has its gains and losses.": "Este mes se guardó antes de que la app guardara el valor de cada cuenta. Desde ahora cada mes tiene sus ganancias y pérdidas.",
+    "Value at the end of each month": "Valor al final de cada mes",
+    "View assets & liabilities": "Ver activos y pasivos",
+    "{0} net worth": "Patrimonio de {0}",
+    "{0} – Gains & losses": "{0} – Ganancias y pérdidas",
+    "Tap a month for its net worth and how it changed. Bars: what you own (up) and what you owe (down); the line is the difference.": "Toca un mes para ver su patrimonio y cómo cambió. Barras: lo que tienes (arriba) y lo que debes (abajo); la línea es la diferencia.",
+    "A gain is an account that grew or a debt that went down; a loss is the other way round.": "Una ganancia es una cuenta que creció o una deuda que bajó; una pérdida es lo contrario.",
     "Wrong PIN. Tries left before a 30-second wait: {0}.": "PIN incorrecto. Intentos antes de una espera de 30 segundos: {0}.",
     "Wrong PIN. Tries left before everything on this device is erased: {0}.": "PIN incorrecto. Intentos antes de borrar todo en este dispositivo: {0}.",
     "Wait 30 seconds to try again.": "Espera 30 segundos para volver a intentar.",

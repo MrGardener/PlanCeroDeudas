@@ -26,7 +26,7 @@
             'Every extra dollar goes to the first one; when it\'s gone, its payment rolls to the next (the snowball).']],
         ['networth', 'fa-chart-line', 'Net Worth', ['patrimonio', 'nw-sheet'], [
             'What you own minus what you owe, saved on its own every month.',
-            'Bars show what you own and owe; the line is your net worth.']],
+            'Pick 6 months, 9 months or a year; tap a month to see how much it changed and its gains & losses, account by account.']],
         ['goals', 'fa-bullseye', 'Goals', ['futuro/metas', 'metas-goals'], [
             'Save for something in cash: set the amount and the date, and the monthly amount goes into your budget.']],
         ['cashflow', 'fa-calendar-days', 'Cash Flow', ['resumen', 'dash-flow-card'], [

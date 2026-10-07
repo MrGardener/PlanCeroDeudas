@@ -989,6 +989,17 @@ button.sheet-row:hover { background: var(--surface-3); }
 .trend-months strong { font-size: .9rem; font-variant-numeric: tabular-nums; }
 @media (min-width: 640px) { .trend-months { grid-template-columns: repeat(6, 1fr); } }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* Net Worth like the bank's: the current figure over the line, the tapped month under it. */
+.nw-current { display: flex; flex-direction: column; align-items: center; gap: .1rem; margin: .25rem 0 .5rem; }
+.nw-pick { display: flex; flex-direction: column; align-items: center; gap: .6rem; margin-top: .6rem; }
+.nw-pick-cols { display: grid; grid-template-columns: 1fr 1fr; width: 100%; max-width: 30rem; text-align: center; }
+.nw-pick-cols > div { display: flex; flex-direction: column; gap: .1rem; padding: .25rem .5rem; }
+.nw-pick-cols > div + div { border-left: 1px solid var(--line); }
+.nw-pick-cols span { font-size: .75rem; color: var(--muted); }
+.nw-pick-cols strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.gl-head { display: flex; justify-content: space-between; font-weight: 700; padding: .45rem 0; border-bottom: 1px solid var(--line); color: var(--brand); }
+.gl-row { display: flex; justify-content: space-between; gap: .75rem; padding: .45rem 0; border-bottom: 1px solid var(--line-soft); font-size: .88rem; }
+.sheet-row-hist { color: var(--muted); padding: 0 .35rem; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -2424,13 +2435,20 @@ button.sheet-row:hover { background: var(--surface-3); }
             <div class="flex flex-wrap items-center gap-2 mb-2">
                 <div class="segmented" role="tablist" aria-label="Period">
                     <button type="button" data-action="nw.range" data-months="6">6M</button>
+                    <button type="button" data-action="nw.range" data-months="9">9M</button>
                     <button type="button" data-action="nw.range" data-months="12">1Y</button>
                     <button type="button" data-action="nw.range" data-months="0">All</button>
                 </div>
+                <div class="segmented" role="tablist" aria-label="Chart">
+                    <button type="button" data-action="nw.view" data-view="line" aria-label="Line"><i class="fa-solid fa-chart-line"></i></button>
+                    <button type="button" data-action="nw.view" data-view="bars" aria-label="Bars"><i class="fa-solid fa-chart-column"></i></button>
+                </div>
                 <span class="text-sm font-semibold" id="nw-month-change"></span>
             </div>
-            <div class="chart-box tall" id="nw-month-box"><canvas id="nw-month-chart" aria-label="Net worth, what you own and what you owe, month by month"></canvas></div>
-            <p class="help mt-1">Bars: what you own (up) and what you owe (down). Line: your net worth, the difference.</p>
+            <div class="nw-current"><span id="nw-current" class="flex flex-col items-center"></span><a href="#" class="link text-sm" data-goto="patrimonio" data-focus="nw-sheet">View assets & liabilities</a></div>
+            <div class="chart-box tall" id="nw-month-box"><canvas id="nw-month-chart" aria-label="Net worth month by month"></canvas></div>
+            <p class="help mt-1">Tap a month for its net worth and how it changed. Bars: what you own (up) and what you owe (down); the line is the difference.</p>
+            <div id="nw-month-pick" class="nw-pick"></div>
             <details class="mt-2">
                 <summary class="text-xs font-bold text-slate-600 cursor-pointer"><i class="fa-solid fa-table"></i> See the numbers in a table</summary>
                 <div class="table-wrap mt-2"><table class="table"><thead><tr><th>Month</th><th class="num">Assets</th><th class="num">Liabilities</th><th class="num">Net worth</th></tr></thead><tbody id="nw-month-table"></tbody></table></div>
@@ -5719,6 +5737,23 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Pick 6 months, 9 months or a year; tap a month to see how much it changed and its gains & losses, account by account.": "Elige 6 meses, 9 meses o un año; toca un mes para ver cuánto cambió y sus ganancias y pérdidas, cuenta por cuenta.",
+    "Account history": "Historial de la cuenta",
+    "Bars": "Barras",
+    "Current net worth": "Patrimonio actual",
+    "From the previous month": "Desde el mes anterior",
+    "Gains": "Ganancias",
+    "History of {0}": "Historial de {0}",
+    "Losses": "Pérdidas",
+    "No months saved for it yet: its value is kept every month from now on.": "Todavía no hay meses guardados: desde ahora su valor se guarda cada mes.",
+    "None.": "Ninguna.",
+    "This month was saved before the app kept each account's value. From now on every month has its gains and losses.": "Este mes se guardó antes de que la app guardara el valor de cada cuenta. Desde ahora cada mes tiene sus ganancias y pérdidas.",
+    "Value at the end of each month": "Valor al final de cada mes",
+    "View assets & liabilities": "Ver activos y pasivos",
+    "{0} net worth": "Patrimonio de {0}",
+    "{0} – Gains & losses": "{0} – Ganancias y pérdidas",
+    "Tap a month for its net worth and how it changed. Bars: what you own (up) and what you owe (down); the line is the difference.": "Toca un mes para ver su patrimonio y cómo cambió. Barras: lo que tienes (arriba) y lo que debes (abajo); la línea es la diferencia.",
+    "A gain is an account that grew or a debt that went down; a loss is the other way round.": "Una ganancia es una cuenta que creció o una deuda que bajó; una pérdida es lo contrario.",
     "Wrong PIN. Tries left before a 30-second wait: {0}.": "PIN incorrecto. Intentos antes de una espera de 30 segundos: {0}.",
     "Wrong PIN. Tries left before everything on this device is erased: {0}.": "PIN incorrecto. Intentos antes de borrar todo en este dispositivo: {0}.",
     "Wait 30 seconds to try again.": "Espera 30 segundos para volver a intentar.",
@@ -10957,6 +10992,18 @@ I18n.override('EC', 'es', {
                 s.netWorthHistory.push({ month: `${y}-${pad2(m)}`, assets, liabilities, value: round2(assets - liabilities) });
             }
         }
+        // Each account's value per month for the example's gains and losses: today's accounts,
+        // scaled to that month's totals, with a small deterministic wobble per account.
+        const hubNow = Engine.accountsHub({ accounts: s.accounts, holdings: s.holdings, polizas: s.polizas, assets: s.assets, debts: s.debts, years: s.years, year: cur });
+        const itemsNow = Engine.hubItems(hubNow), last = s.netWorthHistory[s.netWorthHistory.length - 1];
+        const ownNow = itemsNow.filter(x => x[2] > 0).reduce((a, x) => a + x[2], 0), oweNow = -itemsNow.filter(x => x[2] < 0).reduce((a, x) => a + x[2], 0);
+        if (last && ownNow > 0) {
+            s.netWorthHistory.forEach((h, i) => {
+                if (h === last) { h.items = itemsNow; return; }
+                const fa = h.assets / ownNow, fl = oweNow > 0 ? h.liabilities / oweNow : 0;
+                h.items = itemsNow.map(([k, n, v], j) => [k, n, round2(v * (v > 0 ? fa : fl) * (1 + (((i * 7 + j * 13) % 9) - 4) / 400))]);
+            });
+        }
         // When each net-worth step was first reached (App dates the rest as "already had it").
         const seed = s.settings.milestonesSeed = {};
         [0, 10000, 25000, 50000, 100000, 250000, 500000, 1000000].forEach(v => {
@@ -12478,9 +12525,34 @@ I18n.override('EC', 'es', {
     // the budget doesn't assign. A minimums-only run gives the time/interest the plan saves.
     // ------------------------------------------------- net worth month by month & milestones
     // One entry per month (the latest figure of that month), oldest first, at most 20 years.
-    function recordNetWorthMonth(history, key, { assets, liabilities }) {
+    // items (optional): each account's value that month, [key, name, value] with what's owed
+    // negative (from hubItems), so a month's gains and losses can be listed later.
+    function recordNetWorthMonth(history, key, { assets, liabilities }, items) {
         const row = { month: key, assets: cents(num(assets)), liabilities: cents(num(liabilities)), value: cents(num(assets) - num(liabilities)) };
+        if (Array.isArray(items) && items.length) row.items = items.map(x => [String(x[0]), String(x[1]), cents(num(x[2]))]);
         return (history || []).filter(h => h.month !== key).concat([row]).sort((a, b) => a.month.localeCompare(b.month)).slice(-240);
+    }
+
+    // Every account, property and debt in the hub as [key, name, value]: what's owed is negative.
+    function hubItems(hub) {
+        const out = [];
+        (hub.groups || []).forEach(g => g.rows.forEach(r => out.push([`${r.ref.type}:${r.ref.id}`, r.name, cents((g.owed ? -1 : 1) * num(r.balance))])));
+        return out;
+    }
+    // A month vs the month before, account by account (the bank's "Gains & losses"): a gain is an
+    // account that grew or a debt that shrank. Accounts only in one of the two months count from 0.
+    function gainsLosses(prevItems, curItems) {
+        const prev = {}, cur = {}, names = {};
+        (prevItems || []).forEach(([k, n, v]) => { prev[k] = num(v); names[k] = n; });
+        (curItems || []).forEach(([k, n, v]) => { cur[k] = num(v); names[k] = n; });
+        const rows = [...new Set(Object.keys(prev).concat(Object.keys(cur)))].map(k => ({ key: k, name: names[k], change: cents((cur[k] || 0) - (prev[k] || 0)) })).filter(r => Math.abs(r.change) >= 0.005);
+        const gains = rows.filter(r => r.change > 0).sort((a, b) => b.change - a.change), losses = rows.filter(r => r.change < 0).sort((a, b) => a.change - b.change);
+        return { gains, losses, gainTotal: cents(sum(gains, r => r.change)), lossTotal: cents(sum(losses, r => r.change)) };
+    }
+    // One account's value at the end of each saved month (from the history's items); null where
+    // the month has no details for it.
+    function itemHistory(history, key, months = 6) {
+        return (history || []).slice(-months).map(h => { const it = (h.items || []).find(x => x[0] === key); return { month: h.month, value: it ? Math.abs(num(it[2])) : null }; });
     }
 
     // The moments worth celebrating on the way, each with how close you are (0–1).
@@ -13750,7 +13822,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalVelocity, buildAlerts, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalVelocity, buildAlerts, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -15655,7 +15727,11 @@ I18n.override('EC', 'es', {
         const s = Store.state, t = new Date(), y = t.getFullYear();
         if (y < s.configStartYear || y > s.configEndYear) return;
         const nw = Engine.netWorth(s.years, s.assets, y);
-        if (nw.assets > 0 || nw.liabilities > 0) s.netWorthHistory = Engine.recordNetWorthMonth(s.netWorthHistory, Engine.isoDate(t).slice(0, 7), nw);
+        if (nw.assets > 0 || nw.liabilities > 0) {
+            // Each account's value too, for the month's gains and losses.
+            const hub = Engine.accountsHub({ accounts: s.accounts, holdings: s.holdings, polizas: s.polizas, assets: s.assets, debts: s.debts, years: s.years, year: y });
+            s.netWorthHistory = Engine.recordNetWorthMonth(s.netWorthHistory, Engine.isoDate(t).slice(0, 7), nw, Engine.hubItems(hub));
+        }
         const ctx = buildContext();
         const list = Engine.milestones({ netWorth: nw.value, liquid: ctx.ef.liquid, monthsCovered: ctx.ef.monthsCovered, debts: s.debts, money: Fmt.money0 });
         const first = !s.milestones;
@@ -24191,13 +24267,23 @@ I18n.override('EC', 'es', {
         UI.show('nw-month-empty', !enough);
         if (!enough) UI.html('nw-month-empty', 'We save your net worth on its own every month. Come back next month to see the line.');
         else {
-            // What you own (bars up), what you owe (bars down) and net worth (the line), one axis.
-            const range = [0, 6, 12].includes(Number(Store.ui.nwRange)) ? Number(Store.ui.nwRange) : 12;
+            // The bank's Net Worth: 6M / 9M / 1Y (or All), a line with a point per month (green going
+            // up, gray going down) or bars of what you own and owe; tap a month for its net worth, the
+            // change from the month before and its gains & losses.
+            const range = [0, 6, 9, 12].includes(Number(Store.ui.nwRange)) ? Number(Store.ui.nwRange) : 6;
             UI.$$('[data-action="nw.range"]').forEach(b => b.classList.toggle('active', Number(b.dataset.months) === range));
+            const bars = Store.ui.nwView === 'bars';
+            UI.$$('[data-action="nw.view"]').forEach(b => b.classList.toggle('active', (b.dataset.view === 'bars') === bars));
             const h = range ? all.slice(-range) : all;
             const label = (x) => Fmt.monthYear(new Date(x.month + '-01T00:00:00'));
-            const own = pal.series[2], owe = pal.series[1];
-            UI.chart('nw-month-chart', {
+            if (!h.some(x => x.month === Store.ui.nwPick)) Store.ui.nwPick = h[h.length - 1].month;
+            const pick = h.findIndex(x => x.month === Store.ui.nwPick);
+            const own = pal.series[2], owe = pal.series[1], up = '#16a34a', down = pal.muted;
+            const onClick = (e, els, chart) => {
+                const i = els.length ? els[0].index : Math.round(chart.scales.x.getValueForPixel(e.x));
+                if (i >= 0 && i < h.length) { Store.ui.nwPick = h[i].month; App.update(); }
+            };
+            UI.chart('nw-month-chart', bars ? {
                 type: 'bar',
                 data: {
                     labels: h.map(label),
@@ -24207,8 +24293,23 @@ I18n.override('EC', 'es', {
                         { label: 'Liabilities', data: h.map(x => -(Number(x.liabilities) || 0)), stack: 'bars', backgroundColor: owe, borderRadius: 4, order: 1 }
                     ]
                 },
-                options: { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'top', align: 'start' }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${money(Math.abs(c.parsed.y))}` } } } }
+                options: { onClick, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'top', align: 'start' }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${money(Math.abs(c.parsed.y))}` } } } }
+            } : {
+                type: 'line',
+                data: { labels: h.map(label), datasets: [{ label: 'Net worth', data: h.map(x => x.value), fill: 'start', backgroundColor: 'rgba(22, 163, 74, .12)', borderWidth: 2.5, tension: 0,
+                    segment: { borderColor: (c) => (c.p1.parsed.y >= c.p0.parsed.y ? up : down) },
+                    pointRadius: h.map((x, i) => (i === pick ? 8 : h.length > 24 ? 2 : 5)), pointHoverRadius: 8, pointBackgroundColor: h.map((x, i) => (i === pick ? up : pal.surface)), pointBorderColor: up, pointBorderWidth: 2.5 }] },
+                options: { onClick, scales: { y: { beginAtZero: false, ticks: { callback: (v) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v } } }, plugins: { legend: { display: false } } }
             });
+            const cur = all[all.length - 1];
+            UI.html('nw-current', `<span class="text-xs text-slate-500">Current net worth</span><strong class="text-2xl font-black ${cur.value < 0 ? 'text-red-600' : ''}">${money(cur.value)}</strong>`);
+            const x = h[pick], prevRow = all[all.indexOf(x) - 1];
+            const diff = prevRow ? x.value - prevRow.value : null;
+            UI.html('nw-month-pick', `<div class="nw-pick-cols">
+                    <div><span>${esc(label(x))} net worth</span><strong>${money(x.value)}</strong></div>
+                    <div><span>From the previous month</span><strong class="${diff === null ? '' : diff >= 0 ? 'text-emerald-700' : 'text-red-600'}">${diff === null ? '—' : `${diff >= 0 ? '+' : '−'}${money(Math.abs(diff))}`}</strong></div>
+                </div>
+                ${prevRow ? `<button type="button" class="btn btn-secondary btn-sm" data-action="nw.gains" data-month="${esc(x.month)}">${esc(label(x))} – Gains & losses</button>` : ''}`);
             const d = h[h.length - 1].value - h[0].value;
             UI.html('nw-month-change', Math.abs(d) < 1 ? '' : `<span class="${d > 0 ? 'text-emerald-700' : 'text-red-600'}">${d > 0 ? '▲' : '▼'} ${money0(Math.abs(d))}</span> <span class="text-slate-500 font-normal">since ${esc(label(h[0]))}</span>`);
             UI.html('nw-month-table', h.slice().reverse().map(x => `<tr><td>${esc(label(x))}</td><td class="num">${money0(x.assets)}</td><td class="num">${money0(x.liabilities)}</td><td class="num font-bold ${x.value < 0 ? 'text-red-600' : ''}">${money0(x.value)}</td></tr>`).join(''));
@@ -24397,8 +24498,37 @@ I18n.override('EC', 'es', {
         yd.netWorthTouched[field] = true;
     }
 
+    // A month's gains & losses, account by account, vs the month before (← back to the chart).
+    let gainsSheet = null;
+    function openGains(month) {
+        const all = Store.state.netWorthHistory || [], i = all.findIndex(x => x.month === month);
+        if (i < 1) return;
+        const cur = all[i], prev = all[i - 1], label = Fmt.monthYear(new Date(month + '-01T00:00:00'));
+        const g = Engine.gainsLosses(prev.items, cur.items);
+        const row = (r) => `<div class="gl-row"><span class="truncate" data-i18n-skip>${esc(I18n.t(r.name))}</span><span class="${r.change > 0 ? 'text-emerald-700' : 'text-red-600'} font-semibold">${r.change > 0 ? '+ ' : '−'}${money(Math.abs(r.change))}</span></div>`;
+        const body = !cur.items || !prev.items
+            ? '<p class="help">This month was saved before the app kept each account\'s value. From now on every month has its gains and losses.</p>'
+            : `<div class="gl-head"><span>Gains</span><span class="text-emerald-700">${money(g.gainTotal)}</span></div>${g.gains.map(row).join('') || '<p class="help">None.</p>'}
+               <div class="gl-head mt-3"><span>Losses</span><span class="text-red-600">−${money(Math.abs(g.lossTotal))}</span></div>${g.losses.map(row).join('') || '<p class="help">None.</p>'}
+               <p class="help mt-3">A gain is an account that grew or a debt that went down; a loss is the other way round.</p>`;
+        gainsSheet = UI.sheet({ title: `${label} – Gains & losses`, icon: 'fa-arrow-trend-up', html: `<button type="button" class="link text-sm mb-2" data-action="nw.gainsBack"><i class="fa-solid fa-arrow-left"></i> Back</button>${body}` });
+    }
+    // An account's (or a property's) value at the end of each saved month; tap a month for its value.
+    function openHistory(key, name) {
+        const rows = Engine.itemHistory(Store.state.netWorthHistory, key, 6), pal = UI.palette();
+        UI.sheet({ title: name, icon: 'fa-clock-rotate-left', html: `<p class="text-xs text-slate-500 mb-1">Account history</p>
+            ${rows.some(r => r.value !== null) ? '<div class="chart-box"><canvas id="nw-hist-chart" aria-label="Value at the end of each month"></canvas></div>' : '<p class="help">No months saved for it yet: its value is kept every month from now on.</p>'}` });
+        if (!rows.some(r => r.value !== null)) return;
+        UI.chart('nw-hist-chart', { type: 'bar', data: { labels: rows.map(r => Fmt.MONTH_NAMES[Number(r.month.slice(5)) - 1]), datasets: [{ label: 'Balance', data: rows.map(r => r.value), backgroundColor: rows.map((r, i) => (i === rows.length - 1 ? pal.series[0] : pal.series[0] + '80')), borderRadius: 4 }] },
+            options: { plugins: { legend: { display: false } } } });
+    }
+
     UI.register({
         'nw.range': (el) => { Store.ui.nwRange = Number(el.dataset.months); App.update(); },
+        'nw.view': (el) => { Store.ui.nwView = el.dataset.view; App.update(); },
+        'nw.gains': (el) => openGains(el.dataset.month),
+        'nw.gainsBack': () => { if (gainsSheet) { gainsSheet.close(); gainsSheet = null; } },
+        'nw.history': (el) => openHistory(el.dataset.key, el.dataset.name),
         'acct.add': () => {
             const list = Store.state.accounts || (Store.state.accounts = []);
             const id = Store.nextId(list);
@@ -24618,9 +24748,13 @@ I18n.override('EC', 'es', {
         const open = Store.ui.nwOpen || null;
         const groupHTML = (g, owed) => `<div class="sheet-type">
                 <button type="button" class="sheet-head" data-action="sheet.toggle" data-key="${g.key}" aria-expanded="${open === g.key}"><span><i class="fa-solid ${ICONS[g.key]} text-slate-400"></i> ${esc(g.label)}</span><span class="flex items-center gap-2"><strong class="${owed ? 'text-red-600' : ''}">${money(g.total)}</strong><i class="fa-solid fa-chevron-${open === g.key ? 'up' : 'down'} text-[10px] text-slate-400"></i></span></button>
-                ${open === g.key ? `<div class="sheet-rows">${g.rows.map(r => r.ref.type === 'asset'
-                    ? `<label class="sheet-row"><span class="truncate" data-i18n-skip>${esc(r.name)}</span><input type="number" class="cell-input num money" style="max-width:9rem" min="0" step="any" value="${Math.round(r.balance * 100) / 100}" data-change="sheet.assetValue" data-id="${r.ref.id}" aria-label="Value of ${esc(r.name)}"></label>`
-                    : `<button type="button" class="sheet-row" data-action="hub.open" data-type="${r.ref.type}" data-id="${esc(String(r.ref.id))}"><span class="truncate" data-i18n-skip>${esc(r.name)}</span><span class="font-semibold ${owed ? 'text-red-600' : ''}">${money(r.balance)}</span></button>`).join('')}</div>` : ''}
+                ${open === g.key ? `<div class="sheet-rows">${g.rows.map(r => {
+                    // ⏱ its value month by month (Account history).
+                    const hist = `<button type="button" class="sheet-row-hist" data-action="nw.history" data-key="${esc(`${r.ref.type}:${r.ref.id}`)}" data-name="${esc(r.name)}" aria-label="History of ${esc(r.name)}"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
+                    return r.ref.type === 'asset'
+                    ? `<div class="sheet-row"><span class="truncate" data-i18n-skip>${esc(r.name)}</span><span class="flex items-center">${hist}<input type="number" class="cell-input num money" style="max-width:9rem" min="0" step="any" value="${Math.round(r.balance * 100) / 100}" data-change="sheet.assetValue" data-id="${r.ref.id}" aria-label="Value of ${esc(r.name)}"></span></div>`
+                    : `<div class="sheet-row"><button type="button" class="truncate text-left flex-1" data-action="hub.open" data-type="${r.ref.type}" data-id="${esc(String(r.ref.id))}" data-i18n-skip>${esc(r.name)}</button><span class="flex items-center">${hist}<span class="font-semibold ${owed ? 'text-red-600' : ''}">${money(r.balance)}</span></span></div>`;
+                }).join('')}</div>` : ''}
             </div>`;
         // Each side by section (cash & bank, investments & retirement, property / debts) with its subtotal.
         const side = (owed) => hub.sections.filter(x => hub.groups.some(g => g.section === x.key && g.owed === owed && g.rows.length)).map(x => {
@@ -25347,7 +25481,7 @@ I18n.override('EC', 'es', {
             'Every extra dollar goes to the first one; when it\'s gone, its payment rolls to the next (the snowball).']],
         ['networth', 'fa-chart-line', 'Net Worth', ['patrimonio', 'nw-sheet'], [
             'What you own minus what you owe, saved on its own every month.',
-            'Bars show what you own and owe; the line is your net worth.']],
+            'Pick 6 months, 9 months or a year; tap a month to see how much it changed and its gains & losses, account by account.']],
         ['goals', 'fa-bullseye', 'Goals', ['futuro/metas', 'metas-goals'], [
             'Save for something in cash: set the amount and the date, and the monthly amount goes into your budget.']],
         ['cashflow', 'fa-calendar-days', 'Cash Flow', ['resumen', 'dash-flow-card'], [

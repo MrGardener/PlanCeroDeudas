@@ -83,13 +83,23 @@
         UI.show('nw-month-empty', !enough);
         if (!enough) UI.html('nw-month-empty', 'We save your net worth on its own every month. Come back next month to see the line.');
         else {
-            // What you own (bars up), what you owe (bars down) and net worth (the line), one axis.
-            const range = [0, 6, 12].includes(Number(Store.ui.nwRange)) ? Number(Store.ui.nwRange) : 12;
+            // The bank's Net Worth: 6M / 9M / 1Y (or All), a line with a point per month (green going
+            // up, gray going down) or bars of what you own and owe; tap a month for its net worth, the
+            // change from the month before and its gains & losses.
+            const range = [0, 6, 9, 12].includes(Number(Store.ui.nwRange)) ? Number(Store.ui.nwRange) : 6;
             UI.$$('[data-action="nw.range"]').forEach(b => b.classList.toggle('active', Number(b.dataset.months) === range));
+            const bars = Store.ui.nwView === 'bars';
+            UI.$$('[data-action="nw.view"]').forEach(b => b.classList.toggle('active', (b.dataset.view === 'bars') === bars));
             const h = range ? all.slice(-range) : all;
             const label = (x) => Fmt.monthYear(new Date(x.month + '-01T00:00:00'));
-            const own = pal.series[2], owe = pal.series[1];
-            UI.chart('nw-month-chart', {
+            if (!h.some(x => x.month === Store.ui.nwPick)) Store.ui.nwPick = h[h.length - 1].month;
+            const pick = h.findIndex(x => x.month === Store.ui.nwPick);
+            const own = pal.series[2], owe = pal.series[1], up = '#16a34a', down = pal.muted;
+            const onClick = (e, els, chart) => {
+                const i = els.length ? els[0].index : Math.round(chart.scales.x.getValueForPixel(e.x));
+                if (i >= 0 && i < h.length) { Store.ui.nwPick = h[i].month; App.update(); }
+            };
+            UI.chart('nw-month-chart', bars ? {
                 type: 'bar',
                 data: {
                     labels: h.map(label),
@@ -99,8 +109,23 @@
                         { label: 'Liabilities', data: h.map(x => -(Number(x.liabilities) || 0)), stack: 'bars', backgroundColor: owe, borderRadius: 4, order: 1 }
                     ]
                 },
-                options: { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'top', align: 'start' }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${money(Math.abs(c.parsed.y))}` } } } }
+                options: { onClick, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'top', align: 'start' }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${money(Math.abs(c.parsed.y))}` } } } }
+            } : {
+                type: 'line',
+                data: { labels: h.map(label), datasets: [{ label: 'Net worth', data: h.map(x => x.value), fill: 'start', backgroundColor: 'rgba(22, 163, 74, .12)', borderWidth: 2.5, tension: 0,
+                    segment: { borderColor: (c) => (c.p1.parsed.y >= c.p0.parsed.y ? up : down) },
+                    pointRadius: h.map((x, i) => (i === pick ? 8 : h.length > 24 ? 2 : 5)), pointHoverRadius: 8, pointBackgroundColor: h.map((x, i) => (i === pick ? up : pal.surface)), pointBorderColor: up, pointBorderWidth: 2.5 }] },
+                options: { onClick, scales: { y: { beginAtZero: false, ticks: { callback: (v) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v } } }, plugins: { legend: { display: false } } }
             });
+            const cur = all[all.length - 1];
+            UI.html('nw-current', `<span class="text-xs text-slate-500">Current net worth</span><strong class="text-2xl font-black ${cur.value < 0 ? 'text-red-600' : ''}">${money(cur.value)}</strong>`);
+            const x = h[pick], prevRow = all[all.indexOf(x) - 1];
+            const diff = prevRow ? x.value - prevRow.value : null;
+            UI.html('nw-month-pick', `<div class="nw-pick-cols">
+                    <div><span>${esc(label(x))} net worth</span><strong>${money(x.value)}</strong></div>
+                    <div><span>From the previous month</span><strong class="${diff === null ? '' : diff >= 0 ? 'text-emerald-700' : 'text-red-600'}">${diff === null ? '—' : `${diff >= 0 ? '+' : '−'}${money(Math.abs(diff))}`}</strong></div>
+                </div>
+                ${prevRow ? `<button type="button" class="btn btn-secondary btn-sm" data-action="nw.gains" data-month="${esc(x.month)}">${esc(label(x))} – Gains & losses</button>` : ''}`);
             const d = h[h.length - 1].value - h[0].value;
             UI.html('nw-month-change', Math.abs(d) < 1 ? '' : `<span class="${d > 0 ? 'text-emerald-700' : 'text-red-600'}">${d > 0 ? '▲' : '▼'} ${money0(Math.abs(d))}</span> <span class="text-slate-500 font-normal">since ${esc(label(h[0]))}</span>`);
             UI.html('nw-month-table', h.slice().reverse().map(x => `<tr><td>${esc(label(x))}</td><td class="num">${money0(x.assets)}</td><td class="num">${money0(x.liabilities)}</td><td class="num font-bold ${x.value < 0 ? 'text-red-600' : ''}">${money0(x.value)}</td></tr>`).join(''));
@@ -289,8 +314,37 @@
         yd.netWorthTouched[field] = true;
     }
 
+    // A month's gains & losses, account by account, vs the month before (← back to the chart).
+    let gainsSheet = null;
+    function openGains(month) {
+        const all = Store.state.netWorthHistory || [], i = all.findIndex(x => x.month === month);
+        if (i < 1) return;
+        const cur = all[i], prev = all[i - 1], label = Fmt.monthYear(new Date(month + '-01T00:00:00'));
+        const g = Engine.gainsLosses(prev.items, cur.items);
+        const row = (r) => `<div class="gl-row"><span class="truncate" data-i18n-skip>${esc(I18n.t(r.name))}</span><span class="${r.change > 0 ? 'text-emerald-700' : 'text-red-600'} font-semibold">${r.change > 0 ? '+ ' : '−'}${money(Math.abs(r.change))}</span></div>`;
+        const body = !cur.items || !prev.items
+            ? '<p class="help">This month was saved before the app kept each account\'s value. From now on every month has its gains and losses.</p>'
+            : `<div class="gl-head"><span>Gains</span><span class="text-emerald-700">${money(g.gainTotal)}</span></div>${g.gains.map(row).join('') || '<p class="help">None.</p>'}
+               <div class="gl-head mt-3"><span>Losses</span><span class="text-red-600">−${money(Math.abs(g.lossTotal))}</span></div>${g.losses.map(row).join('') || '<p class="help">None.</p>'}
+               <p class="help mt-3">A gain is an account that grew or a debt that went down; a loss is the other way round.</p>`;
+        gainsSheet = UI.sheet({ title: `${label} – Gains & losses`, icon: 'fa-arrow-trend-up', html: `<button type="button" class="link text-sm mb-2" data-action="nw.gainsBack"><i class="fa-solid fa-arrow-left"></i> Back</button>${body}` });
+    }
+    // An account's (or a property's) value at the end of each saved month; tap a month for its value.
+    function openHistory(key, name) {
+        const rows = Engine.itemHistory(Store.state.netWorthHistory, key, 6), pal = UI.palette();
+        UI.sheet({ title: name, icon: 'fa-clock-rotate-left', html: `<p class="text-xs text-slate-500 mb-1">Account history</p>
+            ${rows.some(r => r.value !== null) ? '<div class="chart-box"><canvas id="nw-hist-chart" aria-label="Value at the end of each month"></canvas></div>' : '<p class="help">No months saved for it yet: its value is kept every month from now on.</p>'}` });
+        if (!rows.some(r => r.value !== null)) return;
+        UI.chart('nw-hist-chart', { type: 'bar', data: { labels: rows.map(r => Fmt.MONTH_NAMES[Number(r.month.slice(5)) - 1]), datasets: [{ label: 'Balance', data: rows.map(r => r.value), backgroundColor: rows.map((r, i) => (i === rows.length - 1 ? pal.series[0] : pal.series[0] + '80')), borderRadius: 4 }] },
+            options: { plugins: { legend: { display: false } } } });
+    }
+
     UI.register({
         'nw.range': (el) => { Store.ui.nwRange = Number(el.dataset.months); App.update(); },
+        'nw.view': (el) => { Store.ui.nwView = el.dataset.view; App.update(); },
+        'nw.gains': (el) => openGains(el.dataset.month),
+        'nw.gainsBack': () => { if (gainsSheet) { gainsSheet.close(); gainsSheet = null; } },
+        'nw.history': (el) => openHistory(el.dataset.key, el.dataset.name),
         'acct.add': () => {
             const list = Store.state.accounts || (Store.state.accounts = []);
             const id = Store.nextId(list);

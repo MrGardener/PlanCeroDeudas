@@ -1447,6 +1447,27 @@ test('categoryTrend: spending by category per month, income line, account and ca
     assert.deepEqual(f.series.map(x => [x.key, x.values[0]]), [['A', 30], [null, 57]]);
 });
 
+test('net worth by account: items saved with the month, gains and losses between months', () => {
+    const hub = { groups: [
+        { key: 'checking', owed: false, rows: [{ ref: { type: 'account', id: 1 }, name: 'Checking', balance: 1200 }] },
+        { key: 'vehicle', owed: false, rows: [{ ref: { type: 'asset', id: 7 }, name: 'Car', balance: 9000 }] },
+        { key: 'card', owed: true, rows: [{ ref: { type: 'debt', id: 3 }, name: 'Card', balance: 800 }] }
+    ] };
+    const items = E.hubItems(hub);
+    assert.deepEqual(items, [['account:1', 'Checking', 1200], ['asset:7', 'Car', 9000], ['debt:3', 'Card', -800]]);
+    const h = E.recordNetWorthMonth([], '2026-10', { assets: 10200, liabilities: 800 }, items);
+    assert.deepEqual(h[0].items, items);
+    assert.equal(h[0].value, 9400);
+    const prev = [['account:1', 'Checking', 1500], ['asset:7', 'Car', 9200], ['debt:3', 'Card', -1000], ['account:9', 'Old savings', 50]];
+    const g = E.gainsLosses(prev, items);
+    assert.deepEqual(g.gains.map(x => [x.name, x.change]), [['Card', 200]]);
+    assert.deepEqual(g.losses.map(x => [x.name, x.change]), [['Checking', -300], ['Car', -200], ['Old savings', -50]]);
+    assert.equal(g.gainTotal, 200);
+    assert.equal(g.lossTotal, -550);
+    assert.equal(g.gainTotal + g.lossTotal, 9400 - (1500 + 9200 + 50 - 1000));
+    assert.deepEqual(E.itemHistory([{ month: '2026-09', items: prev }, { month: '2026-10', items }, { month: '2026-11' }], 'debt:3', 3), [{ month: '2026-09', value: 1000 }, { month: '2026-10', value: 800 }, { month: '2026-11', value: null }]);
+});
+
 test('autoBudget: a line per category at its 3-month average, debts left out', () => {
     const tx = [
         { date: '2026-07-04', amount: 300, type: 'Gasto', parentCategory: 'Alimentación' },

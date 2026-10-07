@@ -339,7 +339,11 @@
         const s = Store.state, t = new Date(), y = t.getFullYear();
         if (y < s.configStartYear || y > s.configEndYear) return;
         const nw = Engine.netWorth(s.years, s.assets, y);
-        if (nw.assets > 0 || nw.liabilities > 0) s.netWorthHistory = Engine.recordNetWorthMonth(s.netWorthHistory, Engine.isoDate(t).slice(0, 7), nw);
+        if (nw.assets > 0 || nw.liabilities > 0) {
+            // Each account's value too, for the month's gains and losses.
+            const hub = Engine.accountsHub({ accounts: s.accounts, holdings: s.holdings, polizas: s.polizas, assets: s.assets, debts: s.debts, years: s.years, year: y });
+            s.netWorthHistory = Engine.recordNetWorthMonth(s.netWorthHistory, Engine.isoDate(t).slice(0, 7), nw, Engine.hubItems(hub));
+        }
         const ctx = buildContext();
         const list = Engine.milestones({ netWorth: nw.value, liquid: ctx.ef.liquid, monthsCovered: ctx.ef.monthsCovered, debts: s.debts, money: Fmt.money0 });
         const first = !s.milestones;
