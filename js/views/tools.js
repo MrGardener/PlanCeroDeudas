@@ -31,7 +31,7 @@
             'Save for something in cash: set the amount and the date, and the monthly amount goes into your budget.']],
         ['cashflow', 'fa-calendar-days', 'Cash Flow', ['resumen', 'dash-flow-card'], [
             'Your balance day by day for the next 30, 60 or 90 days: pay, bills and everyday spending.',
-            'Add one-off money coming in or going out; red means you\'d go below $0.']],
+            'Add cash events (suggested from your payments, or by hand), once or repeating; pick which accounts count. Red means you\'d go below $0.']],
         ['alerts', 'fa-bell', 'Alerts', ['resumen', 'tools-bar'], [
             'The bell lists what needs a look: your balance going below $0 in the next 30 days, bills due in 3 days, budget lines over plan and unusually large purchases.',
             'Dismiss one with × and it won\'t come back; nothing is sent anywhere.']],

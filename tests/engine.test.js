@@ -1447,6 +1447,32 @@ test('categoryTrend: spending by category per month, income line, account and ca
     assert.deepEqual(f.series.map(x => [x.key, x.values[0]]), [['A', 30], [null, 57]]);
 });
 
+test('cash events: once or repeating (1st Friday, monthly…), suggestions and paid / due / upcoming', () => {
+    assert.deepEqual(E.occurrences({ startDate: '2026-10-02', frequency: 'monthlyNth' }, '2026-10-01', '2027-02-28'), ['2026-10-02', '2026-11-06', '2026-12-04', '2027-01-01', '2027-02-05']);
+    // A 5th Friday becomes the month's last one.
+    assert.deepEqual(E.occurrences({ startDate: '2026-10-30', frequency: 'monthlyNth' }, '2026-11-01', '2026-12-31'), ['2026-11-27', '2026-12-25']);
+    assert.deepEqual(E.occurrences({ startDate: '2026-10-02', frequency: 'once' }, '2026-09-01', '2027-02-28'), ['2026-10-02']);
+    const ev = E.cashEvents({ from: '2026-10-01', to: '2026-12-31', months: [], oneOff: [{ id: 1, date: '2026-10-15', name: 'Gym', amount: -30, frequency: 'monthly' }, { id: 2, date: '2026-11-20', name: 'Refund', amount: 400 }] });
+    assert.deepEqual(ev.map(e => [e.date, e.amount]), [['2026-10-15', -30], ['2026-11-15', -30], ['2026-11-20', 400], ['2026-12-15', -30]]);
+    const tx = [
+        { id: 1, date: '2026-07-01', amount: 1500, type: 'Ingreso', description: 'Invented Payroll', parentCategory: 'Ingresos Laborales' },
+        { id: 2, date: '2026-08-01', amount: 1500, type: 'Ingreso', description: 'Invented Payroll', parentCategory: 'Ingresos Laborales' },
+        { id: 3, date: '2026-09-01', amount: 1500, type: 'Ingreso', description: 'Invented Payroll', parentCategory: 'Ingresos Laborales' },
+        { id: 4, date: '2026-09-05', amount: 32.06, type: 'Gasto', description: 'Town Gym', parentCategory: 'Salud' },
+        { id: 5, date: '2026-10-05', amount: 32.06, type: 'Gasto', description: 'Town Gym', parentCategory: 'Salud' },
+        { id: 6, date: '2026-10-03', amount: 9, type: 'Gasto', description: 'Once Only Shop', parentCategory: 'Otros' }
+    ];
+    const sug = E.suggestCashEvents(tx, { today: new Date(2026, 9, 7) });
+    assert.deepEqual(sug.map(x => [x.name, x.amount, x.frequency]), [['Town Gym', -32.06, 'monthly'], ['Invented Payroll', 1500, 'monthly']]);
+    assert.equal(E.suggestCashEvents(tx, { today: new Date(2026, 9, 7), skip: [sug[0].key] }).length, 1);
+    const st = (e) => E.cashEventStatus(e, new Date(2026, 9, 7), tx).state;
+    assert.equal(st({ date: '2026-10-05', name: 'Town Gym', amount: -32.06, kind: 'oneoff' }), 'paid');
+    assert.equal(E.cashEventStatus({ date: '2026-10-05', name: 'Town Gym', amount: -32.06 }, new Date(2026, 9, 7), tx).on, '2026-10-05');
+    assert.equal(st({ date: '2026-10-04', name: 'Car insurance', amount: -212, kind: 'oneoff' }), 'due');
+    assert.equal(st({ date: '2026-10-08', name: 'Phone', amount: -87, kind: 'oneoff' }), 'upcoming');
+    assert.equal(E.cashEventStatus({ date: '2026-10-08', name: 'Phone', amount: -87 }, new Date(2026, 9, 7), tx).days, 1);
+});
+
 test('net worth by account: items saved with the month, gains and losses between months', () => {
     const hub = { groups: [
         { key: 'checking', owed: false, rows: [{ ref: { type: 'account', id: 1 }, name: 'Checking', balance: 1200 }] },
