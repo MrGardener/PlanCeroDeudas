@@ -3,14 +3,15 @@
  * They live in their own localStorage entry, so they are never part of a backup file, never
  * undone with Ctrl+Z, and loading someone else's backup doesn't change them.
  *
- * The PIN lock hides the app until the PIN is typed. It is a screen lock, not encryption:
- * the data stays readable to anyone with full access to this browser's storage.
+ * The PIN lock hides the app until the PIN is typed. Wrong PINs are counted on the device (a
+ * reload doesn't reset them): after 5, a 30-second wait before each try; the 10th wrong PIN erases
+ * everything this app keeps on the device and closes it. A backup file brings the data back.
  */
 (function (root) {
     'use strict';
     const KEY = (root.APP_EDITION && root.APP_EDITION.deviceKey) || 'plan_financiero_ec_device';
     const IDLE_MS = 5 * 60 * 1000;      // lock again after 5 minutes in the background
-    const MAX_TRIES = 5, WAIT_MS = 30 * 1000;
+    const MAX_TRIES = 5, WAIT_MS = 30 * 1000, WIPE_AT = 10;
 
     function read() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
     function write(d) { try { localStorage.setItem(KEY, JSON.stringify(d)); return true; } catch (e) { return false; } }
@@ -88,7 +89,23 @@
     }
     const hasPin = () => !!(read().lock && read().lock.hash);
 
-    let hiddenAt = null, tries = 0, waitUntil = 0;
+    let hiddenAt = null;
+    // Wrong tries and the wait live with the lock, so closing or reloading the app doesn't reset them.
+    const fails = () => (read().lock && read().lock.fails) || 0;
+    const waitUntil = () => (read().lock && read().lock.waitUntil) || 0;
+    function setFails(n, wait) { const d = read(); if (!d.lock) return; d.lock.fails = n; if (wait) d.lock.waitUntil = wait; else delete d.lock.waitUntil; write(d); }
+    // Everything this app keeps on this device: the budget, the device settings (PIN included) and
+    // the phone's copy. Then the app closes (on a phone) or starts empty (in a browser).
+    async function wipeAll() {
+        const keys = [KEY];
+        if (root.Store && Store.KEY) keys.push(Store.KEY);
+        if (root.APP_EDITION && APP_EDITION.storageKey) keys.push(APP_EDITION.storageKey);
+        try { for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (keys.some(x => k === x || k.startsWith(x + ':'))) keys.push(k); } } catch (e) { /* no storage */ }
+        // Stop the store from writing the plan back (on unload, or the phone's copy).
+        if (root.Store) { Store.storage = null; Store._lastSaved = null; }
+        if (root.Native && Native.wipe) await Native.wipe([...new Set(keys)]);
+        else [...new Set(keys)].forEach(k => { try { localStorage.removeItem(k); } catch (e) { /* gone */ } });
+    }
 
     function showLock() {
         if (!hasPin() || document.getElementById('lock-screen')) return;
@@ -115,21 +132,39 @@
         const input = el.querySelector('#lock-pin'), msg = el.querySelector('#lock-msg');
         const say = (text) => { msg.textContent = root.I18n ? I18n.t(text) : text; };
         setTimeout(() => input.focus(), 30);
+        const left = () => {
+            const n = fails();
+            if (!n) return '';
+            return n < MAX_TRIES ? `Wrong PIN. Tries left before a 30-second wait: ${MAX_TRIES - n}.`
+                : `Wrong PIN. Tries left before everything on this device is erased: ${WIPE_AT - n}.`;
+        };
+        if (fails()) say(left());
         el.querySelector('form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (Date.now() < waitUntil) { say(`Too many tries. Wait ${Math.ceil((waitUntil - Date.now()) / 1000)} seconds.`); return; }
+            if (Date.now() < waitUntil()) { say(`Too many tries. Wait ${Math.ceil((waitUntil() - Date.now()) / 1000)} seconds.`); return; }
             const lock = read().lock;
             if (lock && await hashPin(input.value, lock.salt) === lock.hash) {
-                tries = 0;
+                setFails(0);
                 el.remove();
                 document.documentElement.classList.remove('app-locked');
                 if (root.Store && Store.ui.quickAfterUnlock && root.QuickEntry) { Store.ui.quickAfterUnlock = false; QuickEntry.open(); }
                 return;
             }
-            tries++;
+            const n = fails() + 1;
             input.value = '';
-            if (tries >= MAX_TRIES) { tries = 0; waitUntil = Date.now() + WAIT_MS; say('Wrong PIN. Wait 30 seconds to try again.'); }
-            else say(`Wrong PIN. ${MAX_TRIES - tries} tries left.`);
+            if (n >= WIPE_AT) {
+                await wipeAll();
+                const box = el.querySelector('.lock-box');
+                box.innerHTML = `<div class="brand-logo mx-auto mb-3"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="lock-title">Data erased</div>
+                    <p class="lock-sub">The PIN was wrong ${WIPE_AT} times, so everything this app kept on this device was erased. Load your backup file to get it back.</p>`;
+                tr(box);
+                setTimeout(() => { if (root.Native && Native.isApp && Native.exit) Native.exit(); else location.reload(); }, 2500);
+                return;
+            }
+            setFails(n, n >= MAX_TRIES ? Date.now() + WAIT_MS : 0);
+            const t = (x) => (root.I18n ? I18n.t(x) : x);
+            msg.textContent = n >= MAX_TRIES ? `${t(left())} ${t('Wait 30 seconds to try again.')}` : t(left());
             input.focus();
         });
         el.querySelector('#lock-forgot').addEventListener('click', () => {
@@ -143,9 +178,8 @@
                 <button type="button" class="lock-forgot" id="lock-back">Back</button>`;
             tr(box);
             box.querySelector('#lock-back').addEventListener('click', () => { el.remove(); showLock(); });
-            box.querySelector('#lock-wipe').addEventListener('click', () => {
-                const d = read(); delete d.lock; write(d);
-                if (root.Store) { Store.reset('empty'); }
+            box.querySelector('#lock-wipe').addEventListener('click', async () => {
+                await wipeAll();
                 location.reload();
             });
         });
@@ -165,5 +199,5 @@
     });
     document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); showLock(); });
 
-    root.Device = { read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
+    root.Device = { WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
 })(this);

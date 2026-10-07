@@ -88,7 +88,7 @@ Ask: **"Do step N of docs/plans/bank-tools-2.md"** (or "continue the bank tools 
      in your budget" when the goals ask more than the month's unassigned money.
    - The timeline scrolls (a slider on the left from Now to the farthest goal's year) to reach far-off goals.
 
-7. **Security A: PIN wipe and encrypted exports** (asked 2026-10-07)
+7. ✅ **Security A: PIN wipe and encrypted exports** (asked 2026-10-07)
    - The wrong-PIN count is saved on the device, so reloading doesn't reset it. After 5 wrong tries
      there's a 30-second wait. The 10th wrong PIN erases everything this app saved on the device
      (budget, backups kept in the browser, device settings) and closes the app on the phone. The lock

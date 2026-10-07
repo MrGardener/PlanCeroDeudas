@@ -71,6 +71,9 @@ While developing, run `npm test` and the one suite you touched; run `npm run che
   Test data is invented. Screenshots go to `tests/e2e/out/` (ignored).
 - Pay stubs keep only labels and amounts. `settings.priceKey` is never in backups.
 - Device settings (theme, language, PIN) live apart from the budget: not in backups, not undoable.
+- Files leave the app encrypted: `Native.saveSecure` (password → `js/vault.js`, AES-256-GCM). Use it for any
+  new export; plain `Native.saveFile` only for a copy the person decrypts on purpose.
+- The 10th wrong PIN erases the app's data on the device (`Device.wipeAll`).
 
 ## Workflow
 - `main` is releasable. One short branch per feature or batch; open a PR; merge when CI is green.

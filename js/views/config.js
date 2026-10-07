@@ -159,7 +159,8 @@
             if (data.settings) delete data.settings.priceKey;
             const prefix = APP_EDITION.country === 'US' ? 'zerodebtplan' : 'plan_financiero_ecuador';
             const name = `${prefix}_${new Date().toISOString().slice(0, 10)}.json`;
-            Native.saveFile(name, JSON.stringify(data, null, 1), 'application/json').then(how => {
+            Native.saveSecure(name, JSON.stringify(data), 'application/json', { title: 'Encrypt the backup' }).then(how => {
+                if (!how) return;
                 Store.state.settings.lastBackupAt = new Date().toISOString();
                 Store.scheduleSave();
                 App.commitHistory();  // a record, not something to undo
@@ -169,14 +170,38 @@
             }).catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
         },
         'cfg.upload': () => document.getElementById('cfg-file').click(),
+        // Open a file this app encrypted (a CSV, a report, a backup) and save it readable, on purpose.
+        'cfg.openVault': () => document.getElementById('cfg-vault-file').click(),
+        'cfg.vaultChosen': (el) => {
+            const file = el.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                el.value = '';
+                if (!Vault.isVault(e.target.result)) { UI.toast('This isn\'t an encrypted file from this app.', 'error'); return; }
+                const pw = await Native.askPassword({ title: 'Open an encrypted file', confirm: false, message: 'Type the password you chose when you saved it. The file will be saved readable: anyone with it can read it.' });
+                if (!pw) return;
+                let out;
+                try { out = await Vault.decrypt(e.target.result, pw); } catch (err) { UI.toast(err.code === 'bad-password' ? 'Wrong password, or the file was changed.' : String(err.message || err), 'error'); return; }
+                Native.saveFile(out.name || 'file.txt', out.text, out.type || 'text/plain').then(() => UI.toast('File opened and saved.', 'ok'))
+                    .catch(err => UI.toast('Couldn\'t save the file: ' + (err.message || err), 'error'));
+            };
+            reader.readAsText(file);
+        },
         'cfg.fileChosen': (el) => {
             const file = el.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = async (e) => {
                 el.value = '';
-                let data;
-                try { data = JSON.parse(e.target.result); } catch (err) { UI.toast('That file isn\'t a valid backup (.json).', 'error'); return; }
+                let data, text = e.target.result;
+                // Encrypted backups (all new ones): ask for the password. Older plain .json ones still load.
+                if (Vault.isVault(text)) {
+                    const pw = await Native.askPassword({ title: 'Open the backup', confirm: false, message: 'This backup is encrypted. Type the password you chose when you saved it.' });
+                    if (!pw) return;
+                    try { text = (await Vault.decrypt(text, pw)).text; } catch (err) { UI.toast(err.code === 'bad-password' ? 'Wrong password, or the file was changed.' : String(err.message || err), 'error'); return; }
+                }
+                try { data = JSON.parse(text); } catch (err) { UI.toast('That file isn\'t a valid backup (.json).', 'error'); return; }
                 if (!data || typeof data !== 'object' || !(data.years || data.multiYearStore)) { UI.toast('That file doesn\'t look like a backup from this app.', 'error'); return; }
                 const ok = await UI.confirm({ title: 'Load backup', message: 'Your current data will be replaced with the backup\'s. To keep it, download a backup or create a baseline first.', confirmText: 'Replace my data', danger: true });
                 if (!ok) return;

@@ -56,4 +56,18 @@ async function openApp({ file = 'index.html', viewport = { width: 1366, height: 
     return { browser, context, page, errors };
 }
 
-module.exports = { openApp, launch, ROOT, OUT, tailwind };
+// Files leave the app encrypted (js/vault.js): run `trigger`, type the password in the dialog,
+// catch the download and decrypt it in the page. Returns { text, name, env }.
+const VAULT_PW = 'test-pass-123';
+async function secureDownload(page, trigger) {
+    const dl = page.waitForEvent('download');
+    await trigger();
+    await page.waitForSelector('.modal input[name="pw"]');
+    await page.fill('.modal input[name="pw"]', VAULT_PW);
+    await page.fill('.modal input[name="pw2"]', VAULT_PW);
+    await page.click('.modal [data-dialog-ok]');
+    const env = fs.readFileSync(await (await dl).path(), 'utf8');
+    return page.evaluate(([e, p]) => Vault.decrypt(e, p).then(r => ({ text: r.text, name: r.name, env: e })), [env, VAULT_PW]);
+}
+
+module.exports = { openApp, launch, ROOT, OUT, tailwind, secureDownload, VAULT_PW };

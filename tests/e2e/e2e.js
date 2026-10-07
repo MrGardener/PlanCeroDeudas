@@ -1,5 +1,5 @@
 // Ecuador edition (Spanish) end-to-end checks.
-const { openApp, ROOT, OUT } = require('./harness');
+const { openApp, ROOT, OUT, secureDownload, VAULT_PW } = require('./harness');
 const fs = require('fs');
 let pass = 0, fail = 0;
 const ok = (cond, name, extra) => { if (cond) { pass++; } else { fail++; console.log('FAIL:', name, extra !== undefined ? JSON.stringify(extra) : ''); } };
@@ -426,8 +426,8 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   const invField = await page.evaluate(() => Store.active().netWorth.investments);
   const expectInv = await page.evaluate(() => Engine.polizasCapital(Store.state.polizas) + Engine.holdingsValue(Store.state.holdings));
   ok(Math.abs(invField - expectInv) < 0.01, 'investments flow into net worth on their own', [invField, expectInv]);
-  const [dlBackup] = await Promise.all([page.waitForEvent('download'), page.evaluate(() => { App.go('config'); document.querySelector('[data-action="cfg.download"]').click(); })]);
-  const savedBackup = JSON.parse(require('fs').readFileSync(await dlBackup.path(), 'utf8'));
+  const dlBackup = await secureDownload(page, () => page.evaluate(() => { App.go('config'); document.querySelector('[data-action="cfg.download"]').click(); }));
+  const savedBackup = JSON.parse(dlBackup.text);
   ok(savedBackup.holdings.length === 2 && !savedBackup.settings.priceKey, 'backup has the investments but never the API key');
   await page.evaluate(() => { Store.state.holdings = []; Store.state.rules = []; Store.state.settings.priceKey = ''; Store.state.transactions = Store.state.transactions.filter(t => !t.invoice); App.changed({ structural: true, step: true }); });
   await page.unroute(/finnhub\.io\/api\/v1\/quote/);
@@ -621,11 +621,9 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   ok((await text(page, 'rep-group-head')) === 'Forma de pago', 'report can group by payment method');
   await page.selectOption('#rep-range', 'custom');
   ok(!(await page.isHidden('#rep-from-field')), 'custom range shows the dates');
-  const [dlRep] = await Promise.all([page.waitForEvent('download'), page.click('[data-action="rep.csv"]')]);
-  const repCsv = require('fs').readFileSync(await dlRep.path(), 'utf8');
+  const repCsv = (await secureDownload(page, () => page.click('[data-action="rep.csv"]'))).text;
   ok(repCsv.startsWith('﻿') && repCsv.includes('Forma de pago,Transacciones,Total'), 'report downloads as CSV');
-  const [dlTx] = await Promise.all([page.waitForEvent('download'), page.click('[data-action="rep.txns"]')]);
-  const txCsv = require('fs').readFileSync(await dlTx.path(), 'utf8');
+  const txCsv = (await secureDownload(page, () => page.click('[data-action="rep.txns"]'))).text;
   ok(txCsv.includes('Fecha,Tipo,Descripción') && txCsv.split('\r\n').length > 2, 'transactions of the period download as CSV (re-importable)');
   await page.selectOption('#rep-range', 'this-month');
 
@@ -1000,7 +998,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   await page.fill('#lock-pin', '1111');
   await page.press('#lock-pin', 'Enter');
   await page.waitForTimeout(400);
-  ok(await page.isVisible('#lock-screen') && (await page.textContent('#lock-msg')).includes('incorrecto'), 'wrong PIN keeps it locked', await page.textContent('#lock-msg'));
+  ok(await page.isVisible('#lock-screen') && (await page.textContent("#lock-msg")).includes("incorrecto"), 'wrong PIN keeps it locked', await page.textContent('#lock-msg'));
   await page.fill('#lock-pin', '2468');
   await page.press('#lock-pin', 'Enter');
   await page.waitForTimeout(400);
@@ -1387,10 +1385,38 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
 
   // ---- backup download is valid JSON of the current state
   await go(page, 'config');
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-action="cfg.download"]')]);
-  const dlPath = await dl.path();
-  const backup = JSON.parse(fs.readFileSync(dlPath, 'utf8'));
+  const dl = await secureDownload(page, () => page.click('[data-action="cfg.download"]'));
+  const backup = JSON.parse(dl.text);
   ok(backup.version === 8 && backup.years && backup.retirement, 'downloaded backup is complete v8 JSON');
+  // The file itself is encrypted: no amounts or names readable; it loads back with the password.
+  const envObj = JSON.parse(dl.env);
+  ok(envObj.cipher === 'AES-256-GCM' && !/retirement|transactions|years/.test(dl.env) && /\.json\.enc\.json$/.test(dl.name + '.enc.json'), 'the backup file is encrypted (AES-256-GCM), nothing readable', Object.keys(envObj));
+  const encPath = OUT + '/backup-test.enc.json';
+  fs.writeFileSync(encPath, dl.env);
+  const before = await page.evaluate(() => Store.state.transactions.length);
+  await page.evaluate(() => { Store.state.transactions = []; App.changed({ structural: true }); });
+  await page.setInputFiles('#cfg-file', encPath);
+  await page.waitForSelector('.modal input[name="pw"]');
+  await page.fill('.modal input[name="pw"]', 'wrong-password');
+  await page.click('.modal [data-dialog-ok]');
+  await page.waitForTimeout(1500);
+  ok(await page.evaluate(() => Store.state.transactions.length) === 0 && /Contraseña incorrecta|Wrong password/.test(await page.textContent('#toast-host')), 'a wrong password does not load the backup', await page.textContent('#toast-host'));
+  await page.setInputFiles('#cfg-file', encPath);
+  await page.waitForSelector('.modal input[name="pw"]');
+  await page.fill('.modal input[name="pw"]', VAULT_PW);
+  await page.click('.modal [data-dialog-ok]');
+  await page.waitForSelector('.modal [data-dialog-ok]');
+  await page.click('.modal [data-dialog-ok]');
+  await page.waitForTimeout(600);
+  ok(await page.evaluate(() => Store.state.transactions.length) === before, 'the encrypted backup loads back with its password', before);
+  // "Open an encrypted file" saves a readable copy.
+  const plainDl = page.waitForEvent('download');
+  await page.setInputFiles('#cfg-vault-file', encPath);
+  await page.waitForSelector('.modal input[name="pw"]');
+  await page.fill('.modal input[name="pw"]', VAULT_PW);
+  await page.click('.modal [data-dialog-ok]');
+  const plain = fs.readFileSync(await (await plainDl).path(), 'utf8');
+  ok(JSON.parse(plain).version === 8, 'an encrypted file can be opened and saved readable on purpose');
   await go(page, 'resumen');
   ok(!(await text(page, 'dash-alerts')).includes('copia de respaldo'), 'backup reminder clears after downloading');
   ok(await page.evaluate(() => Store.state.settings.welcomeDismissed) === true, 'welcome dismissal is saved');

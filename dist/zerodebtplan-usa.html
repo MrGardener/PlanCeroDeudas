@@ -2563,10 +2563,13 @@ button.sheet-row:hover { background: var(--surface-3); }
             <div class="panel tone-indigo">
                 <div class="section-label text-indigo-900"><i class="fa-solid fa-file-shield"></i> Backup</div>
                 <div class="flex flex-wrap gap-2">
-                    <button class="btn btn-primary" data-action="cfg.download"><i class="fa-solid fa-download"></i> Download backup (.json)</button>
+                    <button class="btn btn-primary" data-action="cfg.download"><i class="fa-solid fa-lock"></i> Download backup (encrypted)</button>
                     <button class="btn btn-secondary" data-action="cfg.upload"><i class="fa-solid fa-upload"></i> Load backup</button>
+                    <button class="btn btn-secondary" data-action="cfg.openVault"><i class="fa-solid fa-lock-open"></i> Open an encrypted file</button>
                     <input type="file" id="cfg-file" accept="application/json,.json" class="hidden" data-change="cfg.fileChosen">
+                    <input type="file" id="cfg-vault-file" accept="application/json,.json" class="hidden" data-change="cfg.vaultChosen">
                 </div>
+                <p class="help mt-2">Backups and downloads (CSV, reports) are encrypted with a password you choose (AES-256). Without the password nobody can read them, not even us. "Open an encrypted file" saves a readable copy when you need one.</p>
             </div>
             <div class="panel tone-blue">
                 <div class="section-label text-blue-900"><i class="fa-solid fa-copy"></i> Copy budget between years</div>
@@ -5716,6 +5719,31 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Wrong PIN. Tries left before a 30-second wait: {0}.": "PIN incorrecto. Intentos antes de una espera de 30 segundos: {0}.",
+    "Wrong PIN. Tries left before everything on this device is erased: {0}.": "PIN incorrecto. Intentos antes de borrar todo en este dispositivo: {0}.",
+    "Wait 30 seconds to try again.": "Espera 30 segundos para volver a intentar.",
+    "Data erased": "Datos borrados",
+    "The PIN was wrong {0} times, so everything this app kept on this device was erased. Load your backup file to get it back.": "El PIN fue incorrecto {0} veces, así que se borró todo lo que esta app guardaba en este dispositivo. Carga tu copia de respaldo para recuperarlo.",
+    "Encrypt the file": "Cifrar el archivo",
+    "Encrypt the backup": "Cifrar la copia de respaldo",
+    "Password": "Contraseña",
+    "Type it again": "Escríbela otra vez",
+    "At least {0} characters. Without it the file can't be opened: keep it somewhere safe.": "Al menos {0} caracteres. Sin ella no se puede abrir el archivo: guárdala en un lugar seguro.",
+    "Files leave the app encrypted (AES-256). You need this password to open the file again.": "Los archivos salen de la app cifrados (AES-256). Necesitas esta contraseña para abrir el archivo otra vez.",
+    "Encrypt and save": "Cifrar y guardar",
+    "The password needs at least {0} characters.": "La contraseña necesita al menos {0} caracteres.",
+    "The passwords don't match.": "Las contraseñas no coinciden.",
+    "Open the backup": "Abrir la copia de respaldo",
+    "This backup is encrypted. Type the password you chose when you saved it.": "Esta copia está cifrada. Escribe la contraseña que elegiste al guardarla.",
+    "Wrong password, or the file was changed.": "Contraseña incorrecta, o el archivo fue modificado.",
+    "Open an encrypted file": "Abrir un archivo cifrado",
+    "Type the password you chose when you saved it. The file will be saved readable: anyone with it can read it.": "Escribe la contraseña que elegiste al guardarlo. El archivo se guardará legible: cualquiera que lo tenga podrá leerlo.",
+    "This isn't an encrypted file from this app.": "Este no es un archivo cifrado de esta app.",
+    "File opened and saved.": "Archivo abierto y guardado.",
+    "Download backup (encrypted)": "Descargar copia (cifrada)",
+    "Backups and downloads (CSV, reports) are encrypted with a password you choose (AES-256). Without the password nobody can read them, not even us. \"Open an encrypted file\" saves a readable copy when you need one.": "Las copias y descargas (CSV, reportes) se cifran con una contraseña que tú eliges (AES-256). Sin la contraseña nadie puede leerlas, ni siquiera nosotros. \"Abrir un archivo cifrado\" guarda una copia legible cuando la necesites.",
+    "This browser can't encrypt files (it needs a secure page).": "Este navegador no puede cifrar archivos (necesita una página segura).",
+    "This file was made by a newer version of the app.": "Este archivo fue hecho por una versión más nueva de la app.",
     "Bubbles show each category: green on track, yellow almost spent, red over. Drag them around; tap one to change its budget or add a sub-budget.": "Las burbujas muestran cada categoría: verde en orden, amarillo casi gastado, rojo pasado. Arrástralas; toca una para cambiar su presupuesto o agregar un subpresupuesto.",
     "Add a sub-budget": "Agregar un subpresupuesto",
     "Add a subcategory": "Agregar una subcategoría",
@@ -8842,14 +8870,15 @@ I18n.override('EC', 'es', {
  * They live in their own localStorage entry, so they are never part of a backup file, never
  * undone with Ctrl+Z, and loading someone else's backup doesn't change them.
  *
- * The PIN lock hides the app until the PIN is typed. It is a screen lock, not encryption:
- * the data stays readable to anyone with full access to this browser's storage.
+ * The PIN lock hides the app until the PIN is typed. Wrong PINs are counted on the device (a
+ * reload doesn't reset them): after 5, a 30-second wait before each try; the 10th wrong PIN erases
+ * everything this app keeps on the device and closes it. A backup file brings the data back.
  */
 (function (root) {
     'use strict';
     const KEY = (root.APP_EDITION && root.APP_EDITION.deviceKey) || 'plan_financiero_ec_device';
     const IDLE_MS = 5 * 60 * 1000;      // lock again after 5 minutes in the background
-    const MAX_TRIES = 5, WAIT_MS = 30 * 1000;
+    const MAX_TRIES = 5, WAIT_MS = 30 * 1000, WIPE_AT = 10;
 
     function read() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
     function write(d) { try { localStorage.setItem(KEY, JSON.stringify(d)); return true; } catch (e) { return false; } }
@@ -8927,7 +8956,23 @@ I18n.override('EC', 'es', {
     }
     const hasPin = () => !!(read().lock && read().lock.hash);
 
-    let hiddenAt = null, tries = 0, waitUntil = 0;
+    let hiddenAt = null;
+    // Wrong tries and the wait live with the lock, so closing or reloading the app doesn't reset them.
+    const fails = () => (read().lock && read().lock.fails) || 0;
+    const waitUntil = () => (read().lock && read().lock.waitUntil) || 0;
+    function setFails(n, wait) { const d = read(); if (!d.lock) return; d.lock.fails = n; if (wait) d.lock.waitUntil = wait; else delete d.lock.waitUntil; write(d); }
+    // Everything this app keeps on this device: the budget, the device settings (PIN included) and
+    // the phone's copy. Then the app closes (on a phone) or starts empty (in a browser).
+    async function wipeAll() {
+        const keys = [KEY];
+        if (root.Store && Store.KEY) keys.push(Store.KEY);
+        if (root.APP_EDITION && APP_EDITION.storageKey) keys.push(APP_EDITION.storageKey);
+        try { for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (keys.some(x => k === x || k.startsWith(x + ':'))) keys.push(k); } } catch (e) { /* no storage */ }
+        // Stop the store from writing the plan back (on unload, or the phone's copy).
+        if (root.Store) { Store.storage = null; Store._lastSaved = null; }
+        if (root.Native && Native.wipe) await Native.wipe([...new Set(keys)]);
+        else [...new Set(keys)].forEach(k => { try { localStorage.removeItem(k); } catch (e) { /* gone */ } });
+    }
 
     function showLock() {
         if (!hasPin() || document.getElementById('lock-screen')) return;
@@ -8954,21 +8999,39 @@ I18n.override('EC', 'es', {
         const input = el.querySelector('#lock-pin'), msg = el.querySelector('#lock-msg');
         const say = (text) => { msg.textContent = root.I18n ? I18n.t(text) : text; };
         setTimeout(() => input.focus(), 30);
+        const left = () => {
+            const n = fails();
+            if (!n) return '';
+            return n < MAX_TRIES ? `Wrong PIN. Tries left before a 30-second wait: ${MAX_TRIES - n}.`
+                : `Wrong PIN. Tries left before everything on this device is erased: ${WIPE_AT - n}.`;
+        };
+        if (fails()) say(left());
         el.querySelector('form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (Date.now() < waitUntil) { say(`Too many tries. Wait ${Math.ceil((waitUntil - Date.now()) / 1000)} seconds.`); return; }
+            if (Date.now() < waitUntil()) { say(`Too many tries. Wait ${Math.ceil((waitUntil() - Date.now()) / 1000)} seconds.`); return; }
             const lock = read().lock;
             if (lock && await hashPin(input.value, lock.salt) === lock.hash) {
-                tries = 0;
+                setFails(0);
                 el.remove();
                 document.documentElement.classList.remove('app-locked');
                 if (root.Store && Store.ui.quickAfterUnlock && root.QuickEntry) { Store.ui.quickAfterUnlock = false; QuickEntry.open(); }
                 return;
             }
-            tries++;
+            const n = fails() + 1;
             input.value = '';
-            if (tries >= MAX_TRIES) { tries = 0; waitUntil = Date.now() + WAIT_MS; say('Wrong PIN. Wait 30 seconds to try again.'); }
-            else say(`Wrong PIN. ${MAX_TRIES - tries} tries left.`);
+            if (n >= WIPE_AT) {
+                await wipeAll();
+                const box = el.querySelector('.lock-box');
+                box.innerHTML = `<div class="brand-logo mx-auto mb-3"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="lock-title">Data erased</div>
+                    <p class="lock-sub">The PIN was wrong ${WIPE_AT} times, so everything this app kept on this device was erased. Load your backup file to get it back.</p>`;
+                tr(box);
+                setTimeout(() => { if (root.Native && Native.isApp && Native.exit) Native.exit(); else location.reload(); }, 2500);
+                return;
+            }
+            setFails(n, n >= MAX_TRIES ? Date.now() + WAIT_MS : 0);
+            const t = (x) => (root.I18n ? I18n.t(x) : x);
+            msg.textContent = n >= MAX_TRIES ? `${t(left())} ${t('Wait 30 seconds to try again.')}` : t(left());
             input.focus();
         });
         el.querySelector('#lock-forgot').addEventListener('click', () => {
@@ -8982,9 +9045,8 @@ I18n.override('EC', 'es', {
                 <button type="button" class="lock-forgot" id="lock-back">Back</button>`;
             tr(box);
             box.querySelector('#lock-back').addEventListener('click', () => { el.remove(); showLock(); });
-            box.querySelector('#lock-wipe').addEventListener('click', () => {
-                const d = read(); delete d.lock; write(d);
-                if (root.Store) { Store.reset('empty'); }
+            box.querySelector('#lock-wipe').addEventListener('click', async () => {
+                await wipeAll();
                 location.reload();
             });
         });
@@ -9004,7 +9066,7 @@ I18n.override('EC', 'es', {
     });
     document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); showLock(); });
 
-    root.Device = { read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
+    root.Device = { WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
 })(this);
 </script>
 <script>/* js/native.js */
@@ -9057,6 +9119,30 @@ I18n.override('EC', 'es', {
         return 'share';
     }
 
+    // Every file that leaves the app is encrypted: ask for a password (twice), encrypt (js/vault.js)
+    // and save "<name>.enc.json". Returns false when the person cancels.
+    async function askPassword({ title = 'Encrypt the file', confirm = true, message } = {}) {
+        const min = root.Vault ? Vault.MIN_PASSWORD : 8;
+        const fields = [{ name: 'pw', label: 'Password', type: 'password', help: `At least ${min} characters. Without it the file can't be opened: keep it somewhere safe.` }];
+        if (confirm) fields.push({ name: 'pw2', label: 'Type it again', type: 'password' });
+        const r = await root.UI.form({ title, icon: 'fa-lock', message: message || 'Files leave the app encrypted (AES-256). You need this password to open the file again.', fields, confirmText: confirm ? 'Encrypt and save' : 'Open',
+            validate: (v) => (String(v.pw || '').length < min ? `The password needs at least ${min} characters.` : confirm && v.pw !== v.pw2 ? 'The passwords don\'t match.' : null) });
+        return r ? r.pw : null;
+    }
+    async function saveSecure(name, text, type = 'text/plain', opts = {}) {
+        const pw = await askPassword(opts);
+        if (!pw) return false;
+        const env = await root.Vault.encrypt(text, pw, { name, type });
+        return saveFile(name + root.Vault.EXT, env, 'application/json');
+    }
+    // Erase everything this app keeps on the device: its storage entries and the phone's copy.
+    async function wipe(keys) {
+        keys.forEach(k => { try { localStorage.removeItem(k); } catch (e) { /* gone */ } });
+        try { sessionStorage.clear(); } catch (e) { /* none */ }
+        const prefs = plugin('Preferences');
+        if (prefs) { try { await Promise.all(keys.map(k => prefs.remove({ key: k }))); } catch (e) { /* best effort */ } }
+    }
+
     // Android back button.
     function onBack() {
         const dlg = document.querySelector('.modal-backdrop:not(.hidden) [data-dialog-cancel]');
@@ -9095,8 +9181,84 @@ I18n.override('EC', 'es', {
         document.addEventListener('DOMContentLoaded', () => setTimeout(startMirror, 0));
     }
 
-    root.Native = { isApp, saveFile, platform: isApp ? cap.getPlatform() : 'web' };
+    root.Native = { isApp, saveFile, saveSecure, askPassword, wipe, exit, platform: isApp ? cap.getPlatform() : 'web' };
 })(this);
+</script>
+<script>/* js/vault.js */
+/*
+ * Encrypted files. Backups and exports leave the device only encrypted with a password the
+ * person picks: AES-GCM (256-bit) with a key from PBKDF2-SHA-256 (600,000 rounds), a random salt
+ * and IV per file. GCM also detects a changed file: a wrong password or a modified byte both fail.
+ * The file is a small JSON envelope, so it can be recognized and opened again here
+ * (Settings → Open an encrypted file). Nothing about the password is kept.
+ */
+(function (root) {
+    'use strict';
+    const MAGIC = 'zerodebtplan-vault', VERSION = 1, ITER = 600000, MIN_PASSWORD = 8;
+    const subtle = () => {
+        const c = root.crypto || (typeof globalThis !== 'undefined' && globalThis.crypto);
+        if (!c || !c.subtle) throw new Error('This browser can\'t encrypt files (it needs a secure page).');
+        return c;
+    };
+    const enc = new TextEncoder(), dec = new TextDecoder();
+
+    function toB64(bytes) {
+        if (typeof Buffer !== 'undefined' && typeof window === 'undefined') return Buffer.from(bytes).toString('base64');
+        let s = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        return btoa(s);
+    }
+    function fromB64(s) {
+        if (typeof Buffer !== 'undefined' && typeof window === 'undefined') return new Uint8Array(Buffer.from(s, 'base64'));
+        const bin = atob(s), out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
+    }
+
+    async function keyFrom(password, salt, iter) {
+        const c = subtle();
+        const base = await c.subtle.importKey('raw', enc.encode(String(password)), 'PBKDF2', false, ['deriveKey']);
+        return c.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    }
+
+    // text → the envelope (a JSON string). meta: { name, type } of the original file.
+    async function encrypt(text, password, meta = {}, { iter = ITER } = {}) {
+        if (!password || String(password).length < MIN_PASSWORD) throw new Error(`The password needs at least ${MIN_PASSWORD} characters.`);
+        const c = subtle();
+        const salt = c.getRandomValues(new Uint8Array(16)), iv = c.getRandomValues(new Uint8Array(12));
+        const key = await keyFrom(password, salt, iter);
+        // The name and type ride inside the encrypted part, so the envelope says nothing about it.
+        const body = enc.encode(JSON.stringify({ name: meta.name || '', type: meta.type || 'text/plain', text: String(text) }));
+        const data = new Uint8Array(await c.subtle.encrypt({ name: 'AES-GCM', iv }, key, body));
+        return JSON.stringify({ app: MAGIC, v: VERSION, kdf: 'PBKDF2-SHA256', iter, cipher: 'AES-256-GCM', salt: toB64(salt), iv: toB64(iv), data: toB64(data) });
+    }
+
+    function isVault(text) {
+        if (typeof text !== 'string' || text.length > 1e9 || !/^\s*\{/.test(text) || text.indexOf(MAGIC) < 0) return false;
+        try { const o = JSON.parse(text); return o && o.app === MAGIC && typeof o.data === 'string'; } catch (e) { return false; }
+    }
+
+    // The envelope → { text, name, type }. A wrong password or a changed file throws.
+    async function decrypt(envelope, password) {
+        const o = typeof envelope === 'string' ? JSON.parse(envelope) : envelope;
+        if (!o || o.app !== MAGIC) throw new Error('This isn\'t an encrypted file from this app.');
+        if (o.v !== VERSION) throw new Error('This file was made by a newer version of the app.');
+        const iter = Math.max(100000, Math.min(10000000, Number(o.iter) || ITER));
+        const key = await keyFrom(password, fromB64(o.salt), iter);
+        let plain;
+        try { plain = await subtle().subtle.decrypt({ name: 'AES-GCM', iv: fromB64(o.iv) }, key, fromB64(o.data)); } catch (e) {
+            const err = new Error('Wrong password, or the file was changed.');
+            err.code = 'bad-password';
+            throw err;
+        }
+        const body = JSON.parse(dec.decode(plain));
+        return { text: body.text, name: body.name, type: body.type };
+    }
+
+    const Vault = { encrypt, decrypt, isVault, MIN_PASSWORD, EXT: '.enc.json' };
+    if (typeof module !== 'undefined' && module.exports) module.exports = Vault;
+    else root.Vault = Vault;
+})(typeof window !== 'undefined' ? window : this);
 </script>
 <script>/* js/format.js */
 /* Fmt — formatting and escaping helpers shared by every view. */
@@ -19557,7 +19719,7 @@ I18n.override('EC', 'es', {
             return [t.date, t.description || '', tr(t.parentCategory || ''), tr(t.category || ''), ((accts.find(a => a.id === t.accountId) || {}).name) || '', sign * Math.abs(Number(t.amount) || 0), Views.whoName(t.memberId) || '', (t.tags || []).map(g => '#' + g).join(' ')];
         }));
         const f = Store.ui.txnFilters;
-        Native.saveFile(`transactions_${f.from || 'start'}_${f.to || 'today'}.csv`, Importers.toCSV(rows), 'text/csv;charset=utf-8').catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
+        Native.saveSecure(`transactions_${f.from || 'start'}_${f.to || 'today'}.csv`, Importers.toCSV(rows), 'text/csv;charset=utf-8').catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
     }
 
     function update(ctx) {
@@ -21984,7 +22146,7 @@ I18n.override('EC', 'es', {
 
     // A download in the browser; the share sheet in the phone app (js/native.js).
     function download(name, text) {
-        Native.saveFile(name, text, 'text/csv;charset=utf-8').catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
+        Native.saveSecure(name, text, 'text/csv;charset=utf-8').catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
     }
 
     UI.register({
@@ -24877,7 +25039,8 @@ I18n.override('EC', 'es', {
             if (data.settings) delete data.settings.priceKey;
             const prefix = APP_EDITION.country === 'US' ? 'zerodebtplan' : 'plan_financiero_ecuador';
             const name = `${prefix}_${new Date().toISOString().slice(0, 10)}.json`;
-            Native.saveFile(name, JSON.stringify(data, null, 1), 'application/json').then(how => {
+            Native.saveSecure(name, JSON.stringify(data), 'application/json', { title: 'Encrypt the backup' }).then(how => {
+                if (!how) return;
                 Store.state.settings.lastBackupAt = new Date().toISOString();
                 Store.scheduleSave();
                 App.commitHistory();  // a record, not something to undo
@@ -24887,14 +25050,38 @@ I18n.override('EC', 'es', {
             }).catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
         },
         'cfg.upload': () => document.getElementById('cfg-file').click(),
+        // Open a file this app encrypted (a CSV, a report, a backup) and save it readable, on purpose.
+        'cfg.openVault': () => document.getElementById('cfg-vault-file').click(),
+        'cfg.vaultChosen': (el) => {
+            const file = el.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                el.value = '';
+                if (!Vault.isVault(e.target.result)) { UI.toast('This isn\'t an encrypted file from this app.', 'error'); return; }
+                const pw = await Native.askPassword({ title: 'Open an encrypted file', confirm: false, message: 'Type the password you chose when you saved it. The file will be saved readable: anyone with it can read it.' });
+                if (!pw) return;
+                let out;
+                try { out = await Vault.decrypt(e.target.result, pw); } catch (err) { UI.toast(err.code === 'bad-password' ? 'Wrong password, or the file was changed.' : String(err.message || err), 'error'); return; }
+                Native.saveFile(out.name || 'file.txt', out.text, out.type || 'text/plain').then(() => UI.toast('File opened and saved.', 'ok'))
+                    .catch(err => UI.toast('Couldn\'t save the file: ' + (err.message || err), 'error'));
+            };
+            reader.readAsText(file);
+        },
         'cfg.fileChosen': (el) => {
             const file = el.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = async (e) => {
                 el.value = '';
-                let data;
-                try { data = JSON.parse(e.target.result); } catch (err) { UI.toast('That file isn\'t a valid backup (.json).', 'error'); return; }
+                let data, text = e.target.result;
+                // Encrypted backups (all new ones): ask for the password. Older plain .json ones still load.
+                if (Vault.isVault(text)) {
+                    const pw = await Native.askPassword({ title: 'Open the backup', confirm: false, message: 'This backup is encrypted. Type the password you chose when you saved it.' });
+                    if (!pw) return;
+                    try { text = (await Vault.decrypt(text, pw)).text; } catch (err) { UI.toast(err.code === 'bad-password' ? 'Wrong password, or the file was changed.' : String(err.message || err), 'error'); return; }
+                }
+                try { data = JSON.parse(text); } catch (err) { UI.toast('That file isn\'t a valid backup (.json).', 'error'); return; }
                 if (!data || typeof data !== 'object' || !(data.years || data.multiYearStore)) { UI.toast('That file doesn\'t look like a backup from this app.', 'error'); return; }
                 const ok = await UI.confirm({ title: 'Load backup', message: 'Your current data will be replaced with the backup\'s. To keep it, download a backup or create a baseline first.', confirmText: 'Replace my data', danger: true });
                 if (!ok) return;
