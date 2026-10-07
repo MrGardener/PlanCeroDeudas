@@ -100,7 +100,7 @@ Ask: **"Do step N of docs/plans/bank-tools-2.md"** (or "continue the bank tools 
      unencrypted" needs an explicit confirmation. Settings → "Open an encrypted file" decrypts one.
    - Unit tests cover encrypt → decrypt, a wrong password and a changed byte (tamper). Browser tests
      cover the 10-try wipe.
-8. **Security B: data encrypted on the device** — with a PIN or passcode set, the saved budget is stored
+8. ✅ (encryption part) **Security B: data encrypted on the device** — with a PIN or passcode set, the saved budget is stored
    encrypted with a key derived from it (it's decrypted in memory after unlocking and never written in
    the clear). A longer passcode (letters allowed) is offered, because a 4-digit PIN can be guessed
    offline by someone who copies the storage. Also: the clipboard is never used for amounts; there's an

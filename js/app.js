@@ -432,10 +432,14 @@
         }
     });
 
+    // With a PIN the saved plan is encrypted: the app starts once the PIN has opened it.
     function init() {
+        if (root.Device && Device.whenReady) Device.whenReady(start); else start();
+    }
+    function start() {
         const E = root.APP_EDITION || {};
         if (E.appName) { UI.text('brand-title', E.appName); UI.text('brand-sub', E.appSub || ''); }
-        Store.init();
+        Store.init(root.Device && Device.storage ? Device.storage() : undefined);
         syncGoals();
         syncNetWorth();
         trackProgress();

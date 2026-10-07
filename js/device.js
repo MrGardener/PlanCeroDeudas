@@ -6,6 +6,10 @@
  * The PIN lock hides the app until the PIN is typed. Wrong PINs are counted on the device (a
  * reload doesn't reset them): after 5, a 30-second wait before each try; the 10th wrong PIN erases
  * everything this app keeps on the device and closes it. A backup file brings the data back.
+ *
+ * With a PIN the saved plan is also encrypted on the device (AES-256-GCM): a random data key,
+ * kept only wrapped by a key made from the PIN (PBKDF2-SHA-256). Until the PIN is typed the plan
+ * isn't even read; after, it lives decrypted in memory only and every save is encrypted again.
  */
 (function (root) {
     'use strict';
@@ -89,6 +93,91 @@
     }
     const hasPin = () => !!(read().lock && read().lock.hash);
 
+    // ------------------------------------------------------------------ data encrypted at rest
+    const ENC = 'zdpenc1:';
+    const DATA_KEY = () => (root.APP_EDITION && root.APP_EDITION.storageKey) || (root.Store && Store.KEY) || 'plan_financiero_ec_v7_store';
+    const c = () => root.crypto && root.crypto.subtle ? root.crypto : null;
+    const b64 = (u8) => { let x = ''; for (let i = 0; i < u8.length; i += 0x8000) x += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(x); };
+    const unb64 = (str) => { const bin = atob(str), out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; };
+    let dataKey = null;            // the data key, in memory only while unlocked
+    let pending = [];              // App.init waiting for the PIN (the plan can't be read yet)
+    const isEncrypted = (v) => typeof v === 'string' && v.startsWith(ENC);
+    function storedRaw() { try { return localStorage.getItem(DATA_KEY()); } catch (e) { return null; } }
+    // The plan is on the device but encrypted and the data key isn't in memory: wait for the PIN.
+    const dataLocked = () => isEncrypted(storedRaw()) && !dataKey;
+
+    async function kek(pin, salt) {
+        const k = await c().subtle.importKey('raw', new TextEncoder().encode(String(pin)), 'PBKDF2', false, ['deriveKey']);
+        return c().subtle.deriveKey({ name: 'PBKDF2', salt: new TextEncoder().encode(salt), iterations: 310000, hash: 'SHA-256' }, k, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    }
+    async function wrapKey(pin, raw) {
+        const salt = randomSalt(), iv = c().getRandomValues(new Uint8Array(12));
+        const data = new Uint8Array(await c().subtle.encrypt({ name: 'AES-GCM', iv }, await kek(pin, salt), raw));
+        return { salt, iv: b64(iv), data: b64(data) };
+    }
+    async function unwrapKey(pin, w) {
+        const raw = await c().subtle.decrypt({ name: 'AES-GCM', iv: unb64(w.iv) }, await kek(pin, w.salt), unb64(w.data));
+        return c().subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+    }
+    async function encryptText(text) {
+        const iv = c().getRandomValues(new Uint8Array(12));
+        const data = new Uint8Array(await c().subtle.encrypt({ name: 'AES-GCM', iv }, dataKey, new TextEncoder().encode(text)));
+        return ENC + b64(iv) + '.' + b64(data);
+    }
+    async function decryptText(v) {
+        const [iv, data] = v.slice(ENC.length).split('.');
+        return new TextDecoder().decode(await c().subtle.decrypt({ name: 'AES-GCM', iv: unb64(iv) }, dataKey, unb64(data)));
+    }
+    // What the store saves through while encrypted: reads come from memory; each write is encrypted
+    // (in order) before it reaches the device's storage. Other keys pass straight through.
+    function secureStorage(plain) {
+        let cache = plain, chain = Promise.resolve();
+        const KEYN = DATA_KEY();
+        return {
+            getItem: (k) => (k === KEYN ? cache : localStorage.getItem(k)),
+            setItem: (k, v) => {
+                if (k !== KEYN) { localStorage.setItem(k, v); return; }
+                cache = v;
+                chain = chain.then(() => (dataKey ? encryptText(v) : null)).then(enc => { if (enc && cache === v) { localStorage.setItem(KEYN, enc); document.dispatchEvent(new Event('zdp:stored')); } }).catch(() => { /* next save retries */ });
+            },
+            removeItem: (k) => { if (k === KEYN) cache = null; localStorage.removeItem(k); },
+            flush: () => chain
+        };
+    }
+    // The storage the store starts with: the decrypted plan (after the PIN), else the device's own.
+    function storage() { return boot || root.localStorage; }
+    let boot = null;
+    // After the right PIN: get the data key (or make one for a plan saved before encryption),
+    // decrypt the plan into memory and let the app start.
+    async function openData(pin) {
+        if (!c()) return;
+        const d = read();
+        if (d.lock && d.lock.wrap) { try { dataKey = await unwrapKey(pin, d.lock.wrap); } catch (e) { dataKey = null; } }
+        if (!dataKey) await startEncryption(pin);
+        const raw = storedRaw();
+        let plain = raw;
+        if (isEncrypted(raw)) { try { plain = await decryptText(raw); } catch (e) { plain = null; } }
+        const st = secureStorage(plain);
+        if (root.Store && Store.state) {
+            // The app was already running (a lock after being away): just keep saving encrypted.
+            Store.storage = st; Store._lastSaved = null; Store.saveNow();
+        } else boot = st;
+        if (raw && !isEncrypted(raw) && plain) st.setItem(DATA_KEY(), plain);   // an older plain save: encrypt it now
+        const waiting = pending; pending = [];
+        waiting.forEach(fn => fn());
+    }
+    // Turning the PIN on (or a plan saved before encryption): a new data key, wrapped by the PIN.
+    async function startEncryption(pin) {
+        const raw = c().getRandomValues(new Uint8Array(32));
+        const d = read();
+        if (!d.lock) return;
+        d.lock.wrap = await wrapKey(pin, raw);
+        write(d);
+        dataKey = await c().subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+    }
+    // App.init calls this: run now, or once the PIN has opened the data.
+    function whenReady(fn) { if (dataLocked()) pending.push(fn); else fn(); }
+
     let hiddenAt = null;
     // Wrong tries and the wait live with the lock, so closing or reloading the app doesn't reset them.
     const fails = () => (read().lock && read().lock.fails) || 0;
@@ -145,6 +234,7 @@
             const lock = read().lock;
             if (lock && await hashPin(input.value, lock.salt) === lock.hash) {
                 setFails(0);
+                await openData(input.value);
                 el.remove();
                 document.documentElement.classList.remove('app-locked');
                 if (root.Store && Store.ui.quickAfterUnlock && root.QuickEntry) { Store.ui.quickAfterUnlock = false; QuickEntry.open(); }
@@ -185,19 +275,48 @@
         });
     }
 
+    // Turning the PIN on encrypts the saved plan; changing it re-wraps the same data key.
     async function setPin(pin) {
         const salt = randomSalt();
         const d = read();
+        const keep = d.lock && d.lock.wrap && dataKey;
         d.lock = { salt, hash: await hashPin(pin, salt) };
-        return write(d);
+        if (!write(d)) return false;
+        if (!c()) return true;
+        if (keep) {
+            // A new data key wrapped by the new PIN; the plan is saved again with it just below.
+            const fresh = c().getRandomValues(new Uint8Array(32));
+            dataKey = await c().subtle.importKey('raw', fresh, 'AES-GCM', false, ['encrypt', 'decrypt']);
+            const dd = read(); dd.lock.wrap = await wrapKey(pin, fresh); write(dd);
+        } else await startEncryption(pin);
+        if (root.Store && Store.state) { Store.storage = secureStorage(null); Store._lastSaved = null; Store.saveNow(); await Store.storage.flush(); }
+        return true;
     }
-    function removePin() { const d = read(); delete d.lock; write(d); }
+    // Removing the PIN saves the plan readable again (it's this device's choice).
+    function removePin() {
+        const d = read(); delete d.lock; write(d);
+        dataKey = null;
+        if (root.Store && Store.state) { Store.storage = root.localStorage; Store._lastSaved = null; Store.saveNow(); }
+    }
 
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) hiddenAt = Date.now();
         else if (hiddenAt && Date.now() - hiddenAt >= IDLE_MS) showLock();
     });
-    document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); showLock(); });
+    // An encrypted plan whose key is gone (device settings cleared): it can't be opened here.
+    function showLost() {
+        const el = document.createElement('div');
+        el.id = 'lock-screen'; el.className = 'lock-screen'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+        el.innerHTML = `<div class="lock-box"><div class="brand-logo mx-auto mb-3"><i class="fa-solid fa-lock"></i></div>
+            <div class="lock-title">Your plan is locked</div>
+            <p class="lock-sub">It's saved encrypted, and this device no longer has its PIN. Erase it and load your backup file to start again.</p>
+            <button type="button" class="btn btn-danger w-full justify-center mt-3" id="lock-wipe">Erase the data</button></div>`;
+        document.body.appendChild(el);
+        document.documentElement.classList.add('app-locked');
+        if (root.I18n && I18n.apply) { applyLang(); I18n.apply(el); }
+        el.querySelector('#lock-wipe').addEventListener('click', async () => { await wipeAll(); location.reload(); });
+    }
+    document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); if (dataLocked() && !hasPin()) showLost(); else showLock(); });
 
-    root.Device = { WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
+    root.Device = { storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
 })(this);

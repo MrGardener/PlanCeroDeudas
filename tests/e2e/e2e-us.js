@@ -1136,6 +1136,26 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(400);
   ok(!(await page.$('#lock-screen')) && await page.evaluate(() => I18n.lang) === 'en' && /Overview|Budget/.test(await page.textContent('#main-nav')), 'unlocking keeps the app in English');
   await page.evaluate(() => Device.removePin());
+  // With a PIN the plan is saved encrypted: nothing readable on the device; after a reload the app
+  // waits for the PIN, then the plan is back; removing the PIN saves it readable again.
+  await page.evaluate(async () => { Store.reset('example'); App.changed({ structural: true }); Store.saveNow(); await Device.setPin('4321'); await new Promise(r => setTimeout(r, 300)); });
+  const encKey = await page.evaluate(() => Store.KEY);
+  const enc1 = await page.evaluate((k) => { const v = localStorage.getItem(k), p = Store.state.transactions[0].description; return { enc: v.startsWith('zdpenc1:'), leak: v.includes(p) || v.includes('"transactions"'), n: Store.state.transactions.length, wrap: !!Device.read().lock.wrap }; }, encKey);
+  ok(enc1.enc && !enc1.leak && enc1.wrap, 'with a PIN the plan is encrypted on the device (nothing readable)', enc1);
+  await page.reload();
+  await page.waitForTimeout(600);
+  const locked = await page.evaluate(() => ({ lock: !!document.getElementById('lock-screen'), started: !!(window.Store && Store.state) }));
+  ok(locked.lock && !locked.started, 'after a reload the plan is not even read until the PIN', locked);
+  await page.fill('#lock-pin', '4321');
+  await page.click('#lock-screen button[type="submit"]');
+  await page.waitForTimeout(1500);
+  const opened = await page.evaluate((k) => ({ n: Store.state && Store.state.transactions.length, lock: !!document.getElementById('lock-screen'), enc: localStorage.getItem(k).startsWith('zdpenc1:') }), encKey);
+  ok(opened.n === enc1.n && !opened.lock && opened.enc, 'the right PIN opens the plan; it stays encrypted on the device', opened);
+  await page.evaluate(async () => { Store.state.transactions[0].memo = 'after unlock'; App.changed({ structural: true }); Store.saveNow(); await new Promise(r => setTimeout(r, 300)); });
+  ok(await page.evaluate((k) => { const v = localStorage.getItem(k); return v.startsWith('zdpenc1:') && !v.includes('after unlock'); }, encKey), 'changes are saved encrypted too');
+  await page.evaluate(() => Device.removePin());
+  await page.waitForTimeout(200);
+  ok(await page.evaluate((k) => { const v = localStorage.getItem(k); return !v.startsWith('zdpenc1:') && v.includes('after unlock'); }, encKey), 'removing the PIN saves the plan readable again');
   // 10 wrong PINs erase everything this app keeps on the device (the count survives a reload).
   await page.evaluate(async () => { await Device.setPin('1234'); Store.saveNow(); Device.lockNow(); });
   const pinKey = await page.evaluate(() => Store.KEY);
