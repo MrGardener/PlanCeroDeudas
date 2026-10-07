@@ -790,6 +790,15 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; text-align: center; }
 .donut-total { font-size: 1.35rem; font-weight: 800; color: var(--ink); }
 .donut-label { font-size: .7rem; color: var(--muted); }
+/* Spending: the hole is a button (what's selected → its transactions); only the hole takes taps. */
+button.donut-center { inset: auto; top: 50%; left: 50%; transform: translate(-50%, -50%); height: 46%; aspect-ratio: 1; border-radius: 50%; pointer-events: auto; padding: .4rem; }
+button.donut-center .donut-total { font-size: 1.05rem; }
+button.donut-center:hover { background: var(--surface-3); }
+button.donut-center .donut-label.font-bold { color: var(--ink); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spend-tabs { display: flex; gap: 1.25rem; border-bottom: 1px solid var(--line); margin-bottom: .5rem; }
+.spend-tabs button { padding: .4rem .1rem; font-size: .85rem; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.spend-tabs button.active { color: var(--ink); border-bottom-color: var(--brand); }
+.spend-total { text-align: right; font-weight: 800; font-size: .85rem; padding: .4rem .5rem 0; border-top: 1px solid var(--line-soft); margin-top: .25rem; font-variant-numeric: tabular-nums; }
 .spend-legend { display: flex; flex-direction: column; gap: .15rem; }
 .spend-row { display: grid; grid-template-columns: .75rem 1fr auto 5.5rem; align-items: center; gap: .5rem; padding: .45rem .5rem; border-radius: .5rem; font-size: .8rem; text-align: left; color: var(--ink); min-height: 2.5rem; }
 .spend-row:hover:not(:disabled), .spend-row.is-picked { background: var(--surface-3); }
@@ -866,10 +875,10 @@ html.kb-open.is-native body { padding-bottom: 0; }
 .acd-txn { display: grid; grid-template-columns: 4.6rem 1fr auto; align-items: center; gap: .6rem; padding: .5rem .1rem; border-bottom: 1px solid var(--line-soft); font-size: .82rem; }
 @media (max-width: 480px) { .acd-bal { font-size: 1.25rem; } }
 /* Transactions: date range with ‹ ›, and the range picker's presets. */
-.txn-range { display: inline-flex; align-items: stretch; border: 1px solid var(--line-strong); border-radius: .6rem; overflow: hidden; background: var(--surface); }
+.txn-range { display: inline-flex; align-items: stretch; border: 1px solid var(--line-strong); border-radius: .6rem; overflow: hidden; background: var(--surface); max-width: 100%; }
 .txn-range-step { padding: 0 .6rem; color: var(--muted); }
 .txn-range-step:disabled { opacity: .35; }
-.txn-range-pick { padding: .35rem .6rem; font-size: .78rem; font-weight: 700; color: var(--ink); border-left: 1px solid var(--line); border-right: 1px solid var(--line); white-space: nowrap; }
+.txn-range-pick { padding: .35rem .6rem; font-size: .78rem; font-weight: 700; color: var(--ink); border-left: 1px solid var(--line); border-right: 1px solid var(--line); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .range-list { display: flex; flex-direction: column; }
 .range-list button { display: flex; align-items: center; gap: .6rem; padding: .6rem .25rem; border-bottom: 1px solid var(--line-soft); font-size: .88rem; text-align: left; color: var(--ink); }
 .range-list button i { color: var(--muted); }

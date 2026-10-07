@@ -12,10 +12,12 @@
     const taxonomyOf = (t) => ((t.type || 'Gasto') === 'Ingreso' ? Store.state.taxonomy.income : Store.state.taxonomy.expense) || {};
     const initials = (name) => String(name || '?').replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 
-    function open(id) {
+    // opts.back: where the ← at the top returns (the list it was opened from).
+    let backTo = null;
+    function open(id, opts = {}) {
         const t = find(id);
         if (!t) return;
-        txnId = id; menuOpen = false; view = 'details';
+        txnId = id; menuOpen = false; view = 'details'; backTo = opts.back || null;
         sheet = UI.sheet({ title: 'Transaction details', icon: 'fa-receipt', html: '<div id="tdt-body"></div>', onClose: () => { sheet = null; txnId = null; } });
         draw();
     }
@@ -29,7 +31,7 @@
         const acct = t.accountId && (Store.state.accounts || []).find(a => a.id === t.accountId);
         const cat = tr ? I18n.t('Transfer') : `${I18n.t(t.parentCategory || '')}${t.category ? ' › ' + I18n.t(t.category) : ''}`;
         const ex = isExcluded(t);
-        host.innerHTML = `
+        host.innerHTML = `${backTo ? '<button type="button" class="link text-sm mb-2" data-action="tdt.backTo"><i class="fa-solid fa-arrow-left"></i> Back</button>' : ''}
             <div class="acd-head">
                 <span class="hub-logo" aria-hidden="true">${esc(initials(t.description))}</span>
                 <div class="min-w-0 flex-1"><div class="font-bold truncate" data-i18n-skip>${esc(t.description || '—')}</div><div class="text-xs text-slate-500" data-i18n-skip>${esc(acct ? acct.name : I18n.t(t.paymentType || ''))}</div></div>
@@ -131,6 +133,7 @@
         },
         'tdt.category': () => pickCategory(),
         'tdt.back': () => { view = 'details'; draw(); },
+        'tdt.backTo': () => { const b = backTo; if (sheet) sheet.close(); if (b) b(); },
         'tdt.catSearch': (el) => drawCats(el.value),
         'tdt.catOpen': (el) => { catOpen = catOpen === el.dataset.parent ? null : el.dataset.parent; drawCats((document.getElementById('tdt-cat-q') || {}).value || ''); },
         'tdt.catSet': (el) => {
@@ -138,6 +141,7 @@
             view = 'details';
             // A new category means a new budget line by category (as when editing in the form).
             change(t => { if (t.parentCategory !== p) delete t.budgetLine; t.parentCategory = p; t.category = sub; }, { step: true });
+            UI.toast('Category updated.', 'ok');
         },
         'tdt.catAdd': async (el) => {
             const p = el.dataset.parent, t = find(txnId);

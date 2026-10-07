@@ -761,24 +761,25 @@
             <div class="card-head">
                 <div>
                     <div class="card-title"><i class="fa-solid fa-chart-pie text-blue-600"></i> Spending</div>
-                    <div class="card-sub">Where the money went, by category. Tap a slice or a row to see its transactions.</div>
+                    <div class="card-sub">Where the money went, by category. Tap one to select it, again to open its subcategories; tap the middle to see the transactions.</div>
                 </div>
             </div>
             <div class="flex flex-wrap items-center gap-2 mb-3">
-                <div class="segmented" role="tablist" aria-label="Period">
-                    <button type="button" data-action="spend.range" data-range="this-month">This month</button>
-                    <button type="button" data-action="spend.range" data-range="last-month">Last month</button>
-                    <button type="button" data-action="spend.range" data-range="3m">3M</button>
-                    <button type="button" data-action="spend.range" data-range="6m">6M</button>
+                <div class="txn-range" role="group" aria-label="Dates">
+                    <button type="button" class="txn-range-step" data-action="spend.rangeStep" data-dir="-1" aria-label="Earlier"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button type="button" class="txn-range-pick" data-action="spend.rangePick"><i class="fa-regular fa-calendar"></i> <span id="spend-range-label" data-i18n-skip></span> <i class="fa-solid fa-chevron-down text-[10px]"></i></button>
+                    <button type="button" class="txn-range-step" data-action="spend.rangeStep" data-dir="1" aria-label="Later"><i class="fa-solid fa-chevron-right"></i></button>
                 </div>
                 <select id="spend-who" class="cell-input" style="width:auto" data-change="spend.who" aria-label="Whose"></select>
             </div>
-            <p id="spend-empty" class="text-xs text-slate-400 text-center py-8 hidden">No spending in this period.</p>
             <div id="spend-body" class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                <div><div class="chart-box donut-box"><canvas id="spend-donut" aria-label="Spending by category"></canvas><div class="donut-center" id="spend-center"></div></div></div>
-                <div id="spend-legend" class="spend-legend"></div>
+                <div><div class="chart-box donut-box"><canvas id="spend-donut" aria-label="Spending by category"></canvas><button type="button" class="donut-center" id="spend-center" data-action="spend.txns"></button></div></div>
+                <div>
+                    <div class="spend-tabs" role="tablist"><button type="button" role="tab" data-action="spend.kind" data-kind="spend">Spending</button><button type="button" role="tab" data-action="spend.kind" data-kind="income">Income</button></div>
+                    <p id="spend-empty" class="text-xs text-slate-400 text-center py-6 hidden">Nothing in this period.</p>
+                    <div id="spend-legend" class="spend-legend"></div>
+                </div>
             </div>
-            <div id="spend-detail" class="mt-3"></div>
         </div>
         <div class="card" id="trends-card">
             <div class="card-head">
