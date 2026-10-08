@@ -146,7 +146,7 @@
         },
         'coop.add': () => {
             const s = Store.state;
-            s.cooperativas.push({ id: Store.nextId(s.cooperativas), name: 'Nueva cooperativa', segment: 'Segmento 1', defaultRate: 8.5, interestType: 'Mensual (Compuesto)', cosedeMax: 32000 });
+            s.cooperativas.push({ id: Store.nextId(s.cooperativas), name: I18n.t('New bank'), segment: 'Segmento 1', defaultRate: 8.5, interestType: 'Mensual (Compuesto)', cosedeMax: 32000 });
             App.changed({ structural: true });
         },
         'coop.delete': (el) => {

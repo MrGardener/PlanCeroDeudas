@@ -390,7 +390,7 @@
         'debt.add': () => {
             const debts = Store.state.debts;
             const id = Store.nextId(debts);
-            debts.push({ id, name: 'Nueva deuda', kind: 'personal', balance: 1000, originalBalance: 1000, rate: 15, minPayment: 50, monthly: 50, createdYear: new Date().getFullYear() });
+            debts.push({ id, name: I18n.t('New debt'), kind: 'personal', balance: 1000, originalBalance: 1000, rate: 15, minPayment: 50, monthly: 50, createdYear: new Date().getFullYear() });
             App.changed({ structural: true });
             UI.toast('Debt added to your budget with its minimum payment ($50). Adjust the amounts.');
             const input = document.querySelector(`#debt-body tr[data-row="${id}"] input`);
@@ -463,7 +463,7 @@
         'goal.add': () => {
             const goals = Store.state.goals;
             const id = Store.nextId(goals);
-            goals.push({ id, name: 'Nueva meta', target: 10000, current: 0, monthly: 0, rate: Number(Store.active().tasa) || 0, createdYear: new Date().getFullYear() });
+            goals.push({ id, name: I18n.t('New goal'), target: 10000, current: 0, monthly: 0, rate: Number(Store.active().tasa) || 0, createdYear: new Date().getFullYear() });
             App.changed({ structural: true });
             UI.toast('Goal added to your budget\'s Savings. Give it a monthly amount.');
             const input = document.querySelector(`#goal-body tr[data-row="${id}"] input`);
