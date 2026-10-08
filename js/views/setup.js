@@ -13,12 +13,16 @@
     const val = (id) => ((document.getElementById(id) || {}).value || '').trim();
     const field = (id, label, value, opts = {}) => `<label class="field"><span class="field-label">${label}</span><input id="${id}" class="input" ${opts.type ? `type="${opts.type}"` : ''} ${opts.type === 'number' ? 'inputmode="decimal" min="0" step="any"' : ''} value="${esc(value === undefined || value === null ? '' : String(value))}" ${opts.ph ? `placeholder="${esc(opts.ph)}"` : ''}>${opts.help ? `<span class="help">${opts.help}</span>` : ''}</label>`;
 
+    // The household member whose paycheck the pay step is about (the first one unless picked).
+    const earner = (people) => people.find(p => String(p.id) === val('su-earner')) || people[0] || null;
+
     // Data someone typed or imported (not the example family): the guide never replaces it.
     const ownData = () => { const s = Store.state; return !s.settings.sample && (s.transactions.length > 0 || (s.debts || []).length > 0 || (s.accounts || []).length > 0); };
 
     function body() {
         const k = STEPS[step], s = Store.state, y = yd();
-        const dots = `<div class="flex gap-1 mb-3" aria-hidden="true">${STEPS.slice(1, -1).map((_, i) => `<span class="h-1.5 flex-1 rounded-full ${i < step ? 'bg-emerald-500' : 'bg-slate-200'}"></span>`).join('')}</div>`;
+        const total = STEPS.length - 2;
+        const dots = `<div class="su-progress"><span class="text-xs font-semibold text-slate-500">Step ${step} of ${total}</span><div class="su-bar" aria-hidden="true">${STEPS.slice(1, -1).map((_, i) => `<i class="${i < step ? 'on' : ''}"></i>`).join('')}</div></div>`;
         const nav = (next = 'Next', back = true) => `<div class="flex justify-between gap-2 mt-4">${back ? '<button type="button" class="btn btn-secondary" data-action="setup.back">Back</button>' : '<span></span>'}<span class="flex gap-2"><button type="button" class="btn btn-secondary" data-action="setup.skip">Skip</button><button type="button" class="btn btn-primary" data-action="setup.next">${next}</button></span></div>`;
         if (k === 'welcome') return `<p class="text-sm">Let's set up your plan in 5 short steps (about 5 minutes). Everything stays on this device, and you can change any of it later.</p>
             <ol class="text-sm list-decimal ml-5 mt-2 space-y-1"><li>Who's in your household</li><li>How you get paid</li><li>Your accounts and their balances</li><li>Your main monthly bills</li><li>Your debts</li></ol>
@@ -27,14 +31,25 @@
             ${field('su-names', 'Names, separated by commas', (s.members || []).map(p => p.name).join(', '), { ph: 'E.g. Ana, Luis' })}${nav()}`;
         if (k === 'pay') {
             const g = Engine.usGrossPay(y), h = y.hourly || {}, us = Store.COUNTRY === 'US';
-            return `${dots}<p class="text-sm mb-3"><strong>How do you get paid?</strong> Your main paycheck; other income can be added later in the budget.</p>
+            // Whose paycheck: one person's main pay (taxes are figured on it). With more people in
+            // the household, pick who it is; the others' take-home pay goes in as their own incomes.
+            const people = s.members || [], main = earner(people), others = people.filter(p => p !== main);
+            const name = (p) => `<span data-i18n-skip>${esc(p.name)}</span>`;
+            const lines = y.otherIncomes || [];
+            return `${dots}<p class="text-sm mb-1"><strong>${main ? `<span>Main paycheck:</span> ${name(main)}` : 'How do you get paid?'}</strong></p>
+            <p class="text-sm text-slate-600 mb-3">${main ? 'One person\'s pay before taxes: the app figures the taxes on it. Pick the person with the biggest paycheck.' : 'Your main paycheck, before taxes: the app figures the taxes on it.'}</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                ${people.length > 1 ? `<label class="field sm:col-span-2"><span class="field-label">Whose paycheck is this?</span><select id="su-earner" class="input" data-change="setup.redraw">${people.map(p => `<option value="${p.id}" ${p === main ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>` : ''}
                 ${us ? `<label class="field"><span class="field-label">Paid</span><select id="su-type" class="input" data-change="setup.redraw"><option value="salary" ${g.payType === 'salary' ? 'selected' : ''}>A salary</option><option value="hourly" ${g.payType === 'hourly' ? 'selected' : ''}>By the hour</option></select></label>` : ''}
                 ${us && (val('su-type') || g.payType) === 'hourly' ? field('su-rate', `Hourly rate (${esc(Fmt.currency().symbol)})`, h.rate || '', { type: 'number' }) + field('su-hours', 'Hours a week', h.hours || 40, { type: 'number' })
-                    : field('su-gross', `Monthly gross pay (${esc(Fmt.currency().symbol)})`, y.sueldo || '', { type: 'number', help: 'Before taxes.' })}
+                    : field('su-gross', `Monthly gross pay (${esc(Fmt.currency().symbol)})`, y.sueldo || '', { type: 'number', help: 'Before taxes, for this one person.' })}
                 <label class="field"><span class="field-label">How often</span><select id="su-freq" class="input"><option value="biweekly">Every 2 weeks</option><option value="weekly">Every week</option><option value="semi">Twice a month (15th and 30th)</option><option value="monthly">Once a month</option></select></label>
                 ${field('su-next', 'Next payday', Engine.isoDate(new Date()), { type: 'date' })}
-            </div>${nav()}`;
+            </div>
+            ${others.length ? `<p class="text-sm mt-4 mb-1"><strong>Other paychecks in the household</strong></p>
+                <p class="text-xs text-slate-500 mb-2">What reaches the bank each month, after taxes. Leave empty for whoever doesn't earn.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${others.map(p => field(`su-other-${p.id}`, `<span>${name(p)} · <span>Take-home pay a month (${esc(Fmt.currency().symbol)})</span></span>`, (lines.find(l => l.memberId === p.id) || {}).amount || '', { type: 'number' })).join('')}</div>`
+                : '<p class="help mt-3">Someone else in the household earns money too? Add their name on the previous step, or add their pay later in Income & Taxes.</p>'}${nav()}`;
         }
         if (k === 'accounts') return `${dots}<p class="text-sm mb-3"><strong>Your accounts today.</strong> Leave empty what you don't have.</p>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">${field('su-checking', 'Checking ($)', '', { type: 'number' })}${field('su-savings', 'Savings ($)', '', { type: 'number' })}${field('su-card', 'Credit card: what you owe ($)', '', { type: 'number' })}</div>${nav()}`;
@@ -67,6 +82,18 @@
             const list = s.members || (s.members = []);
             names.forEach((n, i) => { if (!list.some(p => p.name.toLowerCase() === n.toLowerCase())) list.push({ id: Store.nextId(list), name: n.slice(0, 30), color: COLORS[(list.length + i) % COLORS.length] }); });
         } else if (k === 'pay') {
+            // The main earner is the household's first person (taxes, side income look there).
+            const people = s.members || [], main = earner(people);
+            if (main && people[0] !== main) s.members = [main].concat(people.filter(p => p !== main));
+            // Everyone else's take-home pay: their own monthly income line (updated, not doubled).
+            const lines = y.otherIncomes || (y.otherIncomes = []);
+            people.filter(p => p !== main).forEach(p => {
+                const amount = num(`su-other-${p.id}`);
+                if (!(amount > 0)) return;
+                const had = lines.find(l => l.memberId === p.id);
+                if (had) { had.amount = amount; return; }
+                lines.push({ id: Store.nextId(lines), name: `${p.name} (${I18n.t('paycheck')})`.slice(0, 60), amount, category: 'Ingresos Laborales', memberId: p.id });
+            });
             if (val('su-type') === 'hourly') {
                 y.payType = 'hourly';
                 y.hourly = Object.assign({ rate: 0, hours: 40, otHours: 0, otRate: 1.5, otInBudget: false }, y.hourly || {}, { rate: num('su-rate'), hours: num('su-hours') || 40 });
@@ -126,7 +153,12 @@
             if (sheet) sheet.close();
             App.changed({ structural: true });
         },
-        'setup.redraw': () => { const t = val('su-type'); draw(); const el = document.getElementById('su-type'); if (el) el.value = t; },
+        // Redraw the step (pay type or person changed) keeping what was typed.
+        'setup.redraw': () => {
+            const keep = sheet ? [...sheet.body.querySelectorAll('input[id], select[id]')].map(el => [el.id, el.value]) : [];
+            draw();
+            keep.forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.value = v; });
+        },
         'setup.next': () => { save(STEPS[step]); App.changed({ structural: true }); step = Math.min(STEPS.length - 1, step + 1); draw(); },
         'setup.skip': () => { step = Math.min(STEPS.length - 1, step + 1); draw(); },
         'setup.back': () => { step = Math.max(1, step - 1); draw(); },

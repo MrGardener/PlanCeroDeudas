@@ -1086,6 +1086,18 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.fill('#su-names', 'Ana, Luis');
   await page.click('[data-action="setup.next"]');
   await page.waitForTimeout(100);
+  // The pay step says whose paycheck it is (one person's, before taxes) and asks the others' take-home pay.
+  const pay1 = await page.evaluate(() => ({ txt: document.querySelector('.modal-backdrop:not(.hidden) .sheet-body').innerText, who: document.getElementById('su-earner').selectedOptions[0].textContent, luis: Store.state.members.find(m => m.name === 'Luis').id, step: document.querySelector('.su-progress').textContent }));
+  ok(/Main paycheck:\s*Ana/.test(pay1.txt) && pay1.who === 'Ana' && /Whose paycheck is this\?/i.test(pay1.txt) && /Luis · Take-home pay a month/i.test(pay1.txt) && /Step 2 of 5/.test(pay1.step), 'setup: the pay step names whose paycheck it is and asks the others\' take-home pay', pay1);
+  // Switching the person keeps what was typed; the heading and the other person's box follow.
+  await page.fill('#su-gross', '5000');
+  await page.selectOption('#su-earner', String(pay1.luis));
+  await page.waitForTimeout(100);
+  const pay2 = await page.evaluate(() => ({ txt: document.querySelector('.modal-backdrop:not(.hidden) .sheet-body').innerText, gross: document.getElementById('su-gross').value }));
+  ok(/Main paycheck:\s*Luis/.test(pay2.txt) && /Ana · Take-home pay a month/i.test(pay2.txt) && pay2.gross === '5000', 'setup: picking another person keeps what was typed', pay2);
+  await page.selectOption('#su-earner', String(await page.evaluate(() => Store.state.members.find(m => m.name === 'Ana').id)));
+  await page.waitForTimeout(100);
+  await page.fill(`#su-other-${pay1.luis}`, '2100');
   await page.selectOption('#su-type', 'hourly');
   await page.waitForTimeout(100);
   await page.fill('#su-rate', '25');
@@ -1106,9 +1118,9 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.fill('#su-d0-rate', '24');
   await page.click('[data-action="setup.next"]');
   await page.waitForTimeout(150);
-  const su = await page.evaluate(() => { const s = Store.state, y = Store.active(); return { names: s.members.map(m => m.name).join(','), type: y.payType, rate: y.hourly && y.hourly.rate, sueldo: y.sueldo, sched: s.settings.paySchedule, accts: s.accounts.map(a => a.kind + ':' + a.balance + ':' + (a.debtId || '')).join(','), bill: y.budgetBase.filter(i => !i.link)[0].prep, debt: s.debts.map(d => d.name + ':' + d.kind + ':' + d.minPayment).join(','), seen: s.settings.setupSeen }; });
+  const su = await page.evaluate(() => { const s = Store.state, y = Store.active(); return { names: s.members.map(m => m.name).join(','), type: y.payType, rate: y.hourly && y.hourly.rate, sueldo: y.sueldo, sched: s.settings.paySchedule, accts: s.accounts.map(a => a.kind + ':' + a.balance + ':' + (a.debtId || '')).join(','), bill: y.budgetBase.filter(i => !i.link)[0].prep, debt: s.debts.map(d => d.name + ':' + d.kind + ':' + d.minPayment).join(','), seen: s.settings.setupSeen, other: (y.otherIncomes || []).map(l => l.name + ':' + l.amount + ':' + (l.memberId === s.members[1].id)).join(',') }; });
   ok(su.names === 'Ana,Luis' && su.type === 'hourly' && su.rate === 25 && Math.round(su.sueldo) === 4333 && su.sched.interval === 2 && su.sched.anchor === '2026-10-16'
-    && su.accts === 'corriente:1200:,tarjeta:-800:1' && su.bill === 1100 && su.debt === 'Visa:tarjeta:25' && !su.seen, 'setup: each step saves what it asked', su);
+    && su.accts === 'corriente:1200:,tarjeta:-800:1' && su.bill === 1100 && su.debt === 'Visa:tarjeta:25' && !su.seen && su.other === 'Luis (paycheck):2100:true', 'setup: each step saves what it asked (Ana\'s paycheck, Luis\'s take-home pay as his own income)', su);
   ok(/Your plan is set up/.test(await page.textContent('.modal-backdrop:not(.hidden)')), 'setup: done screen');
   await page.click('[data-action="setup.close"]');
   await page.waitForTimeout(200);
