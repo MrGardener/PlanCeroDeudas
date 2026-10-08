@@ -18,6 +18,34 @@
     const incomeTax = () => Store.state.taxonomy.income;
     const taxFor = (type) => (type === 'Ingreso' ? incomeTax() : expenseTax());
     const firstSub = (tax, cat) => (tax[cat] || [])[0] || '';
+    const tr = (x) => (window.I18n ? I18n.t(x) : x);
+
+    // Rules pick from the same list as Settings → Categories: each category (in that order) with
+    // its subcategories, translated. Values are "G|category|sub" (expense), "I|…" (income), "T||".
+    function ruleCategoryOptions() {
+        const groups = [['G', expenseTax(), ''], ['I', incomeTax(), tr('Income') + ' · ']].flatMap(([k, tax, tag]) => Object.keys(tax).map(c => ({
+            group: tag + tr(c),
+            options: (tax[c] || []).length ? tax[c].map(sub => ({ value: `${k}|${c}|${sub}`, label: tr(sub) })) : [{ value: `${k}|${c}|`, label: tr(c) }]
+        })));
+        return [{ value: '', label: tr('Choose a category') }].concat(groups, { group: tr('Transfer'), options: [{ value: 'T||', label: tr('Transfer between accounts') }] });
+    }
+    // A rule's category as an option value; no subcategory (older rules) = the first one, as on import.
+    function ruleCategoryValue(kind, cat, sub) {
+        if (kind === 'T') return 'T||';
+        const tax = kind === 'I' ? incomeTax() : expenseTax();
+        if (!tax[cat]) return '';
+        return `${kind}|${cat}|${sub && tax[cat].includes(sub) ? sub : firstSub(tax, cat)}`;
+    }
+    // Budget lines grouped by the category they're linked to, in the Categories screen's order.
+    function ruleLineOptions() {
+        const items = Engine.monthItems(Store.effective(Store.state.activeYear), 'base').filter(i => i.type !== 'Ingreso');
+        const cats = Object.keys(expenseTax());
+        const of = (i) => (cats.includes(i.linkedCategory) ? i.linkedCategory : '');
+        const groups = cats.concat('').map(c => ({ group: c ? tr(c) : tr('Not linked to a category'), options: items.filter(i => of(i) === c).map(i => ({ value: String(i.id), label: i.name })) })).filter(g => g.options.length);
+        return [{ value: '', label: tr('Automatic (by category)') }].concat(groups);
+    }
+    const RULE_LINE_HELP = 'Leave it on Automatic unless you want these transactions counted in a different line of your budget.';
+    const ruleCategoryText = (rule) => (rule.type === 'Transferencia' ? tr('Transfer between accounts') : tr(rule.category) + (rule.sub ? ' › ' + tr(rule.sub) : ''));
     const TYPES = [{ value: 'Gasto', label: 'Gasto' }, { value: 'Ingreso', label: 'Ingreso' }, { value: 'Transferencia', label: 'Transfer' }];
     const PAYROLL = 'Sueldo/Salario';
     const fallbackCat = (type) => { const tax = taxFor(type); return type === 'Ingreso' ? (tax['Otros Ingresos'] ? 'Otros Ingresos' : Object.keys(tax)[0]) : (tax.Otros ? 'Otros' : Object.keys(tax)[0]); };
@@ -305,7 +333,7 @@
         UI.html('imp-rows', s.rows.slice(0, 500).map((r, i) => `<tr class="${r.error ? 'opacity-60' : ''}">
                 <td class="text-center c-check"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggle" data-i="${i}" ${r.include ? 'checked' : ''} ${r.error ? 'disabled' : ''} aria-label="Import"></td>
                 <td class="whitespace-nowrap text-xs" data-label="Date">${esc(r.date || '—')}</td>
-                <td class="c-wide" data-label="Description">${r.error ? `<div class="font-semibold text-xs">${esc(firstLine(r.description))}</div>` : `<input class="cell-input text-xs font-semibold imp-desc" value="${r.description === NO_DESC ? '' : esc(r.description)}" placeholder="No description: type one" data-change="imp.desc" data-i="${i}" aria-label="Description">${r.original && r.original !== NO_DESC && firstLine(r.original) !== r.description ? `<div class="text-[11px] text-slate-500">In the file: ${esc(firstLine(r.original).slice(0, 90))}</div>` : ''}${r.original && r.original !== NO_DESC && r.conf !== 'rule' && r.type !== 'Transferencia' ? `<button type="button" class="link text-[11px]" data-action="rule.add" data-contains="${esc((r.key || firstLine(r.original)).slice(0, 40))}" data-rename="${r.description !== firstLine(r.original) ? esc(r.description) : ''}" data-cat="${r.type === 'Ingreso' ? 'I' : 'G'}|${esc(r.category)}" title="So next time it's named and categorized on its own">+ rule</button>` : ''}`}${r.store ? `<div class="text-[11px] text-slate-500">${esc(r.store)}</div>` : ''}${r.items && r.items.length ? `<div class="text-[11px] text-slate-500">${r.items.length} producto${r.items.length === 1 ? '' : 's'}${r.iva ? ` · IVA ${money(r.iva)}` : ''}</div>` : ''}</td>
+                <td class="c-wide" data-label="Description">${r.error ? `<div class="font-semibold text-xs">${esc(firstLine(r.description))}</div>` : `<input class="cell-input text-xs font-semibold imp-desc" value="${r.description === NO_DESC ? '' : esc(r.description)}" placeholder="No description: type one" data-change="imp.desc" data-i="${i}" aria-label="Description">${r.original && r.original !== NO_DESC && firstLine(r.original) !== r.description ? `<div class="text-[11px] text-slate-500">In the file: ${esc(firstLine(r.original).slice(0, 90))}</div>` : ''}${r.original && r.original !== NO_DESC && r.conf !== 'rule' && r.type !== 'Transferencia' ? `<button type="button" class="link text-[11px]" data-action="rule.add" data-contains="${esc((r.key || firstLine(r.original)).slice(0, 40))}" data-rename="${r.description !== firstLine(r.original) ? esc(r.description) : ''}" data-cat="${r.type === 'Ingreso' ? 'I' : 'G'}|${esc(r.category)}|${esc(r.sub || '')}" title="So next time it's named and categorized on its own">+ rule</button>` : ''}`}${r.store ? `<div class="text-[11px] text-slate-500">${esc(r.store)}</div>` : ''}${r.items && r.items.length ? `<div class="text-[11px] text-slate-500">${r.items.length} producto${r.items.length === 1 ? '' : 's'}${r.iva ? ` · IVA ${money(r.iva)}` : ''}</div>` : ''}</td>
                 <td class="c-wide" data-label="Type and category">${r.error ? '—' : `<div class="imp-cat-grid">
                     <select class="cell-input text-xs" data-change="imp.type" data-i="${i}" aria-label="Type">${opt(TYPES, r.type)}</select>
                     ${r.type === 'Transferencia' ? '<span class="text-[11px] text-slate-500 self-center">Between your accounts: neither spending nor income</span>' : `<select class="cell-input text-xs" data-change="imp.cat" data-i="${i}" aria-label="Category">${catOptions(r)}</select>
@@ -435,7 +463,7 @@
         UI.html('rule-body', rules.length ? rules.map(r => `<tr>
                 <td class="font-semibold">“${esc(r.contains)}”</td>
                 <td>${r.rename ? esc(r.rename) : '<span class="text-slate-400">—</span>'}</td>
-                <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">${esc(Views.whoName(r.memberId))}</div>` : ''}</td>
+                <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `<span>${esc(tr(r.category))}</span>${r.sub ? ` <span class="text-slate-400">› <span>${esc(tr(r.sub))}</span></span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">${esc(Views.whoName(r.memberId))}</div>` : ''}</td>
                 <td class="text-xs">${r.budgetLine ? esc(lineName(r.budgetLine)) : '<span class="text-slate-400">Automatic</span>'}</td>
                 <td class="text-center whitespace-nowrap"><button class="row-edit" data-action="rule.edit" data-id="${r.id}" title="Edit rule" aria-label="Edit rule"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="rule.delete" data-id="${r.id}" title="Delete rule" aria-label="Delete rule"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`).join('') : '<tr class="empty-row"><td colspan="5">No rules. Example: if it contains “SQ *COZ” → it\'s called “Cozy Coffee”, category Food.</td></tr>');
@@ -759,35 +787,36 @@
         },
         'rule.add': async (el) => {
             const pre = (el && el.dataset) || {};
-            const cats = Object.keys(expenseTax()).map(c => ({ value: 'G|' + c, label: c })).concat(Object.keys(incomeTax()).map(c => ({ value: 'I|' + c, label: `${c} (income)` })));
-            const items = Engine.monthItems(Store.effective(Store.state.activeYear), 'base');
-            // Options can't be preselected by UI.form, so the suggested category goes first.
-            if (pre.cat) { const k = cats.findIndex(c => c.value === pre.cat); if (k > 0) cats.unshift(cats.splice(k, 1)[0]); }
+            const [pk, pc, ps] = (pre.cat || '').split('|');
             const r = await UI.form({
                 title: 'New automatic rule',
                 message: 'It\'s an exact text match you define: no guessing.',
                 fields: [
                     { name: 'contains', label: 'If the description or place contains…', placeholder: 'E.g. SQ *COZ or walmart', value: pre.contains || '' },
                     { name: 'rename', label: 'Rename to (optional)', placeholder: 'E.g. Cozy Coffee', value: pre.rename || '' },
-                    { name: 'cat', label: 'Set the category', options: cats },
-                    { name: 'line', label: 'And count it in the line (optional)', options: [{ value: '', label: 'Automatic (by category)' }].concat(items.map(i => ({ value: String(i.id), label: i.name }))) }
+                    { name: 'cat', label: 'Category › subcategory', options: ruleCategoryOptions(), value: pk ? ruleCategoryValue(pk, pc, ps) : undefined, help: 'The same list as Settings → Categories.' },
+                    { name: 'line', label: 'Budget line', options: ruleLineOptions(), more: true, help: RULE_LINE_HELP }
                 ],
                 confirmText: 'Create rule',
-                validate: v => v.contains.trim().length < 2 ? 'Type at least 2 letters.' : null
+                validate: v => v.contains.trim().length < 2 ? 'Type at least 2 letters.' : !v.cat ? 'Pick a category.' : null
             });
             if (!r) return;
+            const [k, cat, sub] = r.cat.split('|');
             const rules = Store.state.rules || (Store.state.rules = []);
-            const rule = { id: Store.nextId(rules), contains: r.contains.trim().slice(0, 60), category: r.cat.slice(2), budgetLine: r.line || undefined };
+            const rule = { id: Store.nextId(rules), contains: r.contains.trim().slice(0, 60) };
+            if (k === 'T') Object.assign(rule, { type: 'Transferencia', category: '' });
+            else Object.assign(rule, { type: k === 'I' ? 'Ingreso' : 'Gasto', category: cat }, sub ? { sub } : {}, r.line && k === 'G' ? { budgetLine: r.line } : {});
             if (r.rename.trim()) rule.rename = r.rename.trim().slice(0, 80);
             rules.push(rule);
             // Transactions you already have that the rule would have caught: offer to fix them too.
             const hits = Store.state.transactions.filter(t => Importers.applyRules([rule], `${t.description} ${t.store || ''}`));
             let fixed = 0;
-            if (hits.length && await UI.confirm({ title: 'Apply to what you already have', message: `${hits.length === 1 ? 'A transaction you already have contains' : `${hits.length} transactions you already have contain`} «${rule.contains}». Apply the rule to ${hits.length === 1 ? 'it' : 'them'} (${[rule.rename ? `name «${rule.rename}»` : '', `category ${rule.category}`].filter(Boolean).map(x => (window.I18n ? I18n.t(x) : x)).join(', ')})?`, confirmText: `Apply to ${hits.length}` })) {
+            if (hits.length && await UI.confirm({ title: 'Apply to what you already have', message: `${hits.length === 1 ? 'A transaction you already have contains' : `${hits.length} transactions you already have contain`} «${rule.contains}». Apply the rule to ${hits.length === 1 ? 'it' : 'them'} (${[rule.rename ? `name «${rule.rename}»` : '', k === 'T' ? '' : `category ${ruleCategoryText(rule)}`].filter(Boolean).map(x => tr(x)).join(', ')})?`, confirmText: `Apply to ${hits.length}` })) {
                 hits.forEach(t => {
                     const tax = (t.type || 'Gasto') === 'Ingreso' ? incomeTax() : expenseTax();
                     if (rule.rename) t.description = rule.rename;
-                    if (tax[rule.category] && t.parentCategory !== rule.category) { t.parentCategory = rule.category; t.category = firstSub(tax, rule.category); }
+                    // No subcategory in the rule: one already in that category stays.
+                    if (k !== 'T' && tax[rule.category]) { const subs = tax[rule.category]; t.category = rule.sub && subs.includes(rule.sub) ? rule.sub : t.parentCategory === rule.category && subs.includes(t.category) ? t.category : firstSub(tax, rule.category); t.parentCategory = rule.category; }
                     if (rule.budgetLine && (t.type || 'Gasto') !== 'Ingreso') t.budgetLine = String(rule.budgetLine);
                     fixed++;
                 });
@@ -800,23 +829,23 @@
         'rule.edit': async (el) => {
             const rule = (Store.state.rules || []).find(r => String(r.id) === el.dataset.id);
             if (!rule) return;
-            const kinds = [['G', expenseTax(), ''], ['I', incomeTax(), ' (income)']];
-            const cats = [{ value: 'T||', label: 'Transfer between accounts' }].concat(...kinds.map(([k, tax, tag]) => Object.keys(tax).flatMap(c => [{ value: `${k}|${c}|`, label: c + tag }].concat((tax[c] || []).map(sub => ({ value: `${k}|${c}|${sub}`, label: `${c} › ${sub}${tag}` }))))));
-            const kind = rule.type === 'Transferencia' ? 'T' : (rule.type === 'Ingreso' || incomeTax()[rule.category]) ? 'I' : 'G';
-            const cur = kind === 'T' ? 'T||' : `${kind}|${rule.category}|${rule.sub || ''}`;
-            const items = Engine.monthItems(Store.effective(Store.state.activeYear), 'base');
+            const kind = rule.type === 'Transferencia' ? 'T' : (rule.type === 'Ingreso' || (!expenseTax()[rule.category] && incomeTax()[rule.category])) ? 'I' : 'G';
+            const cats = ruleCategoryOptions();
+            const cur = ruleCategoryValue(kind, rule.category, rule.sub);
+            // A category that was deleted since: keep it as it is until another is picked.
+            if (!cur) cats.unshift({ value: `${kind}|${rule.category}|${rule.sub || ''}`, label: ruleCategoryText(rule) });
             const members = Store.state.members || [];
             const r = await UI.form({
                 title: 'Edit rule',
                 fields: [
                     { name: 'contains', label: 'If the description or place contains…', value: rule.contains },
                     { name: 'rename', label: 'Rename to (optional)', value: rule.rename || '' },
-                    { name: 'cat', label: 'Category', options: cats, value: cats.some(c => c.value === cur) ? cur : `${kind}|${rule.category}|` },
-                    { name: 'member', label: 'Whose', options: [{ value: '', label: '—' }, { value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name }))), value: rule.memberId ? String(rule.memberId) : '' },
-                    { name: 'line', label: 'And count it in the line (optional)', options: [{ value: '', label: 'Automatic (by category)' }].concat(items.map(i => ({ value: String(i.id), label: i.name }))), value: rule.budgetLine ? String(rule.budgetLine) : '' }
+                    { name: 'cat', label: 'Category › subcategory', options: cats, value: cur || `${kind}|${rule.category}|${rule.sub || ''}`, help: 'The same list as Settings → Categories.' },
+                    { name: 'member', label: 'Whose', options: [{ value: '', label: '—' }, { value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name }))), value: rule.memberId ? String(rule.memberId) : '', more: true },
+                    { name: 'line', label: 'Budget line', options: ruleLineOptions(), value: rule.budgetLine ? String(rule.budgetLine) : '', more: true, help: RULE_LINE_HELP }
                 ],
                 confirmText: 'Save',
-                validate: v => v.contains.trim().length < 2 ? 'Type at least 2 letters.' : null
+                validate: v => v.contains.trim().length < 2 ? 'Type at least 2 letters.' : !v.cat ? 'Pick a category.' : null
             });
             if (!r) return;
             App.undoable('Rule updated', () => {
@@ -832,7 +861,7 @@
                 // Income links only make sense for income.
                 if (k !== 'I') { delete rule.incomeMode; delete rule.incomeId; }
                 if (r.member) rule.memberId = Number(r.member); else delete rule.memberId;
-                if (r.line) rule.budgetLine = r.line; else delete rule.budgetLine;
+                if (r.line && k === 'G') rule.budgetLine = r.line; else delete rule.budgetLine;
             });
             if (session) recompute();
         },

@@ -43,8 +43,32 @@ test('card lines: merchant name and the category code', () => {
     assert.deepEqual([r.name, r.confidence, !!r.ask], ['Amazon', 'low', true]);         // sells everything: ask
     assert.equal(g('Bill Payment #*000001<br />PROGRESSIVE *INSURANCE 800-555-0100 OH', -1).sub, 'Seguro Vehicular');
     assert.equal(g('Payments Transfer From Share 01<br />CONFIRMATION #: 001<br />Credit Card Payment', 1).type, 'Transferencia');
-    assert.equal(g('Card purchase<br />VISA INTERNATIONAL SERVICE ASSESSMENT<br />Date 03/14/26 *1*2 0000', -1).sub, 'Comisiones Bancarias');
+    assert.equal(g('Card purchase<br />VISA INTERNATIONAL SERVICE ASSESSMENT<br />Date 03/14/26 *1*2 0000', -1).sub, 'Comisiones por Compras en el Exterior');
     assert.equal(g('Card purchase<br />SQ *PAY PARKING BY PHONE Springfield IL<br />Date 03/14/26 *1*2 9399', -1).sub, 'Parqueo');
+});
+
+test('US categories: shopping, card fees, taxes paid, hobbies; Ecuador gets its own', () => {
+    const us = (text) => { const r = g(text, -1); return [r.category, r.sub]; };
+    const ec = (text) => { const r = C.guess(C.parse(text), { sign: -1, country: 'EC' }); return [r.category, r.sub]; };
+    const amazon = 'Card purchase<br />AMAZON MKTPL*AB12CD34E Amzn.com/bill WA<br />Date 03/14/26 *0000*1234567 5942';
+    assert.deepEqual(us(amazon), ['Compras', 'Compras en Línea']);
+    assert.ok(g(amazon, -1).ask);                                                         // still asked: it may be groceries
+    assert.deepEqual(us('EBAY O*12-34567-89012 SAN JOSE CA'), ['Compras', 'Compras en Línea']);
+    assert.equal(g('EBAY O*12-34567-89012 SAN JOSE CA', -1).name, 'eBay');
+    assert.deepEqual(us('TARGET 00012345 SPRINGFIELD IL'), ['Compras', 'Tiendas por Departamento']);
+    assert.deepEqual(us('Card purchase<br />GADGET WORLD 00012<br />Date 03/14/26 *0000*1234567 5732'), ['Compras', 'Electrónica']);
+    assert.deepEqual(us('FOREIGN TRANSACTION FEE'), ['Financiero y Legal', 'Comisiones por Compras en el Exterior']);
+    assert.deepEqual(us('ANNUAL MEMBERSHIP FEE'), ['Financiero y Legal', 'Cargos de Tarjeta de Crédito']);
+    assert.deepEqual(us('WITHDRAWAL IRS<br />TYPE: USATAXPYMT  ID: 0001<br />CO: IRS'), ['Impuestos', 'Impuesto Federal (IRS)']);
+    assert.deepEqual(us('WITHDRAWAL STATE DEPT OF TREASURY<br />TYPE: TAX PYMT'), ['Impuestos', 'Impuesto Estatal']);
+    assert.deepEqual(us('CITY OF SPRINGFIELD INCOME TAX'), ['Impuestos', 'Impuesto Municipal/Local']);
+    assert.deepEqual(us('Card purchase<br />CRAFT CORNER 0001<br />Date 03/14/26 *0000*1234567 5970'), ['Pasatiempos', 'Manualidades y Arte']);
+    assert.deepEqual(us('Card purchase<br />TRAIL OUTFITTERS<br />Date 03/14/26 *0000*1234567 5941'), ['Pasatiempos', 'Equipo Deportivo y Aire Libre']);
+    // The Ecuador edition has none of these: the same lines go where they went before.
+    assert.deepEqual(ec(amazon), ['Otros', 'Otros Gastos']);
+    assert.deepEqual(ec('FOREIGN TRANSACTION FEE'), ['Financiero y Legal', 'Comisiones Bancarias']);
+    assert.deepEqual(ec('Card purchase<br />TRAIL OUTFITTERS<br />Date 03/14/26 *0000*1234567 5941'), ['Entretenimiento y Ocio', 'Hobbies']);
+    assert.deepEqual(ec('Card purchase<br />GADGET WORLD 00012<br />Date 03/14/26 *0000*1234567 5732'), ['Vivienda', 'Muebles y Electrodomésticos']);
 });
 
 test('Spanish bank lines (Ecuador)', () => {

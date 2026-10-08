@@ -146,10 +146,12 @@
             L('finance', 'Bank fees & tax prep', 'V', 25, 'Financiero y Legal'),
             L('sideGig', 'Photography gig costs', 'V', 30, 'Negocio Propio / Freelance', { from: cur - 2 }),
             L('travel', 'Travel & day trips', 'V', 60, 'Viajes y Vacaciones'),
-            L('misc', 'Miscellaneous', 'V', 35, 'Otros'),
+            L('misc', 'Miscellaneous', 'V', 10, 'Otros'),
             L('roth', "Sarah's Roth IRA", 'S', 150, 'Ahorro e Inversión', { from: cur - 3 }),
             // Before the baby and the minivan, what was left went to savings (see `surplus`).
-            L('savings', 'High-yield savings', 'S', 0, 'Ahorro e Inversión', { until: prev - 1 })
+            L('savings', 'High-yield savings', 'S', 0, 'Ahorro e Inversión', { until: prev - 1 }),
+            // Last, so the lines above keep their ids.
+            L('shopping', 'Shopping (Amazon, Target)', 'V', 25, 'Compras')
         ];
 
         const debts = [
@@ -351,7 +353,11 @@
                 if (m === 3) c.add({ day: 3, key: 'sideGig', amount: 192, store: 'Squarespace', desc: 'Portfolio website (yearly)', sub: 'Publicidad/Marketing', pay: CREDIT, member: SARAH });
                 if (R.chance(0.3)) c.add({ day: R.int(1, dim), key: 'sideGig', amount: round2(R.between(18, 45)), store: 'Amazon', desc: R.pick(['Photo backdrop', 'SD cards', 'Props for sessions']), sub: 'Insumos/Inventario', pay: CREDIT, member: SARAH });
             }
-            if (R.chance(0.45)) c.add({ day: R.int(1, dim), key: 'misc', amount: round2(R.between(8, 30)), store: R.pick(['Dollar Tree', 'Amazon', 'Target']), desc: R.pick(['Odds and ends', 'Replacement charger', 'Batteries']), sub: 'Otros Gastos', pay: card() });
+            if (R.chance(0.45)) { const t = c.add({ day: R.int(1, dim), key: 'shopping', amount: round2(R.between(8, 30)), store: R.pick(['Dollar Tree', 'Amazon', 'Target']), desc: R.pick(['Odds and ends', 'Replacement charger', 'Batteries']), sub: 'Tiendas por Departamento', pay: card() }); if (t && t.store === 'Amazon') t.category = 'Compras en Línea'; }
+            // Hobbies: Sarah's crafts every few months, Mike's fishing season; the city income tax owed in April.
+            if (m % 3 === 1) c.add({ day: 18, key: 'fun', parent: 'Pasatiempos', amount: 23.47, store: 'Michaels', desc: 'Craft supplies', sub: 'Manualidades y Arte', pay: CREDIT, member: SARAH });
+            if (m === 5) c.add({ day: 2, key: 'fun', parent: 'Pasatiempos', amount: 64.18, store: 'Bass Pro Shops', desc: 'Fishing license & tackle', sub: 'Equipo Deportivo y Aire Libre', pay: CREDIT, member: MIKE });
+            if (m === 4) c.add({ day: 15, key: 'finance', parent: 'Impuestos', amount: 64, store: 'City of Grand Rapids', desc: 'City income tax – balance due', sub: 'Impuesto Municipal/Local', pay: XFER, member: MIKE });
             if (y === prev && m === 10) c.add({ day: 14, key: 'misc', amount: 25, store: 'City of Grand Rapids', desc: 'Parking ticket', sub: 'Multas', pay: DEBIT, member: MIKE });
 
             // Travel: day trips in summer; the Traverse City week in July (booked in April).

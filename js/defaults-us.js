@@ -87,16 +87,42 @@
         { id: 16, name: 'Emergency Fund', type: 'Ahorro', isDeductible: false, prep: 300, real: 300, linkedCategory: 'Ahorro e Inversión' }
     ];
 
+    // A copy of `obj` with `key` placed right after `after` (or at the end): the order is the
+    // order on the Categories screen and in every category list.
+    function insertAfter(obj, after, key, value) {
+        const out = {};
+        Object.keys(obj).forEach(k => { if (k !== key) out[k] = obj[k]; if (k === after) out[key] = value; });
+        if (!(key in out)) out[key] = value;
+        return out;
+    }
+
+    // Added to the categories after the first version: each is added once to older saves
+    // (Store.migrate, settings.taxonomyRev). `alike`: a name someone may already have added by
+    // hand for the same thing; then theirs is kept and the app's guesses go to it instead.
+    const TAXONOMY_REV = 1;
+    const TAXONOMY_ADDED = [
+        { rev: 1, cat: 'Servicios Básicos y Comunicación', subs: [['Basura/Reciclaje', /trash|garbage|refuse|recycl|basura|recicl/i]] },
+        { rev: 1, cat: 'Compras', after: 'Alimentación', alike: /^(?:shopping|compras)$/i, subs: [['Compras en Línea'], ['Tiendas por Departamento'], ['Electrónica'], ['Compras Generales']] },
+        { rev: 1, cat: 'Pasatiempos', after: 'Entretenimiento y Ocio', alike: /^(?:hobbies|hobby|pasatiempos)$/i, subs: [['Materiales de Pasatiempos'], ['Manualidades y Arte'], ['Equipo Deportivo y Aire Libre'], ['Gimnasio, Deportes y Clubes'], ['Música e Instrumentos'], ['Clases de Pasatiempos'], ['Juegos y Coleccionables']] },
+        { rev: 1, cat: 'Financiero y Legal', subs: [['Cargos de Tarjeta de Crédito', /card fee|annual fee|late fee|cargos? de tarjeta/i], ['Comisiones por Compras en el Exterior', /foreign|international|intl|exterior|extranjero/i]] },
+        { rev: 1, cat: 'Impuestos', after: 'Financiero y Legal', alike: /^(?:taxes|tax|impuestos)$/i, subs: [['Impuesto Federal (IRS)'], ['Impuesto Estatal'], ['Impuesto Municipal/Local'], ['Pagos Estimados Trimestrales'], ['Otros Impuestos']] }
+    ];
+
     // The Ecuador taxonomy with US items (same category codes, so matching keeps working).
     function taxonomy() {
-        const exp = clone(EC.EXPENSE_TAXONOMY), inc = clone(EC.INCOME_TAXONOMY);
+        let exp = clone(EC.EXPENSE_TAXONOMY);
+        const inc = clone(EC.INCOME_TAXONOMY);
+        exp['Servicios Básicos y Comunicación'] = ['Agua', 'Energía Eléctrica', 'Gas', 'Basura/Reciclaje', 'Internet', 'Plan Celular', 'Cable/TV'];
+        // Hobbies have their own category here.
+        exp['Entretenimiento y Ocio'] = exp['Entretenimiento y Ocio'].filter(x => x !== 'Hobbies');
         exp['Vivienda'] = ['Arriendo', 'Hipoteca', 'Alícuotas/Condominio', 'Impuesto Predial', 'Seguro de Hogar', 'Seguro de Inquilino', 'Mantenimiento del Hogar', 'Reparaciones (plomería, eléctrico, techo)', 'Muebles y Electrodomésticos', 'Jardinería/Limpieza del Hogar'];
         exp['Transporte'] = ['Cuota de Vehículo (Préstamo)', 'Gasolina/Diesel', 'Seguro Vehicular', 'Mantenimiento (aceite, llantas, frenos)', 'Matriculación/Revisión Vehicular', 'Transporte Público', 'Taxi/App de Transporte', 'Parqueo', 'Peajes', 'Alquiler de Vehículo'];
         exp['Ahorro e Inversión'] = ['Fondo de Emergencia', 'Aporte a Metas', 'Certificado de Depósito (CD)', '401(k) / IRA', 'Inversiones (bolsa)', 'Plan 529 (universidad)', 'Cuenta HSA'];
         exp['Salud'] = ['Seguro Médico', 'Copagos y Deducibles', 'Consultas Médicas', 'Medicinas', 'Odontología', 'Óptica', 'Terapia/Salud Mental', 'Exámenes de Laboratorio'];
-        exp['Financiero y Legal'] = ['Comisiones Bancarias', 'Trámites Legales/Notaría', 'Preparación de Impuestos', 'Multas y Trámites Municipales'];
+        exp['Financiero y Legal'] = ['Comisiones Bancarias', 'Cargos de Tarjeta de Crédito', 'Comisiones por Compras en el Exterior', 'Trámites Legales/Notaría', 'Preparación de Impuestos', 'Multas y Trámites Municipales'];
         delete exp['Remesas y Ayuda Familiar'];
         exp['Remesas y Ayuda Familiar'] = ['Remesa Enviada al Exterior', 'Ayuda Económica a Familiares'];
+        TAXONOMY_ADDED.filter(a => a.after).forEach(a => { exp = insertAfter(exp, a.after, a.cat, a.subs.map(x => x[0])); });
         inc['Ingresos Laborales'] = ['Sueldo/Salario', 'Horas Extras', 'Bonos', 'Comisiones', 'Propinas'];
         inc['Ingresos Financieros'] = ['Intereses', 'Dividendos', 'Alquiler de Propiedad (que recibes)'];
         inc['Gobierno y Beneficios'] = ['Reembolso de Impuestos (IRS)', 'Seguro Social', 'Beneficios de Desempleo'];
@@ -164,6 +190,7 @@
                 { id: 3, type: 'Ingreso', description: 'Side gig', store: 'Upwork', parentCategory: 'Ingresos Independientes', category: 'Freelance/Consultoría', amount: 300, date: iso, paymentType: 'Transferencia' }
             ],
             taxonomy: taxonomy(),
+            settings: Object.assign(s.settings, { taxonomyRev: TAXONOMY_REV }),
             mortgage: { amount: 250000, rate: 6.5, years: 30, extraPayment: 0, propertyTax: 4000, homeInsurance: 1500, pmiRate: 0, hoa: 0, homeValue: 0 },
             retirement: Object.assign(s.retirement, { edadJubilacion: 67, aniosAportados: 8, tasaReemplazo: 40 })
         });
@@ -220,7 +247,7 @@
         ]
     });
 
-    const DefaultsUS = { clone, CATEGORY_ICONS: EC.CATEGORY_ICONS, categoryIcon: EC.categoryIcon, annualIdeas, collegeTypes, collegeDefaults, checklists, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
+    const DefaultsUS = { clone, CATEGORY_ICONS: EC.CATEGORY_ICONS, categoryIcon: EC.categoryIcon, annualIdeas, collegeTypes, collegeDefaults, checklists, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, TAXONOMY_REV, TAXONOMY_ADDED, insertAfter, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = DefaultsUS;
     else root.DefaultsUS = DefaultsUS;

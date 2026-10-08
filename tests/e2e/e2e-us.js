@@ -167,6 +167,33 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(250);
   const ru = await page.evaluate(() => ({ r: Store.state.rules[0], row: document.getElementById('rule-body').textContent }));
   ok(preset === 'G|Alimentación|Mercado/Supermercado' && ru.r.contains === 'STARBUCKS' && ru.r.rename === 'Starbucks' && ru.r.sub === 'Restaurantes' && ru.r.type === 'Gasto' && /STARBUCKS/.test(ru.row), 'a rule can be edited: text, name, category and subcategory', ru);
+  // Rules pick from the same list as Settings → Categories, in English, with the budget line folded away.
+  await page.click('#imp-rules-card [data-action="rule.add"]');
+  await page.waitForSelector('.modal-backdrop:not(.hidden) [data-dialog-ok]');
+  const rd = await page.evaluate(() => {
+    const sel = document.querySelector('.modal select[name="cat"]');
+    const groups = [...sel.querySelectorAll('optgroup')].map(g => ({ label: g.label, subs: [...g.querySelectorAll('option')].map(o => o.textContent) }));
+    const more = document.querySelector('.modal details.modal-more');
+    return { groups, cats: Object.keys(Store.state.taxonomy.expense).map(c => I18n.t(c)), more: !!more && !more.open && !!more.querySelector('select[name="line"]'), lineGroups: [...document.querySelectorAll('.modal select[name="line"] optgroup')].map(g => g.label) };
+  });
+  const grp = (l) => (rd.groups.find(g => g.label === l) || { subs: [] }).subs;
+  const spanishLeft = rd.groups.some(g => /Vivienda|Alimentación|Servicios Básicos|›/.test(g.label + g.subs.join('|')));
+  ok(JSON.stringify(rd.groups.slice(0, rd.cats.length).map(g => g.label)) === JSON.stringify(rd.cats) && !spanishLeft, 'the rule dialog lists the categories in the same order as Settings → Categories, in English', rd.groups.map(g => g.label));
+  ok(grp('Utilities & Communication').includes('Trash & Recycling') && grp('Shopping').includes('Online Shopping') && grp('Taxes').includes('Federal Income Tax (IRS)') && grp('Hobbies').includes('Arts & Crafts') && grp('Financial & Legal').includes('Foreign Transaction Fees') && grp('Financial & Legal').includes('Credit Card Fees (annual, late)'), 'new categories: trash, shopping, taxes, hobbies, card and foreign transaction fees', rd.groups.filter(g => /Utilities|Shopping|Taxes|Hobbies|Financial/.test(g.label)));
+  ok(rd.more && rd.lineGroups.includes('Food'), 'the budget line is optional, folded under More options and grouped by category', rd.lineGroups);
+  await page.fill('.modal input[name="contains"]', 'AMZN MKTP');
+  await page.selectOption('.modal select[name="cat"]', 'G|Compras|Compras en Línea');
+  await page.click('[data-dialog-ok]');
+  await page.waitForTimeout(200);
+  if (await page.isVisible('.modal-backdrop:not(.hidden) [data-dialog-cancel]')) await page.click('.modal-backdrop:not(.hidden) [data-dialog-cancel]');
+  const amz = await page.evaluate(() => { const r = Store.state.rules.find(x => x.contains === 'AMZN MKTP'); return { r, row: [...document.querySelectorAll('#rule-body tr')].map(tr => tr.textContent).find(t => /AMZN MKTP/.test(t)) }; });
+  ok(amz.r && amz.r.category === 'Compras' && amz.r.sub === 'Compras en Línea' && amz.r.type === 'Gasto' && /Shopping/.test(amz.row) && /Online Shopping/.test(amz.row) && !/Compras/.test(amz.row), 'a new rule keeps its subcategory and the rules list shows it in English', amz);
+  await page.click(`[data-action="rule.edit"][data-id="${amz.r.id}"]`);
+  await page.waitForSelector('.modal-backdrop:not(.hidden) [data-dialog-ok]');
+  const ed = await page.evaluate(() => { const sel = document.querySelector('.modal select[name="cat"]'); return { v: sel.value, shown: sel.selectedOptions[0].textContent, group: sel.selectedOptions[0].parentElement.label }; });
+  await page.click('.modal-backdrop:not(.hidden) [data-dialog-cancel]');
+  ok(ed.v === 'G|Compras|Compras en Línea' && ed.shown === 'Online Shopping' && ed.group === 'Shopping', 'editing a rule shows its category in English', ed);
+  await page.evaluate(() => { Store.state.rules = []; App.changed({ structural: true }); });
   // Categories live in Settings: rename (carried to transactions) and add a subcategory (step 4).
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('config'); document.getElementById('cfg-categories').open = true; });
   await page.waitForTimeout(250);
