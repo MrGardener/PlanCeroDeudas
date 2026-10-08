@@ -442,7 +442,7 @@
             const id = newIncomeId();
             // Starts unlinked: linking it to a category is the person's choice, so it never
             // absorbs income already logged under that category by surprise.
-            list.push({ id, name: 'Nuevo ingreso', amount: 0, category: 'none' });
+            list.push({ id, name: I18n.t('New income'), amount: 0, category: 'none' });
             App.changed({ structural: true, step: true });
             UI.toast('Income added. Type its name and how much you receive a month (net).', 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
             const input = document.querySelector(layout() === 'simple' ? `#bud-simple [data-income="${id}"] .bs-name-input` : `#bud-body tr[data-income="${id}"] input`);
@@ -541,8 +541,11 @@
         'budget.addRow': (el) => {
             const list = editableItems();
             const id = Store.nextId(list);
-            const type = el && el.dataset.type && Defaults.BUDGET_TYPES.includes(el.dataset.type) ? el.dataset.type : 'Gasto Variable';
-            list.push(Object.assign({ id, name: 'Nuevo rubro', type, isDeductible: false, prep: 0, real: 0, linkedCategory: 'none' }, el && el.dataset.group ? { group: el.dataset.group } : {}));
+            // The group's "Add line" says its type ('Gasto Fijo', 'Ahorro'…); the name starts in the app's language.
+            // (Groups made before kept the savings type as 'Ahorro/Inversión'.)
+            const asked = el && el.dataset.type === 'Ahorro/Inversión' ? 'Ahorro' : el && el.dataset.type;
+            const type = asked && Defaults.BUDGET_TYPES.some(t => t.value === asked) ? asked : 'Gasto Variable';
+            list.push(Object.assign({ id, name: I18n.t('New line'), type, isDeductible: false, prep: 0, real: 0, linkedCategory: 'none' }, el && el.dataset.group ? { group: el.dataset.group } : {}));
             App.changed({ structural: true, step: true });
             const input = document.querySelector(layout() === 'simple' ? `#bud-simple [data-line="${id}"] .bs-name-input` : `#bud-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }

@@ -5843,6 +5843,12 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "New line": "Nuevo rubro",
+    "New debt": "Nueva deuda",
+    "New goal": "Nueva meta",
+    "New account": "Nueva cuenta",
+    "New asset": "Nuevo activo",
+    "New income": "Nuevo ingreso",
     "Category › subcategory": "Categoría › subcategoría",
     "Leave it on Automatic unless you want these transactions counted in a different line of your budget.": "Déjalo en Automático, salvo que quieras que estas transacciones cuenten en otro rubro de tu presupuesto.",
     "More options": "Más opciones",
@@ -17337,7 +17343,7 @@ I18n.override('EC', 'es', {
             const def = isCustom ? { label: name, icon: 'fa-folder-open' } : (GROUPS.find(x => x.type === g) || { label: g, icon: 'fa-folder' });
             const list = byGroup[g] || [];
             const gdef = (ctx.year.groups || []).find(x => x.name === name);
-            const addType = isCustom ? ((gdef && gdef.type) || (list[0] && list[0].type) || 'Gasto Variable') : (g === 'Ahorro' ? 'Ahorro/Inversión' : g);
+            const addType = isCustom ? ((gdef && gdef.type) || (list[0] && list[0].type) || 'Gasto Variable') : g;
             const foot = g === 'Deuda' ? '<a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Add debt</a>'
                 : GROUPS.some(x => x.type === g) || isCustom ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(addType)}" ${isCustom ? `data-group="${esc(name)}"` : ''}><i class="fa-solid fa-plus"></i> Add line</button>${isCustom && !list.length ? ` <button type="button" class="mini-btn text-red-600 ml-2" data-action="group.delete" data-name="${esc(name)}">Remove group</button>` : ''}` : '<span></span>';
             return `<section class="bs-card" data-group="${esc(g)}">
@@ -18017,7 +18023,7 @@ I18n.override('EC', 'es', {
         'group.add': async () => {
             const r = await UI.form({ title: 'New group', fields: [
                 { name: 'name', label: 'Group name', placeholder: 'E.g. Giving, Pets, Car' },
-                { name: 'type', label: 'What kind of money is it?', options: [{ value: 'Gasto Variable', label: 'Expenses that vary' }, { value: 'Gasto Fijo', label: 'Fixed expenses' }, { value: 'Ahorro/Inversión', label: 'Ahorro' }] }
+                { name: 'type', label: 'What kind of money is it?', options: [{ value: 'Gasto Variable', label: 'Expenses that vary' }, { value: 'Gasto Fijo', label: 'Fixed expenses' }, { value: 'Ahorro', label: 'Savings & investing' }] }
             ], confirmText: 'Create', validate: v => !v.name.trim() ? 'Type a name.' : (Store.active().groups || []).some(g => g.name === v.name.trim()) ? 'There\'s already a group with that name.' : null });
             if (!r) return;
             const yd = Store.active();
@@ -18566,7 +18572,7 @@ I18n.override('EC', 'es', {
             const id = newIncomeId();
             // Starts unlinked: linking it to a category is the person's choice, so it never
             // absorbs income already logged under that category by surprise.
-            list.push({ id, name: 'Nuevo ingreso', amount: 0, category: 'none' });
+            list.push({ id, name: I18n.t('New income'), amount: 0, category: 'none' });
             App.changed({ structural: true, step: true });
             UI.toast('Income added. Type its name and how much you receive a month (net).', 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
             const input = document.querySelector(layout() === 'simple' ? `#bud-simple [data-income="${id}"] .bs-name-input` : `#bud-body tr[data-income="${id}"] input`);
@@ -18665,8 +18671,11 @@ I18n.override('EC', 'es', {
         'budget.addRow': (el) => {
             const list = editableItems();
             const id = Store.nextId(list);
-            const type = el && el.dataset.type && Defaults.BUDGET_TYPES.includes(el.dataset.type) ? el.dataset.type : 'Gasto Variable';
-            list.push(Object.assign({ id, name: 'Nuevo rubro', type, isDeductible: false, prep: 0, real: 0, linkedCategory: 'none' }, el && el.dataset.group ? { group: el.dataset.group } : {}));
+            // The group's "Add line" says its type ('Gasto Fijo', 'Ahorro'…); the name starts in the app's language.
+            // (Groups made before kept the savings type as 'Ahorro/Inversión'.)
+            const asked = el && el.dataset.type === 'Ahorro/Inversión' ? 'Ahorro' : el && el.dataset.type;
+            const type = asked && Defaults.BUDGET_TYPES.some(t => t.value === asked) ? asked : 'Gasto Variable';
+            list.push(Object.assign({ id, name: I18n.t('New line'), type, isDeductible: false, prep: 0, real: 0, linkedCategory: 'none' }, el && el.dataset.group ? { group: el.dataset.group } : {}));
             App.changed({ structural: true, step: true });
             const input = document.querySelector(layout() === 'simple' ? `#bud-simple [data-line="${id}"] .bs-name-input` : `#bud-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
@@ -24161,7 +24170,7 @@ I18n.override('EC', 'es', {
         'debt.add': () => {
             const debts = Store.state.debts;
             const id = Store.nextId(debts);
-            debts.push({ id, name: 'Nueva deuda', kind: 'personal', balance: 1000, originalBalance: 1000, rate: 15, minPayment: 50, monthly: 50, createdYear: new Date().getFullYear() });
+            debts.push({ id, name: I18n.t('New debt'), kind: 'personal', balance: 1000, originalBalance: 1000, rate: 15, minPayment: 50, monthly: 50, createdYear: new Date().getFullYear() });
             App.changed({ structural: true });
             UI.toast('Debt added to your budget with its minimum payment ($50). Adjust the amounts.');
             const input = document.querySelector(`#debt-body tr[data-row="${id}"] input`);
@@ -24234,7 +24243,7 @@ I18n.override('EC', 'es', {
         'goal.add': () => {
             const goals = Store.state.goals;
             const id = Store.nextId(goals);
-            goals.push({ id, name: 'Nueva meta', target: 10000, current: 0, monthly: 0, rate: Number(Store.active().tasa) || 0, createdYear: new Date().getFullYear() });
+            goals.push({ id, name: I18n.t('New goal'), target: 10000, current: 0, monthly: 0, rate: Number(Store.active().tasa) || 0, createdYear: new Date().getFullYear() });
             App.changed({ structural: true });
             UI.toast('Goal added to your budget\'s Savings. Give it a monthly amount.');
             const input = document.querySelector(`#goal-body tr[data-row="${id}"] input`);
@@ -25116,7 +25125,7 @@ I18n.override('EC', 'es', {
         },
         'coop.add': () => {
             const s = Store.state;
-            s.cooperativas.push({ id: Store.nextId(s.cooperativas), name: 'Nueva cooperativa', segment: 'Segmento 1', defaultRate: 8.5, interestType: 'Mensual (Compuesto)', cosedeMax: 32000 });
+            s.cooperativas.push({ id: Store.nextId(s.cooperativas), name: I18n.t('New bank'), segment: 'Segmento 1', defaultRate: 8.5, interestType: 'Mensual (Compuesto)', cosedeMax: 32000 });
             App.changed({ structural: true });
         },
         'coop.delete': (el) => {
@@ -25738,7 +25747,7 @@ I18n.override('EC', 'es', {
         'acct.add': () => {
             const list = Store.state.accounts || (Store.state.accounts = []);
             const id = Store.nextId(list);
-            list.push({ id, name: 'Nueva cuenta', kind: 'ahorros', balance: 0, updatedAt: Engine.isoDate(new Date()) });
+            list.push({ id, name: I18n.t('New account'), kind: 'ahorros', balance: 0, updatedAt: Engine.isoDate(new Date()) });
             App.changed({ structural: true, step: true });
             const input = document.querySelector(`#acct-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
@@ -25831,7 +25840,7 @@ I18n.override('EC', 'es', {
         'asset.add': () => {
             const s = Store.state;
             const id = Store.nextId(s.assets);
-            s.assets.push({ id, name: 'Nuevo activo', category: 'Otro', purchaseYear: s.activeYear, purchaseValue: 0, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} });
+            s.assets.push({ id, name: I18n.t('New asset'), category: 'Otro', purchaseYear: s.activeYear, purchaseValue: 0, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} });
             App.changed({ structural: true });
             const input = document.querySelector(`#asset-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }

@@ -125,7 +125,7 @@
             const def = isCustom ? { label: name, icon: 'fa-folder-open' } : (GROUPS.find(x => x.type === g) || { label: g, icon: 'fa-folder' });
             const list = byGroup[g] || [];
             const gdef = (ctx.year.groups || []).find(x => x.name === name);
-            const addType = isCustom ? ((gdef && gdef.type) || (list[0] && list[0].type) || 'Gasto Variable') : (g === 'Ahorro' ? 'Ahorro/Inversión' : g);
+            const addType = isCustom ? ((gdef && gdef.type) || (list[0] && list[0].type) || 'Gasto Variable') : g;
             const foot = g === 'Deuda' ? '<a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Add debt</a>'
                 : GROUPS.some(x => x.type === g) || isCustom ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(addType)}" ${isCustom ? `data-group="${esc(name)}"` : ''}><i class="fa-solid fa-plus"></i> Add line</button>${isCustom && !list.length ? ` <button type="button" class="mini-btn text-red-600 ml-2" data-action="group.delete" data-name="${esc(name)}">Remove group</button>` : ''}` : '<span></span>';
             return `<section class="bs-card" data-group="${esc(g)}">
@@ -805,7 +805,7 @@
         'group.add': async () => {
             const r = await UI.form({ title: 'New group', fields: [
                 { name: 'name', label: 'Group name', placeholder: 'E.g. Giving, Pets, Car' },
-                { name: 'type', label: 'What kind of money is it?', options: [{ value: 'Gasto Variable', label: 'Expenses that vary' }, { value: 'Gasto Fijo', label: 'Fixed expenses' }, { value: 'Ahorro/Inversión', label: 'Ahorro' }] }
+                { name: 'type', label: 'What kind of money is it?', options: [{ value: 'Gasto Variable', label: 'Expenses that vary' }, { value: 'Gasto Fijo', label: 'Fixed expenses' }, { value: 'Ahorro', label: 'Savings & investing' }] }
             ], confirmText: 'Create', validate: v => !v.name.trim() ? 'Type a name.' : (Store.active().groups || []).some(g => g.name === v.name.trim()) ? 'There\'s already a group with that name.' : null });
             if (!r) return;
             const yd = Store.active();

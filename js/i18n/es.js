@@ -2,6 +2,12 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "New line": "Nuevo rubro",
+    "New debt": "Nueva deuda",
+    "New goal": "Nueva meta",
+    "New account": "Nueva cuenta",
+    "New asset": "Nuevo activo",
+    "New income": "Nuevo ingreso",
     "Category › subcategory": "Categoría › subcategoría",
     "Leave it on Automatic unless you want these transactions counted in a different line of your budget.": "Déjalo en Automático, salvo que quieras que estas transacciones cuenten en otro rubro de tu presupuesto.",
     "More options": "Más opciones",

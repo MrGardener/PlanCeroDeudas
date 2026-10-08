@@ -348,7 +348,7 @@
         'acct.add': () => {
             const list = Store.state.accounts || (Store.state.accounts = []);
             const id = Store.nextId(list);
-            list.push({ id, name: 'Nueva cuenta', kind: 'ahorros', balance: 0, updatedAt: Engine.isoDate(new Date()) });
+            list.push({ id, name: I18n.t('New account'), kind: 'ahorros', balance: 0, updatedAt: Engine.isoDate(new Date()) });
             App.changed({ structural: true, step: true });
             const input = document.querySelector(`#acct-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }
@@ -441,7 +441,7 @@
         'asset.add': () => {
             const s = Store.state;
             const id = Store.nextId(s.assets);
-            s.assets.push({ id, name: 'Nuevo activo', category: 'Otro', purchaseYear: s.activeYear, purchaseValue: 0, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} });
+            s.assets.push({ id, name: I18n.t('New asset'), category: 'Otro', purchaseYear: s.activeYear, purchaseValue: 0, status: 'Activo', saleValue: 0, saleYear: null, proceedsAdded: false, valuesByYear: {} });
             App.changed({ structural: true });
             const input = document.querySelector(`#asset-body tr[data-row="${id}"] input`);
             if (input) { input.focus(); input.select(); }

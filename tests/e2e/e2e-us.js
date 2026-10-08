@@ -557,6 +557,15 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('[data-action="budget.bubbles"]');
   await page.waitForTimeout(150);
   ok(await page.evaluate(() => !document.querySelector('#bud-simple .bs-grid').classList.contains('hidden') && document.getElementById('bs-bubbles').classList.contains('hidden')), 'bubbles: back to cards');
+  // "Add line" in a group adds the line to that group, named in English.
+  for (const g of ['Ahorro', 'Gasto Fijo']) {
+    const n0 = await page.evaluate(() => Store.active().budgetBase.length);
+    await page.click(`#bud-simple .bs-card[data-group="${g}"] [data-action="budget.addRow"]`);
+    await page.waitForTimeout(200);
+    const added = await page.evaluate(([g, n0]) => { const it = Store.active().budgetBase[n0]; const card = document.querySelector(`#bud-simple .bs-card[data-group="${g}"]`); const inp = card && card.querySelector(`[data-line="${it && it.id}"] .bs-name-input`); return { it, inCard: !!inp, shown: inp && inp.value, focused: document.activeElement === inp }; }, [g, n0]);
+    ok(added.it && added.it.type === g && added.it.name === 'New line' && added.inCard && added.shown === 'New line' && added.focused, `Add line in the ${g} group adds it there, named "New line"`, added);
+    await page.evaluate(() => { const yd = Store.active(); yd.budgetBase.pop(); App.changed({ structural: true }); });
+  }
   // Month ‹ ›: another month; a month with nothing planned shows the intro with Auto-generate.
   await page.evaluate(() => { Store.ui.budgetBubbles = true; App.update(); });
   const bm0 = await page.evaluate(() => document.getElementById('bub-month').textContent);
