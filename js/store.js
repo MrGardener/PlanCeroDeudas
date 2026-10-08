@@ -54,12 +54,42 @@
         return yd;
     }
 
+    // Categories a later version added (D.TAXONOMY_ADDED): put once in a save made before. One the
+    // person already added by hand for the same thing (their "Trash") is kept instead of adding a
+    // twin, and the app's guesses are pointed at theirs (settings.renamed). A category they deleted
+    // stays deleted; one they renamed gets the new subcategories under its new name.
+    function addNewCategories(s, fromRev, defs = D) {
+        let exp = s.taxonomy.expense;
+        const renamed = s.settings.renamed || (s.settings.renamed = {});
+        const now = (c) => Engine.renamedCategory(s.settings, 'expense', c).category;
+        (defs.TAXONOMY_ADDED || []).filter(a => a.rev > fromRev).forEach(a => {
+            let cat = now(a.cat);
+            if (!exp[cat]) {
+                const own = a.alike && Object.keys(exp).find(c => a.alike.test(c.trim()));
+                if (own) { renamed[`expense|${a.cat}`] = `expense|${own}`; return; }
+                if (!a.after) return;
+                cat = a.cat;
+                exp = defs.insertAfter(exp, now(a.after), cat, []);
+            }
+            const subs = exp[cat] || (exp[cat] = []);
+            a.subs.forEach(([sub, alike]) => {
+                if (subs.includes(sub)) return;
+                const own = alike && subs.find(x => alike.test(x));
+                if (own) renamed[`expense|${a.cat}|${sub}`] = `expense|${cat}|${own}`;
+                else subs.push(sub);
+            });
+        });
+        s.taxonomy.expense = exp;
+    }
+
     // Accepts the current format (version 8) or the pre-refactor flat format, and returns
     // a complete, normalized state. Anything missing falls back to the defaults.
     function migrate(raw, today) {
         const s = D.newState(today);
         s.settings.country = COUNTRY;
         if (!raw || typeof raw !== 'object') return s;
+        const taxonomyRev = Number((raw.settings || {}).taxonomyRev) || 0;
+        const ownTaxonomy = raw.version >= 8 ? raw.taxonomy !== undefined : !!raw.expenseCategoryTaxonomy;
 
         if (raw.version >= 8) {
             Object.keys(s).forEach(k => {
@@ -125,6 +155,8 @@
         s.configStartYear = Number(s.configStartYear); s.configEndYear = Number(s.configEndYear);
         s.activeYear = Math.min(s.configEndYear, Math.max(s.configStartYear, Number(s.activeYear)));
         s.settings.country = s.settings.country || COUNTRY;
+        if (ownTaxonomy && taxonomyRev < (D.TAXONOMY_REV || 0)) addNewCategories(s, taxonomyRev);
+        s.settings.taxonomyRev = Math.max(taxonomyRev, D.TAXONOMY_REV || 0);
         s.version = 8;
         return s;
     }
@@ -140,6 +172,7 @@
 
         migrate,
         normalizeYear,
+        addNewCategories,
 
         init(storage) {
             this.storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);

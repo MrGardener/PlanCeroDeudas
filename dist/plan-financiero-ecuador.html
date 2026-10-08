@@ -206,6 +206,9 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 .modal-title i { color: #059669; } .modal-danger .modal-title i { color: #dc2626; }
 .modal-message { font-size: .82rem; color: var(--ink-2); line-height: 1.55; margin-bottom: .9rem; white-space: pre-line; }
 .modal-error { font-size: .75rem; color: #b91c1c; font-weight: 700; margin-top: .6rem; }
+/* Fields folded under "More options" in a dialog. */
+.modal-more > summary { cursor: pointer; color: var(--link); font-weight: 700; font-size: .8rem; padding: .25rem 0; list-style-position: inside; }
+.modal-more > div { margin-top: .6rem; }
 .modal-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1.1rem; }
 #toast-host { position: fixed; bottom: 5.5rem; right: 1rem; z-index: 70; display: flex; flex-direction: column; gap: .5rem; max-width: calc(100vw - 2rem); }
 .toast { display: flex; align-items: center; gap: .6rem; background: #0f172a; color: #fff; font-size: .8rem; font-weight: 600; padding: .7rem 1rem; border-radius: .7rem; box-shadow: 0 10px 25px rgba(15, 23, 42, .3); transition: opacity .4s, transform .4s; }
@@ -3105,6 +3108,28 @@ button.gm-row:hover { background: var(--surface-3); }
    The app's own text is English now (see js/i18n.js); this dictionary shrinks over time.
    {n} = a value filled in at runtime; {n|s} prints "s" only when that value isn't empty. */
 I18n.add('en', {
+"Basura/Reciclaje": "Trash & Recycling",
+"Compras": "Shopping",
+"Compras en Línea": "Online Shopping",
+"Tiendas por Departamento": "Department & Discount Stores",
+"Electrónica": "Electronics",
+"Compras Generales": "General Shopping",
+"Pasatiempos": "Hobbies",
+"Materiales de Pasatiempos": "Hobby Supplies",
+"Manualidades y Arte": "Arts & Crafts",
+"Equipo Deportivo y Aire Libre": "Sports & Outdoor Gear",
+"Gimnasio, Deportes y Clubes": "Gym, Sports & Clubs",
+"Música e Instrumentos": "Music & Instruments",
+"Clases de Pasatiempos": "Hobby Classes & Lessons",
+"Juegos y Coleccionables": "Games & Collectibles",
+"Cargos de Tarjeta de Crédito": "Credit Card Fees (annual, late)",
+"Comisiones por Compras en el Exterior": "Foreign Transaction Fees",
+"Impuestos": "Taxes",
+"Impuesto Federal (IRS)": "Federal Income Tax (IRS)",
+"Impuesto Estatal": "State Income Tax",
+"Impuesto Municipal/Local": "City & Local Taxes",
+"Pagos Estimados Trimestrales": "Quarterly Estimated Taxes",
+"Otros Impuestos": "Other Taxes",
 "\"{0}\" ahora cuenta como ingreso de todos los meses.": "\"{0}\" now counts as income every month.",
 "\"{0}\" ahora cuenta en «{1}».": "\"{0}\" now counts in «{1}».",
 "\"{0}\" ahora se suma a tus ingresos del mes.": "\"{0}\" is now added to this month's income.",
@@ -5818,6 +5843,12 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Category › subcategory": "Categoría › subcategoría",
+    "Leave it on Automatic unless you want these transactions counted in a different line of your budget.": "Déjalo en Automático, salvo que quieras que estas transacciones cuenten en otro rubro de tu presupuesto.",
+    "More options": "Más opciones",
+    "Not linked to a category": "Sin categoría vinculada",
+    "Pick a category.": "Elige una categoría.",
+    "The same list as Settings → Categories.": "La misma lista que Configuración → Categorías.",
     "Before taxes, for this one person.": "Antes de impuestos, de esta sola persona.",
     "Main paycheck:": "Sueldo principal:",
     "One person's pay before taxes: the app figures the taxes on it. Pick the person with the biggest paycheck.": "El sueldo de una persona antes de impuestos: la app calcula los impuestos sobre él. Elige a quien gana más.",
@@ -9943,7 +9974,7 @@ I18n.override('EC', 'es', {
                 { id: 3, type: 'Ingreso', description: 'Remesa mensual de mi hermano', store: 'Western Union', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: iso, paymentType: 'Tarjeta de Débito' }
             ],
             taxonomy: { expense: clone(EXPENSE_TAXONOMY), income: clone(INCOME_TAXONOMY) },
-            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', paydays: [], paySchedule: null, cashBuffer: 0, alertsDismissed: {}, flowExclude: [], flowIntroSeen: false, dismissedEvents: [] },
+            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', paydays: [], paySchedule: null, cashBuffer: 0, alertsDismissed: {}, flowExclude: [], flowIntroSeen: false, dismissedEvents: [], taxonomyRev: 0 },
             // "Description contains X → category / budget line", used on import and new transactions.
             rules: [],
             // Investments: { id, ticker, name, kind, shares, price, priceAt, auto }
@@ -10050,7 +10081,9 @@ I18n.override('EC', 'es', {
         'Salud': 'fa-heart-pulse', 'Educación': 'fa-graduation-cap', 'Familia e Hijos': 'fa-children', 'Mascotas': 'fa-paw', 'Deudas': 'fa-credit-card',
         'Seguros y Protección': 'fa-shield-heart', 'Financiero y Legal': 'fa-scale-balanced', 'Ahorro e Inversión': 'fa-piggy-bank',
         'Viajes y Vacaciones': 'fa-plane', 'Regalos, Celebraciones y Donaciones': 'fa-gift', 'Remesas y Ayuda Familiar': 'fa-hand-holding-dollar',
-        'Negocio Propio / Freelance': 'fa-briefcase', 'Otros': 'fa-ellipsis'
+        'Negocio Propio / Freelance': 'fa-briefcase', 'Otros': 'fa-ellipsis',
+        // US edition only.
+        'Compras': 'fa-bag-shopping', 'Pasatiempos': 'fa-palette', 'Impuestos': 'fa-landmark'
     };
     const categoryIcon = (c) => CATEGORY_ICONS[c] || 'fa-tag';
 
@@ -10150,16 +10183,42 @@ I18n.override('EC', 'es', {
         { id: 16, name: 'Emergency Fund', type: 'Ahorro', isDeductible: false, prep: 300, real: 300, linkedCategory: 'Ahorro e Inversión' }
     ];
 
+    // A copy of `obj` with `key` placed right after `after` (or at the end): the order is the
+    // order on the Categories screen and in every category list.
+    function insertAfter(obj, after, key, value) {
+        const out = {};
+        Object.keys(obj).forEach(k => { if (k !== key) out[k] = obj[k]; if (k === after) out[key] = value; });
+        if (!(key in out)) out[key] = value;
+        return out;
+    }
+
+    // Added to the categories after the first version: each is added once to older saves
+    // (Store.migrate, settings.taxonomyRev). `alike`: a name someone may already have added by
+    // hand for the same thing; then theirs is kept and the app's guesses go to it instead.
+    const TAXONOMY_REV = 1;
+    const TAXONOMY_ADDED = [
+        { rev: 1, cat: 'Servicios Básicos y Comunicación', subs: [['Basura/Reciclaje', /trash|garbage|refuse|recycl|basura|recicl/i]] },
+        { rev: 1, cat: 'Compras', after: 'Alimentación', alike: /^(?:shopping|compras)$/i, subs: [['Compras en Línea'], ['Tiendas por Departamento'], ['Electrónica'], ['Compras Generales']] },
+        { rev: 1, cat: 'Pasatiempos', after: 'Entretenimiento y Ocio', alike: /^(?:hobbies|hobby|pasatiempos)$/i, subs: [['Materiales de Pasatiempos'], ['Manualidades y Arte'], ['Equipo Deportivo y Aire Libre'], ['Gimnasio, Deportes y Clubes'], ['Música e Instrumentos'], ['Clases de Pasatiempos'], ['Juegos y Coleccionables']] },
+        { rev: 1, cat: 'Financiero y Legal', subs: [['Cargos de Tarjeta de Crédito', /card fee|annual fee|late fee|cargos? de tarjeta/i], ['Comisiones por Compras en el Exterior', /foreign|international|intl|exterior|extranjero/i]] },
+        { rev: 1, cat: 'Impuestos', after: 'Financiero y Legal', alike: /^(?:taxes|tax|impuestos)$/i, subs: [['Impuesto Federal (IRS)'], ['Impuesto Estatal'], ['Impuesto Municipal/Local'], ['Pagos Estimados Trimestrales'], ['Otros Impuestos']] }
+    ];
+
     // The Ecuador taxonomy with US items (same category codes, so matching keeps working).
     function taxonomy() {
-        const exp = clone(EC.EXPENSE_TAXONOMY), inc = clone(EC.INCOME_TAXONOMY);
+        let exp = clone(EC.EXPENSE_TAXONOMY);
+        const inc = clone(EC.INCOME_TAXONOMY);
+        exp['Servicios Básicos y Comunicación'] = ['Agua', 'Energía Eléctrica', 'Gas', 'Basura/Reciclaje', 'Internet', 'Plan Celular', 'Cable/TV'];
+        // Hobbies have their own category here.
+        exp['Entretenimiento y Ocio'] = exp['Entretenimiento y Ocio'].filter(x => x !== 'Hobbies');
         exp['Vivienda'] = ['Arriendo', 'Hipoteca', 'Alícuotas/Condominio', 'Impuesto Predial', 'Seguro de Hogar', 'Seguro de Inquilino', 'Mantenimiento del Hogar', 'Reparaciones (plomería, eléctrico, techo)', 'Muebles y Electrodomésticos', 'Jardinería/Limpieza del Hogar'];
         exp['Transporte'] = ['Cuota de Vehículo (Préstamo)', 'Gasolina/Diesel', 'Seguro Vehicular', 'Mantenimiento (aceite, llantas, frenos)', 'Matriculación/Revisión Vehicular', 'Transporte Público', 'Taxi/App de Transporte', 'Parqueo', 'Peajes', 'Alquiler de Vehículo'];
         exp['Ahorro e Inversión'] = ['Fondo de Emergencia', 'Aporte a Metas', 'Certificado de Depósito (CD)', '401(k) / IRA', 'Inversiones (bolsa)', 'Plan 529 (universidad)', 'Cuenta HSA'];
         exp['Salud'] = ['Seguro Médico', 'Copagos y Deducibles', 'Consultas Médicas', 'Medicinas', 'Odontología', 'Óptica', 'Terapia/Salud Mental', 'Exámenes de Laboratorio'];
-        exp['Financiero y Legal'] = ['Comisiones Bancarias', 'Trámites Legales/Notaría', 'Preparación de Impuestos', 'Multas y Trámites Municipales'];
+        exp['Financiero y Legal'] = ['Comisiones Bancarias', 'Cargos de Tarjeta de Crédito', 'Comisiones por Compras en el Exterior', 'Trámites Legales/Notaría', 'Preparación de Impuestos', 'Multas y Trámites Municipales'];
         delete exp['Remesas y Ayuda Familiar'];
         exp['Remesas y Ayuda Familiar'] = ['Remesa Enviada al Exterior', 'Ayuda Económica a Familiares'];
+        TAXONOMY_ADDED.filter(a => a.after).forEach(a => { exp = insertAfter(exp, a.after, a.cat, a.subs.map(x => x[0])); });
         inc['Ingresos Laborales'] = ['Sueldo/Salario', 'Horas Extras', 'Bonos', 'Comisiones', 'Propinas'];
         inc['Ingresos Financieros'] = ['Intereses', 'Dividendos', 'Alquiler de Propiedad (que recibes)'];
         inc['Gobierno y Beneficios'] = ['Reembolso de Impuestos (IRS)', 'Seguro Social', 'Beneficios de Desempleo'];
@@ -10227,6 +10286,7 @@ I18n.override('EC', 'es', {
                 { id: 3, type: 'Ingreso', description: 'Side gig', store: 'Upwork', parentCategory: 'Ingresos Independientes', category: 'Freelance/Consultoría', amount: 300, date: iso, paymentType: 'Transferencia' }
             ],
             taxonomy: taxonomy(),
+            settings: Object.assign(s.settings, { taxonomyRev: TAXONOMY_REV }),
             mortgage: { amount: 250000, rate: 6.5, years: 30, extraPayment: 0, propertyTax: 4000, homeInsurance: 1500, pmiRate: 0, hoa: 0, homeValue: 0 },
             retirement: Object.assign(s.retirement, { edadJubilacion: 67, aniosAportados: 8, tasaReemplazo: 40 })
         });
@@ -10283,7 +10343,7 @@ I18n.override('EC', 'es', {
         ]
     });
 
-    const DefaultsUS = { clone, CATEGORY_ICONS: EC.CATEGORY_ICONS, categoryIcon: EC.categoryIcon, annualIdeas, collegeTypes, collegeDefaults, checklists, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
+    const DefaultsUS = { clone, CATEGORY_ICONS: EC.CATEGORY_ICONS, categoryIcon: EC.categoryIcon, annualIdeas, collegeTypes, collegeDefaults, checklists, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, TAXONOMY_REV, TAXONOMY_ADDED, insertAfter, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = DefaultsUS;
     else root.DefaultsUS = DefaultsUS;
@@ -10438,10 +10498,12 @@ I18n.override('EC', 'es', {
             L('finance', 'Bank fees & tax prep', 'V', 25, 'Financiero y Legal'),
             L('sideGig', 'Photography gig costs', 'V', 30, 'Negocio Propio / Freelance', { from: cur - 2 }),
             L('travel', 'Travel & day trips', 'V', 60, 'Viajes y Vacaciones'),
-            L('misc', 'Miscellaneous', 'V', 35, 'Otros'),
+            L('misc', 'Miscellaneous', 'V', 10, 'Otros'),
             L('roth', "Sarah's Roth IRA", 'S', 150, 'Ahorro e Inversión', { from: cur - 3 }),
             // Before the baby and the minivan, what was left went to savings (see `surplus`).
-            L('savings', 'High-yield savings', 'S', 0, 'Ahorro e Inversión', { until: prev - 1 })
+            L('savings', 'High-yield savings', 'S', 0, 'Ahorro e Inversión', { until: prev - 1 }),
+            // Last, so the lines above keep their ids.
+            L('shopping', 'Shopping (Amazon, Target)', 'V', 25, 'Compras')
         ];
 
         const debts = [
@@ -10643,7 +10705,11 @@ I18n.override('EC', 'es', {
                 if (m === 3) c.add({ day: 3, key: 'sideGig', amount: 192, store: 'Squarespace', desc: 'Portfolio website (yearly)', sub: 'Publicidad/Marketing', pay: CREDIT, member: SARAH });
                 if (R.chance(0.3)) c.add({ day: R.int(1, dim), key: 'sideGig', amount: round2(R.between(18, 45)), store: 'Amazon', desc: R.pick(['Photo backdrop', 'SD cards', 'Props for sessions']), sub: 'Insumos/Inventario', pay: CREDIT, member: SARAH });
             }
-            if (R.chance(0.45)) c.add({ day: R.int(1, dim), key: 'misc', amount: round2(R.between(8, 30)), store: R.pick(['Dollar Tree', 'Amazon', 'Target']), desc: R.pick(['Odds and ends', 'Replacement charger', 'Batteries']), sub: 'Otros Gastos', pay: card() });
+            if (R.chance(0.45)) { const t = c.add({ day: R.int(1, dim), key: 'shopping', amount: round2(R.between(8, 30)), store: R.pick(['Dollar Tree', 'Amazon', 'Target']), desc: R.pick(['Odds and ends', 'Replacement charger', 'Batteries']), sub: 'Tiendas por Departamento', pay: card() }); if (t && t.store === 'Amazon') t.category = 'Compras en Línea'; }
+            // Hobbies: Sarah's crafts every few months, Mike's fishing season; the city income tax owed in April.
+            if (m % 3 === 1) c.add({ day: 18, key: 'fun', parent: 'Pasatiempos', amount: 23.47, store: 'Michaels', desc: 'Craft supplies', sub: 'Manualidades y Arte', pay: CREDIT, member: SARAH });
+            if (m === 5) c.add({ day: 2, key: 'fun', parent: 'Pasatiempos', amount: 64.18, store: 'Bass Pro Shops', desc: 'Fishing license & tackle', sub: 'Equipo Deportivo y Aire Libre', pay: CREDIT, member: MIKE });
+            if (m === 4) c.add({ day: 15, key: 'finance', parent: 'Impuestos', amount: 64, store: 'City of Grand Rapids', desc: 'City income tax – balance due', sub: 'Impuesto Municipal/Local', pay: XFER, member: MIKE });
             if (y === prev && m === 10) c.add({ day: 14, key: 'misc', amount: 25, store: 'City of Grand Rapids', desc: 'Parking ticket', sub: 'Multas', pay: DEBIT, member: MIKE });
 
             // Travel: day trips in summer; the Traverse City week in July (booked in April).
@@ -14855,7 +14921,7 @@ I18n.override('EC', 'es', {
 
     // Well-known names → how to show them (and what a rule should look for).
     const BRANDS = [
-        [/amazon|amzn/, 'Amazon'], [/wal-?mart|walmart|\bwm supercenter/, 'Walmart'], [/meijer/, 'Meijer'], [/kroger/, 'Kroger'], [/costco/, 'Costco'],
+        [/amazon|amzn/, 'Amazon'], [/\bebay\b/, 'eBay'], [/\betsy\b/, 'Etsy'], [/\btemu\b/, 'Temu'], [/wal-?mart|walmart|\bwm supercenter/, 'Walmart'], [/meijer/, 'Meijer'], [/kroger/, 'Kroger'], [/costco/, 'Costco'],
         [/sam\x27?s ?club|samsclub/, "Sam's Club"], [/target\b/, 'Target'], [/aldi\b/, 'Aldi'], [/whole ?foods/, 'Whole Foods'], [/trader joe/, "Trader Joe's"],
         [/lowe\x27?s/, "Lowe's"], [/home ?depot/, 'Home Depot'], [/menards/, 'Menards'], [/\blyft\b/, 'Lyft'], [/\buber ?eats/, 'Uber Eats'], [/\buber\b/, 'Uber'],
         [/doordash/, 'DoorDash'], [/grubhub/, 'Grubhub'], [/starbucks/, 'Starbucks'], [/mcdonald/, "McDonald's"], [/chick-?fil-?a/, 'Chick-fil-A'],
@@ -14938,16 +15004,18 @@ I18n.override('EC', 'es', {
         [[4722, 4723], 'Viajes y Vacaciones', 'Hospedaje'],
         [[4900], 'Servicios Básicos y Comunicación', 'Energía Eléctrica'], [[4812, 4814, 4813], 'Servicios Básicos y Comunicación', 'Plan Celular'], [[4816], 'Servicios Básicos y Comunicación', 'Internet'], [[4899], 'Servicios Básicos y Comunicación', 'Cable/TV'],
         [[5912], 'Salud', 'Medicinas'], [[8011, 8031, 8041, 8042, 8049, 8050, 8062, 8099], 'Salud', 'Consultas Médicas'], [[8021], 'Salud', 'Odontología'], [[8043, 8044], 'Salud', 'Óptica'], [[8071], 'Salud', 'Exámenes de Laboratorio'],
-        [[5200, 5211, 5231, 5251, 5261, 5198], 'Vivienda', 'Mantenimiento del Hogar'], [[5712, 5713, 5714, 5718, 5719, 5722, 5732], 'Vivienda', 'Muebles y Electrodomésticos'],
+        [[5200, 5211, 5231, 5251, 5261, 5198], 'Vivienda', 'Mantenimiento del Hogar'], [[5712, 5713, 5714, 5718, 5719, 5722], 'Vivienda', 'Muebles y Electrodomésticos'],
+        [[5732, 5045], 'Compras', 'Electrónica'], [[5310, 5311, 5331, 5399], 'Compras', 'Tiendas por Departamento'], [[5964, 5965, 5969], 'Compras', 'Compras en Línea'],
         [[1520, 1711, 1731, 1740, 1750, 1761, 1771, 1799, 7349], 'Vivienda', 'Reparaciones (plomería, eléctrico, techo)'],
         [[5611, 5621, 5631, 5641, 5651, 5655, 5661, 5681, 5691, 5697, 5698, 5699, 5137, 5139], 'Vestimenta', 'Ropa y Calzado'], [[7210, 7211, 7216, 7251], 'Vestimenta', 'Lavandería/Tintorería'],
         [[7230], 'Cuidado Personal', 'Peluquería/Barbería'], [[7298, 7297], 'Cuidado Personal', 'Spa/Masajes'], [[5977], 'Cuidado Personal', 'Cosméticos y Perfumería'],
         [[7832, 7841], 'Entretenimiento y Ocio', 'Cine'], [[7922, 7929], 'Entretenimiento y Ocio', 'Conciertos/Eventos'], [[7991, 7996, 7998, 7999, 7932, 7933], 'Entretenimiento y Ocio', 'Salidas y Paseos'],
-        [[7941, 7992, 7997, 5940, 5941, 5945, 5946, 5949, 5970], 'Entretenimiento y Ocio', 'Hobbies'], [[5942, 5994, 2741], 'Entretenimiento y Ocio', 'Libros'],
+        [[7941, 7992, 7997], 'Pasatiempos', 'Gimnasio, Deportes y Clubes'], [[5940, 5941], 'Pasatiempos', 'Equipo Deportivo y Aire Libre'], [[5945, 5946], 'Pasatiempos', 'Materiales de Pasatiempos'],
+        [[5949, 5970, 5971], 'Pasatiempos', 'Manualidades y Arte'], [[5733], 'Pasatiempos', 'Música e Instrumentos'], [[5942, 5994, 2741], 'Entretenimiento y Ocio', 'Libros'],
         [[5815, 5818], 'Suscripciones y Entretenimiento Digital', 'Streaming de Video'], [[5816], 'Suscripciones y Entretenimiento Digital', 'Videojuegos'], [[5817, 5734, 5372], 'Suscripciones y Entretenimiento Digital', 'Software/Herramientas'],
         [[8211, 8220, 8241, 8244, 8249, 8299], 'Educación', 'Cursos/Capacitación'], [[8351], 'Familia e Hijos', 'Guardería/Niñera'], [[5641], 'Vestimenta', 'Ropa y Calzado'],
         [[742, 5995], 'Mascotas', 'Veterinario'], [[8398, 8661], 'Regalos, Celebraciones y Donaciones', 'Donaciones Benéficas'], [[5992, 5947, 5193], 'Regalos, Celebraciones y Donaciones', 'Fiestas/Celebraciones'],
-        [[6300, 5960], 'Seguros y Protección', 'Seguro de Vida'], [[9311], 'Financiero y Legal', 'Preparación de Impuestos'], [[9222, 9399, 9402, 9211], 'Financiero y Legal', 'Multas y Trámites Municipales'],
+        [[6300, 5960], 'Seguros y Protección', 'Seguro de Vida'], [[9311], 'Impuestos', 'Impuesto Federal (IRS)'], [[9222, 9399, 9402, 9211], 'Financiero y Legal', 'Multas y Trámites Municipales'],
         [[6012, 6051, 6211], 'Financiero y Legal', 'Comisiones Bancarias']
     ];
     const MCC_INDEX = {};
@@ -14983,7 +15051,14 @@ I18n.override('EC', 'es', {
         [/univ|university|college|tuition|universidad/, 'Gasto', 'Educación', 'Matrícula Universitaria', 'high'],
         [/daycare|child ?care|kindercare|learning center|guarderia/, 'Gasto', 'Familia e Hijos', 'Guardería/Niñera', 'high'],
         [/church|ministr|tithe|diezmo|iglesia/, 'Gasto', 'Regalos, Celebraciones y Donaciones', 'Diezmo/Donaciones Religiosas', 'high'],
-        [/overdraft|nsf fee|service charge|monthly fee|maintenance fee|international service assess|foreign transaction|intl (?:service|transaction) fee|comision/, 'Gasto', 'Financiero y Legal', 'Comisiones Bancarias', 'high']
+        // Taxes you pay (refunds are income, above).
+        [/irs\s*usataxpymt|eftps|irs direct pay|irs.*(?:tax ?pa?y|pymt|payment)|us treasury.*tax|1040-?es|estimated tax/, 'Gasto', 'Impuestos', 'Impuesto Federal (IRS)', 'high'],
+        [/city (?:of [a-z .]+)?(?:income )?tax|city income|school (?:district )?tax|township tax|village tax/, 'Gasto', 'Impuestos', 'Impuesto Municipal/Local', 'medium'],
+        [/(?:state ?of ?\w+|dept\.? of (?:revenue|treasury)|\w+ treasury|treas\b).*(?:tax|pymt|payment)|state tax/, 'Gasto', 'Impuestos', 'Impuesto Estatal', 'medium'],
+        // Card fees: the 1–3% charged on purchases made abroad or in another currency, and the card's own fees.
+        [/international service assess|foreign (?:transaction|trans|txn|currency|exchange)|intl (?:service|transaction|txn) fee|int\x27?l (?:trans|txn) fee|cross[- ]border fee|currency conversion fee/, 'Gasto', 'Financiero y Legal', 'Comisiones por Compras en el Exterior', 'high'],
+        [/annual (?:membership )?fee|late (?:payment )?fee|cash advance fee|balance transfer fee|over ?limit fee|returned payment fee/, 'Gasto', 'Financiero y Legal', 'Cargos de Tarjeta de Crédito', 'medium'],
+        [/overdraft|nsf fee|service charge|monthly fee|maintenance fee|comision/, 'Gasto', 'Financiero y Legal', 'Comisiones Bancarias', 'high']
     ];
     const STORES = [
         [/kroger|meijer(?! express)|wal-?mart|walmart|aldi|costco(?! gas)|sam\x27?s ?club|samsclub|whole ?foods|trader joe|publix|safeway|\bheb\b|spartan|family fare|save a lot|gordon food|supermaxi|megamaxi|mi comisariato|\btia\b|santa maria|\baki\b|tuti/, 'Alimentación', 'Mercado/Supermercado'],
@@ -15011,7 +15086,25 @@ I18n.override('EC', 'es', {
 
     const result = (type, category, sub, confidence, why, key) => ({ type, category, sub, confidence, why, key });
 
+    // Categories only the US edition has → where the same thing goes in Ecuador's
+    // ([category, subcategory or '' for any, then the Ecuador pair]; the first that fits wins).
+    const ELSEWHERE = [
+        ['Compras', 'Electrónica', 'Vivienda', 'Muebles y Electrodomésticos'], ['Compras', '', 'Otros', 'Otros Gastos'],
+        ['Pasatiempos', '', 'Entretenimiento y Ocio', 'Hobbies'],
+        ['Impuestos', 'Impuesto Federal (IRS)', 'Financiero y Legal', 'Asesoría Contable/Tributaria'], ['Impuestos', '', 'Otros', 'Otros Gastos'],
+        ['Financiero y Legal', 'Comisiones por Compras en el Exterior', 'Financiero y Legal', 'Comisiones Bancarias'],
+        ['Financiero y Legal', 'Cargos de Tarjeta de Crédito', 'Financiero y Legal', 'Comisiones Bancarias']
+    ];
+    function forCountry(r, country) {
+        if (country === 'US' || r.type !== 'Gasto') return r;
+        const to = ELSEWHERE.find(([c, sub]) => c === r.category && (!sub || sub === r.sub));
+        return to ? Object.assign(r, { category: to[2], sub: to[3] }) : r;
+    }
+
     function guess(info, { sign = 0, country = 'US' } = {}) {
+        return forCountry(guessUS(info, sign), country);
+    }
+    function guessUS(info, sign) {
         const t = info.text || '';
         const key = info.brand || info.name || '';
         const dir = info.direction;
@@ -15028,14 +15121,17 @@ I18n.override('EC', 'es', {
         if (incoming && /transfer from|deposit transfer/.test(t)) return result('Transferencia', '', '', 'medium', 'Money coming from another account of yours', key || 'transfer');
         if (!incoming && /withdrawal transfer|transfer to/.test(t)) return result('Transferencia', '', '', 'medium', 'Money you move to another account', key || 'transfer');
         // 3. The card's merchant category code.
-        const everything = /amazon|amzn|target\b|ebay|etsy|dollar (?:tree|general)|five below|temu|shein|aliexpress/.test(t);
+        // Stores that sell everything: guessed as shopping, but asked about (it may be groceries or diapers).
+        const online = /amazon|amzn|ebay|etsy|temu|shein|aliexpress|wish\.com/.test(t);
+        const everything = online || /target\b|dollar (?:tree|general)|five below|big lots|\bkmart\b/.test(t);
+        const shop = () => Object.assign(result('Gasto', 'Compras', online ? 'Compras en Línea' : 'Tiendas por Departamento', 'low', 'Store that sells everything: pick what you bought', key), { ask: true });
         if (!incoming && info.mcc) {
             const m = mccFor(info.mcc);
             // Some codes are too broad (Amazon uses 5942 "books", city parking 9399 "government"):
             // a store that sells everything is asked about, and a known store name wins.
             const broad = [5942, 5999, 5311, 5310, 5331, 5399, 5964, 5969, 9399, 9222, 9402, 7399, 8999].includes(info.mcc);
             const store = STORES.find(([re]) => re.test(t));
-            if (everything && broad) return Object.assign(result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Store that sells everything: pick what you bought', key), { ask: true });
+            if (everything && broad) return shop();
             if (store && broad) return result('Gasto', store[1], store[2], 'medium', 'From the store\'s name', key);
             if (m) return result('Gasto', m[0], m[1], 'high', `From the kind of business (code ${info.mcc})`, key);
         }
@@ -15048,7 +15144,7 @@ I18n.override('EC', 'es', {
         if (!incoming && info.check) return result('Gasto', 'Otros', 'Otros Gastos', 'low', `Check #${info.check}: what was it for?`, '');
         if (!incoming && (info.cash || (/^(?:withdrawal|atm|retiro)\b/.test(norm(info.lines[0] || '')) && !info.name))) return result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Cash withdrawal: what was it used for?', '');
         if (incoming) return result('Ingreso', 'Otros Ingresos', '', 'low', /check/.test(t) ? 'Check deposit: what is it from?' : 'Money in: what is it from?', key);
-        if (everything) return Object.assign(result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Store that sells everything: pick what you bought', key), { ask: true });
+        if (everything) return shop();
         return result('Gasto', 'Otros', 'Otros Gastos', 'low', '', key);
     }
 
@@ -15174,12 +15270,42 @@ I18n.override('EC', 'es', {
         return yd;
     }
 
+    // Categories a later version added (D.TAXONOMY_ADDED): put once in a save made before. One the
+    // person already added by hand for the same thing (their "Trash") is kept instead of adding a
+    // twin, and the app's guesses are pointed at theirs (settings.renamed). A category they deleted
+    // stays deleted; one they renamed gets the new subcategories under its new name.
+    function addNewCategories(s, fromRev, defs = D) {
+        let exp = s.taxonomy.expense;
+        const renamed = s.settings.renamed || (s.settings.renamed = {});
+        const now = (c) => Engine.renamedCategory(s.settings, 'expense', c).category;
+        (defs.TAXONOMY_ADDED || []).filter(a => a.rev > fromRev).forEach(a => {
+            let cat = now(a.cat);
+            if (!exp[cat]) {
+                const own = a.alike && Object.keys(exp).find(c => a.alike.test(c.trim()));
+                if (own) { renamed[`expense|${a.cat}`] = `expense|${own}`; return; }
+                if (!a.after) return;
+                cat = a.cat;
+                exp = defs.insertAfter(exp, now(a.after), cat, []);
+            }
+            const subs = exp[cat] || (exp[cat] = []);
+            a.subs.forEach(([sub, alike]) => {
+                if (subs.includes(sub)) return;
+                const own = alike && subs.find(x => alike.test(x));
+                if (own) renamed[`expense|${a.cat}|${sub}`] = `expense|${cat}|${own}`;
+                else subs.push(sub);
+            });
+        });
+        s.taxonomy.expense = exp;
+    }
+
     // Accepts the current format (version 8) or the pre-refactor flat format, and returns
     // a complete, normalized state. Anything missing falls back to the defaults.
     function migrate(raw, today) {
         const s = D.newState(today);
         s.settings.country = COUNTRY;
         if (!raw || typeof raw !== 'object') return s;
+        const taxonomyRev = Number((raw.settings || {}).taxonomyRev) || 0;
+        const ownTaxonomy = raw.version >= 8 ? raw.taxonomy !== undefined : !!raw.expenseCategoryTaxonomy;
 
         if (raw.version >= 8) {
             Object.keys(s).forEach(k => {
@@ -15245,6 +15371,8 @@ I18n.override('EC', 'es', {
         s.configStartYear = Number(s.configStartYear); s.configEndYear = Number(s.configEndYear);
         s.activeYear = Math.min(s.configEndYear, Math.max(s.configStartYear, Number(s.activeYear)));
         s.settings.country = s.settings.country || COUNTRY;
+        if (ownTaxonomy && taxonomyRev < (D.TAXONOMY_REV || 0)) addNewCategories(s, taxonomyRev);
+        s.settings.taxonomyRev = Math.max(taxonomyRev, D.TAXONOMY_REV || 0);
         s.version = 8;
         return s;
     }
@@ -15260,6 +15388,7 @@ I18n.override('EC', 'es', {
 
         migrate,
         normalizeYear,
+        addNewCategories,
 
         init(storage) {
             this.storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
@@ -15507,7 +15636,9 @@ I18n.override('EC', 'es', {
         // -------------------------------------------------------------- dialogs
         // form(): a modal with optional fields; resolves to the values, or null if cancelled.
         // cancelText: null shows only the OK button (a notice); icon replaces the title's icon.
-        form({ title, message = '', fields = [], confirmText = 'OK', cancelText = 'Cancel', danger = false, validate, icon = null }) {
+        // A select's options can be grouped: { group: 'Label', options: [...] }. Fields with
+        // `more: true` sit folded under "More options" (open when one of them has a value).
+        form({ title, message = '', fields = [], confirmText = 'OK', cancelText = 'Cancel', danger = false, validate, icon = null, moreText = 'More options' }) {
             return new Promise((resolve) => {
                 const back = document.createElement('div');
                 back.className = 'modal-backdrop';
@@ -15528,8 +15659,21 @@ I18n.override('EC', 'es', {
                 if (cancelText === null) back.querySelector('[data-dialog-cancel]').remove();
                 else back.querySelector('[data-dialog-cancel]').textContent = cancelText;
                 back.querySelector('[data-dialog-ok]').textContent = confirmText;
-                const host = back.querySelector('.modal-fields');
+                const fieldsHost = back.querySelector('.modal-fields');
+                let moreHost = null;
                 fields.forEach(f => {
+                    let host = fieldsHost;
+                    if (f.more) {
+                        if (!moreHost) {
+                            moreHost = document.createElement('details');
+                            moreHost.className = 'modal-more';
+                            moreHost.innerHTML = '<summary></summary><div class="space-y-3"></div>';
+                            moreHost.querySelector('summary').textContent = moreText;
+                            fieldsHost.appendChild(moreHost);
+                        }
+                        if (f.value) moreHost.open = true;
+                        host = moreHost.querySelector('div');
+                    }
                     const wrap = document.createElement('label');
                     wrap.className = 'block';
                     wrap.innerHTML = `<span class="field-label"></span>`;
@@ -15537,7 +15681,14 @@ I18n.override('EC', 'es', {
                     let input;
                     if (f.options) {
                         input = document.createElement('select');
-                        f.options.forEach(o => { const opt = document.createElement('option'); opt.value = o.value ?? o; opt.textContent = o.label ?? o; input.appendChild(opt); });
+                        const add = (o, into) => { const opt = document.createElement('option'); opt.value = o.value ?? o; opt.textContent = o.label ?? o; into.appendChild(opt); };
+                        f.options.forEach(o => {
+                            if (!o || o.group === undefined) return add(o, input);
+                            const g = document.createElement('optgroup');
+                            g.label = o.group;
+                            (o.options || []).forEach(x => add(x, g));
+                            input.appendChild(g);
+                        });
                     } else {
                         input = document.createElement('input');
                         input.type = f.type || 'text';
@@ -15554,7 +15705,7 @@ I18n.override('EC', 'es', {
                     if (f.help) { const h = document.createElement('span'); h.className = 'help block'; h.textContent = f.help; wrap.appendChild(h); }
                     host.appendChild(wrap);
                 });
-                if (!fields.length) host.remove();
+                if (!fields.length) fieldsHost.remove();
 
                 const close = (result) => { back.remove(); resolve(result); };
                 const submit = () => {
@@ -21397,6 +21548,34 @@ I18n.override('EC', 'es', {
     const incomeTax = () => Store.state.taxonomy.income;
     const taxFor = (type) => (type === 'Ingreso' ? incomeTax() : expenseTax());
     const firstSub = (tax, cat) => (tax[cat] || [])[0] || '';
+    const tr = (x) => (window.I18n ? I18n.t(x) : x);
+
+    // Rules pick from the same list as Settings → Categories: each category (in that order) with
+    // its subcategories, translated. Values are "G|category|sub" (expense), "I|…" (income), "T||".
+    function ruleCategoryOptions() {
+        const groups = [['G', expenseTax(), ''], ['I', incomeTax(), tr('Income') + ' · ']].flatMap(([k, tax, tag]) => Object.keys(tax).map(c => ({
+            group: tag + tr(c),
+            options: (tax[c] || []).length ? tax[c].map(sub => ({ value: `${k}|${c}|${sub}`, label: tr(sub) })) : [{ value: `${k}|${c}|`, label: tr(c) }]
+        })));
+        return [{ value: '', label: tr('Choose a category') }].concat(groups, { group: tr('Transfer'), options: [{ value: 'T||', label: tr('Transfer between accounts') }] });
+    }
+    // A rule's category as an option value; no subcategory (older rules) = the first one, as on import.
+    function ruleCategoryValue(kind, cat, sub) {
+        if (kind === 'T') return 'T||';
+        const tax = kind === 'I' ? incomeTax() : expenseTax();
+        if (!tax[cat]) return '';
+        return `${kind}|${cat}|${sub && tax[cat].includes(sub) ? sub : firstSub(tax, cat)}`;
+    }
+    // Budget lines grouped by the category they're linked to, in the Categories screen's order.
+    function ruleLineOptions() {
+        const items = Engine.monthItems(Store.effective(Store.state.activeYear), 'base').filter(i => i.type !== 'Ingreso');
+        const cats = Object.keys(expenseTax());
+        const of = (i) => (cats.includes(i.linkedCategory) ? i.linkedCategory : '');
+        const groups = cats.concat('').map(c => ({ group: c ? tr(c) : tr('Not linked to a category'), options: items.filter(i => of(i) === c).map(i => ({ value: String(i.id), label: i.name })) })).filter(g => g.options.length);
+        return [{ value: '', label: tr('Automatic (by category)') }].concat(groups);
+    }
+    const RULE_LINE_HELP = 'Leave it on Automatic unless you want these transactions counted in a different line of your budget.';
+    const ruleCategoryText = (rule) => (rule.type === 'Transferencia' ? tr('Transfer between accounts') : tr(rule.category) + (rule.sub ? ' › ' + tr(rule.sub) : ''));
     const TYPES = [{ value: 'Gasto', label: 'Gasto' }, { value: 'Ingreso', label: 'Ingreso' }, { value: 'Transferencia', label: 'Transfer' }];
     const PAYROLL = 'Sueldo/Salario';
     const fallbackCat = (type) => { const tax = taxFor(type); return type === 'Ingreso' ? (tax['Otros Ingresos'] ? 'Otros Ingresos' : Object.keys(tax)[0]) : (tax.Otros ? 'Otros' : Object.keys(tax)[0]); };
@@ -21684,7 +21863,7 @@ I18n.override('EC', 'es', {
         UI.html('imp-rows', s.rows.slice(0, 500).map((r, i) => `<tr class="${r.error ? 'opacity-60' : ''}">
                 <td class="text-center c-check"><input type="checkbox" class="w-4 h-4 accent-emerald-600" data-change="imp.toggle" data-i="${i}" ${r.include ? 'checked' : ''} ${r.error ? 'disabled' : ''} aria-label="Import"></td>
                 <td class="whitespace-nowrap text-xs" data-label="Date">${esc(r.date || '—')}</td>
-                <td class="c-wide" data-label="Description">${r.error ? `<div class="font-semibold text-xs">${esc(firstLine(r.description))}</div>` : `<input class="cell-input text-xs font-semibold imp-desc" value="${r.description === NO_DESC ? '' : esc(r.description)}" placeholder="No description: type one" data-change="imp.desc" data-i="${i}" aria-label="Description">${r.original && r.original !== NO_DESC && firstLine(r.original) !== r.description ? `<div class="text-[11px] text-slate-500">In the file: ${esc(firstLine(r.original).slice(0, 90))}</div>` : ''}${r.original && r.original !== NO_DESC && r.conf !== 'rule' && r.type !== 'Transferencia' ? `<button type="button" class="link text-[11px]" data-action="rule.add" data-contains="${esc((r.key || firstLine(r.original)).slice(0, 40))}" data-rename="${r.description !== firstLine(r.original) ? esc(r.description) : ''}" data-cat="${r.type === 'Ingreso' ? 'I' : 'G'}|${esc(r.category)}" title="So next time it's named and categorized on its own">+ rule</button>` : ''}`}${r.store ? `<div class="text-[11px] text-slate-500">${esc(r.store)}</div>` : ''}${r.items && r.items.length ? `<div class="text-[11px] text-slate-500">${r.items.length} producto${r.items.length === 1 ? '' : 's'}${r.iva ? ` · IVA ${money(r.iva)}` : ''}</div>` : ''}</td>
+                <td class="c-wide" data-label="Description">${r.error ? `<div class="font-semibold text-xs">${esc(firstLine(r.description))}</div>` : `<input class="cell-input text-xs font-semibold imp-desc" value="${r.description === NO_DESC ? '' : esc(r.description)}" placeholder="No description: type one" data-change="imp.desc" data-i="${i}" aria-label="Description">${r.original && r.original !== NO_DESC && firstLine(r.original) !== r.description ? `<div class="text-[11px] text-slate-500">In the file: ${esc(firstLine(r.original).slice(0, 90))}</div>` : ''}${r.original && r.original !== NO_DESC && r.conf !== 'rule' && r.type !== 'Transferencia' ? `<button type="button" class="link text-[11px]" data-action="rule.add" data-contains="${esc((r.key || firstLine(r.original)).slice(0, 40))}" data-rename="${r.description !== firstLine(r.original) ? esc(r.description) : ''}" data-cat="${r.type === 'Ingreso' ? 'I' : 'G'}|${esc(r.category)}|${esc(r.sub || '')}" title="So next time it's named and categorized on its own">+ rule</button>` : ''}`}${r.store ? `<div class="text-[11px] text-slate-500">${esc(r.store)}</div>` : ''}${r.items && r.items.length ? `<div class="text-[11px] text-slate-500">${r.items.length} producto${r.items.length === 1 ? '' : 's'}${r.iva ? ` · IVA ${money(r.iva)}` : ''}</div>` : ''}</td>
                 <td class="c-wide" data-label="Type and category">${r.error ? '—' : `<div class="imp-cat-grid">
                     <select class="cell-input text-xs" data-change="imp.type" data-i="${i}" aria-label="Type">${opt(TYPES, r.type)}</select>
                     ${r.type === 'Transferencia' ? '<span class="text-[11px] text-slate-500 self-center">Between your accounts: neither spending nor income</span>' : `<select class="cell-input text-xs" data-change="imp.cat" data-i="${i}" aria-label="Category">${catOptions(r)}</select>
@@ -21814,7 +21993,7 @@ I18n.override('EC', 'es', {
         UI.html('rule-body', rules.length ? rules.map(r => `<tr>
                 <td class="font-semibold">“${esc(r.contains)}”</td>
                 <td>${r.rename ? esc(r.rename) : '<span class="text-slate-400">—</span>'}</td>
-                <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `${esc(r.category)}${r.sub ? ` <span class="text-slate-400">› ${esc(r.sub)}</span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">${esc(Views.whoName(r.memberId))}</div>` : ''}</td>
+                <td>${r.type === 'Transferencia' ? 'Transfer between accounts' : `<span>${esc(tr(r.category))}</span>${r.sub ? ` <span class="text-slate-400">› <span>${esc(tr(r.sub))}</span></span>` : ''}`}${r.incomeMode === 'main' ? '<div class="text-[11px] text-slate-500">Main paycheck</div>' : r.incomeId ? `<div class="text-[11px] text-emerald-700">Income: ${esc(((Store.active().otherIncomes || []).find(l => l.id === r.incomeId) || {}).name || '')}</div>` : ''}${r.memberId ? `<div class="text-[11px] text-slate-500">${esc(Views.whoName(r.memberId))}</div>` : ''}</td>
                 <td class="text-xs">${r.budgetLine ? esc(lineName(r.budgetLine)) : '<span class="text-slate-400">Automatic</span>'}</td>
                 <td class="text-center whitespace-nowrap"><button class="row-edit" data-action="rule.edit" data-id="${r.id}" title="Edit rule" aria-label="Edit rule"><i class="fa-solid fa-pen"></i></button><button class="row-del" data-action="rule.delete" data-id="${r.id}" title="Delete rule" aria-label="Delete rule"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`).join('') : '<tr class="empty-row"><td colspan="5">No rules. Example: if it contains “SQ *COZ” → it\'s called “Cozy Coffee”, category Food.</td></tr>');
@@ -22138,35 +22317,36 @@ I18n.override('EC', 'es', {
         },
         'rule.add': async (el) => {
             const pre = (el && el.dataset) || {};
-            const cats = Object.keys(expenseTax()).map(c => ({ value: 'G|' + c, label: c })).concat(Object.keys(incomeTax()).map(c => ({ value: 'I|' + c, label: `${c} (income)` })));
-            const items = Engine.monthItems(Store.effective(Store.state.activeYear), 'base');
-            // Options can't be preselected by UI.form, so the suggested category goes first.
-            if (pre.cat) { const k = cats.findIndex(c => c.value === pre.cat); if (k > 0) cats.unshift(cats.splice(k, 1)[0]); }
+            const [pk, pc, ps] = (pre.cat || '').split('|');
             const r = await UI.form({
                 title: 'New automatic rule',
                 message: 'It\'s an exact text match you define: no guessing.',
                 fields: [
                     { name: 'contains', label: 'If the description or place contains…', placeholder: 'E.g. SQ *COZ or walmart', value: pre.contains || '' },
                     { name: 'rename', label: 'Rename to (optional)', placeholder: 'E.g. Cozy Coffee', value: pre.rename || '' },
-                    { name: 'cat', label: 'Set the category', options: cats },
-                    { name: 'line', label: 'And count it in the line (optional)', options: [{ value: '', label: 'Automatic (by category)' }].concat(items.map(i => ({ value: String(i.id), label: i.name }))) }
+                    { name: 'cat', label: 'Category › subcategory', options: ruleCategoryOptions(), value: pk ? ruleCategoryValue(pk, pc, ps) : undefined, help: 'The same list as Settings → Categories.' },
+                    { name: 'line', label: 'Budget line', options: ruleLineOptions(), more: true, help: RULE_LINE_HELP }
                 ],
                 confirmText: 'Create rule',
-                validate: v => v.contains.trim().length < 2 ? 'Type at least 2 letters.' : null
+                validate: v => v.contains.trim().length < 2 ? 'Type at least 2 letters.' : !v.cat ? 'Pick a category.' : null
             });
             if (!r) return;
+            const [k, cat, sub] = r.cat.split('|');
             const rules = Store.state.rules || (Store.state.rules = []);
-            const rule = { id: Store.nextId(rules), contains: r.contains.trim().slice(0, 60), category: r.cat.slice(2), budgetLine: r.line || undefined };
+            const rule = { id: Store.nextId(rules), contains: r.contains.trim().slice(0, 60) };
+            if (k === 'T') Object.assign(rule, { type: 'Transferencia', category: '' });
+            else Object.assign(rule, { type: k === 'I' ? 'Ingreso' : 'Gasto', category: cat }, sub ? { sub } : {}, r.line && k === 'G' ? { budgetLine: r.line } : {});
             if (r.rename.trim()) rule.rename = r.rename.trim().slice(0, 80);
             rules.push(rule);
             // Transactions you already have that the rule would have caught: offer to fix them too.
             const hits = Store.state.transactions.filter(t => Importers.applyRules([rule], `${t.description} ${t.store || ''}`));
             let fixed = 0;
-            if (hits.length && await UI.confirm({ title: 'Apply to what you already have', message: `${hits.length === 1 ? 'A transaction you already have contains' : `${hits.length} transactions you already have contain`} «${rule.contains}». Apply the rule to ${hits.length === 1 ? 'it' : 'them'} (${[rule.rename ? `name «${rule.rename}»` : '', `category ${rule.category}`].filter(Boolean).map(x => (window.I18n ? I18n.t(x) : x)).join(', ')})?`, confirmText: `Apply to ${hits.length}` })) {
+            if (hits.length && await UI.confirm({ title: 'Apply to what you already have', message: `${hits.length === 1 ? 'A transaction you already have contains' : `${hits.length} transactions you already have contain`} «${rule.contains}». Apply the rule to ${hits.length === 1 ? 'it' : 'them'} (${[rule.rename ? `name «${rule.rename}»` : '', k === 'T' ? '' : `category ${ruleCategoryText(rule)}`].filter(Boolean).map(x => tr(x)).join(', ')})?`, confirmText: `Apply to ${hits.length}` })) {
                 hits.forEach(t => {
                     const tax = (t.type || 'Gasto') === 'Ingreso' ? incomeTax() : expenseTax();
                     if (rule.rename) t.description = rule.rename;
-                    if (tax[rule.category] && t.parentCategory !== rule.category) { t.parentCategory = rule.category; t.category = firstSub(tax, rule.category); }
+                    // No subcategory in the rule: one already in that category stays.
+                    if (k !== 'T' && tax[rule.category]) { const subs = tax[rule.category]; t.category = rule.sub && subs.includes(rule.sub) ? rule.sub : t.parentCategory === rule.category && subs.includes(t.category) ? t.category : firstSub(tax, rule.category); t.parentCategory = rule.category; }
                     if (rule.budgetLine && (t.type || 'Gasto') !== 'Ingreso') t.budgetLine = String(rule.budgetLine);
                     fixed++;
                 });
@@ -22179,23 +22359,23 @@ I18n.override('EC', 'es', {
         'rule.edit': async (el) => {
             const rule = (Store.state.rules || []).find(r => String(r.id) === el.dataset.id);
             if (!rule) return;
-            const kinds = [['G', expenseTax(), ''], ['I', incomeTax(), ' (income)']];
-            const cats = [{ value: 'T||', label: 'Transfer between accounts' }].concat(...kinds.map(([k, tax, tag]) => Object.keys(tax).flatMap(c => [{ value: `${k}|${c}|`, label: c + tag }].concat((tax[c] || []).map(sub => ({ value: `${k}|${c}|${sub}`, label: `${c} › ${sub}${tag}` }))))));
-            const kind = rule.type === 'Transferencia' ? 'T' : (rule.type === 'Ingreso' || incomeTax()[rule.category]) ? 'I' : 'G';
-            const cur = kind === 'T' ? 'T||' : `${kind}|${rule.category}|${rule.sub || ''}`;
-            const items = Engine.monthItems(Store.effective(Store.state.activeYear), 'base');
+            const kind = rule.type === 'Transferencia' ? 'T' : (rule.type === 'Ingreso' || (!expenseTax()[rule.category] && incomeTax()[rule.category])) ? 'I' : 'G';
+            const cats = ruleCategoryOptions();
+            const cur = ruleCategoryValue(kind, rule.category, rule.sub);
+            // A category that was deleted since: keep it as it is until another is picked.
+            if (!cur) cats.unshift({ value: `${kind}|${rule.category}|${rule.sub || ''}`, label: ruleCategoryText(rule) });
             const members = Store.state.members || [];
             const r = await UI.form({
                 title: 'Edit rule',
                 fields: [
                     { name: 'contains', label: 'If the description or place contains…', value: rule.contains },
                     { name: 'rename', label: 'Rename to (optional)', value: rule.rename || '' },
-                    { name: 'cat', label: 'Category', options: cats, value: cats.some(c => c.value === cur) ? cur : `${kind}|${rule.category}|` },
-                    { name: 'member', label: 'Whose', options: [{ value: '', label: '—' }, { value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name }))), value: rule.memberId ? String(rule.memberId) : '' },
-                    { name: 'line', label: 'And count it in the line (optional)', options: [{ value: '', label: 'Automatic (by category)' }].concat(items.map(i => ({ value: String(i.id), label: i.name }))), value: rule.budgetLine ? String(rule.budgetLine) : '' }
+                    { name: 'cat', label: 'Category › subcategory', options: cats, value: cur || `${kind}|${rule.category}|${rule.sub || ''}`, help: 'The same list as Settings → Categories.' },
+                    { name: 'member', label: 'Whose', options: [{ value: '', label: '—' }, { value: String(Engine.HOUSEHOLD), label: 'Household (shared)' }].concat(members.map(p => ({ value: String(p.id), label: p.name }))), value: rule.memberId ? String(rule.memberId) : '', more: true },
+                    { name: 'line', label: 'Budget line', options: ruleLineOptions(), value: rule.budgetLine ? String(rule.budgetLine) : '', more: true, help: RULE_LINE_HELP }
                 ],
                 confirmText: 'Save',
-                validate: v => v.contains.trim().length < 2 ? 'Type at least 2 letters.' : null
+                validate: v => v.contains.trim().length < 2 ? 'Type at least 2 letters.' : !v.cat ? 'Pick a category.' : null
             });
             if (!r) return;
             App.undoable('Rule updated', () => {
@@ -22211,7 +22391,7 @@ I18n.override('EC', 'es', {
                 // Income links only make sense for income.
                 if (k !== 'I') { delete rule.incomeMode; delete rule.incomeId; }
                 if (r.member) rule.memberId = Number(r.member); else delete rule.memberId;
-                if (r.line) rule.budgetLine = r.line; else delete rule.budgetLine;
+                if (r.line && k === 'G') rule.budgetLine = r.line; else delete rule.budgetLine;
             });
             if (session) recompute();
         },

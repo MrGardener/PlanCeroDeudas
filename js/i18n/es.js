@@ -2,6 +2,12 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Category › subcategory": "Categoría › subcategoría",
+    "Leave it on Automatic unless you want these transactions counted in a different line of your budget.": "Déjalo en Automático, salvo que quieras que estas transacciones cuenten en otro rubro de tu presupuesto.",
+    "More options": "Más opciones",
+    "Not linked to a category": "Sin categoría vinculada",
+    "Pick a category.": "Elige una categoría.",
+    "The same list as Settings → Categories.": "La misma lista que Configuración → Categorías.",
     "Before taxes, for this one person.": "Antes de impuestos, de esta sola persona.",
     "Main paycheck:": "Sueldo principal:",
     "One person's pay before taxes: the app figures the taxes on it. Pick the person with the biggest paycheck.": "El sueldo de una persona antes de impuestos: la app calcula los impuestos sobre él. Elige a quien gana más.",

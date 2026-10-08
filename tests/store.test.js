@@ -176,3 +176,34 @@ test('income logged as transactions counts in its month of the budget', () => {
     assert.equal(Engine.monthBudget(Store.effective(2044), '9').otherIncome, 0);  // other years untouched, nothing created
     assert.equal(Store.state.years[2044], undefined);
 });
+
+test('US: categories added later reach older saves once, without twins of ones added by hand', () => {
+    const US = require('../js/defaults-us.js');
+    const fresh = US.taxonomy().expense;
+    assert.ok(fresh['Servicios Básicos y Comunicación'].includes('Basura/Reciclaje'));
+    assert.deepEqual(Object.keys(fresh).slice(Object.keys(fresh).indexOf('Alimentación'), Object.keys(fresh).indexOf('Alimentación') + 2), ['Alimentación', 'Compras']);
+    assert.ok(fresh['Impuestos'] && fresh['Pasatiempos'] && !fresh['Entretenimiento y Ocio'].includes('Hobbies'));
+    // A save from before: the old categories, one renamed, a "Trash" and a "Hobbies" added by hand.
+    const old = JSON.parse(JSON.stringify(Defaults.EXPENSE_TAXONOMY));
+    old['Servicios Básicos y Comunicación'].push('Trash');
+    old['Hobbies'] = ['Fishing'];
+    old['Food'] = old['Alimentación']; delete old['Alimentación'];
+    const s = { taxonomy: { expense: old, income: {} }, settings: { renamed: { 'expense|Alimentación': 'expense|Food' } } };
+    Store.addNewCategories(s, 0, US);
+    const exp = s.taxonomy.expense;
+    assert.ok(!exp['Servicios Básicos y Comunicación'].includes('Basura/Reciclaje'));            // their "Trash" stays
+    assert.equal(s.settings.renamed['expense|Servicios Básicos y Comunicación|Basura/Reciclaje'], 'expense|Servicios Básicos y Comunicación|Trash');
+    assert.ok(!exp['Pasatiempos'] && s.settings.renamed['expense|Pasatiempos'] === 'expense|Hobbies');
+    assert.deepEqual(Engine.renamedCategory(s.settings, 'expense', 'Pasatiempos', 'Manualidades y Arte').category, 'Hobbies');
+    assert.deepEqual(exp['Compras'], ['Compras en Línea', 'Tiendas por Departamento', 'Electrónica', 'Compras Generales']);
+    assert.equal(Object.keys(exp)[Object.keys(exp).indexOf('Food') + 1], 'Compras');                  // after their renamed Food
+    assert.ok(exp['Impuestos'].includes('Impuesto Federal (IRS)'));
+    assert.ok(exp['Financiero y Legal'].includes('Comisiones por Compras en el Exterior') && exp['Financiero y Legal'].includes('Cargos de Tarjeta de Crédito'));
+    // Run again (already at the current revision): nothing changes.
+    const before = JSON.stringify(s);
+    Store.addNewCategories(s, US.TAXONOMY_REV, US);
+    assert.equal(JSON.stringify(s), before);
+    // Store.migrate records the revision, so it happens only once; a fresh state is already current.
+    assert.equal(US.newState().settings.taxonomyRev, US.TAXONOMY_REV);
+    assert.equal(Store.migrate({ version: 8, settings: {}, taxonomy: { expense: { A: ['b'] }, income: {} } }).settings.taxonomyRev, 0);  // Ecuador: nothing to add
+});

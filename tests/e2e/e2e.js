@@ -386,7 +386,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   // rules
   await page.click('#imp-rules-card [data-action="rule.add"]');
   await page.fill('.modal input[name="contains"]', 'pasaje');
-  await page.selectOption('.modal select[name="cat"]', 'G|Transporte');
+  await page.selectOption('.modal select[name="cat"]', 'G|Transporte|Pasajes/Bus');
   await page.click('[data-dialog-ok]');
   await page.waitForTimeout(150);
   if (await page.isVisible('.modal-backdrop:not(.hidden) [data-dialog-cancel]')) await page.click('.modal-backdrop:not(.hidden) [data-dialog-cancel]');
@@ -1101,7 +1101,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   await page.click('#imp-rules-card [data-action="rule.add"]');
   await page.fill('.modal input[name="contains"]', 'SQ *COZ');
   await page.fill('.modal input[name="rename"]', 'Cozy Coffee');
-  await page.selectOption('.modal select[name="cat"]', 'G|Alimentación');
+  await page.selectOption('.modal select[name="cat"]', 'G|Alimentación|Cafetería');
   await page.click('[data-dialog-ok]');
   await page.waitForSelector('.modal-backdrop:not(.hidden) [data-dialog-ok]');
   ok((await page.textContent('.modal-backdrop:not(.hidden)')).includes('1 transacción que ya tienes'), 'offers to apply the new rule to existing transactions', await page.textContent('.modal-backdrop:not(.hidden) .modal-message'));
@@ -1117,7 +1117,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   ok(await page.inputValue('.modal input[name="contains"]') === 'Uber', 'rule from a row starts with the clean name');
   await page.fill('.modal input[name="contains"]', 'UBER *TRIP');
   await page.fill('.modal input[name="rename"]', 'Uber');
-  await page.selectOption('.modal select[name="cat"]', 'G|Transporte');
+  await page.selectOption('.modal select[name="cat"]', 'G|Transporte|Taxi/App de Transporte');
   await page.click('[data-dialog-ok]');
   await page.waitForTimeout(200);
   if (await page.isVisible('.modal-backdrop:not(.hidden) [data-dialog-cancel]')) await page.click('.modal-backdrop:not(.hidden) [data-dialog-cancel]');

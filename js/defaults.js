@@ -158,7 +158,7 @@
                 { id: 3, type: 'Ingreso', description: 'Remesa mensual de mi hermano', store: 'Western Union', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: iso, paymentType: 'Tarjeta de Débito' }
             ],
             taxonomy: { expense: clone(EXPENSE_TAXONOMY), income: clone(INCOME_TAXONOMY) },
-            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', paydays: [], paySchedule: null, cashBuffer: 0, alertsDismissed: {}, flowExclude: [], flowIntroSeen: false, dismissedEvents: [] },
+            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', paydays: [], paySchedule: null, cashBuffer: 0, alertsDismissed: {}, flowExclude: [], flowIntroSeen: false, dismissedEvents: [], taxonomyRev: 0 },
             // "Description contains X → category / budget line", used on import and new transactions.
             rules: [],
             // Investments: { id, ticker, name, kind, shares, price, priceAt, auto }
@@ -265,7 +265,9 @@
         'Salud': 'fa-heart-pulse', 'Educación': 'fa-graduation-cap', 'Familia e Hijos': 'fa-children', 'Mascotas': 'fa-paw', 'Deudas': 'fa-credit-card',
         'Seguros y Protección': 'fa-shield-heart', 'Financiero y Legal': 'fa-scale-balanced', 'Ahorro e Inversión': 'fa-piggy-bank',
         'Viajes y Vacaciones': 'fa-plane', 'Regalos, Celebraciones y Donaciones': 'fa-gift', 'Remesas y Ayuda Familiar': 'fa-hand-holding-dollar',
-        'Negocio Propio / Freelance': 'fa-briefcase', 'Otros': 'fa-ellipsis'
+        'Negocio Propio / Freelance': 'fa-briefcase', 'Otros': 'fa-ellipsis',
+        // US edition only.
+        'Compras': 'fa-bag-shopping', 'Pasatiempos': 'fa-palette', 'Impuestos': 'fa-landmark'
     };
     const categoryIcon = (c) => CATEGORY_ICONS[c] || 'fa-tag';
 

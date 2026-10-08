@@ -71,7 +71,9 @@
         // -------------------------------------------------------------- dialogs
         // form(): a modal with optional fields; resolves to the values, or null if cancelled.
         // cancelText: null shows only the OK button (a notice); icon replaces the title's icon.
-        form({ title, message = '', fields = [], confirmText = 'OK', cancelText = 'Cancel', danger = false, validate, icon = null }) {
+        // A select's options can be grouped: { group: 'Label', options: [...] }. Fields with
+        // `more: true` sit folded under "More options" (open when one of them has a value).
+        form({ title, message = '', fields = [], confirmText = 'OK', cancelText = 'Cancel', danger = false, validate, icon = null, moreText = 'More options' }) {
             return new Promise((resolve) => {
                 const back = document.createElement('div');
                 back.className = 'modal-backdrop';
@@ -92,8 +94,21 @@
                 if (cancelText === null) back.querySelector('[data-dialog-cancel]').remove();
                 else back.querySelector('[data-dialog-cancel]').textContent = cancelText;
                 back.querySelector('[data-dialog-ok]').textContent = confirmText;
-                const host = back.querySelector('.modal-fields');
+                const fieldsHost = back.querySelector('.modal-fields');
+                let moreHost = null;
                 fields.forEach(f => {
+                    let host = fieldsHost;
+                    if (f.more) {
+                        if (!moreHost) {
+                            moreHost = document.createElement('details');
+                            moreHost.className = 'modal-more';
+                            moreHost.innerHTML = '<summary></summary><div class="space-y-3"></div>';
+                            moreHost.querySelector('summary').textContent = moreText;
+                            fieldsHost.appendChild(moreHost);
+                        }
+                        if (f.value) moreHost.open = true;
+                        host = moreHost.querySelector('div');
+                    }
                     const wrap = document.createElement('label');
                     wrap.className = 'block';
                     wrap.innerHTML = `<span class="field-label"></span>`;
@@ -101,7 +116,14 @@
                     let input;
                     if (f.options) {
                         input = document.createElement('select');
-                        f.options.forEach(o => { const opt = document.createElement('option'); opt.value = o.value ?? o; opt.textContent = o.label ?? o; input.appendChild(opt); });
+                        const add = (o, into) => { const opt = document.createElement('option'); opt.value = o.value ?? o; opt.textContent = o.label ?? o; into.appendChild(opt); };
+                        f.options.forEach(o => {
+                            if (!o || o.group === undefined) return add(o, input);
+                            const g = document.createElement('optgroup');
+                            g.label = o.group;
+                            (o.options || []).forEach(x => add(x, g));
+                            input.appendChild(g);
+                        });
                     } else {
                         input = document.createElement('input');
                         input.type = f.type || 'text';
@@ -118,7 +140,7 @@
                     if (f.help) { const h = document.createElement('span'); h.className = 'help block'; h.textContent = f.help; wrap.appendChild(h); }
                     host.appendChild(wrap);
                 });
-                if (!fields.length) host.remove();
+                if (!fields.length) fieldsHost.remove();
 
                 const close = (result) => { back.remove(); resolve(result); };
                 const submit = () => {

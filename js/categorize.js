@@ -30,7 +30,7 @@
 
     // Well-known names → how to show them (and what a rule should look for).
     const BRANDS = [
-        [/amazon|amzn/, 'Amazon'], [/wal-?mart|walmart|\bwm supercenter/, 'Walmart'], [/meijer/, 'Meijer'], [/kroger/, 'Kroger'], [/costco/, 'Costco'],
+        [/amazon|amzn/, 'Amazon'], [/\bebay\b/, 'eBay'], [/\betsy\b/, 'Etsy'], [/\btemu\b/, 'Temu'], [/wal-?mart|walmart|\bwm supercenter/, 'Walmart'], [/meijer/, 'Meijer'], [/kroger/, 'Kroger'], [/costco/, 'Costco'],
         [/sam\x27?s ?club|samsclub/, "Sam's Club"], [/target\b/, 'Target'], [/aldi\b/, 'Aldi'], [/whole ?foods/, 'Whole Foods'], [/trader joe/, "Trader Joe's"],
         [/lowe\x27?s/, "Lowe's"], [/home ?depot/, 'Home Depot'], [/menards/, 'Menards'], [/\blyft\b/, 'Lyft'], [/\buber ?eats/, 'Uber Eats'], [/\buber\b/, 'Uber'],
         [/doordash/, 'DoorDash'], [/grubhub/, 'Grubhub'], [/starbucks/, 'Starbucks'], [/mcdonald/, "McDonald's"], [/chick-?fil-?a/, 'Chick-fil-A'],
@@ -113,16 +113,18 @@
         [[4722, 4723], 'Viajes y Vacaciones', 'Hospedaje'],
         [[4900], 'Servicios Básicos y Comunicación', 'Energía Eléctrica'], [[4812, 4814, 4813], 'Servicios Básicos y Comunicación', 'Plan Celular'], [[4816], 'Servicios Básicos y Comunicación', 'Internet'], [[4899], 'Servicios Básicos y Comunicación', 'Cable/TV'],
         [[5912], 'Salud', 'Medicinas'], [[8011, 8031, 8041, 8042, 8049, 8050, 8062, 8099], 'Salud', 'Consultas Médicas'], [[8021], 'Salud', 'Odontología'], [[8043, 8044], 'Salud', 'Óptica'], [[8071], 'Salud', 'Exámenes de Laboratorio'],
-        [[5200, 5211, 5231, 5251, 5261, 5198], 'Vivienda', 'Mantenimiento del Hogar'], [[5712, 5713, 5714, 5718, 5719, 5722, 5732], 'Vivienda', 'Muebles y Electrodomésticos'],
+        [[5200, 5211, 5231, 5251, 5261, 5198], 'Vivienda', 'Mantenimiento del Hogar'], [[5712, 5713, 5714, 5718, 5719, 5722], 'Vivienda', 'Muebles y Electrodomésticos'],
+        [[5732, 5045], 'Compras', 'Electrónica'], [[5310, 5311, 5331, 5399], 'Compras', 'Tiendas por Departamento'], [[5964, 5965, 5969], 'Compras', 'Compras en Línea'],
         [[1520, 1711, 1731, 1740, 1750, 1761, 1771, 1799, 7349], 'Vivienda', 'Reparaciones (plomería, eléctrico, techo)'],
         [[5611, 5621, 5631, 5641, 5651, 5655, 5661, 5681, 5691, 5697, 5698, 5699, 5137, 5139], 'Vestimenta', 'Ropa y Calzado'], [[7210, 7211, 7216, 7251], 'Vestimenta', 'Lavandería/Tintorería'],
         [[7230], 'Cuidado Personal', 'Peluquería/Barbería'], [[7298, 7297], 'Cuidado Personal', 'Spa/Masajes'], [[5977], 'Cuidado Personal', 'Cosméticos y Perfumería'],
         [[7832, 7841], 'Entretenimiento y Ocio', 'Cine'], [[7922, 7929], 'Entretenimiento y Ocio', 'Conciertos/Eventos'], [[7991, 7996, 7998, 7999, 7932, 7933], 'Entretenimiento y Ocio', 'Salidas y Paseos'],
-        [[7941, 7992, 7997, 5940, 5941, 5945, 5946, 5949, 5970], 'Entretenimiento y Ocio', 'Hobbies'], [[5942, 5994, 2741], 'Entretenimiento y Ocio', 'Libros'],
+        [[7941, 7992, 7997], 'Pasatiempos', 'Gimnasio, Deportes y Clubes'], [[5940, 5941], 'Pasatiempos', 'Equipo Deportivo y Aire Libre'], [[5945, 5946], 'Pasatiempos', 'Materiales de Pasatiempos'],
+        [[5949, 5970, 5971], 'Pasatiempos', 'Manualidades y Arte'], [[5733], 'Pasatiempos', 'Música e Instrumentos'], [[5942, 5994, 2741], 'Entretenimiento y Ocio', 'Libros'],
         [[5815, 5818], 'Suscripciones y Entretenimiento Digital', 'Streaming de Video'], [[5816], 'Suscripciones y Entretenimiento Digital', 'Videojuegos'], [[5817, 5734, 5372], 'Suscripciones y Entretenimiento Digital', 'Software/Herramientas'],
         [[8211, 8220, 8241, 8244, 8249, 8299], 'Educación', 'Cursos/Capacitación'], [[8351], 'Familia e Hijos', 'Guardería/Niñera'], [[5641], 'Vestimenta', 'Ropa y Calzado'],
         [[742, 5995], 'Mascotas', 'Veterinario'], [[8398, 8661], 'Regalos, Celebraciones y Donaciones', 'Donaciones Benéficas'], [[5992, 5947, 5193], 'Regalos, Celebraciones y Donaciones', 'Fiestas/Celebraciones'],
-        [[6300, 5960], 'Seguros y Protección', 'Seguro de Vida'], [[9311], 'Financiero y Legal', 'Preparación de Impuestos'], [[9222, 9399, 9402, 9211], 'Financiero y Legal', 'Multas y Trámites Municipales'],
+        [[6300, 5960], 'Seguros y Protección', 'Seguro de Vida'], [[9311], 'Impuestos', 'Impuesto Federal (IRS)'], [[9222, 9399, 9402, 9211], 'Financiero y Legal', 'Multas y Trámites Municipales'],
         [[6012, 6051, 6211], 'Financiero y Legal', 'Comisiones Bancarias']
     ];
     const MCC_INDEX = {};
@@ -158,7 +160,14 @@
         [/univ|university|college|tuition|universidad/, 'Gasto', 'Educación', 'Matrícula Universitaria', 'high'],
         [/daycare|child ?care|kindercare|learning center|guarderia/, 'Gasto', 'Familia e Hijos', 'Guardería/Niñera', 'high'],
         [/church|ministr|tithe|diezmo|iglesia/, 'Gasto', 'Regalos, Celebraciones y Donaciones', 'Diezmo/Donaciones Religiosas', 'high'],
-        [/overdraft|nsf fee|service charge|monthly fee|maintenance fee|international service assess|foreign transaction|intl (?:service|transaction) fee|comision/, 'Gasto', 'Financiero y Legal', 'Comisiones Bancarias', 'high']
+        // Taxes you pay (refunds are income, above).
+        [/irs\s*usataxpymt|eftps|irs direct pay|irs.*(?:tax ?pa?y|pymt|payment)|us treasury.*tax|1040-?es|estimated tax/, 'Gasto', 'Impuestos', 'Impuesto Federal (IRS)', 'high'],
+        [/city (?:of [a-z .]+)?(?:income )?tax|city income|school (?:district )?tax|township tax|village tax/, 'Gasto', 'Impuestos', 'Impuesto Municipal/Local', 'medium'],
+        [/(?:state ?of ?\w+|dept\.? of (?:revenue|treasury)|\w+ treasury|treas\b).*(?:tax|pymt|payment)|state tax/, 'Gasto', 'Impuestos', 'Impuesto Estatal', 'medium'],
+        // Card fees: the 1–3% charged on purchases made abroad or in another currency, and the card's own fees.
+        [/international service assess|foreign (?:transaction|trans|txn|currency|exchange)|intl (?:service|transaction|txn) fee|int\x27?l (?:trans|txn) fee|cross[- ]border fee|currency conversion fee/, 'Gasto', 'Financiero y Legal', 'Comisiones por Compras en el Exterior', 'high'],
+        [/annual (?:membership )?fee|late (?:payment )?fee|cash advance fee|balance transfer fee|over ?limit fee|returned payment fee/, 'Gasto', 'Financiero y Legal', 'Cargos de Tarjeta de Crédito', 'medium'],
+        [/overdraft|nsf fee|service charge|monthly fee|maintenance fee|comision/, 'Gasto', 'Financiero y Legal', 'Comisiones Bancarias', 'high']
     ];
     const STORES = [
         [/kroger|meijer(?! express)|wal-?mart|walmart|aldi|costco(?! gas)|sam\x27?s ?club|samsclub|whole ?foods|trader joe|publix|safeway|\bheb\b|spartan|family fare|save a lot|gordon food|supermaxi|megamaxi|mi comisariato|\btia\b|santa maria|\baki\b|tuti/, 'Alimentación', 'Mercado/Supermercado'],
@@ -186,7 +195,25 @@
 
     const result = (type, category, sub, confidence, why, key) => ({ type, category, sub, confidence, why, key });
 
+    // Categories only the US edition has → where the same thing goes in Ecuador's
+    // ([category, subcategory or '' for any, then the Ecuador pair]; the first that fits wins).
+    const ELSEWHERE = [
+        ['Compras', 'Electrónica', 'Vivienda', 'Muebles y Electrodomésticos'], ['Compras', '', 'Otros', 'Otros Gastos'],
+        ['Pasatiempos', '', 'Entretenimiento y Ocio', 'Hobbies'],
+        ['Impuestos', 'Impuesto Federal (IRS)', 'Financiero y Legal', 'Asesoría Contable/Tributaria'], ['Impuestos', '', 'Otros', 'Otros Gastos'],
+        ['Financiero y Legal', 'Comisiones por Compras en el Exterior', 'Financiero y Legal', 'Comisiones Bancarias'],
+        ['Financiero y Legal', 'Cargos de Tarjeta de Crédito', 'Financiero y Legal', 'Comisiones Bancarias']
+    ];
+    function forCountry(r, country) {
+        if (country === 'US' || r.type !== 'Gasto') return r;
+        const to = ELSEWHERE.find(([c, sub]) => c === r.category && (!sub || sub === r.sub));
+        return to ? Object.assign(r, { category: to[2], sub: to[3] }) : r;
+    }
+
     function guess(info, { sign = 0, country = 'US' } = {}) {
+        return forCountry(guessUS(info, sign), country);
+    }
+    function guessUS(info, sign) {
         const t = info.text || '';
         const key = info.brand || info.name || '';
         const dir = info.direction;
@@ -203,14 +230,17 @@
         if (incoming && /transfer from|deposit transfer/.test(t)) return result('Transferencia', '', '', 'medium', 'Money coming from another account of yours', key || 'transfer');
         if (!incoming && /withdrawal transfer|transfer to/.test(t)) return result('Transferencia', '', '', 'medium', 'Money you move to another account', key || 'transfer');
         // 3. The card's merchant category code.
-        const everything = /amazon|amzn|target\b|ebay|etsy|dollar (?:tree|general)|five below|temu|shein|aliexpress/.test(t);
+        // Stores that sell everything: guessed as shopping, but asked about (it may be groceries or diapers).
+        const online = /amazon|amzn|ebay|etsy|temu|shein|aliexpress|wish\.com/.test(t);
+        const everything = online || /target\b|dollar (?:tree|general)|five below|big lots|\bkmart\b/.test(t);
+        const shop = () => Object.assign(result('Gasto', 'Compras', online ? 'Compras en Línea' : 'Tiendas por Departamento', 'low', 'Store that sells everything: pick what you bought', key), { ask: true });
         if (!incoming && info.mcc) {
             const m = mccFor(info.mcc);
             // Some codes are too broad (Amazon uses 5942 "books", city parking 9399 "government"):
             // a store that sells everything is asked about, and a known store name wins.
             const broad = [5942, 5999, 5311, 5310, 5331, 5399, 5964, 5969, 9399, 9222, 9402, 7399, 8999].includes(info.mcc);
             const store = STORES.find(([re]) => re.test(t));
-            if (everything && broad) return Object.assign(result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Store that sells everything: pick what you bought', key), { ask: true });
+            if (everything && broad) return shop();
             if (store && broad) return result('Gasto', store[1], store[2], 'medium', 'From the store\'s name', key);
             if (m) return result('Gasto', m[0], m[1], 'high', `From the kind of business (code ${info.mcc})`, key);
         }
@@ -223,7 +253,7 @@
         if (!incoming && info.check) return result('Gasto', 'Otros', 'Otros Gastos', 'low', `Check #${info.check}: what was it for?`, '');
         if (!incoming && (info.cash || (/^(?:withdrawal|atm|retiro)\b/.test(norm(info.lines[0] || '')) && !info.name))) return result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Cash withdrawal: what was it used for?', '');
         if (incoming) return result('Ingreso', 'Otros Ingresos', '', 'low', /check/.test(t) ? 'Check deposit: what is it from?' : 'Money in: what is it from?', key);
-        if (everything) return Object.assign(result('Gasto', 'Otros', 'Otros Gastos', 'low', 'Store that sells everything: pick what you bought', key), { ask: true });
+        if (everything) return shop();
         return result('Gasto', 'Otros', 'Otros Gastos', 'low', '', key);
     }
 
