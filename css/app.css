@@ -1040,3 +1040,8 @@ button.gm-row:hover { background: var(--surface-3); }
 /* Goal cards: the monthly amount can be typed; the slider is easy to grab on a phone. */
 .goal-monthly { width: 7rem; text-align: right; }
 .range-slider { height: 2.25rem; touch-action: pan-y; }
+/* Setup guide: "Step 2 of 5" and its bar (no utility classes, so it shows the same everywhere). */
+.su-progress { display: flex; flex-direction: column; gap: .3rem; margin-bottom: .75rem; }
+.su-bar { display: flex; gap: .25rem; }
+.su-bar i { flex: 1; height: .35rem; border-radius: 9999px; background: var(--line); }
+.su-bar i.on { background: #10b981; }
