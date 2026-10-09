@@ -1791,3 +1791,19 @@ test('spendingBreakdown: the income side, by income category', () => {
     const r = E.spendingBreakdown(list, { from: '2026-10-01', to: '2026-10-31', type: 'Ingreso' });
     assert.deepEqual(r.rows.map(x => [x.key, x.total]), [['Sueldo', 6000], ['Otros Ingresos', 120]]);
 });
+
+test('zoomRange / bandMiddle: a stacked chart seen closer, centered where asked, never past its edges', () => {
+    assert.deepEqual(E.zoomRange(1000, 1), { min: 0, max: 1000, zoom: 1 });
+    assert.deepEqual(E.zoomRange(1000, 4, 500), { min: 375, max: 625, zoom: 4 });
+    assert.deepEqual(E.zoomRange(1000, 4, 10), { min: 0, max: 250, zoom: 4 });         // not below 0
+    assert.deepEqual(E.zoomRange(1000, 4, 990), { min: 750, max: 1000, zoom: 4 });     // not above the top
+    assert.equal(E.zoomRange(1000, 999, 500).zoom, E.ZOOM_MAX);
+    assert.deepEqual(E.zoomRange(0, 8, 3), { min: 0, max: 0, zoom: 1 });               // nothing to show
+    const series = [[100, 200], [10, 20], [50, 60]];
+    assert.equal(E.bandMiddle(series, 1, 1), 210);    // 200 below it, half of 20
+    assert.equal(E.bandMiddle(series, 0, 0), 50);
+    // Zoomed on a thin band, it fills a good part of the chart (a tap there finds it).
+    const r = E.zoomRange(1000, 16, E.bandMiddle(series, 1, 1));
+    assert.ok(r.min < 200 && r.max > 220 && (20 / (r.max - r.min)) > 0.3);
+    assert.equal(E.bandAt(series.map(x => x), 1, (r.min + r.max) / 2), 1);
+});

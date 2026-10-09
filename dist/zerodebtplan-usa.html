@@ -205,6 +205,10 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 .modal-title { font-size: 1.05rem; font-weight: 800; color: var(--ink); display: flex; gap: .55rem; align-items: center; margin-bottom: .6rem; }
 .modal-title i { color: #059669; } .modal-danger .modal-title i { color: #dc2626; }
 .modal-message { font-size: .82rem; color: var(--ink-2); line-height: 1.55; margin-bottom: .9rem; white-space: pre-line; }
+/* Chart zoom: − 2× + and, when zoomed, ▲ ▼ "Show all". */
+.zoom-ctl { display: inline-flex; align-items: center; gap: .25rem; margin-left: auto; }
+.zoom-ctl .zoom-level { min-width: 2.2rem; text-align: center; font-size: .75rem; font-weight: 700; color: var(--ink-2); }
+.zoom-ctl:not(.is-zoomed) .trends-pan { display: none; }
 .modal-error { font-size: .75rem; color: #b91c1c; font-weight: 700; margin-top: .6rem; }
 /* Fields folded under "More options" in a dialog. */
 .modal-more > summary { cursor: pointer; color: var(--link); font-weight: 700; font-size: .8rem; padding: .25rem 0; list-style-position: inside; }
@@ -1852,11 +1856,20 @@ button.gm-row:hover { background: var(--surface-3); }
                 </div>
                 <select id="trends-category" class="cell-input" style="width:auto" data-change="trends.category" aria-label="Category"></select>
                 <select id="trends-account" class="cell-input" style="width:auto" data-change="trends.account" aria-label="Account"></select>
+                <div class="zoom-ctl" role="group" aria-label="Zoom">
+                    <button type="button" class="icon-btn icon-btn-light" data-action="trends.zoom" data-dir="-1" aria-label="Zoom out" title="Zoom out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                    <span id="trends-zoom-level" class="zoom-level">1×</span>
+                    <button type="button" class="icon-btn icon-btn-light" data-action="trends.zoom" data-dir="1" aria-label="Zoom in" title="Zoom in"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                    <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.pan" data-dir="1" aria-label="Move up" title="Move up"><i class="fa-solid fa-chevron-up"></i></button>
+                    <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.pan" data-dir="-1" aria-label="Move down" title="Move down"><i class="fa-solid fa-chevron-down"></i></button>
+                    <button type="button" class="link text-xs trends-pan" data-action="trends.zoomReset">Show all</button>
+                </div>
             </div>
             <p id="trends-empty" class="text-xs text-slate-400 text-center py-8 hidden">No spending in these months.</p>
             <div id="trends-body">
                 <div class="chart-box tall"><canvas id="trends-chart" aria-label="Spending by category per month"></canvas></div>
                 <p class="help mt-1" id="trends-note"></p>
+                <p class="help mt-1"><i class="fa-solid fa-magnifying-glass-plus"></i> A thin band hard to tap? Tap near it and zoom in (the magnifier, a pinch, or Ctrl with the mouse wheel); drag to move up and down.</p>
                 <div id="trends-focus" class="mt-3"></div>
                 <div id="trends-drill" class="mt-3"></div>
                 <details class="mt-2">
@@ -5852,6 +5865,13 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Move down": "Bajar",
+    "Move up": "Subir",
+    "Show all": "Ver todo",
+    "Zoom": "Zoom",
+    "Zoom in": "Acercar",
+    "Zoom out": "Alejar",
+    "A thin band hard to tap? Tap near it and zoom in (the magnifier, a pinch, or Ctrl with the mouse wheel); drag to move up and down.": "¿Una franja delgada difícil de tocar? Toca cerca y acerca (la lupa, pellizcando, o Ctrl con la rueda del mouse); arrastra para subir y bajar.",
     "Saved only in this browser (not in the backup). With a PIN or passcode the plan is saved encrypted. The app locks when it opens and after 5 minutes away, and then forgets the open plan until the PIN is typed again. Also use your phone's or computer's own lock.": "Se guarda solo en este navegador (no va en la copia de respaldo). Con PIN o contraseña el plan se guarda cifrado. La app se bloquea al abrirla y después de 5 minutos fuera, y entonces olvida el plan abierto hasta que se escriba el PIN otra vez. Usa también el bloqueo de tu teléfono o computadora.",
     "The 10-wrong-tries erase stops guessing on this screen. Someone who copies this device's data could try every PIN on their own computer: a short PIN falls in minutes, a passcode of 12 or more characters doesn't.": "El borrado tras 10 intentos fallidos detiene a quien adivina en esta pantalla. Alguien que copie los datos de este dispositivo podría probar todos los PIN en su propia computadora: un PIN corto cae en minutos; una contraseña de 12 caracteres o más, no.",
     "Google Sheets": "Google Sheets",
@@ -12699,6 +12719,24 @@ I18n.override('EC', 'es', {
         return null;
     }
 
+    // A chart zoomed in: the visible value range when it's `zoom` times closer, centered on `center`
+    // and kept inside 0…top. zoom 1 (or nothing to show) = the whole chart.
+    const ZOOM_MAX = 32;
+    function zoomRange(top, zoom, center) {
+        const z = Math.min(ZOOM_MAX, Math.max(1, num(zoom) || 1));
+        if (!(top > 0) || z === 1) return { min: 0, max: Math.max(0, num(top)), zoom: 1 };
+        const h = top / z;
+        const c = Number.isFinite(center) ? center : top / 2;
+        const min = Math.min(Math.max(0, c - h / 2), top - h);
+        return { min, max: min + h, zoom: z };
+    }
+    // The middle of a band of a stacked chart at one month (where zooming in on it should center).
+    function bandMiddle(seriesValues, index, band) {
+        let below = 0;
+        for (let k = 0; k < band; k++) below += Math.max(0, num(((seriesValues || [])[k] || [])[index]));
+        return below + Math.max(0, num(((seriesValues || [])[band] || [])[index])) / 2;
+    }
+
     // "Suggest from my last 90 days": each everyday line's average spending over the given months
     // (each { spend: lineSpend(...) }), rounded to $5 (or $10 from $100 up). Debt, goal and savings
     // lines are decisions, not habits: they're left out.
@@ -14458,7 +14496,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -22675,7 +22713,83 @@ I18n.override('EC', 'es', {
     }
 
     // ------------------------------------------------------------------ trends
-    const topts = () => (Store.ui.trends = Object.assign({ months: 6, category: '', account: '' }, Store.ui.trends));
+    // One settings object (the chart's tap handler keeps a reference to it): filled in once.
+    const topts = () => {
+        const t = Store.ui.trends;
+        if (!t || t.zoom === undefined) Store.ui.trends = Object.assign({ months: 6, category: '', account: '', zoom: 1, zoomAt: null }, t);
+        return Store.ui.trends;
+    };
+
+    // Zoom: thin bands (small categories) get tall enough to tap. The chart shows 1/zoom of its
+    // height around zoomAt; drag (or ▲ ▼) moves up and down, pinch or Ctrl+wheel zooms.
+    let zoomTop = 0, trendsSeries = null;
+    function zoomView(o) { return Engine.zoomRange(zoomTop, o.zoom, o.zoomAt); }
+    function applyZoom(chart) {
+        const o = topts(), z = zoomView(o);
+        o.zoom = z.zoom;
+        if (z.zoom > 1) o.zoomAt = (z.min + z.max) / 2;
+        const y = chart.options.scales.y;
+        if (z.zoom > 1) { y.min = z.min; y.max = z.max; } else { delete y.min; delete y.max; }
+        const ctl = document.querySelector('#trends-card .zoom-ctl');
+        if (ctl) ctl.classList.toggle('is-zoomed', z.zoom > 1);
+        UI.text('trends-zoom-level', `${Math.round(z.zoom * 10) / 10}×`);
+        chart.canvas.style.touchAction = z.zoom > 1 ? 'none' : 'pan-y';
+    }
+    function setZoom(zoom, center) {
+        const o = topts();
+        o.zoom = Math.min(Engine.ZOOM_MAX, Math.max(1, zoom));
+        if (center !== undefined) o.zoomAt = center;
+        const chart = UI.chartInstance('trends-chart');
+        if (!chart) return;
+        applyZoom(chart);
+        chart.update('none');
+    }
+    // Where "+" zooms: on the tapped band, else the middle of what's showing.
+    function zoomCenter(o) {
+        if (o.focus && trendsSeries && o.focusMonth) {
+            const i = trendsSeries.months.indexOf(o.focusMonth), b = trendsSeries.series.findIndex(x => (x.key === null ? '__other' : x.key) === o.focus);
+            if (i >= 0 && b >= 0) return Engine.bandMiddle(trendsSeries.series.map(x => x.values), i, b);
+        }
+        const z = zoomView(o);
+        return (z.min + z.max) / 2;
+    }
+    function zoomGestures(canvas) {
+        if (canvas.dataset.zoomReady) return;
+        canvas.dataset.zoomReady = '1';
+        const pts = new Map();
+        let drag = null, pinch = null;
+        const valueAt = (clientY) => { const c = UI.chartInstance('trends-chart'); const r = canvas.getBoundingClientRect(); return c ? c.scales.y.getValueForPixel(clientY - r.top) : null; };
+        const gap = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+        canvas.addEventListener('pointerdown', (e) => {
+            pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: gap(), zoom: topts().zoom, at: valueAt((a.y + b.y) / 2) }; drag = null; }
+            else if (pts.size === 1 && topts().zoom > 1) drag = { y: e.clientY, at: topts().zoomAt, moved: false };
+        });
+        canvas.addEventListener('pointermove', (e) => {
+            if (!pts.has(e.pointerId)) return;
+            pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (pinch && pts.size === 2) { const d = gap(); if (pinch.d > 10 && d > 10) setZoom(pinch.zoom * d / pinch.d, pinch.at); canvas.dataset.dragged = '1'; return; }
+            if (!drag) return;
+            const c = UI.chartInstance('trends-chart');
+            if (!c || Math.abs(e.clientY - drag.y) < 4 && !drag.moved) return;
+            drag.moved = true; canvas.dataset.dragged = '1';
+            const perPx = (c.scales.y.max - c.scales.y.min) / Math.max(1, c.chartArea.bottom - c.chartArea.top);
+            setZoom(topts().zoom, drag.at + (e.clientY - drag.y) * perPx);
+        });
+        const end = (e) => {
+            pts.delete(e.pointerId);
+            if (pts.size < 2) pinch = null;
+            if (!pts.size) { drag = null; setTimeout(() => { delete canvas.dataset.dragged; }, 50); }
+        };
+        canvas.addEventListener('pointerup', end);
+        canvas.addEventListener('pointercancel', end);
+        // A computer: Ctrl (or ⌘) + wheel zooms where the pointer is; a trackpad pinch sends the same.
+        canvas.addEventListener('wheel', (e) => {
+            if (!(e.ctrlKey || e.metaKey)) return;
+            e.preventDefault();
+            setZoom(topts().zoom * (e.deltaY < 0 ? 1.25 : 0.8), valueAt(e.clientY));
+        }, { passive: false });
+    }
 
     function trends(ctx) {
         if (!document.getElementById('trends-chart')) return;
@@ -22702,13 +22816,17 @@ I18n.override('EC', 'es', {
             backgroundColor: color(x, i) + (dim(x) ? '40' : 'b3'), borderColor: color(x, i) + (dim(x) ? '66' : ''), borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
             pointBackgroundColor: pal.surface, pointBorderColor: color(x, i), pointBorderWidth: 2, tension: 0.4 }));
         if (r.income) datasets.push({ label: 'Income', data: r.income.map(v => Math.round(v * 100) / 100), stack: 'income', fill: false, borderColor: pal.text, backgroundColor: pal.text, borderWidth: 3, pointRadius: 3, pointBackgroundColor: pal.surface, pointBorderWidth: 2, tension: 0.4 });
-        UI.chart('trends-chart', {
+        // The top of the whole chart (zoom 1): the tallest month's spending or income.
+        zoomTop = Math.max(1, ...r.months.map((_, i) => Math.max(r.series.reduce((t, x) => t + Math.max(0, x.values[i] || 0), 0), r.income ? r.income[i] || 0 : 0))) * 1.05;
+        trendsSeries = r;
+        const chart = UI.chart('trends-chart', {
             type: 'line',
             data: { labels: r.months.map(label), datasets },
             options: { scales: { y: { stacked: true } }, plugins: { legend: { position: 'bottom' } },
                 // Tap a band: its months in a card; tap it again (or "Open") to see its subcategories.
-                // Tap above the bands: that month's breakdown.
+                // Tap above the bands: that month's breakdown. A drag (zoomed in) is not a tap.
                 onClick: (e, els, chart) => {
+                    if (chart.canvas.dataset.dragged) return;
                     const i = els.length ? els[0].index : Math.round(chart.scales.x.getValueForPixel(e.x));
                     if (!(i >= 0 && i < r.months.length)) return;
                     const k = r.months[i];
@@ -22726,6 +22844,7 @@ I18n.override('EC', 'es', {
                     App.update();
                 } }
         });
+        if (chart) { applyZoom(chart); chart.update('none'); zoomGestures(chart.canvas); }
         focusCard(o, r, label, name, color, fkey);
         drill(ctx, o, r, label);
         const now = Engine.isoDate(ctx.today).slice(0, 7);
@@ -22774,7 +22893,7 @@ I18n.override('EC', 'es', {
 
     function openCategory(key) {
         const o = topts();
-        o.category = key; o.focus = null; o.drill = null;
+        o.category = key; o.focus = null; o.drill = null; o.zoom = 1; o.zoomAt = null;
         App.update();
         const card = document.getElementById('trends-card');
         if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -22835,12 +22954,15 @@ I18n.override('EC', 'es', {
         },
         'trends.txnsBack': () => { if (txnSheet) { txnSheet.close(); txnSheet = null; } },
         'trends.txnOpen': (el) => { if (txnSheet) { txnSheet.close(); txnSheet = null; } if (window.TxnDetails) TxnDetails.open(Number(el.dataset.id)); },
-        'trends.back': () => { const o = topts(); o.category = ''; o.focus = null; o.drill = null; App.update(); },
+        'trends.back': () => { const o = topts(); o.category = ''; o.focus = null; o.drill = null; o.zoom = 1; o.zoomAt = null; App.update(); },
         'trends.unfocus': () => { topts().focus = null; App.update(); },
         'trends.drill': (el) => { const o = topts(); if (!o.drill) return; if (o.category || o.drill.cat) o.drill.sub = el.dataset.key; else o.drill.cat = el.dataset.key; App.update(); },
         'trends.up': () => { const o = topts(); if (!o.drill) return; if (o.drill.sub) o.drill.sub = null; else o.drill.cat = null; App.update(); },
         'trends.months': (el) => { topts().months = Math.max(1, Math.min(12, Number(el.dataset.months) || 6)); App.update(); },
-        'trends.category': (el) => { const o = topts(); o.category = el.value; o.focus = null; o.drill = null; App.update(); },
+        'trends.category': (el) => { const o = topts(); o.category = el.value; o.focus = null; o.drill = null; o.zoom = 1; o.zoomAt = null; App.update(); },
+        'trends.zoom': (el) => { const o = topts(), up = Number(el.dataset.dir) > 0; setZoom(up ? o.zoom * 2 : o.zoom / 2, up ? zoomCenter(o) : undefined); },
+        'trends.zoomReset': () => setZoom(1, null),
+        'trends.pan': (el) => { const o = topts(), z = zoomView(o); setZoom(o.zoom, (z.min + z.max) / 2 + (Number(el.dataset.dir) || 0) * (z.max - z.min) / 2); },
         'trends.account': (el) => { topts().account = el.value; App.update(); }
     });
 
