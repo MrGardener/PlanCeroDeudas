@@ -1185,6 +1185,41 @@
         return null;
     }
 
+    // The household person by person: each one's paycheck (a month: before taxes, taxes, take-home;
+    // the first person is the main earner, the others' come from their paycheck lines; income lines
+    // that say whose and were typed as take-home add to it; `retirement` = what each puts into a
+    // 401(k)/403(b) from their pay, [{ memberId, own }]) and, for a period, what each received
+    // and spent (transactions that say whose; shared or unassigned ones go to the household row)
+    // and where most of their spending went.
+    function personSummary({ members = [], pay = null, incomes = [], retirement = [], transactions = [], from = '0000-01-01', to = '9999-12-31' } = {}) {
+        const row = (memberId, name) => ({ memberId, name, gross: 0, taxes: 0, net: 0, saved: 0, received: 0, spent: 0, byCat: {}, top: null });
+        const rows = members.map(m => row(m.id, m.name)).concat(row(HOUSEHOLD, ''));
+        const shared = rows[rows.length - 1];
+        const find = (id) => rows.find(r => r.memberId === id && r !== shared) || shared;
+        if (pay && members.length) {
+            const main = rows[0];
+            main.gross += num(pay.sueldo); main.taxes += num(pay.isrM) + num(pay.iessM); main.net += num(pay.netoM);
+            (pay.earners || []).forEach(e => { const r = find(e.memberId); r.gross += num(e.sueldo); r.taxes += num(e.isrM) + num(e.ficaM); r.net += num(e.netoM); });
+        }
+        (incomes || []).forEach(l => { if (l && !l.pay && l.memberId) find(l.memberId).net += Math.max(0, num(l.amount)); });
+        (retirement || []).forEach(x => { if (x && x.memberId) find(x.memberId).saved += Math.max(0, num(x.own)); });
+        (transactions || []).forEach(t => {
+            if (!t.date || t.date < from || t.date > to || isTransfer(t)) return;
+            const r = find(t.memberId);
+            if (txnType(t) === 'Ingreso') { r.received += amt(t); return; }
+            r.spent += amt(t);
+            const c = t.parentCategory || 'Otros';
+            r.byCat[c] = (r.byCat[c] || 0) + amt(t);
+        });
+        rows.forEach(r => {
+            const top = Object.keys(r.byCat).sort((a, b) => r.byCat[b] - r.byCat[a])[0];
+            r.top = top ? { category: top, amount: cents(r.byCat[top]) } : null;
+            ['gross', 'taxes', 'net', 'saved', 'received', 'spent'].forEach(k => { r[k] = cents(r[k]); });
+            delete r.byCat;
+        });
+        return rows.filter(r => r !== shared || r.received || r.spent || r.net || r.saved);
+    }
+
     // A chart zoomed in: the visible value range when it's `zoom` times closer, centered on `center`
     // and kept inside 0…top. zoom 1 (or nothing to show) = the whole chart.
     const ZOOM_MAX = 32;
@@ -2967,7 +3002,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

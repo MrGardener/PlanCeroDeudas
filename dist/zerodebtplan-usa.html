@@ -1989,6 +1989,16 @@ button.gm-row:hover { background: var(--surface-3); }
             <p class="help mb-2" id="rep-spark-note">Under each group, the line shows its last 12 months (the current month, dotted, isn't over yet).</p>
             <div class="table-wrap"><table class="table"><thead><tr><th id="rep-group-head">Category</th><th class="num">Transactions</th><th class="num">Total</th><th style="min-width:10rem">Share of total</th><th class="num">Average</th></tr></thead><tbody id="rep-body"></tbody></table></div>
         </div>
+        <div class="card" id="rep-people-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-people-group text-blue-600"></i> By person</div>
+                    <div class="card-sub">Each person's paycheck, a month, and what they received and spent in the report's period. Spending marked as shared, or that doesn't say whose, is under Household.</div>
+                </div>
+            </div>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Person</th><th class="num">Pay before taxes</th><th class="num">Taxes</th><th class="num">Take-home</th><th class="num">Retirement savings</th><th class="num">Received</th><th class="num">Spent</th><th>Spends most on</th></tr></thead><tbody id="rep-people"></tbody></table></div>
+            <p class="help mt-2" id="rep-people-note"></p>
+        </div>
     </div>
 </section>
 <!-- ============================================================== FUTURO -->
@@ -5881,6 +5891,13 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Pay, taxes and retirement savings are a month; take-home is after taxes and payroll deductions (income typed as take-home counts as it is).": "El sueldo, los impuestos y el ahorro para la jubilación son al mes; lo que llega es después de impuestos y descuentos del rol (los ingresos escritos como netos cuentan tal cual).",
+    "Take-home": "Lo que llega",
+    "By person": "Por persona",
+    "Each person's paycheck, a month, and what they received and spent in the report's period. Spending marked as shared, or that doesn't say whose, is under Household.": "El sueldo de cada persona, al mes, y lo que recibió y gastó en el periodo del reporte. Los gastos marcados como compartidos, o que no dicen de quién son, van en Hogar.",
+    "Received and spent:": "Recibido y gastado:",
+    "Spends most on": "En qué gasta más",
+    "Taxes": "Impuestos",
     "Includes the other paychecks:": "Incluye los otros sueldos:",
     "Retirement accounts:": "Cuentas de jubilación:",
     "Whose account": "De quién es la cuenta",
@@ -12840,6 +12857,41 @@ I18n.override('EC', 'es', {
         return null;
     }
 
+    // The household person by person: each one's paycheck (a month: before taxes, taxes, take-home;
+    // the first person is the main earner, the others' come from their paycheck lines; income lines
+    // that say whose and were typed as take-home add to it; `retirement` = what each puts into a
+    // 401(k)/403(b) from their pay, [{ memberId, own }]) and, for a period, what each received
+    // and spent (transactions that say whose; shared or unassigned ones go to the household row)
+    // and where most of their spending went.
+    function personSummary({ members = [], pay = null, incomes = [], retirement = [], transactions = [], from = '0000-01-01', to = '9999-12-31' } = {}) {
+        const row = (memberId, name) => ({ memberId, name, gross: 0, taxes: 0, net: 0, saved: 0, received: 0, spent: 0, byCat: {}, top: null });
+        const rows = members.map(m => row(m.id, m.name)).concat(row(HOUSEHOLD, ''));
+        const shared = rows[rows.length - 1];
+        const find = (id) => rows.find(r => r.memberId === id && r !== shared) || shared;
+        if (pay && members.length) {
+            const main = rows[0];
+            main.gross += num(pay.sueldo); main.taxes += num(pay.isrM) + num(pay.iessM); main.net += num(pay.netoM);
+            (pay.earners || []).forEach(e => { const r = find(e.memberId); r.gross += num(e.sueldo); r.taxes += num(e.isrM) + num(e.ficaM); r.net += num(e.netoM); });
+        }
+        (incomes || []).forEach(l => { if (l && !l.pay && l.memberId) find(l.memberId).net += Math.max(0, num(l.amount)); });
+        (retirement || []).forEach(x => { if (x && x.memberId) find(x.memberId).saved += Math.max(0, num(x.own)); });
+        (transactions || []).forEach(t => {
+            if (!t.date || t.date < from || t.date > to || isTransfer(t)) return;
+            const r = find(t.memberId);
+            if (txnType(t) === 'Ingreso') { r.received += amt(t); return; }
+            r.spent += amt(t);
+            const c = t.parentCategory || 'Otros';
+            r.byCat[c] = (r.byCat[c] || 0) + amt(t);
+        });
+        rows.forEach(r => {
+            const top = Object.keys(r.byCat).sort((a, b) => r.byCat[b] - r.byCat[a])[0];
+            r.top = top ? { category: top, amount: cents(r.byCat[top]) } : null;
+            ['gross', 'taxes', 'net', 'saved', 'received', 'spent'].forEach(k => { r[k] = cents(r[k]); });
+            delete r.byCat;
+        });
+        return rows.filter(r => r !== shared || r.received || r.spent || r.net || r.saved);
+    }
+
     // A chart zoomed in: the visible value range when it's `zoom` times closer, centered on `center`
     // and kept inside 0…top. zoom 1 (or nothing to show) = the whole chart.
     const ZOOM_MAX = 32;
@@ -14622,7 +14674,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -23452,6 +23504,34 @@ I18n.override('EC', 'es', {
                 <td class="num text-xs">${money(g.total / g.count)}</td>
             </tr>`).join('') + `<tr class="font-bold"><td>Total</td><td class="num">${r.list.length}</td><td class="num">${money(r.total)}</td><td></td><td></td></tr>`
             : '<tr class="empty-row"><td colspan="5">No transactions in this period.</td></tr>');
+        people(ctx, r);
+    }
+
+    // By person: each one's paycheck (a month: Engine.payrollUS/payroll) and what they received
+    // and spent in the report's period. Only for a household of two or more.
+    function people(ctx, r) {
+        const members = ctx.state.members || [];
+        UI.show('rep-people-card', members.length > 1);
+        if (members.length < 2) return;
+        const retirement = [{ memberId: members[0].id, own: ctx.payRetirement.byGroup.retirement }].concat(ctx.earnersRetirement);
+        const rows = Engine.personSummary({ members, pay: ctx.pay, incomes: ctx.budgetYear.otherIncomes, retirement, transactions: ctx.state.transactions, from: r.from, to: r.to });
+        const shared = (row) => row.memberId === Engine.HOUSEHOLD;
+        const who = (row) => {
+            if (shared(row)) return '<span class="member-dot sm" style="background:#64748b"><i class="fa-solid fa-house text-[8px]"></i></span> <span class="font-semibold">Household</span>';
+            const m = members.find(x => x.id === row.memberId) || {};
+            return `<span class="member-dot sm" style="background:${esc(m.color || '#64748b')}">${esc(String(row.name || '?').charAt(0).toUpperCase())}</span> <span class="font-semibold" data-i18n-skip>${esc(row.name)}</span>`;
+        };
+        // A paycheck entered before taxes shows all three; income typed as take-home, only that.
+        const cell = (show, v, cls) => (show ? `<td class="num whitespace-nowrap ${cls}">${money(v)}</td>` : '<td class="num text-slate-400">—</td>');
+        UI.html('rep-people', rows.map(row => `<tr>
+                <td class="whitespace-nowrap">${who(row)}</td>
+                ${cell(row.gross > 0, row.gross, '')}${cell(row.gross > 0, -row.taxes, 'text-red-600')}${cell(row.net > 0, row.net, 'font-bold text-emerald-700')}${cell(row.saved > 0, row.saved, 'text-blue-700')}
+                <td class="num whitespace-nowrap">${money(row.received)}</td>
+                <td class="num whitespace-nowrap font-bold">${money(row.spent)}</td>
+                <td>${row.top ? `<span>${esc(row.top.category)}</span> <span class="text-[11px] text-slate-500 whitespace-nowrap">${money0(row.top.amount)}</span>` : '<span class="text-slate-400">—</span>'}</td>
+            </tr>`).join(''));
+        const range = r.o.range === 'all' ? '<span>the whole history</span>' : `<span>${esc(r.from)} – ${esc(r.to)}</span>`;
+        UI.html('rep-people-note', `<span>Pay, taxes and retirement savings are a month; take-home is after taxes and payroll deductions (income typed as take-home counts as it is).</span> <span>Received and spent:</span> ${range}`);
     }
 
     // A download in the browser; the share sheet in the phone app (js/native.js).

@@ -25,8 +25,9 @@ Ask: **"Do step N of docs/plans/household.md"** (or "continue the household plan
 2. ✅ **Savings per person**: accounts say whose; each earner's Social Security from their own pay;
    the other paychecks' 401(k) and match in the retirement contribution; retirement accounts by
    person; Baby Step 4 on the household's pay. (Later: separate ages and 401(k)/IRA limits per person.)
-3. **Expenses per person**: a budget line can belong to someone; a per-person summary (earned,
-   taxes, spent, saved) and "who spends on what" in Reports.
+3. ✅ **Expenses per person**: Reports → By person — each one's pay before taxes, taxes, take-home
+   and retirement savings (a month), what they received and spent in the report's period, and what
+   they spend most on; shared spending under Household. (Later: a budget line can belong to someone.)
 4. **Tax tools per person**: side-income tax set-aside per person, itemizing on the joint return,
    each W-4.
 

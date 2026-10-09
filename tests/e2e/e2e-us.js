@@ -249,6 +249,21 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   ok(ret2.sarah === 300 && ret2.match === 100 && /Sarah/.test(ret2.aporte) && /401\(k\)/.test(ret2.aporte) && /match/.test(ret2.aporte), 'retirement: the other paycheck\'s 401(k) and its match count in the monthly contribution', ret2);
   ok(/Retirement accounts:/.test(ret2.ahorro) && /Mike/.test(ret2.ahorro) && /Sarah/.test(ret2.ahorro) && Math.abs(ret2.gross - (ret2.main + 3200 * 12)) < 1, 'retirement accounts by person; Baby Step 4 counts the household\'s pay', ret2);
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
+  // Household step 3: Reports → By person, over the report's period.
+  await page.evaluate(() => { Store.ui.report = { range: 'all', type: 'Gasto', by: 'category' }; App.go('transacciones/reportes'); });
+  await page.waitForTimeout(300);
+  const byPerson = await page.evaluate(() => {
+    const c = App.buildContext(), r = Reports.build(c);
+    const rows = [...document.querySelectorAll('#rep-people tr')].map(tr => [...tr.cells].map(td => td.innerText.trim()));
+    const sums = Engine.personSummary({ members: c.state.members, pay: c.pay, transactions: c.state.transactions, from: r.from, to: r.to });
+    return { shown: !document.getElementById('rep-people-card').classList.contains('hidden'), rows, spent: sums.reduce((a, x) => a + x.spent, 0), total: r.total, mainGross: c.pay.sueldo, mike: sums[0] };
+  });
+  ok(byPerson.shown && byPerson.rows.length >= 2 && /Mike/.test(byPerson.rows[0][0]) && /Sarah/.test(byPerson.rows[1][0]) && byPerson.rows[0].length === 8, 'Reports: a row for each person', byPerson);
+  ok(Math.abs(byPerson.mike.gross - byPerson.mainGross) < 0.01 && byPerson.mike.taxes > 0 && byPerson.mike.net > 0 && Math.abs(byPerson.spent - byPerson.total) < 0.05, 'by person: the main paycheck before and after taxes; everyone\'s spending adds up to the report\'s', byPerson);
+  await page.evaluate(() => { const s = Store.state; s.members = s.members.slice(0, 1); App.changed({ structural: true }); });
+  await page.waitForTimeout(200);
+  ok(await page.evaluate(() => document.getElementById('rep-people-card').classList.contains('hidden')), 'by person: hidden for a household of one');
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); Store.ui.report = {}; });
   // Investment prices: Alpha Vantage's one-a-second limit is waited out, its daily limit keeps the last
   // price (and says so), Google Sheets needs no key (one request), and the daily update runs once.
   await page.evaluate(() => { const s = Store.state; s.holdings = [{ id: 1, ticker: 'AAA', name: '', kind: 'ETF', shares: 2, price: 10, priceAt: '2026-01-01T00:00:00Z', priceSource: 'alphavantage' }, { id: 2, ticker: 'BBB', name: '', kind: 'ETF', shares: 1, price: 0, priceAt: null, priceSource: 'manual' }]; s.settings.priceProvider = 'alphavantage'; s.settings.priceKey = 'TESTKEY'; App.changed({ structural: true }); App.go('patrimonio'); });
