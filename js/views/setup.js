@@ -36,6 +36,8 @@
             const people = s.members || [], main = earner(people), others = people.filter(p => p !== main);
             const name = (p) => `<span data-i18n-skip>${esc(p.name)}</span>`;
             const lines = y.otherIncomes || [];
+            // What's already there for someone: their pay before taxes (US) or take-home.
+            const otherPay = (p) => { const l = lines.find(x => x.memberId === p.id) || {}; return (us && l.pay ? l.pay.sueldo : l.amount) || ''; };
             return `${dots}<p class="text-sm mb-1"><strong>${main ? `<span>Main paycheck:</span> ${name(main)}` : 'How do you get paid?'}</strong></p>
             <p class="text-sm text-slate-600 mb-3">${main ? 'One person\'s pay before taxes: the app figures the taxes on it. Pick the person with the biggest paycheck.' : 'Your main paycheck, before taxes: the app figures the taxes on it.'}</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -47,8 +49,8 @@
                 ${field('su-next', 'Next payday', Engine.isoDate(new Date()), { type: 'date' })}
             </div>
             ${others.length ? `<p class="text-sm mt-4 mb-1"><strong>Other paychecks in the household</strong></p>
-                <p class="text-xs text-slate-500 mb-2">What reaches the bank each month, after taxes. Leave empty for whoever doesn't earn.</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${others.map(p => field(`su-other-${p.id}`, `<span>${name(p)} · <span>Take-home pay a month (${esc(Fmt.currency().symbol)})</span></span>`, (lines.find(l => l.memberId === p.id) || {}).amount || '', { type: 'number' })).join('')}</div>`
+                <p class="text-xs text-slate-500 mb-2">${us ? 'Their pay before taxes: the app figures their taxes with yours. Leave empty for whoever doesn\'t earn.' : 'What reaches the bank each month, after taxes. Leave empty for whoever doesn\'t earn.'}</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${others.map(p => field(`su-other-${p.id}`, `<span>${name(p)} · <span>${us ? 'Pay before taxes, a month' : 'Take-home pay a month'} (${esc(Fmt.currency().symbol)})</span></span>`, otherPay(p), { type: 'number' })).join('')}</div>`
                 : '<p class="help mt-3">Someone else in the household earns money too? Add their name on the previous step, or add their pay later in Income & Taxes.</p>'}${nav()}`;
         }
         if (k === 'accounts') return `${dots}<p class="text-sm mb-3"><strong>Your accounts today.</strong> Leave empty what you don't have.</p>
@@ -85,15 +87,19 @@
             // The main earner is the household's first person (taxes, side income look there).
             const people = s.members || [], main = earner(people);
             if (main && people[0] !== main) s.members = [main].concat(people.filter(p => p !== main));
-            // Everyone else's take-home pay: their own monthly income line (updated, not doubled).
+            // Everyone else's pay: their own monthly income line (updated, not doubled). In the US it's
+            // their pay before taxes (a paycheck the app taxes with the main one); in Ecuador, take-home.
             const lines = y.otherIncomes || (y.otherIncomes = []);
+            const us = Store.COUNTRY === 'US';
             people.filter(p => p !== main).forEach(p => {
-                const amount = num(`su-other-${p.id}`);
+                const amount = Math.min(10000000, num(`su-other-${p.id}`));
                 if (!(amount > 0)) return;
-                const had = lines.find(l => l.memberId === p.id);
-                if (had) { had.amount = amount; return; }
-                lines.push({ id: Store.nextId(lines), name: `${p.name} (${I18n.t('paycheck')})`.slice(0, 60), amount, category: 'Ingresos Laborales', memberId: p.id });
+                let line = lines.find(l => l.memberId === p.id);
+                if (!line) { line = { id: Store.nextId(lines), name: `${p.name} (${I18n.t('paycheck')})`.slice(0, 60), amount: 0, category: 'Ingresos Laborales', memberId: p.id }; lines.push(line); }
+                if (us) line.pay = Object.assign({ payType: 'salary', hourly: { rate: 0, hours: 40 }, payDeductions: [] }, line.pay || {}, { sueldo: amount });
+                else line.amount = amount;
             });
+            if (us && window.Earners) Earners.syncAmounts();
             if (val('su-type') === 'hourly') {
                 y.payType = 'hourly';
                 y.hourly = Object.assign({ rate: 0, hours: 40, otHours: 0, otRate: 1.5, otInBudget: false }, y.hourly || {}, { rate: num('su-rate'), hours: num('su-hours') || 40 });

@@ -197,6 +197,46 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.click('.modal-backdrop:not(.hidden) [data-dialog-cancel]');
   ok(ed.v === 'G|Compras|Compras en Línea' && ed.shown === 'Online Shopping' && ed.group === 'Shopping', 'editing a rule shows its category in English', ed);
   await page.evaluate(() => { Store.state.rules = []; App.changed({ structural: true }); });
+  // Household paychecks: another member's pay before taxes, taxed with the main paycheck.
+  await page.evaluate(() => { Store.reset('empty'); const s = Store.state, y = Store.active(); s.members = [{ id: 1, name: 'Mike', color: '#2a78d6' }, { id: 2, name: 'Sarah', color: '#eb6834' }]; Object.assign(y, { sueldo: 6000, payType: 'salary', filingStatus: 'mfj', dependents: 1, state: 'MI', localName: 'Grand Rapids', payDeductions: [], otherIncomes: [] }); App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
+  await page.waitForTimeout(250);
+  const mainAlone = await page.evaluate(() => App.buildContext().pay.netoM);
+  ok(/Other paychecks in the household/.test(await text(page, 'inc-earners-card')) && !!(await page.$('[data-action="earner.add"][data-member="2"]')), 'Income & Taxes: other paychecks card offers Sarah\'s paycheck');
+  await page.click('[data-action="earner.add"][data-member="2"]');
+  await page.waitForTimeout(250);
+  await page.fill('#inc-earners [data-f="gross"]', '4000');
+  await page.dispatchEvent('#inc-earners [data-f="gross"]', 'change');
+  await page.waitForTimeout(250);
+  await page.fill('#inc-earners [data-f="retirement"]', '200');
+  await page.dispatchEvent('#inc-earners [data-f="retirement"]', 'change');
+  await page.waitForTimeout(250);
+  const hhPay = await page.evaluate(() => { const c = App.buildContext(), y = Store.active(), l = y.otherIncomes[0], e = c.pay.earners[0]; return { pay: l.pay.sueldo, k401: l.pay.payDeductions.map(d => d.kind + ':' + d.monthly).join(), amount: l.amount, net: e && e.netoM, fed: e && e.fedM, main: c.pay.netoM, joint: c.pay.household.joint, budgetIncome: c.monthBudget.income, card: document.getElementById('inc-earners').innerText }; });
+  ok(hhPay.pay === 4000 && hhPay.k401 === 'retirement:200' && Math.abs(hhPay.amount - hhPay.net) < 0.01 && hhPay.net > 2000 && hhPay.net < 3800 && hhPay.fed > 0 && hhPay.joint && /Married filing jointly/.test(hhPay.card) && /Take-home a month/.test(hhPay.card), 'Sarah\'s pay before taxes: federal, FICA, state and city taken; her take-home is the budget line', hhPay);
+  ok(hhPay.main < mainAlone && Math.abs(hhPay.budgetIncome - (hhPay.main + hhPay.net)) < 0.02, 'filing jointly, the main paycheck pays its share of the higher bracket; the budget counts both take-homes', { mainAlone, main: hhPay.main, net: hhPay.net, income: hhPay.budgetIncome });
+  await page.evaluate(() => App.go('presupuesto/plan'));
+  await page.waitForTimeout(250);
+  const row = await page.evaluate(() => { const r = document.querySelector('#bud-simple [data-income] a[data-goto="presupuesto/ingresos"].bs-input, #bud-body tr[data-income] a[data-goto="presupuesto/ingresos"]'); return r ? r.textContent : null; });
+  ok(row && /\$2,|\$3,/.test(row), 'the budget shows her paycheck after taxes (not typed), linked to Income & Taxes', row);
+  // Single: each on their own.
+  await page.evaluate(() => { Store.active().filingStatus = 'single'; App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
+  await page.waitForTimeout(200);
+  ok(/taxed on its own/.test(await text(page, 'inc-earners')), 'filing single: each paycheck is taxed on its own');
+  // A take-home typed earlier can be entered before taxes instead; "Another person's paycheck" adds someone.
+  await page.evaluate(() => { const y = Store.active(); y.otherIncomes = [{ id: 5, name: 'Sarah (paycheck)', amount: 2500, category: 'Ingresos Laborales', memberId: 2 }]; App.changed({ structural: true }); });
+  await page.waitForTimeout(150);
+  await page.click('[data-action="earner.convert"][data-id="5"]');
+  await page.waitForTimeout(250);
+  const conv = await page.evaluate(() => { const l = Store.active().otherIncomes[0]; return { gross: l.pay && l.pay.sueldo, amount: l.amount }; });
+  ok(conv.gross > 2500 && conv.gross % 50 === 0 && Math.abs(conv.amount - 2500) < 600, 'a typed take-home becomes a paycheck before taxes (an estimate to correct)', conv);
+  await page.click('#inc-earners [data-action="earner.add"]:not([data-member])');
+  await page.waitForSelector('.modal-backdrop:not(.hidden) [data-dialog-ok]');
+  await page.fill('.modal input[name="name"]', 'Emma');
+  await page.fill('.modal input[name="gross"]', '900');
+  await page.click('.modal [data-dialog-ok]');
+  await page.waitForTimeout(250);
+  const emma = await page.evaluate(() => { const s = Store.state, m = s.members.find(x => x.name === 'Emma'), l = Store.active().otherIncomes.find(x => m && x.memberId === m.id); return { m: !!m, gross: l && l.pay.sueldo, amount: l && l.amount }; });
+  ok(emma.m && emma.gross === 900 && emma.amount > 600 && emma.amount < 900, '"Another person\'s paycheck" adds the person and their paycheck', emma);
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   // Investment prices: Alpha Vantage's one-a-second limit is waited out, its daily limit keeps the last
   // price (and says so), Google Sheets needs no key (one request), and the daily update runs once.
   await page.evaluate(() => { const s = Store.state; s.holdings = [{ id: 1, ticker: 'AAA', name: '', kind: 'ETF', shares: 2, price: 10, priceAt: '2026-01-01T00:00:00Z', priceSource: 'alphavantage' }, { id: 2, ticker: 'BBB', name: '', kind: 'ETF', shares: 1, price: 0, priceAt: null, priceSource: 'manual' }]; s.settings.priceProvider = 'alphavantage'; s.settings.priceKey = 'TESTKEY'; App.changed({ structural: true }); App.go('patrimonio'); });
@@ -1214,13 +1254,13 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.waitForTimeout(100);
   // The pay step says whose paycheck it is (one person's, before taxes) and asks the others' take-home pay.
   const pay1 = await page.evaluate(() => ({ txt: document.querySelector('.modal-backdrop:not(.hidden) .sheet-body').innerText, who: document.getElementById('su-earner').selectedOptions[0].textContent, luis: Store.state.members.find(m => m.name === 'Luis').id, step: document.querySelector('.su-progress').textContent }));
-  ok(/Main paycheck:\s*Ana/.test(pay1.txt) && pay1.who === 'Ana' && /Whose paycheck is this\?/i.test(pay1.txt) && /Luis · Take-home pay a month/i.test(pay1.txt) && /Step 2 of 5/.test(pay1.step), 'setup: the pay step names whose paycheck it is and asks the others\' take-home pay', pay1);
+  ok(/Main paycheck:\s*Ana/.test(pay1.txt) && pay1.who === 'Ana' && /Whose paycheck is this\?/i.test(pay1.txt) && /Luis · Pay before taxes, a month/i.test(pay1.txt) && /Step 2 of 5/.test(pay1.step), 'setup: the pay step names whose paycheck it is and asks the others\' pay before taxes', pay1);
   // Switching the person keeps what was typed; the heading and the other person's box follow.
   await page.fill('#su-gross', '5000');
   await page.selectOption('#su-earner', String(pay1.luis));
   await page.waitForTimeout(100);
   const pay2 = await page.evaluate(() => ({ txt: document.querySelector('.modal-backdrop:not(.hidden) .sheet-body').innerText, gross: document.getElementById('su-gross').value }));
-  ok(/Main paycheck:\s*Luis/.test(pay2.txt) && /Ana · Take-home pay a month/i.test(pay2.txt) && pay2.gross === '5000', 'setup: picking another person keeps what was typed', pay2);
+  ok(/Main paycheck:\s*Luis/.test(pay2.txt) && /Ana · Pay before taxes, a month/i.test(pay2.txt) && pay2.gross === '5000', 'setup: picking another person keeps what was typed', pay2);
   await page.selectOption('#su-earner', String(await page.evaluate(() => Store.state.members.find(m => m.name === 'Ana').id)));
   await page.waitForTimeout(100);
   await page.fill(`#su-other-${pay1.luis}`, '2100');
@@ -1244,9 +1284,9 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.fill('#su-d0-rate', '24');
   await page.click('[data-action="setup.next"]');
   await page.waitForTimeout(150);
-  const su = await page.evaluate(() => { const s = Store.state, y = Store.active(); return { names: s.members.map(m => m.name).join(','), type: y.payType, rate: y.hourly && y.hourly.rate, sueldo: y.sueldo, sched: s.settings.paySchedule, accts: s.accounts.map(a => a.kind + ':' + a.balance + ':' + (a.debtId || '')).join(','), bill: y.budgetBase.filter(i => !i.link)[0].prep, debt: s.debts.map(d => d.name + ':' + d.kind + ':' + d.minPayment).join(','), seen: s.settings.setupSeen, other: (y.otherIncomes || []).map(l => l.name + ':' + l.amount + ':' + (l.memberId === s.members[1].id)).join(',') }; });
+  const su = await page.evaluate(() => { const s = Store.state, y = Store.active(); return { names: s.members.map(m => m.name).join(','), type: y.payType, rate: y.hourly && y.hourly.rate, sueldo: y.sueldo, sched: s.settings.paySchedule, accts: s.accounts.map(a => a.kind + ':' + a.balance + ':' + (a.debtId || '')).join(','), bill: y.budgetBase.filter(i => !i.link)[0].prep, debt: s.debts.map(d => d.name + ':' + d.kind + ':' + d.minPayment).join(','), seen: s.settings.setupSeen, other: (y.otherIncomes || []).map(l => l.name + ':' + (l.pay && l.pay.sueldo) + ':' + (l.memberId === s.members[1].id) + ':' + (l.amount > 1000 && l.amount < 2100)).join(',') }; });
   ok(su.names === 'Ana,Luis' && su.type === 'hourly' && su.rate === 25 && Math.round(su.sueldo) === 4333 && su.sched.interval === 2 && su.sched.anchor === '2026-10-16'
-    && su.accts === 'corriente:1200:,tarjeta:-800:1' && su.bill === 1100 && su.debt === 'Visa:tarjeta:25' && !su.seen && su.other === 'Luis (paycheck):2100:true', 'setup: each step saves what it asked (Ana\'s paycheck, Luis\'s take-home pay as his own income)', su);
+    && su.accts === 'corriente:1200:,tarjeta:-800:1' && su.bill === 1100 && su.debt === 'Visa:tarjeta:25' && !su.seen && su.other === 'Luis (paycheck):2100:true:true', 'setup: each step saves what it asked (Ana\'s paycheck; Luis\'s pay before taxes as his own paycheck, its take-home after taxes)', su);
   ok(/Your plan is set up/.test(await page.textContent('.modal-backdrop:not(.hidden)')), 'setup: done screen');
   await page.click('[data-action="setup.close"]');
   await page.waitForTimeout(200);

@@ -80,11 +80,13 @@
         const rows = [`<div class="bs-row" data-income="salary">
                 <div class="bs-name"><span class="bs-label">Net salary</span> <a href="#" class="badge badge-ok" data-goto="presupuesto/ingresos"><i class="fa-solid fa-link"></i> Your Salary</a><span class="bs-sub" data-sub></span></div>
                 ${valueCell()}<div class="bs-bar"><span data-bar></span></div></div>`];
+        const effLines = ctx.budgetYear.otherIncomes || [];
         (ctx.year.otherIncomes || []).forEach(src => {
+            const taxed = src.pay ? (effLines.find(x => x.id === src.id) || src) : null;
             rows.push(`<div class="bs-row" data-income="${src.id}">
                 <div class="bs-name"><input class="bs-name-input" value="${esc(src.name)}" data-change="income.set" data-id="${src.id}" data-field="name" aria-label="Income name">
                     <button type="button" class="row-del bs-del" data-action="income.delete" data-id="${src.id}" title="Delete income" aria-label="Delete income"><i class="fa-solid fa-trash-can"></i></button><span class="bs-sub" data-sub></span></div>
-                ${valueCell(`<input type="number" class="bs-input" min="0" step="10" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Planned for ${esc(src.name)}">`)}
+                ${valueCell(taxed ? `<a href="#" class="bs-input link text-right" data-goto="presupuesto/ingresos" data-focus="inc-earners-card" title="After taxes: figured in Income & Taxes">${money(taxed.amount)}</a>` : `<input type="number" class="bs-input" min="0" step="10" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Planned for ${esc(src.name)}">`)}
                 <div class="bs-bar"><span data-bar></span></div></div>`);
         });
         m.other.unplanned.forEach(u => {
