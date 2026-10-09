@@ -798,7 +798,7 @@
             <div class="card-head">
                 <div>
                     <div class="card-title"><i class="fa-solid fa-chart-area text-blue-600"></i> Trends</div>
-                    <div class="card-sub">Spending by category month by month, stacked, with your income as a line.</div>
+                    <div class="card-sub">Spending by category over time, stacked, with your income as a line. Zoom in on the dates to see it week by week or day by day.</div>
                 </div>
             </div>
             <div class="flex flex-wrap items-center gap-2 mb-3">
@@ -811,20 +811,31 @@
                 </div>
                 <select id="trends-category" class="cell-input" style="width:auto" data-change="trends.category" aria-label="Category"></select>
                 <select id="trends-account" class="cell-input" style="width:auto" data-change="trends.account" aria-label="Account"></select>
-                <div class="zoom-ctl" role="group" aria-label="Zoom">
-                    <button type="button" class="icon-btn icon-btn-light" data-action="trends.zoom" data-dir="-1" aria-label="Zoom out" title="Zoom out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
-                    <span id="trends-zoom-level" class="zoom-level">1×</span>
-                    <button type="button" class="icon-btn icon-btn-light" data-action="trends.zoom" data-dir="1" aria-label="Zoom in" title="Zoom in"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
-                    <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.pan" data-dir="1" aria-label="Move up" title="Move up"><i class="fa-solid fa-chevron-up"></i></button>
-                    <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.pan" data-dir="-1" aria-label="Move down" title="Move down"><i class="fa-solid fa-chevron-down"></i></button>
-                    <button type="button" class="link text-xs trends-pan" data-action="trends.zoomReset">Show all</button>
+                <div class="zoom-ctls">
+                    <div class="zoom-ctl" id="trends-zoom-y" role="group" aria-label="Zoom the amounts (up and down)">
+                        <i class="fa-solid fa-arrows-up-down zoom-axis" title="Amounts" aria-hidden="true"></i>
+                        <button type="button" class="icon-btn icon-btn-light" data-action="trends.zoom" data-dir="-1" aria-label="Zoom out on the amounts" title="Zoom out on the amounts"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                        <span id="trends-zoom-level" class="zoom-level">1×</span>
+                        <button type="button" class="icon-btn icon-btn-light" data-action="trends.zoom" data-dir="1" aria-label="Zoom in on the amounts" title="Zoom in on the amounts"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                        <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.pan" data-dir="1" aria-label="Move up" title="Move up"><i class="fa-solid fa-chevron-up"></i></button>
+                        <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.pan" data-dir="-1" aria-label="Move down" title="Move down"><i class="fa-solid fa-chevron-down"></i></button>
+                    </div>
+                    <div class="zoom-ctl" id="trends-zoom-x" role="group" aria-label="Zoom the dates (left and right)">
+                        <i class="fa-solid fa-arrows-left-right zoom-axis" title="Dates" aria-hidden="true"></i>
+                        <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.tpan" data-dir="-1" aria-label="Earlier" title="Earlier"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button type="button" class="icon-btn icon-btn-light" data-action="trends.tzoom" data-dir="-1" aria-label="Zoom out on the dates" title="Zoom out on the dates"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                        <span id="trends-tzoom-level" class="zoom-level wide">6 months</span>
+                        <button type="button" class="icon-btn icon-btn-light" data-action="trends.tzoom" data-dir="1" aria-label="Zoom in on the dates" title="Zoom in on the dates"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                        <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.tpan" data-dir="1" aria-label="Later" title="Later"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                    <button type="button" id="trends-zoom-reset" class="link text-xs hidden" data-action="trends.zoomReset">Show all</button>
                 </div>
             </div>
             <p id="trends-empty" class="text-xs text-slate-400 text-center py-8 hidden">No spending in these months.</p>
             <div id="trends-body">
-                <div class="chart-box tall"><canvas id="trends-chart" aria-label="Spending by category per month"></canvas></div>
+                <div class="chart-box tall"><canvas id="trends-chart" aria-label="Spending by category over time"></canvas></div>
                 <p class="help mt-1" id="trends-note"></p>
-                <p class="help mt-1"><i class="fa-solid fa-magnifying-glass-plus"></i> A thin band hard to tap? Tap near it and zoom in (the magnifier, a pinch, or Ctrl with the mouse wheel); drag to move up and down.</p>
+                <p class="help mt-1"><i class="fa-solid fa-magnifying-glass-plus"></i> A thin band hard to tap? Zoom in on the amounts (↕) to make it taller, or on the dates (↔) to see fewer days, week by week and then day by day, so each one gets wider. Pinch up and down or sideways; on a computer, Ctrl or Shift with the mouse wheel. Drag to move around.</p>
                 <div id="trends-focus" class="mt-3"></div>
                 <div id="trends-drill" class="mt-3"></div>
                 <details class="mt-2">

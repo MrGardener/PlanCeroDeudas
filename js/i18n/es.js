@@ -2,6 +2,23 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "A thin band hard to tap? Zoom in on the amounts (↕) to make it taller, or on the dates (↔) to see fewer days, week by week and then day by day, so each one gets wider. Pinch up and down or sideways; on a computer, Ctrl or Shift with the mouse wheel. Drag to move around.": "¿Una franja delgada difícil de tocar? Acerca los montos (↕) para hacerla más alta, o las fechas (↔) para ver menos días, semana a semana y luego día a día, así cada uno se ve más ancho. Pellizca arriba y abajo o de lado; en una computadora, Ctrl o Shift con la rueda del mouse. Arrastra para moverte.",
+    "Amounts": "Montos",
+    "Spending by category over time": "Gastos por categoría en el tiempo",
+    "Spending by category over time, stacked, with your income as a line. Zoom in on the dates to see it week by week or day by day.": "Gastos por categoría en el tiempo, apilados, con tus ingresos como una línea. Acerca las fechas para verlo semana a semana o día a día.",
+    "Tap a day on the chart to see what changed.": "Toca un día en el gráfico para ver qué cambió.",
+    "Tap a week on the chart to see what changed.": "Toca una semana en el gráfico para ver qué cambió.",
+    "This week isn't over yet.": "Esta semana aún no termina.",
+    "Today isn't over yet.": "Hoy aún no termina.",
+    "Transactions:": "Transacciones:",
+    "Zoom in on the amounts": "Acercar los montos",
+    "Zoom in on the dates": "Acercar las fechas",
+    "Zoom out on the amounts": "Alejar los montos",
+    "Zoom out on the dates": "Alejar las fechas",
+    "Zoom the amounts (up and down)": "Zoom en los montos (arriba y abajo)",
+    "Zoom the dates (left and right)": "Zoom en las fechas (izquierda y derecha)",
+    "{0} month{1}": "{0} mes{1|es|}",
+    "On paydays the income line runs above the chart; the table below has its amounts.": "En los días de pago la línea de ingresos sale por encima del gráfico; la tabla de abajo tiene sus montos.",
     "Side income": "Ingreso extra",
     "Calculated for": "Calculado para",
     "Check Step 2(c) on both W-4s when the pays are about the same, or put the extra withholding on the higher-paying job's W-4.": "Marca el Paso 2(c) en los dos W-4 cuando los sueldos sean parecidos, o pon la retención extra en el W-4 del trabajo que paga más.",

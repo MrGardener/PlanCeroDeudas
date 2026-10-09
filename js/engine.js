@@ -1171,14 +1171,20 @@
     // Spending per month by category (or, for one category, by subcategory) for the last `months`
     // months up to `end`, plus income, for the Trends chart. account: '' = all, 'none' = without
     // an account, else an account id. The smallest series fold into one "other" (key null).
-    function categoryTrend(transactions, { end, months = 6, account = '', category = '', max = 7 } = {}) {
+    // With from / to / unit (trendWindow), the points are those months, weeks (Monday to Sunday,
+    // the first one starting at `from`) or days instead of the last `months` months.
+    function categoryTrend(transactions, { end, months = 6, account = '', category = '', max = 7, from = null, to = null, unit = 'month' } = {}) {
         const e = end instanceof Date ? end : new Date(end);
-        const keys = Array.from({ length: months }, (_, i) => { const d = new Date(e.getFullYear(), e.getMonth() - months + 1 + i, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; });
+        const keys = from && to ? trendKeys(from, to, unit)
+            : Array.from({ length: months }, (_, i) => { const d = new Date(e.getFullYear(), e.getMonth() - months + 1 + i, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; });
         const at = {}; keys.forEach((k, i) => { at[k] = i; });
-        const zeros = () => new Array(months).fill(0);
+        const keyOf = !(from && to) || unit === 'month' ? (d) => d.slice(0, 7)
+            : unit === 'day' ? (d) => d
+            : (d) => { const w = isoDate(periodStart(new Date(d + 'T00:00:00'), 'week')); return w < from ? from : w; };
+        const zeros = () => new Array(keys.length).fill(0);
         const by = {}, income = zeros();
         (transactions || []).forEach(t => {
-            const i = t.date ? at[t.date.slice(0, 7)] : undefined;
+            const i = t.date && (!from || (t.date >= from && t.date <= to)) ? at[keyOf(t.date)] : undefined;
             if (i === undefined || isTransfer(t)) return;
             if (account === 'none' ? t.accountId : account !== '' && account !== null && account !== undefined && String(t.accountId) !== String(account)) return;
             if (txnType(t) === 'Ingreso') { if (!category) income[i] += num(t.amount); return; }
@@ -1193,7 +1199,55 @@
             series = series.slice(0, max - 1).concat([{ key: null, other: rest.map(x => x.key), values, total: sum(rest, x => x.total) }]);
         }
         const spend = keys.map((_, i) => sum(series, x => x.values[i]));
-        return { months: keys, series, income: category ? null : income, spend };
+        return { months: keys, unit: from && to ? unit : 'month', from, to, series, income: category ? null : income, spend };
+    }
+
+    // The points of a trend between two dates: 'YYYY-MM' months, or the ISO date each week (the
+    // first one cut at `from`) or day starts.
+    function trendKeys(from, to, unit) {
+        const keys = [], end = new Date(to + 'T00:00:00');
+        let d = new Date(from + 'T00:00:00');
+        if (unit === 'month') d = new Date(d.getFullYear(), d.getMonth(), 1);
+        while (d <= end && keys.length < 400) {
+            keys.push(unit === 'month' ? isoDate(d).slice(0, 7) : isoDate(d));
+            d = unit === 'month' ? new Date(d.getFullYear(), d.getMonth() + 1, 1)
+                : unit === 'day' ? new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
+                : (() => { const w = periodStart(d, 'week'); return new Date(w.getFullYear(), w.getMonth(), w.getDate() + 7); })();
+        }
+        return keys;
+    }
+    // The dates one point of a trend covers, inside its window.
+    function trendPointRange(trend, key) {
+        const unit = trend && trend.unit || 'month';
+        let from, to;
+        if (unit === 'month') { const [y, m] = key.split('-').map(Number); from = `${key}-01`; to = isoDate(new Date(y, m, 0)); }
+        else if (unit === 'day') { from = to = key; }
+        else { const w = periodStart(new Date(key + 'T00:00:00'), 'week'); from = key; to = isoDate(new Date(w.getFullYear(), w.getMonth(), w.getDate() + 6)); }
+        if (trend && trend.from && from < trend.from) from = trend.from;
+        if (trend && trend.to && to > trend.to) to = trend.to;
+        return [from, to];
+    }
+
+    // Trends' time window: the whole period (`months` months ending with today's month) seen `zoom`
+    // times closer around `center` (an ISO date), and its points: months while the window is long,
+    // weeks for a month or three, days for the last three weeks down to one. Zoomed in, the window
+    // ends today at the latest (nothing has been spent after today).
+    const TREND_MIN_DAYS = 7;
+    function trendWindow({ end, months = 6, zoom = 1, center = null } = {}) {
+        const e = end instanceof Date ? end : new Date(end);
+        const today = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+        const first = new Date(e.getFullYear(), e.getMonth() - months + 1, 1);
+        const span = Math.round((today - first) / 86400000) + 1;
+        const maxZoom = Math.max(1, span / TREND_MIN_DAYS);
+        const z = Math.min(maxZoom, Math.max(1, num(zoom) || 1));
+        if (z === 1) return { from: isoDate(first), to: isoDate(new Date(e.getFullYear(), e.getMonth() + 1, 0)), unit: 'month', zoom: 1, maxZoom, days: span, center: null };
+        const days = Math.max(TREND_MIN_DAYS, Math.round(span / z));
+        const c = /^\d{4}-\d\d-\d\d$/.test(center || '') ? new Date(center + 'T00:00:00') : new Date(first.getFullYear(), first.getMonth(), first.getDate() + Math.floor(span / 2));
+        const offset = Math.min(Math.max(0, Math.round((c - first) / 86400000) - Math.floor(days / 2)), span - days);
+        const start = new Date(first.getFullYear(), first.getMonth(), first.getDate() + offset);
+        const stop = new Date(start.getFullYear(), start.getMonth(), start.getDate() + days - 1);
+        const unit = days > 92 ? 'month' : days > 21 ? 'week' : 'day';
+        return { from: isoDate(start), to: isoDate(stop), unit, zoom: z, maxZoom, days, center: isoDate(new Date(start.getFullYear(), start.getMonth(), start.getDate() + Math.floor(days / 2))) };
     }
 
     // Trends drill-down: one month of a categoryTrend() vs the period's monthly average, per
@@ -3037,7 +3091,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, jointWagesUS, sideIncomeTaxes, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, jointWagesUS, sideIncomeTaxes, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

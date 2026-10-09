@@ -208,8 +208,11 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 .modal-title i { color: #059669; } .modal-danger .modal-title i { color: #dc2626; }
 .modal-message { font-size: .82rem; color: var(--ink-2); line-height: 1.55; margin-bottom: .9rem; white-space: pre-line; }
 /* Chart zoom: − 2× + and, when zoomed, ▲ ▼ "Show all". */
-.zoom-ctl { display: inline-flex; align-items: center; gap: .25rem; margin-left: auto; }
+.zoom-ctls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .25rem .75rem; margin-left: auto; }
+.zoom-ctl { display: inline-flex; align-items: center; gap: .25rem; }
+.zoom-ctl .zoom-axis { font-size: .75rem; color: var(--muted); margin-right: .1rem; }
 .zoom-ctl .zoom-level { min-width: 2.2rem; text-align: center; font-size: .75rem; font-weight: 700; color: var(--ink-2); }
+.zoom-ctl .zoom-level.wide { min-width: 4.6rem; }
 .zoom-ctl:not(.is-zoomed) .trends-pan { display: none; }
 .modal-error { font-size: .75rem; color: #b91c1c; font-weight: 700; margin-top: .6rem; }
 /* Fields folded under "More options" in a dialog. */
@@ -1857,7 +1860,7 @@ button.gm-row:hover { background: var(--surface-3); }
             <div class="card-head">
                 <div>
                     <div class="card-title"><i class="fa-solid fa-chart-area text-blue-600"></i> Trends</div>
-                    <div class="card-sub">Spending by category month by month, stacked, with your income as a line.</div>
+                    <div class="card-sub">Spending by category over time, stacked, with your income as a line. Zoom in on the dates to see it week by week or day by day.</div>
                 </div>
             </div>
             <div class="flex flex-wrap items-center gap-2 mb-3">
@@ -1870,20 +1873,31 @@ button.gm-row:hover { background: var(--surface-3); }
                 </div>
                 <select id="trends-category" class="cell-input" style="width:auto" data-change="trends.category" aria-label="Category"></select>
                 <select id="trends-account" class="cell-input" style="width:auto" data-change="trends.account" aria-label="Account"></select>
-                <div class="zoom-ctl" role="group" aria-label="Zoom">
-                    <button type="button" class="icon-btn icon-btn-light" data-action="trends.zoom" data-dir="-1" aria-label="Zoom out" title="Zoom out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
-                    <span id="trends-zoom-level" class="zoom-level">1×</span>
-                    <button type="button" class="icon-btn icon-btn-light" data-action="trends.zoom" data-dir="1" aria-label="Zoom in" title="Zoom in"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
-                    <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.pan" data-dir="1" aria-label="Move up" title="Move up"><i class="fa-solid fa-chevron-up"></i></button>
-                    <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.pan" data-dir="-1" aria-label="Move down" title="Move down"><i class="fa-solid fa-chevron-down"></i></button>
-                    <button type="button" class="link text-xs trends-pan" data-action="trends.zoomReset">Show all</button>
+                <div class="zoom-ctls">
+                    <div class="zoom-ctl" id="trends-zoom-y" role="group" aria-label="Zoom the amounts (up and down)">
+                        <i class="fa-solid fa-arrows-up-down zoom-axis" title="Amounts" aria-hidden="true"></i>
+                        <button type="button" class="icon-btn icon-btn-light" data-action="trends.zoom" data-dir="-1" aria-label="Zoom out on the amounts" title="Zoom out on the amounts"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                        <span id="trends-zoom-level" class="zoom-level">1×</span>
+                        <button type="button" class="icon-btn icon-btn-light" data-action="trends.zoom" data-dir="1" aria-label="Zoom in on the amounts" title="Zoom in on the amounts"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                        <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.pan" data-dir="1" aria-label="Move up" title="Move up"><i class="fa-solid fa-chevron-up"></i></button>
+                        <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.pan" data-dir="-1" aria-label="Move down" title="Move down"><i class="fa-solid fa-chevron-down"></i></button>
+                    </div>
+                    <div class="zoom-ctl" id="trends-zoom-x" role="group" aria-label="Zoom the dates (left and right)">
+                        <i class="fa-solid fa-arrows-left-right zoom-axis" title="Dates" aria-hidden="true"></i>
+                        <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.tpan" data-dir="-1" aria-label="Earlier" title="Earlier"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button type="button" class="icon-btn icon-btn-light" data-action="trends.tzoom" data-dir="-1" aria-label="Zoom out on the dates" title="Zoom out on the dates"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                        <span id="trends-tzoom-level" class="zoom-level wide">6 months</span>
+                        <button type="button" class="icon-btn icon-btn-light" data-action="trends.tzoom" data-dir="1" aria-label="Zoom in on the dates" title="Zoom in on the dates"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                        <button type="button" class="icon-btn icon-btn-light trends-pan" data-action="trends.tpan" data-dir="1" aria-label="Later" title="Later"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                    <button type="button" id="trends-zoom-reset" class="link text-xs hidden" data-action="trends.zoomReset">Show all</button>
                 </div>
             </div>
             <p id="trends-empty" class="text-xs text-slate-400 text-center py-8 hidden">No spending in these months.</p>
             <div id="trends-body">
-                <div class="chart-box tall"><canvas id="trends-chart" aria-label="Spending by category per month"></canvas></div>
+                <div class="chart-box tall"><canvas id="trends-chart" aria-label="Spending by category over time"></canvas></div>
                 <p class="help mt-1" id="trends-note"></p>
-                <p class="help mt-1"><i class="fa-solid fa-magnifying-glass-plus"></i> A thin band hard to tap? Tap near it and zoom in (the magnifier, a pinch, or Ctrl with the mouse wheel); drag to move up and down.</p>
+                <p class="help mt-1"><i class="fa-solid fa-magnifying-glass-plus"></i> A thin band hard to tap? Zoom in on the amounts (↕) to make it taller, or on the dates (↔) to see fewer days, week by week and then day by day, so each one gets wider. Pinch up and down or sideways; on a computer, Ctrl or Shift with the mouse wheel. Drag to move around.</p>
                 <div id="trends-focus" class="mt-3"></div>
                 <div id="trends-drill" class="mt-3"></div>
                 <details class="mt-2">
@@ -5891,6 +5905,23 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "A thin band hard to tap? Zoom in on the amounts (↕) to make it taller, or on the dates (↔) to see fewer days, week by week and then day by day, so each one gets wider. Pinch up and down or sideways; on a computer, Ctrl or Shift with the mouse wheel. Drag to move around.": "¿Una franja delgada difícil de tocar? Acerca los montos (↕) para hacerla más alta, o las fechas (↔) para ver menos días, semana a semana y luego día a día, así cada uno se ve más ancho. Pellizca arriba y abajo o de lado; en una computadora, Ctrl o Shift con la rueda del mouse. Arrastra para moverte.",
+    "Amounts": "Montos",
+    "Spending by category over time": "Gastos por categoría en el tiempo",
+    "Spending by category over time, stacked, with your income as a line. Zoom in on the dates to see it week by week or day by day.": "Gastos por categoría en el tiempo, apilados, con tus ingresos como una línea. Acerca las fechas para verlo semana a semana o día a día.",
+    "Tap a day on the chart to see what changed.": "Toca un día en el gráfico para ver qué cambió.",
+    "Tap a week on the chart to see what changed.": "Toca una semana en el gráfico para ver qué cambió.",
+    "This week isn't over yet.": "Esta semana aún no termina.",
+    "Today isn't over yet.": "Hoy aún no termina.",
+    "Transactions:": "Transacciones:",
+    "Zoom in on the amounts": "Acercar los montos",
+    "Zoom in on the dates": "Acercar las fechas",
+    "Zoom out on the amounts": "Alejar los montos",
+    "Zoom out on the dates": "Alejar las fechas",
+    "Zoom the amounts (up and down)": "Zoom en los montos (arriba y abajo)",
+    "Zoom the dates (left and right)": "Zoom en las fechas (izquierda y derecha)",
+    "{0} month{1}": "{0} mes{1|es|}",
+    "On paydays the income line runs above the chart; the table below has its amounts.": "En los días de pago la línea de ingresos sale por encima del gráfico; la tabla de abajo tiene sus montos.",
     "Side income": "Ingreso extra",
     "Calculated for": "Calculado para",
     "Check Step 2(c) on both W-4s when the pays are about the same, or put the extra withholding on the higher-paying job's W-4.": "Marca el Paso 2(c) en los dos W-4 cuando los sueldos sean parecidos, o pon la retención extra en el W-4 del trabajo que paga más.",
@@ -12853,14 +12884,20 @@ I18n.override('EC', 'es', {
     // Spending per month by category (or, for one category, by subcategory) for the last `months`
     // months up to `end`, plus income, for the Trends chart. account: '' = all, 'none' = without
     // an account, else an account id. The smallest series fold into one "other" (key null).
-    function categoryTrend(transactions, { end, months = 6, account = '', category = '', max = 7 } = {}) {
+    // With from / to / unit (trendWindow), the points are those months, weeks (Monday to Sunday,
+    // the first one starting at `from`) or days instead of the last `months` months.
+    function categoryTrend(transactions, { end, months = 6, account = '', category = '', max = 7, from = null, to = null, unit = 'month' } = {}) {
         const e = end instanceof Date ? end : new Date(end);
-        const keys = Array.from({ length: months }, (_, i) => { const d = new Date(e.getFullYear(), e.getMonth() - months + 1 + i, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; });
+        const keys = from && to ? trendKeys(from, to, unit)
+            : Array.from({ length: months }, (_, i) => { const d = new Date(e.getFullYear(), e.getMonth() - months + 1 + i, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; });
         const at = {}; keys.forEach((k, i) => { at[k] = i; });
-        const zeros = () => new Array(months).fill(0);
+        const keyOf = !(from && to) || unit === 'month' ? (d) => d.slice(0, 7)
+            : unit === 'day' ? (d) => d
+            : (d) => { const w = isoDate(periodStart(new Date(d + 'T00:00:00'), 'week')); return w < from ? from : w; };
+        const zeros = () => new Array(keys.length).fill(0);
         const by = {}, income = zeros();
         (transactions || []).forEach(t => {
-            const i = t.date ? at[t.date.slice(0, 7)] : undefined;
+            const i = t.date && (!from || (t.date >= from && t.date <= to)) ? at[keyOf(t.date)] : undefined;
             if (i === undefined || isTransfer(t)) return;
             if (account === 'none' ? t.accountId : account !== '' && account !== null && account !== undefined && String(t.accountId) !== String(account)) return;
             if (txnType(t) === 'Ingreso') { if (!category) income[i] += num(t.amount); return; }
@@ -12875,7 +12912,55 @@ I18n.override('EC', 'es', {
             series = series.slice(0, max - 1).concat([{ key: null, other: rest.map(x => x.key), values, total: sum(rest, x => x.total) }]);
         }
         const spend = keys.map((_, i) => sum(series, x => x.values[i]));
-        return { months: keys, series, income: category ? null : income, spend };
+        return { months: keys, unit: from && to ? unit : 'month', from, to, series, income: category ? null : income, spend };
+    }
+
+    // The points of a trend between two dates: 'YYYY-MM' months, or the ISO date each week (the
+    // first one cut at `from`) or day starts.
+    function trendKeys(from, to, unit) {
+        const keys = [], end = new Date(to + 'T00:00:00');
+        let d = new Date(from + 'T00:00:00');
+        if (unit === 'month') d = new Date(d.getFullYear(), d.getMonth(), 1);
+        while (d <= end && keys.length < 400) {
+            keys.push(unit === 'month' ? isoDate(d).slice(0, 7) : isoDate(d));
+            d = unit === 'month' ? new Date(d.getFullYear(), d.getMonth() + 1, 1)
+                : unit === 'day' ? new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
+                : (() => { const w = periodStart(d, 'week'); return new Date(w.getFullYear(), w.getMonth(), w.getDate() + 7); })();
+        }
+        return keys;
+    }
+    // The dates one point of a trend covers, inside its window.
+    function trendPointRange(trend, key) {
+        const unit = trend && trend.unit || 'month';
+        let from, to;
+        if (unit === 'month') { const [y, m] = key.split('-').map(Number); from = `${key}-01`; to = isoDate(new Date(y, m, 0)); }
+        else if (unit === 'day') { from = to = key; }
+        else { const w = periodStart(new Date(key + 'T00:00:00'), 'week'); from = key; to = isoDate(new Date(w.getFullYear(), w.getMonth(), w.getDate() + 6)); }
+        if (trend && trend.from && from < trend.from) from = trend.from;
+        if (trend && trend.to && to > trend.to) to = trend.to;
+        return [from, to];
+    }
+
+    // Trends' time window: the whole period (`months` months ending with today's month) seen `zoom`
+    // times closer around `center` (an ISO date), and its points: months while the window is long,
+    // weeks for a month or three, days for the last three weeks down to one. Zoomed in, the window
+    // ends today at the latest (nothing has been spent after today).
+    const TREND_MIN_DAYS = 7;
+    function trendWindow({ end, months = 6, zoom = 1, center = null } = {}) {
+        const e = end instanceof Date ? end : new Date(end);
+        const today = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+        const first = new Date(e.getFullYear(), e.getMonth() - months + 1, 1);
+        const span = Math.round((today - first) / 86400000) + 1;
+        const maxZoom = Math.max(1, span / TREND_MIN_DAYS);
+        const z = Math.min(maxZoom, Math.max(1, num(zoom) || 1));
+        if (z === 1) return { from: isoDate(first), to: isoDate(new Date(e.getFullYear(), e.getMonth() + 1, 0)), unit: 'month', zoom: 1, maxZoom, days: span, center: null };
+        const days = Math.max(TREND_MIN_DAYS, Math.round(span / z));
+        const c = /^\d{4}-\d\d-\d\d$/.test(center || '') ? new Date(center + 'T00:00:00') : new Date(first.getFullYear(), first.getMonth(), first.getDate() + Math.floor(span / 2));
+        const offset = Math.min(Math.max(0, Math.round((c - first) / 86400000) - Math.floor(days / 2)), span - days);
+        const start = new Date(first.getFullYear(), first.getMonth(), first.getDate() + offset);
+        const stop = new Date(start.getFullYear(), start.getMonth(), start.getDate() + days - 1);
+        const unit = days > 92 ? 'month' : days > 21 ? 'week' : 'day';
+        return { from: isoDate(start), to: isoDate(stop), unit, zoom: z, maxZoom, days, center: isoDate(new Date(start.getFullYear(), start.getMonth(), start.getDate() + Math.floor(days / 2))) };
     }
 
     // Trends drill-down: one month of a categoryTrend() vs the period's monthly average, per
@@ -14719,7 +14804,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, jointWagesUS, sideIncomeTaxes, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, jointWagesUS, sideIncomeTaxes, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -23156,24 +23241,74 @@ I18n.override('EC', 'es', {
     // One settings object (the chart's tap handler keeps a reference to it): filled in once.
     const topts = () => {
         const t = Store.ui.trends;
-        if (!t || t.zoom === undefined) Store.ui.trends = Object.assign({ months: 6, category: '', account: '', zoom: 1, zoomAt: null }, t);
+        if (!t || t.zoom === undefined || t.tzoom === undefined) Store.ui.trends = Object.assign({ months: 6, category: '', account: '', zoom: 1, zoomAt: null, tzoom: 1, tcenter: null }, t);
         return Store.ui.trends;
     };
 
+    // The dates showing (Engine.trendWindow: the period, or less of it zoomed in on the dates) and
+    // the trend over them: by month, by week or by day.
+    let shownWindow = null;
+    function trendData(ctx, o, extra) {
+        const w = Engine.trendWindow({ end: ctx.today, months: o.months, zoom: o.tzoom, center: o.tcenter });
+        return Engine.categoryTrend(ctx.state.transactions, Object.assign({ end: ctx.today, months: o.months, account: o.account, category: o.category }, w.zoom > 1 ? { from: w.from, to: w.to, unit: w.unit } : {}, extra || {}));
+    }
+    const dateOf = (iso) => new Date(iso + 'T00:00:00');
+    const addDays = (iso, n) => { const d = dateOf(iso); d.setDate(d.getDate() + Math.round(n)); return Engine.isoDate(d); };
+    // A point's name on the chart ("Mar", "Mar 14") and in sentences ("Week of March 14").
+    function labeler(r) {
+        const short = (k) => {
+            if (r.unit === 'month') { const [y, m] = k.split('-'); return `${Fmt.MONTH_SHORT[Number(m) - 1]}${r.months.some(x => x.slice(0, 4) !== y) ? ' ' + y.slice(2) : ''}`; }
+            const d = dateOf(k);
+            return `${Fmt.MONTH_SHORT[d.getMonth()]} ${d.getDate()}`;
+        };
+        short.long = (k) => (r.unit === 'month' ? short(k) : r.unit === 'week' ? `${I18n.t('Week of')} ${Fmt.dayMonth(dateOf(k))}` : `${Fmt.WEEKDAYS[dateOf(k).getDay()]} ${Fmt.dayMonth(dateOf(k))}`);
+        return short;
+    }
+    // The middle date of a point (where zooming in on it should center).
+    function pointMiddle(r, k) {
+        const [f, t] = Engine.trendPointRange(r, k);
+        return addDays(f, Math.floor((dateOf(t) - dateOf(f)) / 86400000 / 2));
+    }
+
+    // Zoom on the dates: fewer days across the chart, so each one's bands get wider (and, by week or
+    // by day, small spending gets its own visible step). ◀ ▶ or a drag sideways moves in time.
+    let redraw = 0;
+    function setTimeZoom(zoom, center) {
+        const o = topts();
+        o.tzoom = Math.max(1, Number(zoom) || 1);
+        if (center) o.tcenter = center;
+        if (o.tzoom <= 1) o.tcenter = null;
+        if (redraw) return;
+        redraw = requestAnimationFrame(() => { redraw = 0; trends(App.buildContext()); });
+    }
+    function timeZoomCenter(o) {
+        if (o.focusMonth && trendsSeries && trendsSeries.months.includes(o.focusMonth)) return pointMiddle(trendsSeries, o.focusMonth);
+        // Nothing tapped: from the latest days (as long as they're showing), else where the zoom is.
+        const today = Engine.isoDate(new Date());
+        return !shownWindow || shownWindow.zoom <= 1 || shownWindow.to >= today ? today : shownWindow.center;
+    }
+
     // Zoom: thin bands (small categories) get tall enough to tap. The chart shows 1/zoom of its
     // height around zoomAt; drag (or ▲ ▼) moves up and down, pinch or Ctrl+wheel zooms.
-    let zoomTop = 0, trendsSeries = null;
+    let zoomTop = 0, trendsSeries = null, fitSpend = false;
     function zoomView(o) { return Engine.zoomRange(zoomTop, o.zoom, o.zoomAt); }
+    function yRange(o) {
+        const z = zoomView(o);
+        return z.zoom > 1 ? { min: z.min, max: z.max } : fitSpend ? { min: 0, max: zoomTop } : {};
+    }
     function applyZoom(chart) {
         const o = topts(), z = zoomView(o);
         o.zoom = z.zoom;
         if (z.zoom > 1) o.zoomAt = (z.min + z.max) / 2;
         const y = chart.options.scales.y;
-        if (z.zoom > 1) { y.min = z.min; y.max = z.max; } else { delete y.min; delete y.max; }
-        const ctl = document.querySelector('#trends-card .zoom-ctl');
+        // By week or by day the height fits the spending (paydays' income would flatten it).
+        if (z.zoom > 1) { y.min = z.min; y.max = z.max; } else if (fitSpend) { y.min = 0; y.max = zoomTop; } else { delete y.min; delete y.max; }
+        const ctl = document.getElementById('trends-zoom-y');
         if (ctl) ctl.classList.toggle('is-zoomed', z.zoom > 1);
         UI.text('trends-zoom-level', `${Math.round(z.zoom * 10) / 10}×`);
-        chart.canvas.style.touchAction = z.zoom > 1 ? 'none' : 'pan-y';
+        const timeZoomed = o.tzoom > 1;
+        UI.show('trends-zoom-reset', z.zoom > 1 || timeZoomed);
+        chart.canvas.style.touchAction = z.zoom > 1 || timeZoomed ? 'none' : 'pan-y';
     }
     function setZoom(zoom, center) {
         const o = topts();
@@ -23198,23 +23333,49 @@ I18n.override('EC', 'es', {
         canvas.dataset.zoomReady = '1';
         const pts = new Map();
         let drag = null, pinch = null;
-        const valueAt = (clientY) => { const c = UI.chartInstance('trends-chart'); const r = canvas.getBoundingClientRect(); return c ? c.scales.y.getValueForPixel(clientY - r.top) : null; };
-        const gap = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+        const chart = () => UI.chartInstance('trends-chart');
+        const valueAt = (clientY) => { const c = chart(); const r = canvas.getBoundingClientRect(); return c ? c.scales.y.getValueForPixel(clientY - r.top) : null; };
+        const dateAt = (clientX) => {
+            const c = chart(), r = canvas.getBoundingClientRect(), keys = trendsSeries ? trendsSeries.months : [];
+            if (!c || !keys.length) return null;
+            const i = Math.max(0, Math.min(keys.length - 1, Math.round(c.scales.x.getValueForPixel(clientX - r.left))));
+            return pointMiddle(trendsSeries, keys[i]);
+        };
+        const spread = (axis) => { const [a, b] = [...pts.values()]; return Math.abs(axis === 'x' ? a.x - b.x : a.y - b.y); };
         canvas.addEventListener('pointerdown', (e) => {
             pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-            if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: gap(), zoom: topts().zoom, at: valueAt((a.y + b.y) / 2) }; drag = null; }
-            else if (pts.size === 1 && topts().zoom > 1) drag = { y: e.clientY, at: topts().zoomAt, moved: false };
+            const o = topts();
+            if (pts.size === 2) {
+                // Fingers apart sideways zoom the dates; up and down, the amounts.
+                const [a, b] = [...pts.values()], axis = Math.abs(a.x - b.x) > Math.abs(a.y - b.y) ? 'x' : 'y';
+                pinch = { axis, d: spread(axis), zoom: axis === 'x' ? o.tzoom : o.zoom, at: axis === 'x' ? dateAt((a.x + b.x) / 2) : valueAt((a.y + b.y) / 2) };
+                drag = null;
+            } else if (pts.size === 1 && (o.zoom > 1 || o.tzoom > 1)) drag = { x: e.clientX, y: e.clientY, at: o.zoomAt, center: shownWindow && shownWindow.center, days: shownWindow ? shownWindow.days : 0, axis: null };
         });
         canvas.addEventListener('pointermove', (e) => {
             if (!pts.has(e.pointerId)) return;
             pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-            if (pinch && pts.size === 2) { const d = gap(); if (pinch.d > 10 && d > 10) setZoom(pinch.zoom * d / pinch.d, pinch.at); canvas.dataset.dragged = '1'; return; }
-            if (!drag) return;
-            const c = UI.chartInstance('trends-chart');
-            if (!c || Math.abs(e.clientY - drag.y) < 4 && !drag.moved) return;
-            drag.moved = true; canvas.dataset.dragged = '1';
-            const perPx = (c.scales.y.max - c.scales.y.min) / Math.max(1, c.chartArea.bottom - c.chartArea.top);
-            setZoom(topts().zoom, drag.at + (e.clientY - drag.y) * perPx);
+            if (pinch && pts.size === 2) {
+                const d = spread(pinch.axis);
+                if (pinch.d > 10 && d > 10) { if (pinch.axis === 'x') setTimeZoom(pinch.zoom * d / pinch.d, pinch.at); else setZoom(pinch.zoom * d / pinch.d, pinch.at); }
+                canvas.dataset.dragged = '1';
+                return;
+            }
+            const c = chart();
+            if (!drag || !c) return;
+            const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+            if (!drag.axis) {
+                if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+                drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+            }
+            const o = topts();
+            if (drag.axis === 'y' && o.zoom > 1) {
+                const perPx = (c.scales.y.max - c.scales.y.min) / Math.max(1, c.chartArea.bottom - c.chartArea.top);
+                setZoom(o.zoom, drag.at + dy * perPx);
+            } else if (drag.axis === 'x' && o.tzoom > 1 && drag.center) {
+                setTimeZoom(o.tzoom, addDays(drag.center, -dx / Math.max(1, c.chartArea.right - c.chartArea.left) * drag.days));
+            } else return;
+            canvas.dataset.dragged = '1';
         });
         const end = (e) => {
             pts.delete(e.pointerId);
@@ -23223,18 +23384,36 @@ I18n.override('EC', 'es', {
         };
         canvas.addEventListener('pointerup', end);
         canvas.addEventListener('pointercancel', end);
-        // A computer: Ctrl (or ⌘) + wheel zooms where the pointer is; a trackpad pinch sends the same.
+        // A computer: Ctrl (or ⌘) + wheel zooms the amounts where the pointer is (a trackpad pinch
+        // sends the same); Shift + wheel zooms the dates; scrolling sideways moves in time.
         canvas.addEventListener('wheel', (e) => {
-            if (!(e.ctrlKey || e.metaKey)) return;
-            e.preventDefault();
-            setZoom(topts().zoom * (e.deltaY < 0 ? 1.25 : 0.8), valueAt(e.clientY));
+            const o = topts();
+            if (e.ctrlKey || e.metaKey) { e.preventDefault(); setZoom(o.zoom * (e.deltaY < 0 ? 1.25 : 0.8), valueAt(e.clientY)); return; }
+            if (e.shiftKey) { e.preventDefault(); setTimeZoom(o.tzoom * ((e.deltaY || e.deltaX) < 0 ? 1.25 : 0.8), dateAt(e.clientX)); return; }
+            if (o.tzoom > 1 && shownWindow && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                e.preventDefault();
+                const c = chart(), width = c ? c.chartArea.right - c.chartArea.left : 300;
+                setTimeZoom(o.tzoom, addDays(shownWindow.center, e.deltaX / Math.max(1, width) * shownWindow.days));
+            }
         }, { passive: false });
     }
 
     function trends(ctx) {
         if (!document.getElementById('trends-chart')) return;
         const o = topts(), pal = UI.palette(), s = ctx.state;
-        const r = Engine.categoryTrend(s.transactions, { end: ctx.today, months: o.months, account: o.account, category: o.category });
+        const w = Engine.trendWindow({ end: ctx.today, months: o.months, zoom: o.tzoom, center: o.tcenter });
+        o.tzoom = w.zoom;
+        if (w.zoom > 1) o.tcenter = w.center;
+        // Months, weeks or days: amounts change scale, so the height zoom starts over.
+        if (o.tunit && o.tunit !== w.unit) { o.zoom = 1; o.zoomAt = null; }
+        o.tunit = w.unit;
+        shownWindow = w;
+        const r = trendData(ctx, o);
+        const tctl = document.getElementById('trends-zoom-x');
+        if (tctl) tctl.classList.toggle('is-zoomed', w.zoom > 1);
+        const n = r.months.length;
+        UI.text('trends-tzoom-level', w.zoom > 1 ? (w.unit === 'month' ? `${n} month${n === 1 ? '' : 's'}` : `${w.days} day${w.days === 1 ? '' : 's'}`) : `${o.months} month${o.months === 1 ? '' : 's'}`);
+        UI.$$('[data-action="trends.tzoom"][data-dir="1"]').forEach(b => { b.disabled = w.zoom >= w.maxZoom; });
         UI.$$('[data-action="trends.months"]').forEach(b => b.classList.toggle('active', Number(b.dataset.months) === o.months));
         const back = document.getElementById('trends-back');
         if (back) back.style.display = o.category ? '' : 'none';
@@ -23245,24 +23424,31 @@ I18n.override('EC', 'es', {
         UI.show('trends-empty', !any);
         UI.show('trends-body', any);
         if (!any) return;
-        const label = (k) => { const [y, m] = k.split('-'); return `${Fmt.MONTH_SHORT[Number(m) - 1]}${r.months.some(x => x.slice(0, 4) !== y) ? ' ' + y.slice(2) : ''}`; };
+        const label = labeler(r);
         const name = (x) => (x.key === null ? (o.category ? 'Other subcategories' : 'Other categories') : x.key);
         const color = (x, i) => (x.key === null ? pal.muted : pal.series[i % pal.series.length]);
         // The focused band (tapped) stays strong; the others step back.
         const fkey = (x) => (x.key === null ? '__other' : x.key);
         if (o.focus && !(o.focus === '__income' && r.income) && !r.series.some(x => fkey(x) === o.focus)) o.focus = null;
         const dim = (x) => o.focus && fkey(x) !== o.focus;
+        // By week or by day, each point is a flat step as wide as its column: what's drawn there is
+        // exactly what a tap there picks.
+        const steps = r.unit !== 'month';
         const datasets = r.series.map((x, i) => ({ label: name(x), data: x.values.map(v => Math.round(v * 100) / 100), stack: 'spend', fill: i === 0 ? 'origin' : '-1',
-            backgroundColor: color(x, i) + (dim(x) ? '40' : 'b3'), borderColor: color(x, i) + (dim(x) ? '66' : ''), borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
-            pointBackgroundColor: pal.surface, pointBorderColor: color(x, i), pointBorderWidth: 2, tension: 0.4 }));
-        if (r.income) datasets.push({ label: 'Income', data: r.income.map(v => Math.round(v * 100) / 100), stack: 'income', fill: false, borderColor: pal.text, backgroundColor: pal.text, borderWidth: 3, pointRadius: 3, pointBackgroundColor: pal.surface, pointBorderWidth: 2, tension: 0.4 });
-        // The top of the whole chart (zoom 1): the tallest month's spending or income.
-        zoomTop = Math.max(1, ...r.months.map((_, i) => Math.max(r.series.reduce((t, x) => t + Math.max(0, x.values[i] || 0), 0), r.income ? r.income[i] || 0 : 0))) * 1.05;
+            backgroundColor: color(x, i) + (dim(x) ? '40' : 'b3'), borderColor: color(x, i) + (dim(x) ? '66' : ''), borderWidth: 2, pointRadius: steps ? 0 : 3, pointHoverRadius: 5,
+            pointBackgroundColor: pal.surface, pointBorderColor: color(x, i), pointBorderWidth: 2, tension: steps ? 0 : 0.4, stepped: steps ? 'middle' : false }));
+        if (r.income) datasets.push({ label: 'Income', data: r.income.map(v => Math.round(v * 100) / 100), stack: 'income', fill: false, borderColor: pal.text, backgroundColor: pal.text, borderWidth: 3, pointRadius: 3, pointBackgroundColor: pal.surface, pointBorderWidth: 2, tension: steps ? 0 : 0.4 });
+        // The top of the whole chart (zoom 1): the tallest point's spending or income (by week or
+        // by day, its spending only: the income line then runs above the chart on paydays).
+        fitSpend = steps;
+        zoomTop = Math.max(1, ...r.months.map((_, i) => Math.max(r.series.reduce((t, x) => t + Math.max(0, x.values[i] || 0), 0), r.income && !steps ? r.income[i] || 0 : 0))) * 1.05;
         trendsSeries = r;
         const chart = UI.chart('trends-chart', {
             type: 'line',
             data: { labels: r.months.map(label), datasets },
-            options: { scales: { y: { stacked: true } }, plugins: { legend: { position: 'bottom' } },
+            // The height (zoomed, or fitted to the spending) goes in from the start: set after,
+            // a new chart's opening animation would still finish on the old scale.
+            options: { scales: { y: Object.assign({ stacked: true }, yRange(o)) }, plugins: { legend: { position: 'bottom' } },
                 // Tap a band: its months in a card; tap it again (or "Open") to see its subcategories.
                 // Tap above the bands: that month's breakdown. A drag (zoomed in) is not a tap.
                 onClick: (e, els, chart) => {
@@ -23271,14 +23457,14 @@ I18n.override('EC', 'es', {
                     if (!(i >= 0 && i < r.months.length)) return;
                     const k = r.months[i];
                     // On (or near) the income line: its card.
-                    const inc = r.income ? chart.getDatasetMeta(chart.data.datasets.length - 1).data[i] : null;
+                    const inc = r.income && r.income[i] > 0 ? chart.getDatasetMeta(chart.data.datasets.length - 1).data[i] : null;
                     if (inc && Math.abs(e.y - inc.y) <= 14) { o.focus = '__income'; o.focusMonth = k; App.update(); return; }
                     const band = Engine.bandAt(r.series.map(x => x.values), i, chart.scales.y.getValueForPixel(e.y));
                     if (band === null) { o.focus = null; o.drill = o.drill && o.drill.month === k && !o.drill.cat ? null : { month: k, cat: null, sub: null }; App.update(); return; }
                     const x = r.series[band], key = fkey(x);
                     if (o.focus === key && o.focusMonth === k) {
                         if (!o.category && x.key !== null) { openCategory(x.key); return; }
-                        if (o.category) { openTxns(o, x, k, label); return; }
+                        if (o.category) { openTxns(o, x, k, label, r); return; }
                     }
                     o.focus = key; o.focusMonth = k; o.drill = { month: k, cat: null, sub: null };
                     App.update();
@@ -23287,9 +23473,13 @@ I18n.override('EC', 'es', {
         if (chart) { applyZoom(chart); chart.update('none'); zoomGestures(chart.canvas); }
         focusCard(o, r, label, name, color, fkey);
         drill(ctx, o, r, label);
-        const now = Engine.isoDate(ctx.today).slice(0, 7);
-        UI.text('trends-note', r.months[r.months.length - 1] === now ? 'This month isn\'t over yet.' : '');
-        UI.html('trends-head', `<tr><th>Month</th><th class="num">Spending</th>${r.income ? '<th class="num">Income</th><th class="num">Left over</th>' : ''}</tr>`);
+        // The last point still running (this month or this week; today, by day).
+        const today = Engine.isoDate(ctx.today), lastRange = Engine.trendPointRange(r, r.months[r.months.length - 1]);
+        const running = lastRange[0] <= today && Engine.trendPointRange({ unit: r.unit }, r.months[r.months.length - 1])[1] >= today;
+        const notes = [!running ? '' : r.unit === 'month' ? 'This month isn\'t over yet.' : r.unit === 'week' ? 'This week isn\'t over yet.' : 'Today isn\'t over yet.',
+            steps && r.income && Math.max(...r.income) > zoomTop ? 'On paydays the income line runs above the chart; the table below has its amounts.' : ''].filter(Boolean);
+        UI.html('trends-note', notes.map(x => `<span>${esc(x)}</span>`).join(' '));
+        UI.html('trends-head', `<tr><th>${r.unit === 'month' ? 'Month' : r.unit === 'week' ? 'Week of' : 'Day'}</th><th class="num">Spending</th>${r.income ? '<th class="num">Income</th><th class="num">Left over</th>' : ''}</tr>`);
         UI.html('trends-table', r.months.map((k, i) => `<tr><td>${esc(label(k))}</td><td class="num">${money(r.spend[i])}</td>${r.income ? `<td class="num">${money(r.income[i])}</td><td class="num ${r.income[i] - r.spend[i] < 0 ? 'text-red-600' : ''}">${money(r.income[i] - r.spend[i])}</td>` : ''}</tr>`).join(''));
     }
 
@@ -23309,19 +23499,19 @@ I18n.override('EC', 'es', {
                 <button type="button" class="row-del" data-action="trends.unfocus" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
             <div class="trend-months">${r.months.map((k, j) => `<div class="${k === o.focusMonth ? 'is-now' : ''}"><span>${esc(label(k))}</span><strong>${money0(x.values[j])}</strong></div>`).join('')}</div>
             ${income ? '' : !o.category && x.key !== null ? `<button type="button" class="btn btn-secondary btn-sm mt-2 self-start" data-action="trends.open" data-key="${esc(x.key)}">Open ${esc(I18n.t(x.key))} <i class="fa-solid fa-arrow-right"></i></button>`
-                : o.category ? `<button type="button" class="btn btn-secondary btn-sm mt-2 self-start" data-action="trends.txns"><i class="fa-solid fa-list-ul"></i> Transactions in ${esc(label(o.focusMonth))}</button>` : ''}
+                : o.category ? `<button type="button" class="btn btn-secondary btn-sm mt-2 self-start" data-action="trends.txns"><i class="fa-solid fa-list-ul"></i> <span>Transactions:</span> <span>${esc(label.long(o.focusMonth))}</span></button>` : ''}
         </div>`;
     }
     // A subcategory's transactions in one month (inside a category's view), in a sheet with a back
     // arrow to the chart. "Other subcategories" lists all the folded ones.
     let txnSheet = null;
-    function openTxns(o, x, monthKey, label) {
-        const [y, m] = monthKey.split('-').map(Number), from = `${monthKey}-01`, to = Engine.isoDate(new Date(y, m, 0));
+    function openTxns(o, x, monthKey, label, r) {
+        const [from, to] = Engine.trendPointRange(r, monthKey);
         const subs = x.key === null ? x.other : [x.key], accts = Store.state.accounts || [];
         const list = Store.state.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && t.date >= from && t.date <= to && (t.parentCategory || 'Otros') === o.category
             && subs.includes(t.category || o.category) && (!o.account || (o.account === 'none' ? !t.accountId : String(t.accountId) === String(o.account))))
             .sort((a, b) => b.date.localeCompare(a.date));
-        const title = `${I18n.t(x.key === null ? 'Other subcategories' : x.key)} · ${label(monthKey)}`;
+        const title = `${I18n.t(x.key === null ? 'Other subcategories' : x.key)} · ${label.long(monthKey)}`;
         txnSheet = UI.sheet({ title: 'Transactions', icon: 'fa-list-ul', wide: true, html: `
             <div class="flex items-center gap-2 mb-2"><button type="button" class="icon-btn icon-btn-light" data-action="trends.txnsBack" aria-label="Back to the chart"><i class="fa-solid fa-arrow-left"></i></button><strong data-i18n-skip>${esc(title)}</strong></div>
             <div class="acd-txns">${list.map(t => { const a = accts.find(z => z.id === t.accountId); return `<button type="button" class="acd-txn w-full text-left" style="grid-template-columns:4.6rem 1fr auto" data-action="trends.txnOpen" data-id="${t.id}">
@@ -23346,20 +23536,20 @@ I18n.override('EC', 'es', {
         const host = document.getElementById('trends-drill');
         if (!host) return;
         const d = o.drill;
-        if (!d || !r.months.includes(d.month)) { o.drill = null; host.innerHTML = '<p class="help"><i class="fa-solid fa-hand-pointer"></i> Tap a month on the chart to see what changed.</p>'; return; }
+        if (!d || !r.months.includes(d.month)) { o.drill = null; host.innerHTML = `<p class="help"><i class="fa-solid fa-hand-pointer"></i> ${r.unit === 'month' ? 'Tap a month on the chart to see what changed.' : r.unit === 'week' ? 'Tap a week on the chart to see what changed.' : 'Tap a day on the chart to see what changed.'}</p>`; return; }
         const idx = r.months.indexOf(d.month), s = ctx.state;
         const cat = o.category || d.cat;   // the chart already shows one category: its subcategories
         const head = (title, back) => `<div class="flex items-center justify-between gap-2 mb-2"><strong class="text-sm">${title}</strong>${back ? `<button type="button" class="link text-xs" data-action="trends.up"><i class="fa-solid fa-arrow-left"></i> Back</button>` : ''}</div>`;
-        const month = esc(label(d.month));
+        const month = esc(label.long(d.month));
         if (d.sub) {
-            const [y, m] = d.month.split('-').map(Number), from = `${d.month}-01`, to = Engine.isoDate(new Date(y, m, 0));
+            const [from, to] = Engine.trendPointRange(r, d.month);
             const acc = o.account;
             const list = s.transactions.filter(t => (t.type || 'Gasto') === 'Gasto' && t.date >= from && t.date <= to && (t.parentCategory || 'Otros') === cat && (t.category || cat) === d.sub
                 && (!acc || (acc === 'none' ? !t.accountId : String(t.accountId) === String(acc)))).sort((a, b) => Engine.spendAmount(b) - Engine.spendAmount(a));
             host.innerHTML = head(`${month} · ${esc(I18n.t(d.sub))}`, true) + `<div class="acd-txns">${list.map(t => `<div class="acd-txn"><span class="text-xs text-slate-500 whitespace-nowrap">${esc(Fmt.dayMonth(new Date(t.date + 'T00:00:00')))}</span><span class="truncate font-semibold" data-i18n-skip>${esc(t.description || '—')}</span><span class="font-semibold whitespace-nowrap">${money(Engine.spendAmount(t))}</span></div>`).join('') || '<p class="help">No transactions.</p>'}</div>`;
             return;
         }
-        const tr = cat ? Engine.categoryTrend(s.transactions, { end: ctx.today, months: o.months, account: o.account, category: cat, max: 999 }) : Engine.categoryTrend(s.transactions, { end: ctx.today, months: o.months, account: o.account, max: 999 });
+        const tr = trendData(ctx, o, { category: cat || '', max: 999 });
         const rows = Engine.monthVsAverage(tr, idx), total = rows.reduce((a, x) => a + x.value, 0);
         host.innerHTML = head(`${month}${cat ? ` · ${esc(I18n.t(cat))}` : ''} · ${money(total)}`, !!d.cat) + `<div class="spend-legend">${rows.map(x => `<button type="button" class="spend-row" style="grid-template-columns:1fr auto 5.5rem" data-action="trends.drill" data-key="${esc(x.key)}">
                 <span class="spend-name">${esc(I18n.t(x.key))}</span>
@@ -23387,10 +23577,9 @@ I18n.override('EC', 'es', {
         'trends.open': (el) => openCategory(el.dataset.key),
         'trends.txns': () => {
             const o = topts(), ctx = App.buildContext();
-            const r = Engine.categoryTrend(ctx.state.transactions, { end: ctx.today, months: o.months, account: o.account, category: o.category });
+            const r = trendData(ctx, o);
             const x = r.series.find(z => (z.key === null ? '__other' : z.key) === o.focus);
-            const label = (k) => { const [y, m] = k.split('-'); return `${Fmt.MONTH_SHORT[Number(m) - 1]}${r.months.some(z => z.slice(0, 4) !== y) ? ' ' + y.slice(2) : ''}`; };
-            if (x && o.focusMonth) openTxns(o, x, o.focusMonth, label);
+            if (x && o.focusMonth && r.months.includes(o.focusMonth)) openTxns(o, x, o.focusMonth, labeler(r), r);
         },
         'trends.txnsBack': () => { if (txnSheet) { txnSheet.close(); txnSheet = null; } },
         'trends.txnOpen': (el) => { if (txnSheet) { txnSheet.close(); txnSheet = null; } if (window.TxnDetails) TxnDetails.open(Number(el.dataset.id)); },
@@ -23398,10 +23587,12 @@ I18n.override('EC', 'es', {
         'trends.unfocus': () => { topts().focus = null; App.update(); },
         'trends.drill': (el) => { const o = topts(); if (!o.drill) return; if (o.category || o.drill.cat) o.drill.sub = el.dataset.key; else o.drill.cat = el.dataset.key; App.update(); },
         'trends.up': () => { const o = topts(); if (!o.drill) return; if (o.drill.sub) o.drill.sub = null; else o.drill.cat = null; App.update(); },
-        'trends.months': (el) => { topts().months = Math.max(1, Math.min(12, Number(el.dataset.months) || 6)); App.update(); },
+        'trends.months': (el) => { const o = topts(); o.months = Math.max(1, Math.min(12, Number(el.dataset.months) || 6)); o.tzoom = 1; o.tcenter = null; App.update(); },
         'trends.category': (el) => { const o = topts(); o.category = el.value; o.focus = null; o.drill = null; o.zoom = 1; o.zoomAt = null; App.update(); },
         'trends.zoom': (el) => { const o = topts(), up = Number(el.dataset.dir) > 0; setZoom(up ? o.zoom * 2 : o.zoom / 2, up ? zoomCenter(o) : undefined); },
-        'trends.zoomReset': () => setZoom(1, null),
+        'trends.zoomReset': () => { const o = topts(); o.tzoom = 1; o.tcenter = null; o.zoom = 1; o.zoomAt = null; App.update(); },
+        'trends.tzoom': (el) => { const o = topts(), up = Number(el.dataset.dir) > 0; setTimeZoom(up ? o.tzoom * 2 : o.tzoom / 2, up ? timeZoomCenter(o) : undefined); },
+        'trends.tpan': (el) => { if (shownWindow && shownWindow.center) setTimeZoom(topts().tzoom, addDays(shownWindow.center, (Number(el.dataset.dir) || 0) * shownWindow.days / 2)); },
         'trends.pan': (el) => { const o = topts(), z = zoomView(o); setZoom(o.zoom, (z.min + z.max) / 2 + (Number(el.dataset.dir) || 0) * (z.max - z.min) / 2); },
         'trends.account': (el) => { topts().account = el.value; App.update(); }
     });

@@ -187,8 +187,11 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 .modal-title i { color: #059669; } .modal-danger .modal-title i { color: #dc2626; }
 .modal-message { font-size: .82rem; color: var(--ink-2); line-height: 1.55; margin-bottom: .9rem; white-space: pre-line; }
 /* Chart zoom: − 2× + and, when zoomed, ▲ ▼ "Show all". */
-.zoom-ctl { display: inline-flex; align-items: center; gap: .25rem; margin-left: auto; }
+.zoom-ctls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .25rem .75rem; margin-left: auto; }
+.zoom-ctl { display: inline-flex; align-items: center; gap: .25rem; }
+.zoom-ctl .zoom-axis { font-size: .75rem; color: var(--muted); margin-right: .1rem; }
 .zoom-ctl .zoom-level { min-width: 2.2rem; text-align: center; font-size: .75rem; font-weight: 700; color: var(--ink-2); }
+.zoom-ctl .zoom-level.wide { min-width: 4.6rem; }
 .zoom-ctl:not(.is-zoomed) .trends-pan { display: none; }
 .modal-error { font-size: .75rem; color: #b91c1c; font-weight: 700; margin-top: .6rem; }
 /* Fields folded under "More options" in a dialog. */
