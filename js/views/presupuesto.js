@@ -62,11 +62,14 @@
                 <td class="text-xs text-slate-500 px-3">Ingresos Laborales</td><td class="text-xs text-slate-500" data-cell="spend"></td>
                 <td class="text-center"><a href="#" class="row-del" data-goto="presupuesto/ingresos" title="Edit your salary"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
             </tr>`;
+        const effLines = ctx.budgetYear.otherIncomes || [];
         (ctx.year.otherIncomes || []).forEach(src => {
+            // A member's paycheck: its take-home comes from Income & Taxes (taxes figured there).
+            const taxed = src.pay ? (effLines.find(x => x.id === src.id) || src) : null;
             html += `<tr data-income="${src.id}" class="bg-emerald-50/40">
                 <td><input class="cell-input" value="${esc(src.name)}" data-change="income.set" data-id="${src.id}" data-field="name" aria-label="Income name"></td>
-                <td class="text-xs text-slate-500 px-3">Other income</td><td class="text-center text-slate-300">—</td>
-                <td><input type="number" class="cell-input num money" step="10" min="0" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Monthly amount" title="What you receive each month (net). Applies to every month of the year."></td>
+                <td class="text-xs text-slate-500 px-3">${taxed ? 'Paycheck (after taxes)' : 'Other income'}</td><td class="text-center text-slate-300">—</td>
+                <td>${taxed ? `<a href="#" class="num block font-bold link" data-goto="presupuesto/ingresos" data-focus="inc-earners-card" title="Figured from the pay before taxes in Income & Taxes">${money(taxed.amount)}</a>` : `<input type="number" class="cell-input num money" step="10" min="0" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Monthly amount" title="What you receive each month (net). Applies to every month of the year.">`}</td>
                 <td class="num font-bold" data-cell="real"></td><td class="num font-bold" data-cell="diff"></td>
                 <td><select class="cell-input" data-change="income.set" data-id="${src.id}" data-field="category" title="Category used to log this income in Transactions (with «I got it»). It doesn't pull in other transactions of that category.">${catOptions(src.category)}</select></td>
                 <td data-cell="spend"></td>

@@ -241,54 +241,113 @@
         return { payType: 'hourly', baseM, overtimeM, budgetM: baseM + (h.otInBudget ? overtimeM : 0), bonusesY, annual: (baseM + overtimeM) * 12 + bonusesY };
     }
 
-    function payrollUS(yd, states) {
-        const t = yd.usTax || {};
-        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
-        const pay = usGrossPay(yd);
-        const sueldo = pay.budgetM;
+    // One person's wages for the year (US): gross, pre-tax deductions, the wages income tax and
+    // FICA apply to, and their Social Security and Medicare (each person up to the wage base).
+    function usWages(e, t) {
+        const pay = usGrossPay(e);
         const gross = pay.annual;
-        const ded = (yd.payDeductions || []).filter(d => d.pretax && d.group !== 'employer');
+        const ded = (e.payDeductions || []).filter(d => d.pretax && d.group !== 'employer');
         const pretaxRetire = sum(ded.filter(d => d.group === 'retirement' && d.kind !== 'hsa'), d => num(d.monthly)) * 12;
         const pretax125 = sum(ded.filter(d => !(d.group === 'retirement' && d.kind !== 'hsa')), d => num(d.monthly)) * 12;
         const incomeWages = Math.max(0, gross - pretaxRetire - pretax125);
         const ficaWages = Math.max(0, gross - pretax125);
-        // Federal income tax
-        const { std, dedApplied, taxable, credits, tax: fedAnnual } = usFederalTax({ income: incomeWages, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, t });
-        // FICA
         const ssAnnual = Math.min(ficaWages, num(t.ssWageBase) || Infinity) * num(t.ssRate) / 100;
         // Employers withhold the extra 0.9% Medicare on wages above $200,000 whatever the filing
         // status (the yearly liability threshold differs; it's settled on the tax return).
         const medAnnual = ficaWages * num(t.medicareRate) / 100 + Math.max(0, ficaWages - (num(t.addlMedicareWithholding) || 200000)) * num(t.addlMedicareRate) / 100;
-        // State (flat or a rate you enter) and city
+        return { pay, gross, pretaxRetire, pretax125, incomeWages, ficaWages, ssAnnual, medAnnual };
+    }
+
+    // The household's other paychecks: income lines with `pay` (a member's pay before taxes, the
+    // same fields as the main paycheck) → that person as a year: the household's settings, their pay.
+    const PAY_FIELDS = { sueldo: 0, payType: 'salary', hourly: {}, bonuses: [], payDeductions: [] };
+    function otherEarners(yd) {
+        return (yd.otherIncomes || []).filter(l => l && l.pay && typeof l.pay === 'object')
+            .map(l => ({ line: l, yd: Object.assign({}, yd, PAY_FIELDS, l.pay, { otherIncomes: [] }) }));
+    }
+
+    // US paychecks for the household. Married filing jointly: federal and state income tax on the
+    // combined income (one return), shared out by each one's taxable wages. Otherwise each person
+    // files on their own (the others as single). Social Security, Medicare and city tax per person.
+    // Returns the main paycheck (as always) with `earners` (the others) and `household` (totals).
+    function payrollUS(yd, states) {
+        const t = yd.usTax || {};
+        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const joint = status === 'mfj';
+        const others = otherEarners(yd);
+        const main = usWages(yd, t);
+        const ws = [main].concat(others.map(o => usWages(o.yd, t)));
+        const people = 1 + (joint ? 1 : 0) + num(yd.dependents) + num(yd.otherDependents);
+        const total = (f) => sum(ws, f);
+        const shareBy = (f, w) => { const all = total(f); return all > 0 ? f(w) / all : (w === main ? 1 : 0); };
+        // Federal income tax
+        const fedMain = usFederalTax({ income: joint ? total(w => w.incomeWages) : main.incomeWages, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, t });
+        const fedOf = (w) => (joint ? fedMain.tax * shareBy(x => x.incomeWages, w) : w === main ? fedMain.tax : usFederalTax({ income: w.incomeWages, status: 'single', t }).tax);
+        // State (flat or a rate you enter); some states (Pennsylvania) tax 401(k) deferrals.
         const st = Object.assign({}, US_STATE_DEFAULT, (states || []).find(x => x.code === yd.state) || {});
-        const people = 1 + (status === 'mfj' ? 1 : 0) + num(yd.dependents) + num(yd.otherDependents);
         const stateRate = yd.stateRate !== null && yd.stateRate !== undefined && yd.stateRate !== '' ? num(yd.stateRate) : (st.type === 'none' ? 0 : num(st.rate));
-        // Some states (Pennsylvania) tax 401(k) deferrals.
-        const stateWages = st.taxes401k ? incomeWages + pretaxRetire : incomeWages;
-        const stateAnnual = st.type === 'none' && (yd.stateRate === null || yd.stateRate === undefined || yd.stateRate === '') ? 0 : Math.max(0, stateWages - num(st.exemption) * people) * stateRate / 100;
+        const noState = st.type === 'none' && (yd.stateRate === null || yd.stateRate === undefined || yd.stateRate === '');
+        const stateWages = (w) => (st.taxes401k ? w.incomeWages + w.pretaxRetire : w.incomeWages);
+        const stateOn = (wages, ppl) => (noState ? 0 : Math.max(0, wages - num(st.exemption) * ppl) * stateRate / 100);
+        const stateJoint = joint ? stateOn(total(stateWages), people) : 0;
+        const stateOf = (w) => (joint ? stateJoint * shareBy(stateWages, w) : stateOn(stateWages(w), w === main ? people : 1));
         // City tax (Michigan's Uniform City Income Tax): on Medicare wages (401(k) deferrals
         // included, section-125 benefits not), after the city's exemption per person; people who
-        // only work in the city pay the non-resident rate (half).
-        const local = localTax(yd, people);
-        const localAnnual = Math.max(0, ficaWages - local.exemption * people) * local.rate / 100;
-        const incomeTaxAnnual = fedAnnual + stateAnnual + localAnnual;
-        // Taxes are on the whole year; the budget's paycheck carries its share of them (all of
-        // them for a plain salary). Overtime and bonuses outside the budget keep the rest.
-        const share = gross > 0 ? Math.min(1, sueldo * 12 / gross) : 1;
-        const ficaM = (ssAnnual + medAnnual) / 12 * share;
-        const netoAntesM = Math.max(0, sueldo - ficaM - incomeTaxAnnual / 12 * share);
-        const otros = payDeductionsSummary(yd).taken;
-        return {
-            country: 'US', sueldo, sueldoAnual: gross, status, gross: pay, budgetShare: share,
-            // Average tax on every extra dollar of pay (FICA + income tax), for bonuses and overtime.
-            avgTaxRate: gross > 0 ? (ssAnnual + medAnnual + incomeTaxAnnual) / gross : 0,
-            iessM: ficaM, iessAnual: ssAnnual + medAnnual, ssM: ssAnnual / 12 * share, medM: medAnnual / 12 * share,
-            fedM: fedAnnual / 12 * share, stateM: stateAnnual / 12 * share, localM: localAnnual / 12 * share, localRate: local.rate, localResident: local.resident, stateRate, stateType: st.type,
-            pretaxM: (pretaxRetire + pretax125) / 12, stdDeduction: std, credits, incomeWages,
-            sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied, baseImponible: taxable,
-            isrAnual: incomeTaxAnnual, isrM: incomeTaxAnnual / 12 * share,
-            netoAntesM, otrosDescuentosM: otros, netoM: Math.max(0, netoAntesM - otros)
+        // only work in the city pay the non-resident rate (half). On a joint return the exemptions
+        // are shared out by wages.
+        const localOf = (w, e) => {
+            const lt = localTax(e, people);
+            const exempt = joint ? lt.exemption * people * shareBy(x => x.ficaWages, w) : lt.exemption * (w === main ? people : 1);
+            return { annual: Math.max(0, w.ficaWages - exempt) * lt.rate / 100, rate: lt.rate, resident: lt.resident };
         };
+        // One paycheck: taxes are on the whole year; the budget's paycheck carries its share of them
+        // (all of them for a plain salary). Overtime and bonuses outside the budget keep the rest.
+        const check = (w, e) => {
+            const fed = fedOf(w), state = stateOf(w), local = localOf(w, e);
+            const incomeTaxAnnual = fed + state + local.annual;
+            const sueldo = w.pay.budgetM;
+            const share = w.gross > 0 ? Math.min(1, sueldo * 12 / w.gross) : 1;
+            const ficaM = (w.ssAnnual + w.medAnnual) / 12 * share;
+            const netoAntesM = Math.max(0, sueldo - ficaM - incomeTaxAnnual / 12 * share);
+            const otros = payDeductionsSummary(e).taken;
+            return { w, fed, state, local, incomeTaxAnnual, sueldo, share, ficaM, netoAntesM, otros, netoM: Math.max(0, netoAntesM - otros),
+                avgTaxRate: w.gross > 0 ? (w.ssAnnual + w.medAnnual + incomeTaxAnnual) / w.gross : 0 };
+        };
+        const m = check(main, yd);
+        const earners = others.map((o, k) => {
+            const c = check(ws[k + 1], o.yd);
+            return { id: o.line.id, memberId: o.line.memberId, name: o.line.name, sueldo: c.sueldo, annual: c.w.gross, gross: c.w.pay, budgetShare: c.share,
+                ssM: c.w.ssAnnual / 12 * c.share, medM: c.w.medAnnual / 12 * c.share, ficaM: c.ficaM, fedM: c.fed / 12 * c.share, stateM: c.state / 12 * c.share,
+                localM: c.local.annual / 12 * c.share, localRate: c.local.rate, localResident: c.local.resident, isrM: c.incomeTaxAnnual / 12 * c.share,
+                pretaxM: (c.w.pretaxRetire + c.w.pretax125) / 12, incomeWages: c.w.incomeWages, otrosDescuentosM: c.otros, netoAntesM: c.netoAntesM, netoM: c.netoM, avgTaxRate: c.avgTaxRate };
+        });
+        const ficaAll = total(w => w.ssAnnual + w.medAnnual);
+        return {
+            country: 'US', sueldo: m.sueldo, sueldoAnual: main.gross, status, gross: main.pay, budgetShare: m.share,
+            // Average tax on every extra dollar of pay (FICA + income tax), for bonuses and overtime.
+            avgTaxRate: m.avgTaxRate,
+            iessM: m.ficaM, iessAnual: main.ssAnnual + main.medAnnual, ssM: main.ssAnnual / 12 * m.share, medM: main.medAnnual / 12 * m.share,
+            fedM: m.fed / 12 * m.share, stateM: m.state / 12 * m.share, localM: m.local.annual / 12 * m.share, localRate: m.local.rate, localResident: m.local.resident, stateRate, stateType: st.type,
+            pretaxM: (main.pretaxRetire + main.pretax125) / 12, stdDeduction: fedMain.std, credits: fedMain.credits, incomeWages: main.incomeWages,
+            sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied: fedMain.dedApplied, baseImponible: fedMain.taxable,
+            isrAnual: m.incomeTaxAnnual, isrM: m.incomeTaxAnnual / 12 * m.share,
+            netoAntesM: m.netoAntesM, otrosDescuentosM: m.otros, netoM: m.netoM,
+            earners,
+            household: { joint, wages: total(w => w.gross), incomeWages: total(w => w.incomeWages), fedAnnual: joint ? fedMain.tax : sum(ws, fedOf),
+                stateAnnual: sum(ws, stateOf), ficaAnnual: ficaAll, earners: ws.length }
+        };
+    }
+
+    // Income lines with a paycheck (`pay`): their monthly amount is the take-home computed with the
+    // household's taxes (US). Other lines (typed take-home, rent, a pension) stay as they are.
+    function paycheckLines(yd, pay) {
+        const lines = yd.otherIncomes || [];
+        if (yd.country !== 'US' || !lines.some(l => l && l.pay)) return lines;
+        const p = pay || payroll(yd);
+        return lines.map(l => {
+            const e = l && l.pay && (p.earners || []).find(x => x.id === l.id);
+            return e ? Object.assign({}, l, { amount: cents(e.netoM), taxed: e }) : l;
+        });
     }
 
     // The city tax rate that applies: a listed city's resident or non-resident rate and its
@@ -2903,7 +2962,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

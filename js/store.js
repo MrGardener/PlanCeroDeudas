@@ -239,7 +239,7 @@
             const rows = this.linkedRows(y);
             const overrides = {};
             Object.keys(yd.monthOverrides || {}).forEach(m => { overrides[m] = yd.monthOverrides[m].concat(rows); });
-            return Object.assign({}, yd, {
+            const eff = Object.assign({}, yd, {
                 country: (this.state.settings && this.state.settings.country) || COUNTRY,
                 budgetBase: (yd.budgetBase || []).concat(rows),
                 monthOverrides: overrides,
@@ -248,6 +248,9 @@
                 paySchedule: (this.state.settings && this.state.settings.paySchedule) || null,
                 calYear: y
             });
+            // Another member's paycheck counts with its take-home after the household's taxes.
+            eff.otherIncomes = Engine.paycheckLines(eff);
+            return eff;
         },
 
         nextId(list) { return list.length ? Math.max(...list.map(x => Number(x.id) || 0)) + 1 : 1; },

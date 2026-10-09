@@ -1491,6 +1491,16 @@ button.gm-row:hover { background: var(--surface-3); }
             </div>
         </div>
 
+        <div class="card" data-country="US" id="inc-earners-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-people-roof text-emerald-600"></i> Other paychecks in the household</div>
+                    <div class="card-sub">Anyone else who works: their pay before taxes. The app figures their taxes with yours, and the budget counts their take-home.</div>
+                </div>
+            </div>
+            <div id="inc-earners"></div>
+        </div>
+
         <div class="card" id="ded-card">
             <div class="card-head">
                 <div>
@@ -5865,6 +5875,39 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "After taxes: figured in Income & Taxes": "Después de impuestos: calculado en Ingresos e Impuestos",
+    "Another person's paycheck": "El sueldo de otra persona",
+    "Anyone else who works: their pay before taxes. The app figures their taxes with yours, and the budget counts their take-home.": "Cualquier otra persona que trabaje: su sueldo antes de impuestos. La app calcula sus impuestos junto con los tuyos, y el presupuesto cuenta lo que le llega.",
+    "City tax": "Impuesto de la ciudad",
+    "Each paycheck is taxed on its own (the others as single). Filing jointly? Change the filing status above.": "Cada sueldo se grava por separado (los demás como solteros). ¿Declaran en conjunto? Cambia el estado civil arriba.",
+    "Empty = their share of the tax ({0}), as if their W-4 were right. Type it from their pay stub.": "Vacío = su parte del impuesto ({0}), como si su W-4 estuviera bien. Escríbelo de su recibo de pago.",
+    "Enter it before taxes instead": "Ingresarlo antes de impuestos",
+    "Figured from the pay before taxes in Income & Taxes": "Calculado con el sueldo antes de impuestos en Ingresos e Impuestos",
+    "Health, dental, vision, HSA a month": "Salud, dental, visión, HSA al mes",
+    "If they only work there, the non-resident rate (half).": "Si solo trabaja ahí, la tasa de no residente (la mitad).",
+    "Lives in the city": "Vive en la ciudad",
+    "Married filing jointly: federal and state tax are figured on your combined pay (one return), then shared by each one's wages. Social Security, Medicare and city tax are per person.": "Casados declarando en conjunto: el impuesto federal y estatal se calcula sobre el sueldo de ambos (una sola declaración) y se reparte según el sueldo de cada uno. El Seguro Social, Medicare y el impuesto de la ciudad son por persona.",
+    "Pay before taxes": "Sueldo antes de impuestos",
+    "Pay before taxes, a month": "Sueldo antes de impuestos, al mes",
+    "Paycheck (after taxes)": "Sueldo (después de impuestos)",
+    "Paycheck added": "Sueldo agregado",
+    "Paycheck entered before taxes": "Sueldo ingresado antes de impuestos",
+    "Paycheck for": "Sueldo de",
+    "Paycheck removed": "Sueldo eliminado",
+    "Per hour": "Por hora",
+    "Pre-tax deductions (401(k), health…)": "Descuentos antes de impuestos (401(k), salud…)",
+    "Remove this paycheck": "Quitar este sueldo",
+    "Social Security and Medicare": "Seguro Social y Medicare",
+    "Started from an estimate: correct the pay before taxes with the pay stub.": "Empieza con una estimación: corrige el sueldo antes de impuestos con el recibo de pago.",
+    "State income tax": "Impuesto estatal sobre la renta",
+    "Take-home a month": "Lo que llega al mes",
+    "Take-home pay a month": "Lo que llega al mes",
+    "Their pay before taxes: the app figures their taxes with yours. Leave empty for whoever doesn't earn.": "Su sueldo antes de impuestos: la app calcula sus impuestos junto con los tuyos. Déjalo vacío para quien no gana.",
+    "Type the pay (0 is fine for now).": "Escribe el sueldo (0 está bien por ahora).",
+    "a month, with no taxes figured.": "al mes, sin calcular impuestos.",
+    "typed as take-home,": "escrito como lo que llega,",
+    "From the household's paychecks: {0} (after pre-tax deductions). Type it to use another amount.": "De los sueldos del hogar: {0} (después de descuentos antes de impuestos). Escríbelo para usar otro monto.",
+    "Pre-tax deductions are taken out of the take-home too; the budget counts what reaches the bank.": "Los descuentos antes de impuestos también salen de lo que llega; el presupuesto cuenta lo que llega al banco.",
     "Move down": "Bajar",
     "Move up": "Subir",
     "Show all": "Ver todo",
@@ -11834,54 +11877,113 @@ I18n.override('EC', 'es', {
         return { payType: 'hourly', baseM, overtimeM, budgetM: baseM + (h.otInBudget ? overtimeM : 0), bonusesY, annual: (baseM + overtimeM) * 12 + bonusesY };
     }
 
-    function payrollUS(yd, states) {
-        const t = yd.usTax || {};
-        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
-        const pay = usGrossPay(yd);
-        const sueldo = pay.budgetM;
+    // One person's wages for the year (US): gross, pre-tax deductions, the wages income tax and
+    // FICA apply to, and their Social Security and Medicare (each person up to the wage base).
+    function usWages(e, t) {
+        const pay = usGrossPay(e);
         const gross = pay.annual;
-        const ded = (yd.payDeductions || []).filter(d => d.pretax && d.group !== 'employer');
+        const ded = (e.payDeductions || []).filter(d => d.pretax && d.group !== 'employer');
         const pretaxRetire = sum(ded.filter(d => d.group === 'retirement' && d.kind !== 'hsa'), d => num(d.monthly)) * 12;
         const pretax125 = sum(ded.filter(d => !(d.group === 'retirement' && d.kind !== 'hsa')), d => num(d.monthly)) * 12;
         const incomeWages = Math.max(0, gross - pretaxRetire - pretax125);
         const ficaWages = Math.max(0, gross - pretax125);
-        // Federal income tax
-        const { std, dedApplied, taxable, credits, tax: fedAnnual } = usFederalTax({ income: incomeWages, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, t });
-        // FICA
         const ssAnnual = Math.min(ficaWages, num(t.ssWageBase) || Infinity) * num(t.ssRate) / 100;
         // Employers withhold the extra 0.9% Medicare on wages above $200,000 whatever the filing
         // status (the yearly liability threshold differs; it's settled on the tax return).
         const medAnnual = ficaWages * num(t.medicareRate) / 100 + Math.max(0, ficaWages - (num(t.addlMedicareWithholding) || 200000)) * num(t.addlMedicareRate) / 100;
-        // State (flat or a rate you enter) and city
+        return { pay, gross, pretaxRetire, pretax125, incomeWages, ficaWages, ssAnnual, medAnnual };
+    }
+
+    // The household's other paychecks: income lines with `pay` (a member's pay before taxes, the
+    // same fields as the main paycheck) → that person as a year: the household's settings, their pay.
+    const PAY_FIELDS = { sueldo: 0, payType: 'salary', hourly: {}, bonuses: [], payDeductions: [] };
+    function otherEarners(yd) {
+        return (yd.otherIncomes || []).filter(l => l && l.pay && typeof l.pay === 'object')
+            .map(l => ({ line: l, yd: Object.assign({}, yd, PAY_FIELDS, l.pay, { otherIncomes: [] }) }));
+    }
+
+    // US paychecks for the household. Married filing jointly: federal and state income tax on the
+    // combined income (one return), shared out by each one's taxable wages. Otherwise each person
+    // files on their own (the others as single). Social Security, Medicare and city tax per person.
+    // Returns the main paycheck (as always) with `earners` (the others) and `household` (totals).
+    function payrollUS(yd, states) {
+        const t = yd.usTax || {};
+        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const joint = status === 'mfj';
+        const others = otherEarners(yd);
+        const main = usWages(yd, t);
+        const ws = [main].concat(others.map(o => usWages(o.yd, t)));
+        const people = 1 + (joint ? 1 : 0) + num(yd.dependents) + num(yd.otherDependents);
+        const total = (f) => sum(ws, f);
+        const shareBy = (f, w) => { const all = total(f); return all > 0 ? f(w) / all : (w === main ? 1 : 0); };
+        // Federal income tax
+        const fedMain = usFederalTax({ income: joint ? total(w => w.incomeWages) : main.incomeWages, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, t });
+        const fedOf = (w) => (joint ? fedMain.tax * shareBy(x => x.incomeWages, w) : w === main ? fedMain.tax : usFederalTax({ income: w.incomeWages, status: 'single', t }).tax);
+        // State (flat or a rate you enter); some states (Pennsylvania) tax 401(k) deferrals.
         const st = Object.assign({}, US_STATE_DEFAULT, (states || []).find(x => x.code === yd.state) || {});
-        const people = 1 + (status === 'mfj' ? 1 : 0) + num(yd.dependents) + num(yd.otherDependents);
         const stateRate = yd.stateRate !== null && yd.stateRate !== undefined && yd.stateRate !== '' ? num(yd.stateRate) : (st.type === 'none' ? 0 : num(st.rate));
-        // Some states (Pennsylvania) tax 401(k) deferrals.
-        const stateWages = st.taxes401k ? incomeWages + pretaxRetire : incomeWages;
-        const stateAnnual = st.type === 'none' && (yd.stateRate === null || yd.stateRate === undefined || yd.stateRate === '') ? 0 : Math.max(0, stateWages - num(st.exemption) * people) * stateRate / 100;
+        const noState = st.type === 'none' && (yd.stateRate === null || yd.stateRate === undefined || yd.stateRate === '');
+        const stateWages = (w) => (st.taxes401k ? w.incomeWages + w.pretaxRetire : w.incomeWages);
+        const stateOn = (wages, ppl) => (noState ? 0 : Math.max(0, wages - num(st.exemption) * ppl) * stateRate / 100);
+        const stateJoint = joint ? stateOn(total(stateWages), people) : 0;
+        const stateOf = (w) => (joint ? stateJoint * shareBy(stateWages, w) : stateOn(stateWages(w), w === main ? people : 1));
         // City tax (Michigan's Uniform City Income Tax): on Medicare wages (401(k) deferrals
         // included, section-125 benefits not), after the city's exemption per person; people who
-        // only work in the city pay the non-resident rate (half).
-        const local = localTax(yd, people);
-        const localAnnual = Math.max(0, ficaWages - local.exemption * people) * local.rate / 100;
-        const incomeTaxAnnual = fedAnnual + stateAnnual + localAnnual;
-        // Taxes are on the whole year; the budget's paycheck carries its share of them (all of
-        // them for a plain salary). Overtime and bonuses outside the budget keep the rest.
-        const share = gross > 0 ? Math.min(1, sueldo * 12 / gross) : 1;
-        const ficaM = (ssAnnual + medAnnual) / 12 * share;
-        const netoAntesM = Math.max(0, sueldo - ficaM - incomeTaxAnnual / 12 * share);
-        const otros = payDeductionsSummary(yd).taken;
-        return {
-            country: 'US', sueldo, sueldoAnual: gross, status, gross: pay, budgetShare: share,
-            // Average tax on every extra dollar of pay (FICA + income tax), for bonuses and overtime.
-            avgTaxRate: gross > 0 ? (ssAnnual + medAnnual + incomeTaxAnnual) / gross : 0,
-            iessM: ficaM, iessAnual: ssAnnual + medAnnual, ssM: ssAnnual / 12 * share, medM: medAnnual / 12 * share,
-            fedM: fedAnnual / 12 * share, stateM: stateAnnual / 12 * share, localM: localAnnual / 12 * share, localRate: local.rate, localResident: local.resident, stateRate, stateType: st.type,
-            pretaxM: (pretaxRetire + pretax125) / 12, stdDeduction: std, credits, incomeWages,
-            sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied, baseImponible: taxable,
-            isrAnual: incomeTaxAnnual, isrM: incomeTaxAnnual / 12 * share,
-            netoAntesM, otrosDescuentosM: otros, netoM: Math.max(0, netoAntesM - otros)
+        // only work in the city pay the non-resident rate (half). On a joint return the exemptions
+        // are shared out by wages.
+        const localOf = (w, e) => {
+            const lt = localTax(e, people);
+            const exempt = joint ? lt.exemption * people * shareBy(x => x.ficaWages, w) : lt.exemption * (w === main ? people : 1);
+            return { annual: Math.max(0, w.ficaWages - exempt) * lt.rate / 100, rate: lt.rate, resident: lt.resident };
         };
+        // One paycheck: taxes are on the whole year; the budget's paycheck carries its share of them
+        // (all of them for a plain salary). Overtime and bonuses outside the budget keep the rest.
+        const check = (w, e) => {
+            const fed = fedOf(w), state = stateOf(w), local = localOf(w, e);
+            const incomeTaxAnnual = fed + state + local.annual;
+            const sueldo = w.pay.budgetM;
+            const share = w.gross > 0 ? Math.min(1, sueldo * 12 / w.gross) : 1;
+            const ficaM = (w.ssAnnual + w.medAnnual) / 12 * share;
+            const netoAntesM = Math.max(0, sueldo - ficaM - incomeTaxAnnual / 12 * share);
+            const otros = payDeductionsSummary(e).taken;
+            return { w, fed, state, local, incomeTaxAnnual, sueldo, share, ficaM, netoAntesM, otros, netoM: Math.max(0, netoAntesM - otros),
+                avgTaxRate: w.gross > 0 ? (w.ssAnnual + w.medAnnual + incomeTaxAnnual) / w.gross : 0 };
+        };
+        const m = check(main, yd);
+        const earners = others.map((o, k) => {
+            const c = check(ws[k + 1], o.yd);
+            return { id: o.line.id, memberId: o.line.memberId, name: o.line.name, sueldo: c.sueldo, annual: c.w.gross, gross: c.w.pay, budgetShare: c.share,
+                ssM: c.w.ssAnnual / 12 * c.share, medM: c.w.medAnnual / 12 * c.share, ficaM: c.ficaM, fedM: c.fed / 12 * c.share, stateM: c.state / 12 * c.share,
+                localM: c.local.annual / 12 * c.share, localRate: c.local.rate, localResident: c.local.resident, isrM: c.incomeTaxAnnual / 12 * c.share,
+                pretaxM: (c.w.pretaxRetire + c.w.pretax125) / 12, incomeWages: c.w.incomeWages, otrosDescuentosM: c.otros, netoAntesM: c.netoAntesM, netoM: c.netoM, avgTaxRate: c.avgTaxRate };
+        });
+        const ficaAll = total(w => w.ssAnnual + w.medAnnual);
+        return {
+            country: 'US', sueldo: m.sueldo, sueldoAnual: main.gross, status, gross: main.pay, budgetShare: m.share,
+            // Average tax on every extra dollar of pay (FICA + income tax), for bonuses and overtime.
+            avgTaxRate: m.avgTaxRate,
+            iessM: m.ficaM, iessAnual: main.ssAnnual + main.medAnnual, ssM: main.ssAnnual / 12 * m.share, medM: main.medAnnual / 12 * m.share,
+            fedM: m.fed / 12 * m.share, stateM: m.state / 12 * m.share, localM: m.local.annual / 12 * m.share, localRate: m.local.rate, localResident: m.local.resident, stateRate, stateType: st.type,
+            pretaxM: (main.pretaxRetire + main.pretax125) / 12, stdDeduction: fedMain.std, credits: fedMain.credits, incomeWages: main.incomeWages,
+            sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied: fedMain.dedApplied, baseImponible: fedMain.taxable,
+            isrAnual: m.incomeTaxAnnual, isrM: m.incomeTaxAnnual / 12 * m.share,
+            netoAntesM: m.netoAntesM, otrosDescuentosM: m.otros, netoM: m.netoM,
+            earners,
+            household: { joint, wages: total(w => w.gross), incomeWages: total(w => w.incomeWages), fedAnnual: joint ? fedMain.tax : sum(ws, fedOf),
+                stateAnnual: sum(ws, stateOf), ficaAnnual: ficaAll, earners: ws.length }
+        };
+    }
+
+    // Income lines with a paycheck (`pay`): their monthly amount is the take-home computed with the
+    // household's taxes (US). Other lines (typed take-home, rent, a pension) stay as they are.
+    function paycheckLines(yd, pay) {
+        const lines = yd.otherIncomes || [];
+        if (yd.country !== 'US' || !lines.some(l => l && l.pay)) return lines;
+        const p = pay || payroll(yd);
+        return lines.map(l => {
+            const e = l && l.pay && (p.earners || []).find(x => x.id === l.id);
+            return e ? Object.assign({}, l, { amount: cents(e.netoM), taxed: e }) : l;
+        });
     }
 
     // The city tax rate that applies: a listed city's resident or non-resident rate and its
@@ -14496,7 +14598,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -15604,7 +15706,7 @@ I18n.override('EC', 'es', {
             const rows = this.linkedRows(y);
             const overrides = {};
             Object.keys(yd.monthOverrides || {}).forEach(m => { overrides[m] = yd.monthOverrides[m].concat(rows); });
-            return Object.assign({}, yd, {
+            const eff = Object.assign({}, yd, {
                 country: (this.state.settings && this.state.settings.country) || COUNTRY,
                 budgetBase: (yd.budgetBase || []).concat(rows),
                 monthOverrides: overrides,
@@ -15613,6 +15715,9 @@ I18n.override('EC', 'es', {
                 paySchedule: (this.state.settings && this.state.settings.paySchedule) || null,
                 calYear: y
             });
+            // Another member's paycheck counts with its take-home after the household's taxes.
+            eff.otherIncomes = Engine.paycheckLines(eff);
+            return eff;
         },
 
         nextId(list) { return list.length ? Math.max(...list.map(x => Number(x.id) || 0)) + 1 : 1; },
@@ -17447,11 +17552,13 @@ I18n.override('EC', 'es', {
         const rows = [`<div class="bs-row" data-income="salary">
                 <div class="bs-name"><span class="bs-label">Net salary</span> <a href="#" class="badge badge-ok" data-goto="presupuesto/ingresos"><i class="fa-solid fa-link"></i> Your Salary</a><span class="bs-sub" data-sub></span></div>
                 ${valueCell()}<div class="bs-bar"><span data-bar></span></div></div>`];
+        const effLines = ctx.budgetYear.otherIncomes || [];
         (ctx.year.otherIncomes || []).forEach(src => {
+            const taxed = src.pay ? (effLines.find(x => x.id === src.id) || src) : null;
             rows.push(`<div class="bs-row" data-income="${src.id}">
                 <div class="bs-name"><input class="bs-name-input" value="${esc(src.name)}" data-change="income.set" data-id="${src.id}" data-field="name" aria-label="Income name">
                     <button type="button" class="row-del bs-del" data-action="income.delete" data-id="${src.id}" title="Delete income" aria-label="Delete income"><i class="fa-solid fa-trash-can"></i></button><span class="bs-sub" data-sub></span></div>
-                ${valueCell(`<input type="number" class="bs-input" min="0" step="10" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Planned for ${esc(src.name)}">`)}
+                ${valueCell(taxed ? `<a href="#" class="bs-input link text-right" data-goto="presupuesto/ingresos" data-focus="inc-earners-card" title="After taxes: figured in Income & Taxes">${money(taxed.amount)}</a>` : `<input type="number" class="bs-input" min="0" step="10" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Planned for ${esc(src.name)}">`)}
                 <div class="bs-bar"><span data-bar></span></div></div>`);
         });
         m.other.unplanned.forEach(u => {
@@ -18341,11 +18448,14 @@ I18n.override('EC', 'es', {
                 <td class="text-xs text-slate-500 px-3">Ingresos Laborales</td><td class="text-xs text-slate-500" data-cell="spend"></td>
                 <td class="text-center"><a href="#" class="row-del" data-goto="presupuesto/ingresos" title="Edit your salary"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>
             </tr>`;
+        const effLines = ctx.budgetYear.otherIncomes || [];
         (ctx.year.otherIncomes || []).forEach(src => {
+            // A member's paycheck: its take-home comes from Income & Taxes (taxes figured there).
+            const taxed = src.pay ? (effLines.find(x => x.id === src.id) || src) : null;
             html += `<tr data-income="${src.id}" class="bg-emerald-50/40">
                 <td><input class="cell-input" value="${esc(src.name)}" data-change="income.set" data-id="${src.id}" data-field="name" aria-label="Income name"></td>
-                <td class="text-xs text-slate-500 px-3">Other income</td><td class="text-center text-slate-300">—</td>
-                <td><input type="number" class="cell-input num money" step="10" min="0" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Monthly amount" title="What you receive each month (net). Applies to every month of the year."></td>
+                <td class="text-xs text-slate-500 px-3">${taxed ? 'Paycheck (after taxes)' : 'Other income'}</td><td class="text-center text-slate-300">—</td>
+                <td>${taxed ? `<a href="#" class="num block font-bold link" data-goto="presupuesto/ingresos" data-focus="inc-earners-card" title="Figured from the pay before taxes in Income & Taxes">${money(taxed.amount)}</a>` : `<input type="number" class="cell-input num money" step="10" min="0" value="${Number(src.amount) || 0}" data-input="income.set" data-id="${src.id}" data-field="amount" aria-label="Monthly amount" title="What you receive each month (net). Applies to every month of the year.">`}</td>
                 <td class="num font-bold" data-cell="real"></td><td class="num font-bold" data-cell="diff"></td>
                 <td><select class="cell-input" data-change="income.set" data-id="${src.id}" data-field="category" title="Category used to log this income in Transactions (with «I got it»). It doesn't pull in other transactions of that category.">${catOptions(src.category)}</select></td>
                 <td data-cell="spend"></td>
@@ -19441,7 +19551,7 @@ I18n.override('EC', 'es', {
         renderExtraPay(ctx);
         taxYearNote(ctx);
         if (window.SideIncome) SideIncome.render(ctx);
-        if (p.country === 'US') { renderUS(ctx); if (window.Refund) Refund.render(ctx); if (window.Itemize) Itemize.render(ctx); return; }
+        if (p.country === 'US') { renderUS(ctx); if (window.Earners) Earners.render(ctx); if (window.Refund) Refund.render(ctx); if (window.Itemize) Itemize.render(ctx); return; }
         UI.text('inc-sbu', money(yd.sbu));
         const rows = [
             ['Monthly gross salary', money(p.sueldo), 'text-slate-900'],
@@ -19566,6 +19676,153 @@ I18n.override('EC', 'es', {
     App.defineView('presupuesto/ingresos', { update });
 })();
 </script>
+<script>/* js/views/earners.js */
+/*
+ * Income & Taxes → "Other paychecks in the household" (US): anyone else who works enters their pay
+ * before taxes (a salary or by the hour, with their pre-tax 401(k) and health deductions) and the
+ * app figures their taxes with the main paycheck's (Engine.payrollUS: one return when filing
+ * jointly). Each paycheck is an income line with `pay`; the budget counts its take-home.
+ */
+(function () {
+    'use strict';
+    const { money, esc, parseNum } = Fmt;
+    const MEMBER_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+
+    const lines = () => (Store.active().otherIncomes || []);
+    const payLine = (id) => lines().find(l => l.id === Number(id) && l.pay);
+    const ded = (pay, kind) => (pay.payDeductions || []).find(d => d.kind === kind);
+    const dedAmount = (pay, kind) => Number((ded(pay, kind) || {}).monthly) || 0;
+    // The household's first person is the main earner (the setup guide puts them there).
+    const mainEarner = (s) => (s.members || [])[0] || null;
+
+    function render(ctx) {
+        const host = document.getElementById('inc-earners');
+        if (!host) return;
+        const s = ctx.state, p = ctx.pay, people = s.members || [], main = mainEarner(s);
+        const pays = (ctx.year.otherIncomes || []).filter(l => l.pay);
+        const typed = (ctx.year.otherIncomes || []).filter(l => !l.pay && l.memberId && l.memberId !== (main && main.id) && l.category === 'Ingresos Laborales');
+        const taken = new Set(pays.concat(typed).map(l => l.memberId));
+        const free = people.filter(m => m !== main && !taken.has(m.id));
+        const nameOf = (l) => { const m = people.find(x => x.id === l.memberId); return m ? m.name : l.name; };
+        const city = !!(ctx.year.localName || Number(ctx.year.localRate) > 0);
+        const rows = (e, gross) => [
+            ['Pay before taxes', money(gross), 'text-slate-900'],
+            e.pretaxM > 0 ? ['Pre-tax deductions (401(k), health…)', '−' + money(e.pretaxM), 'text-blue-700'] : null,
+            ['Federal income tax', '−' + money(e.fedM), 'text-red-600'],
+            ['Social Security and Medicare', '−' + money(e.ficaM), 'text-red-600'],
+            ['State income tax', '−' + money(e.stateM), 'text-red-600'],
+            e.localM > 0 ? ['City tax', '−' + money(e.localM), 'text-red-600'] : null
+        ].filter(Boolean).map(([k, v, c]) => `<div class="flex justify-between py-1"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join('');
+        host.innerHTML = `<p class="help mb-3">${p.household && p.household.joint
+            ? '<i class="fa-solid fa-people-roof text-emerald-600"></i> Married filing jointly: federal and state tax are figured on your combined pay (one return), then shared by each one\'s wages. Social Security, Medicare and city tax are per person.'
+            : '<i class="fa-solid fa-user text-slate-500"></i> Each paycheck is taxed on its own (the others as single). Filing jointly? Change the filing status above.'}</p>
+            ${pays.map(l => {
+                const e = (p.earners || []).find(x => x.id === l.id) || {};
+                const pay = l.pay, hourly = pay.payType === 'hourly', h = pay.hourly || {};
+                return `<div class="panel tone-slate mb-3" data-earner="${l.id}">
+                    <div class="flex items-center justify-between gap-2 mb-2"><strong data-i18n-skip>${esc(nameOf(l))}</strong>
+                        <button type="button" class="row-del" data-action="earner.remove" data-id="${l.id}" aria-label="Remove this paycheck" title="Remove this paycheck"><i class="fa-solid fa-trash-can"></i></button></div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <label class="field"><span class="field-label">Paid</span><select class="input" data-change="earner.set" data-id="${l.id}" data-f="payType"><option value="salary" ${hourly ? '' : 'selected'}>A salary</option><option value="hourly" ${hourly ? 'selected' : ''}>By the hour</option></select></label>
+                        ${hourly ? `<label class="field"><span class="field-label">Per hour</span><input type="number" class="input" min="0" step="0.25" inputmode="decimal" value="${Number(h.rate) || 0}" data-change="earner.set" data-id="${l.id}" data-f="rate"></label>
+                            <label class="field"><span class="field-label">Hours a week</span><input type="number" class="input" min="0" max="100" step="1" inputmode="decimal" value="${Number(h.hours) || 0}" data-change="earner.set" data-id="${l.id}" data-f="hours"></label>`
+                            : `<label class="field"><span class="field-label">Pay before taxes, a month</span><input type="number" class="input" min="0" step="50" inputmode="decimal" value="${Number(pay.sueldo) || 0}" data-change="earner.set" data-id="${l.id}" data-f="gross"></label>`}
+                        <label class="field"><span class="field-label">401(k) / 403(b) a month</span><input type="number" class="input" min="0" step="10" inputmode="decimal" value="${dedAmount(pay, 'retirement')}" data-change="earner.set" data-id="${l.id}" data-f="retirement"></label>
+                        <label class="field"><span class="field-label">Health, dental, vision, HSA a month</span><input type="number" class="input" min="0" step="10" inputmode="decimal" value="${dedAmount(pay, 'health')}" data-change="earner.set" data-id="${l.id}" data-f="health"></label>
+                    </div>
+                    ${city ? `<label class="check mt-2"><input type="checkbox" data-change="earner.set" data-id="${l.id}" data-f="localResident" ${pay.localResident === false ? '' : 'checked'}><span>Lives in the city <span class="block text-[11px] font-normal text-slate-500">If they only work there, the non-resident rate (half).</span></span></label>` : ''}
+                    <dl class="text-xs divide-y divide-slate-100 mt-2">${rows(e, e.sueldo || 0)}</dl>
+                    <div class="flex justify-between items-center mt-2"><span class="text-sm font-semibold">Take-home a month</span><span class="text-lg font-extrabold text-emerald-700">${money(e.netoM || 0)}</span></div>
+                    <p class="help mt-1">Pre-tax deductions are taken out of the take-home too; the budget counts what reaches the bank.</p>
+                </div>`;
+            }).join('')}
+            ${typed.map(l => `<div class="panel tone-amber mb-3"><p class="text-sm"><strong data-i18n-skip>${esc(nameOf(l))}</strong>: <span>typed as take-home,</span> <strong>${money(l.amount)}</strong> <span>a month, with no taxes figured.</span></p>
+                <button type="button" class="btn btn-secondary btn-sm mt-2" data-action="earner.convert" data-id="${l.id}"><i class="fa-solid fa-calculator"></i> Enter it before taxes instead</button></div>`).join('')}
+            <div class="flex flex-wrap gap-2">${free.map(m => `<button type="button" class="btn btn-secondary btn-sm" data-action="earner.add" data-member="${m.id}"><i class="fa-solid fa-plus"></i> <span>Paycheck for</span> <span data-i18n-skip>${esc(m.name)}</span></button>`).join('')}
+                <button type="button" class="btn btn-secondary btn-sm" data-action="earner.add"><i class="fa-solid fa-user-plus"></i> Another person's paycheck</button></div>`;
+    }
+
+    function newPayLine(member, sueldo) {
+        const list = Store.active().otherIncomes || (Store.active().otherIncomes = []);
+        const line = { id: Store.nextId(list), name: `${member.name} (${I18n.t('paycheck')})`.slice(0, 60), amount: 0, category: 'Ingresos Laborales', memberId: member.id,
+            pay: { payType: 'salary', sueldo: Math.max(0, Number(sueldo) || 0), hourly: { rate: 0, hours: 40 }, payDeductions: [] } };
+        list.push(line);
+        return line;
+    }
+    // The line's stored amount follows its take-home (what other screens read straight from it).
+    function syncAmounts() {
+        const eff = Store.effective(Store.state.activeYear);
+        (Store.active().otherIncomes || []).forEach(l => { if (!l.pay) return; const e = (eff.otherIncomes || []).find(x => x.id === l.id); if (e) l.amount = e.amount; });
+    }
+    function setDeduction(pay, kind, monthly) {
+        const list = pay.payDeductions || (pay.payDeductions = []);
+        const names = { retirement: '401(k) / 403(b)', health: 'Health, dental, vision, HSA' };
+        const groups = { retirement: 'retirement', health: 'insurance' };
+        let d = list.find(x => x.kind === kind);
+        if (!(monthly > 0)) { pay.payDeductions = list.filter(x => x !== d); return; }
+        if (!d) { d = { id: list.length ? Math.max(...list.map(x => Number(x.id) || 0)) + 1 : 1, name: names[kind], group: groups[kind], kind, pretax: true }; list.push(d); }
+        d.monthly = monthly;
+    }
+
+    UI.register({
+        'earner.add': async (el) => {
+            const s = Store.state;
+            let member = (s.members || []).find(m => m.id === Number(el.dataset.member));
+            if (!member) {
+                const r = await UI.form({ title: 'Another person\'s paycheck', fields: [{ name: 'name', label: 'Name', placeholder: 'E.g. Luis' }, { name: 'gross', label: 'Pay before taxes, a month', type: 'number', inputmode: 'decimal' }],
+                    confirmText: 'Add', validate: v => !v.name.trim() ? 'Type a name.' : !(v.gross >= 0) ? 'Type the pay (0 is fine for now).' : null });
+                if (!r) return;
+                App.undoable('Paycheck added', () => {
+                    const list = s.members || (s.members = []);
+                    const used = new Set(list.map(p => p.color));
+                    member = { id: Store.nextId(list), name: r.name.trim().slice(0, 30), color: MEMBER_COLORS.find(c => !used.has(c)) || MEMBER_COLORS[list.length % MEMBER_COLORS.length] };
+                    list.push(member);
+                    newPayLine(member, Math.min(10000000, r.gross || 0));
+                    syncAmounts();
+                });
+                return;
+            }
+            App.undoable('Paycheck added', () => { newPayLine(member, 0); syncAmounts(); });
+        },
+        'earner.set': (el) => {
+            const l = payLine(el.dataset.id);
+            if (!l) return;
+            const pay = l.pay, f = el.dataset.f, v = Math.min(10000000, Math.max(0, parseNum(el.value, 0)));
+            if (f === 'payType') {
+                pay.payType = el.value === 'hourly' ? 'hourly' : 'salary';
+                pay.hourly = Object.assign({ rate: 0, hours: 40 }, pay.hourly || {});
+            } else if (f === 'gross') pay.sueldo = v;
+            else if (f === 'rate') pay.hourly = Object.assign({ hours: 40 }, pay.hourly || {}, { rate: v });
+            else if (f === 'hours') pay.hourly = Object.assign({ rate: 0 }, pay.hourly || {}, { hours: Math.min(168, v) });
+            else if (f === 'retirement' || f === 'health') setDeduction(pay, f, v);
+            else if (f === 'localResident') pay.localResident = !!el.checked;
+            // Hourly pay keeps a monthly figure too (other screens and old versions read sueldo).
+            if (pay.payType === 'hourly') pay.sueldo = Math.round(Engine.usGrossPay(Object.assign({}, pay, { bonuses: [] })).baseM * 100) / 100;
+            syncAmounts();
+            App.changed({ structural: true });
+        },
+        'earner.remove': (el) => {
+            const l = payLine(el.dataset.id);
+            if (!l) return;
+            App.undoable('Paycheck removed', () => { Store.active().otherIncomes = lines().filter(x => x !== l); });
+        },
+        // A take-home typed earlier: start from an estimate of the pay before taxes (at the main
+        // paycheck's average tax rate), to be corrected with the pay stub.
+        'earner.convert': (el) => {
+            const l = lines().find(x => x.id === Number(el.dataset.id) && !x.pay);
+            if (!l) return;
+            const rate = Math.min(0.5, Math.max(0, App.buildContext().pay.avgTaxRate || 0.2));
+            App.undoable('Paycheck entered before taxes', () => {
+                l.pay = { payType: 'salary', sueldo: Math.round((Number(l.amount) || 0) / (1 - rate) / 50) * 50, hourly: { rate: 0, hours: 40 }, payDeductions: [] };
+                syncAmounts();
+            });
+            UI.toast('Started from an estimate: correct the pay before taxes with the pay stub.');
+        }
+    });
+
+    window.Earners = { render, syncAmounts };
+})();
+</script>
 <script>/* js/views/refund.js */
 /* Ingresos (US) → ¿Te devuelven o debes?: the year's federal tax for the household against what will
  * have been withheld (so far + per paycheck × paychecks left), and the W-4 change that evens it out.
@@ -19594,11 +19851,18 @@ I18n.override('EC', 'es', {
         const ytd = c.ytd === null || c.ytd === undefined ? per * k.paid : Number(c.ytd) || 0;
         const field = (key, label, val, help, ph) => `<label class="field"><span class="field-label">${label}</span><input type="number" class="input" min="0" step="10" data-input="refund.set" data-key="${key}" value="${v(val)}" ${ph ? `placeholder="${esc(ph)}"` : ''}>${help ? `<span class="help">${help}</span>` : ''}</label>`;
         const computedPer = k.paid + k.left > 0 ? p.fedM * 12 / (k.paid + k.left) : 0;
+        // Filing jointly with the household's other paychecks (Income & Taxes): their wages count on
+        // the same return; their withholding is assumed to be their share until it's typed.
+        const joint = p.household && p.household.joint && (p.earners || []).length;
+        const payWages = joint ? p.earners.reduce((a, e) => a + e.incomeWages, 0) : 0;
+        const payWithheld = joint ? p.earners.reduce((a, e) => a + e.fedM * 12, 0) : 0;
+        const spouseWages = Number(c.spouseWages) || payWages;
+        const spouseWithheld = Number(c.spouseWithheld) || (Number(c.spouseWages) ? 0 : payWithheld);
         const inputs = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             ${field('perCheck', 'Federal withholding per paycheck ($)', c.perCheck, `From your latest pay stub ("Federal Withholding"). Based on your W-4 it would be about ${money0(computedPer)}.`)}
             ${field('ytd', 'Withheld so far this year ($)', c.ytd, `The stub's year-to-date ("YTD"). Empty = ${k.paid} paychecks × the amount above.`, money0(per * k.paid))}
-            ${field('spouseWages', 'Your spouse\'s yearly gross pay ($)', c.spouseWages, yd.filingStatus === 'mfj' ? 'If they also have W-2 wages.' : 'Only if you file jointly.')}
-            ${field('spouseWithheld', 'Their federal withholding for the year ($)', c.spouseWithheld, '')}
+            ${field('spouseWages', 'Your spouse\'s yearly gross pay ($)', c.spouseWages, joint ? `From the household's paychecks: ${money0(payWages)} (after pre-tax deductions). Type it to use another amount.` : yd.filingStatus === 'mfj' ? 'If they also have W-2 wages.' : 'Only if you file jointly.', joint ? money0(payWages) : '')}
+            ${field('spouseWithheld', 'Their federal withholding for the year ($)', c.spouseWithheld, joint && !Number(c.spouseWithheld) ? `Empty = their share of the tax (${money0(payWithheld)}), as if their W-4 were right. Type it from their pay stub.` : '', joint ? money0(payWithheld) : '')}
             ${field('untaxed', 'Other income with no withholding ($/yr)', c.untaxed, 'Interest, side work, etc.')}
         </div>`;
         // Inputs are drawn once (re-drawing them while typing would lose the cursor).
@@ -19607,7 +19871,7 @@ I18n.override('EC', 'es', {
         if (!per && !Number(c.ytd)) { UI.html('inc-refund', '<p class="text-xs mt-3"><i class="fa-solid fa-circle-info text-blue-600"></i> Enter the federal withholding from your latest pay stub to see whether you\'ll get a refund or owe.</p>'); return; }
         // Bonuses still to come this year (the income already counts them): withheld apart, at 22%.
         const bonusesLeft = (yd.bonuses || []).filter(b => Number(b.month) > ctx.today.getMonth() + 1).reduce((a, b) => a + (Number(b.amount) || 0), 0);
-        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: c.spouseWages, otherWithheld: c.spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left, stdExtra: window.Itemize ? Itemize.giftsOffStandard(ctx) : 0, bonusesLeft });
+        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: spouseWages, otherWithheld: spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left, stdExtra: window.Itemize ? Itemize.giftsOffStandard(ctx) : 0, bonusesLeft });
         const big = Math.abs(r.diff) >= 500;
         const tone = r.diff >= 0 && r.diff < 1500 ? 'tone-emerald' : r.diff >= 0 ? 'tone-amber' : 'tone-red';
         const w4 = r.adjustPerCheck === null ? '' : r.diff < -100
@@ -26870,6 +27134,8 @@ I18n.override('EC', 'es', {
             const people = s.members || [], main = earner(people), others = people.filter(p => p !== main);
             const name = (p) => `<span data-i18n-skip>${esc(p.name)}</span>`;
             const lines = y.otherIncomes || [];
+            // What's already there for someone: their pay before taxes (US) or take-home.
+            const otherPay = (p) => { const l = lines.find(x => x.memberId === p.id) || {}; return (us && l.pay ? l.pay.sueldo : l.amount) || ''; };
             return `${dots}<p class="text-sm mb-1"><strong>${main ? `<span>Main paycheck:</span> ${name(main)}` : 'How do you get paid?'}</strong></p>
             <p class="text-sm text-slate-600 mb-3">${main ? 'One person\'s pay before taxes: the app figures the taxes on it. Pick the person with the biggest paycheck.' : 'Your main paycheck, before taxes: the app figures the taxes on it.'}</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -26881,8 +27147,8 @@ I18n.override('EC', 'es', {
                 ${field('su-next', 'Next payday', Engine.isoDate(new Date()), { type: 'date' })}
             </div>
             ${others.length ? `<p class="text-sm mt-4 mb-1"><strong>Other paychecks in the household</strong></p>
-                <p class="text-xs text-slate-500 mb-2">What reaches the bank each month, after taxes. Leave empty for whoever doesn't earn.</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${others.map(p => field(`su-other-${p.id}`, `<span>${name(p)} · <span>Take-home pay a month (${esc(Fmt.currency().symbol)})</span></span>`, (lines.find(l => l.memberId === p.id) || {}).amount || '', { type: 'number' })).join('')}</div>`
+                <p class="text-xs text-slate-500 mb-2">${us ? 'Their pay before taxes: the app figures their taxes with yours. Leave empty for whoever doesn\'t earn.' : 'What reaches the bank each month, after taxes. Leave empty for whoever doesn\'t earn.'}</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${others.map(p => field(`su-other-${p.id}`, `<span>${name(p)} · <span>${us ? 'Pay before taxes, a month' : 'Take-home pay a month'} (${esc(Fmt.currency().symbol)})</span></span>`, otherPay(p), { type: 'number' })).join('')}</div>`
                 : '<p class="help mt-3">Someone else in the household earns money too? Add their name on the previous step, or add their pay later in Income & Taxes.</p>'}${nav()}`;
         }
         if (k === 'accounts') return `${dots}<p class="text-sm mb-3"><strong>Your accounts today.</strong> Leave empty what you don't have.</p>
@@ -26919,15 +27185,19 @@ I18n.override('EC', 'es', {
             // The main earner is the household's first person (taxes, side income look there).
             const people = s.members || [], main = earner(people);
             if (main && people[0] !== main) s.members = [main].concat(people.filter(p => p !== main));
-            // Everyone else's take-home pay: their own monthly income line (updated, not doubled).
+            // Everyone else's pay: their own monthly income line (updated, not doubled). In the US it's
+            // their pay before taxes (a paycheck the app taxes with the main one); in Ecuador, take-home.
             const lines = y.otherIncomes || (y.otherIncomes = []);
+            const us = Store.COUNTRY === 'US';
             people.filter(p => p !== main).forEach(p => {
-                const amount = num(`su-other-${p.id}`);
+                const amount = Math.min(10000000, num(`su-other-${p.id}`));
                 if (!(amount > 0)) return;
-                const had = lines.find(l => l.memberId === p.id);
-                if (had) { had.amount = amount; return; }
-                lines.push({ id: Store.nextId(lines), name: `${p.name} (${I18n.t('paycheck')})`.slice(0, 60), amount, category: 'Ingresos Laborales', memberId: p.id });
+                let line = lines.find(l => l.memberId === p.id);
+                if (!line) { line = { id: Store.nextId(lines), name: `${p.name} (${I18n.t('paycheck')})`.slice(0, 60), amount: 0, category: 'Ingresos Laborales', memberId: p.id }; lines.push(line); }
+                if (us) line.pay = Object.assign({ payType: 'salary', hourly: { rate: 0, hours: 40 }, payDeductions: [] }, line.pay || {}, { sueldo: amount });
+                else line.amount = amount;
             });
+            if (us && window.Earners) Earners.syncAmounts();
             if (val('su-type') === 'hourly') {
                 y.payType = 'hourly';
                 y.hourly = Object.assign({ rate: 0, hours: 40, otHours: 0, otRate: 1.5, otInBudget: false }, y.hourly || {}, { rate: num('su-rate'), hours: num('su-hours') || 40 });

@@ -25,11 +25,18 @@
         const ytd = c.ytd === null || c.ytd === undefined ? per * k.paid : Number(c.ytd) || 0;
         const field = (key, label, val, help, ph) => `<label class="field"><span class="field-label">${label}</span><input type="number" class="input" min="0" step="10" data-input="refund.set" data-key="${key}" value="${v(val)}" ${ph ? `placeholder="${esc(ph)}"` : ''}>${help ? `<span class="help">${help}</span>` : ''}</label>`;
         const computedPer = k.paid + k.left > 0 ? p.fedM * 12 / (k.paid + k.left) : 0;
+        // Filing jointly with the household's other paychecks (Income & Taxes): their wages count on
+        // the same return; their withholding is assumed to be their share until it's typed.
+        const joint = p.household && p.household.joint && (p.earners || []).length;
+        const payWages = joint ? p.earners.reduce((a, e) => a + e.incomeWages, 0) : 0;
+        const payWithheld = joint ? p.earners.reduce((a, e) => a + e.fedM * 12, 0) : 0;
+        const spouseWages = Number(c.spouseWages) || payWages;
+        const spouseWithheld = Number(c.spouseWithheld) || (Number(c.spouseWages) ? 0 : payWithheld);
         const inputs = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             ${field('perCheck', 'Federal withholding per paycheck ($)', c.perCheck, `From your latest pay stub ("Federal Withholding"). Based on your W-4 it would be about ${money0(computedPer)}.`)}
             ${field('ytd', 'Withheld so far this year ($)', c.ytd, `The stub's year-to-date ("YTD"). Empty = ${k.paid} paychecks × the amount above.`, money0(per * k.paid))}
-            ${field('spouseWages', 'Your spouse\'s yearly gross pay ($)', c.spouseWages, yd.filingStatus === 'mfj' ? 'If they also have W-2 wages.' : 'Only if you file jointly.')}
-            ${field('spouseWithheld', 'Their federal withholding for the year ($)', c.spouseWithheld, '')}
+            ${field('spouseWages', 'Your spouse\'s yearly gross pay ($)', c.spouseWages, joint ? `From the household's paychecks: ${money0(payWages)} (after pre-tax deductions). Type it to use another amount.` : yd.filingStatus === 'mfj' ? 'If they also have W-2 wages.' : 'Only if you file jointly.', joint ? money0(payWages) : '')}
+            ${field('spouseWithheld', 'Their federal withholding for the year ($)', c.spouseWithheld, joint && !Number(c.spouseWithheld) ? `Empty = their share of the tax (${money0(payWithheld)}), as if their W-4 were right. Type it from their pay stub.` : '', joint ? money0(payWithheld) : '')}
             ${field('untaxed', 'Other income with no withholding ($/yr)', c.untaxed, 'Interest, side work, etc.')}
         </div>`;
         // Inputs are drawn once (re-drawing them while typing would lose the cursor).
@@ -38,7 +45,7 @@
         if (!per && !Number(c.ytd)) { UI.html('inc-refund', '<p class="text-xs mt-3"><i class="fa-solid fa-circle-info text-blue-600"></i> Enter the federal withholding from your latest pay stub to see whether you\'ll get a refund or owe.</p>'); return; }
         // Bonuses still to come this year (the income already counts them): withheld apart, at 22%.
         const bonusesLeft = (yd.bonuses || []).filter(b => Number(b.month) > ctx.today.getMonth() + 1).reduce((a, b) => a + (Number(b.amount) || 0), 0);
-        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: c.spouseWages, otherWithheld: c.spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left, stdExtra: window.Itemize ? Itemize.giftsOffStandard(ctx) : 0, bonusesLeft });
+        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: spouseWages, otherWithheld: spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left, stdExtra: window.Itemize ? Itemize.giftsOffStandard(ctx) : 0, bonusesLeft });
         const big = Math.abs(r.diff) >= 500;
         const tone = r.diff >= 0 && r.diff < 1500 ? 'tone-emerald' : r.diff >= 0 ? 'tone-amber' : 'tone-red';
         const w4 = r.adjustPerCheck === null ? '' : r.diff < -100

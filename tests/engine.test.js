@@ -1807,3 +1807,40 @@ test('zoomRange / bandMiddle: a stacked chart seen closer, centered where asked,
     assert.ok(r.min < 200 && r.max > 220 && (20 / (r.max - r.min)) > 0.3);
     assert.equal(E.bandAt(series.map(x => x), 1, (r.min + r.max) / 2), 1);
 });
+
+test('household paychecks (US): joint return shares federal and state tax; FICA and city tax per person', () => {
+    const base = () => Object.assign(US.newYear(), { country: 'US', sueldo: 6000, filingStatus: 'mfj', dependents: 1, state: 'MI', localName: 'Grand Rapids', payDeductions: [], otherIncomes: [] });
+    const alone = E.payroll(base());
+    assert.deepEqual(alone.earners, []);
+    // A second earner: $4,000 a month before taxes, $200 a month to a pre-tax 401(k).
+    const yd = base();
+    yd.otherIncomes = [{ id: 7, name: 'Sarah (paycheck)', amount: 0, category: 'Ingresos Laborales', memberId: 2, pay: { sueldo: 4000, payDeductions: [{ id: 1, name: '401(k)', group: 'retirement', kind: 'retirement', pretax: true, monthly: 200 }] } }];
+    const p = E.payroll(yd);
+    const e = p.earners[0];
+    assert.equal(e.id, 7);
+    assert.equal(Math.round(e.incomeWages), 4000 * 12 - 200 * 12);
+    // One joint return: the federal tax on the combined income, shared by taxable wages.
+    const joint = E.usFederalTax({ income: 72000 + 45600, status: 'mfj', dependents: 1, t: yd.usTax }).tax;
+    assert.ok(Math.abs((p.fedM + e.fedM) * 12 - joint) < 0.5);
+    assert.ok(Math.abs(e.fedM / p.fedM - 45600 / 72000) < 1e-9);
+    // Earning together, the main paycheck's share of tax is higher than alone (joint brackets filled).
+    assert.ok(p.fedM > alone.fedM && p.netoM < alone.netoM);
+    // Social Security and Medicare on the earner's own wages (the 401(k) isn't exempt from FICA).
+    assert.ok(Math.abs(e.ficaM - 4000 * 0.0765) < 0.01);
+    // Take-home: gross − FICA − income taxes − the 401(k).
+    assert.ok(Math.abs(e.netoM - (4000 - e.ficaM - e.fedM - e.stateM - e.localM - 200)) < 0.01);
+    assert.ok(e.localM > 0 && e.stateM > 0);
+    // The budget sees that take-home as the line's amount.
+    const lines = E.paycheckLines(yd, p);
+    assert.equal(lines[0].amount, Math.round(e.netoM * 100) / 100);
+    assert.equal(p.household.earners, 2);
+    // Filing separately (single): each on their own, the other with the single brackets.
+    const single = Object.assign(base(), { filingStatus: 'single', otherIncomes: yd.otherIncomes });
+    const ps = E.payroll(single), es = ps.earners[0];
+    assert.ok(Math.abs(es.fedM * 12 - E.usFederalTax({ income: 45600, status: 'single', t: yd.usTax }).tax) < 0.5);
+    assert.ok(Math.abs(ps.fedM - E.payroll(Object.assign(base(), { filingStatus: 'single' })).fedM) < 1e-9);   // main unchanged
+    // Typed take-home lines (no pay) stay as typed.
+    const typed = Object.assign(base(), { otherIncomes: [{ id: 3, name: 'Rent from the basement', amount: 650, category: 'Ingresos Financieros' }] });
+    assert.equal(E.paycheckLines(typed)[0].amount, 650);
+    assert.deepEqual(E.payroll(typed).earners, []);
+});
