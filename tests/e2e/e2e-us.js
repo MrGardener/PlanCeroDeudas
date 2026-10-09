@@ -194,6 +194,51 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('.modal-backdrop:not(.hidden) [data-dialog-cancel]');
   ok(ed.v === 'G|Compras|Compras en Línea' && ed.shown === 'Online Shopping' && ed.group === 'Shopping', 'editing a rule shows its category in English', ed);
   await page.evaluate(() => { Store.state.rules = []; App.changed({ structural: true }); });
+  // Investment prices: Alpha Vantage's one-a-second limit is waited out, its daily limit keeps the last
+  // price (and says so), Google Sheets needs no key (one request), and the daily update runs once.
+  await page.evaluate(() => { const s = Store.state; s.holdings = [{ id: 1, ticker: 'AAA', name: '', kind: 'ETF', shares: 2, price: 10, priceAt: '2026-01-01T00:00:00Z', priceSource: 'alphavantage' }, { id: 2, ticker: 'BBB', name: '', kind: 'ETF', shares: 1, price: 0, priceAt: null, priceSource: 'manual' }]; s.settings.priceProvider = 'alphavantage'; s.settings.priceKey = 'TESTKEY'; App.changed({ structural: true }); App.go('patrimonio'); });
+  const avCalls = [];
+  let avMode = 'burst';
+  await page.route(/alphavantage\.co\/query/, r => {
+    const sym = new URL(r.request().url()).searchParams.get('symbol');
+    avCalls.push([sym, Date.now()]);
+    const body = avMode === 'daily' ? { Information: 'We have detected your API key and our standard API rate limit is 25 requests per day.' }
+      : sym === 'BBB' && avCalls.filter(c => c[0] === 'BBB').length === 1 ? { Information: 'Please consider spreading out your free API requests more sparingly (1 request per second).' }
+      : { 'Global Quote': { '05. price': sym === 'AAA' ? '101.50' : '55.25' } };
+    r.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+  });
+  await page.click('[data-action="hold.refresh"]');
+  await page.waitForFunction(() => Store.state.holdings[1].price > 0, null, { timeout: 15000 });
+  const av = await page.evaluate(() => Store.state.holdings.map(h => [h.price, h.priceSource, !!h.priceFail]));
+  const gap = avCalls[1][1] - avCalls[0][1];
+  ok(JSON.stringify(av) === JSON.stringify([[101.5, 'alphavantage', false], [55.25, 'alphavantage', false]]) && gap >= 1200 && avCalls.length === 3, 'Alpha Vantage: a second apart; the one-a-second limit is waited out and retried, so both prices update', { av, gap, calls: avCalls.map(c => c[0]) });
+  avMode = 'daily'; avCalls.length = 0;
+  await page.click('[data-action="hold.refresh"]');
+  await page.waitForFunction(() => Store.state.holdings.every(h => h.priceFail), null, { timeout: 10000 });
+  const avd = await page.evaluate(() => ({ prices: Store.state.holdings.map(h => h.price), fail: Store.state.holdings[0].priceFail, row: document.querySelector('#hold-body tr[data-row="2"] [data-cell="when"]').textContent }));
+  ok(avd.prices.join() === '101.5,55.25' && /daily limit/.test(avd.fail) && /Last update failed/.test(avd.row) && avCalls.length === 1, 'Alpha Vantage daily limit: stops asking, keeps the last prices and says why on the row', { avd, calls: avCalls.length });
+  await page.unroute(/alphavantage\.co\/query/);
+  // Google Sheets: the settings show a link field instead of the key.
+  await page.evaluate(() => { App.go('config'); document.getElementById('cfg-prices').scrollIntoView(); });
+  await page.selectOption('#cfg-prices select[data-bind="settings.priceProvider"]', 'gsheet');
+  await page.waitForTimeout(150);
+  const gsUI = await page.evaluate(() => ({ key: document.getElementById('cfg-price-key').classList.contains('hidden'), sheet: !document.getElementById('cfg-price-sheet').classList.contains('hidden'), help: /GOOGLEFINANCE/.test(document.getElementById('cfg-price-sheet-help').textContent) }));
+  ok(gsUI.key && gsUI.sheet && gsUI.help, 'Settings → Prices: Google Sheets asks for the published link (with steps), not a key', gsUI);
+  await page.fill('#cfg-price-sheet input', 'https://docs.google.com/spreadsheets/d/e/2PACX-test/pub?gid=0&single=true&output=csv');
+  await page.dispatchEvent('#cfg-price-sheet input', 'change');
+  let gsCalls = 0;
+  await page.route(/docs\.google\.com\/spreadsheets/, r => { gsCalls++; r.fulfill({ contentType: 'text/csv', body: 'Symbol,Price\nAAA,"1,234.50"\nNYSEARCA:BBB,60.10\nCCC,#N/A\n' }); });
+  await page.evaluate(() => App.go('patrimonio'));
+  await page.click('[data-action="hold.refresh"]');
+  await page.waitForFunction(() => Store.state.holdings[0].price === 1234.5, null, { timeout: 8000 });
+  const gs = await page.evaluate(() => ({ h: Store.state.holdings.map(h => [h.price, h.priceSource, h.priceFail || '']), note: document.getElementById('hold-key-note').textContent }));
+  ok(JSON.stringify(gs.h) === JSON.stringify([[1234.5, 'gsheet', ''], [60.1, 'gsheet', '']]) && gsCalls === 1 && /Google Sheets/.test(gs.note) && /once a day/.test(gs.note), 'Google Sheets: every price in one request, no key; the note says they update once a day', { gs, gsCalls });
+  const daily = await page.evaluate(async () => { Store.state.settings.pricesCheckedAt = new Date(Date.now() - 2 * 86400000).toISOString(); Store.state.holdings[0].price = 1; const first = Prices.daily(); await first; const again = Prices.daily(); return { ran: !!first, again: again === null, price: Store.state.holdings[0].price, toasts: document.querySelectorAll('.toast-error').length }; });
+  ok(daily.ran && daily.again && daily.price === 1234.5 && gsCalls === 2, 'prices update by themselves once a day (not again the same day)', daily);
+  await page.evaluate(() => { Store.state.settings.priceAuto = false; Store.state.settings.pricesCheckedAt = null; });
+  ok(await page.evaluate(() => Prices.daily() === null), 'the daily update can be turned off');
+  await page.unroute(/docs\.google\.com\/spreadsheets/);
+  await page.evaluate(() => { const s = Store.state; s.holdings = []; Object.assign(s.settings, { priceProvider: 'finnhub', priceKey: '', priceSheet: '', priceAuto: true, pricesCheckedAt: null }); App.changed({ structural: true }); });
   // Categories live in Settings: rename (carried to transactions) and add a subcategory (step 4).
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('config'); document.getElementById('cfg-categories').open = true; });
   await page.waitForTimeout(250);

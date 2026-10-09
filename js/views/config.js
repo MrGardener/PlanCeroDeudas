@@ -9,6 +9,12 @@
         if (window.Categories) Categories.render();
         renderMembers();
         renderDevice();
+        // Prices: a key for Finnhub / Alpha Vantage, a sheet link for Google Sheets.
+        const sheet = s.settings.priceProvider === 'gsheet';
+        document.getElementById('cfg-price-key').classList.toggle('hidden', sheet);
+        document.getElementById('cfg-price-sheet').classList.toggle('hidden', !sheet);
+        document.getElementById('cfg-price-sheet-help').classList.toggle('hidden', !sheet);
+        document.getElementById('cfg-price-key-help').classList.toggle('hidden', sheet);
         const curSel = document.getElementById('cfg-currency');
         if (!curSel.options.length) curSel.innerHTML = Views.selectOptions(Fmt.CURRENCIES.map(c => ({ value: c.code, label: c.label })), s.settings.currency || 'USD');
         curSel.value = s.settings.currency || 'USD';
@@ -164,7 +170,7 @@
         'cfg.download': () => {
             // The price API key is a credential: it stays in this browser, not in the file.
             const data = JSON.parse(Store.serialize());
-            if (data.settings) delete data.settings.priceKey;
+            if (data.settings) { delete data.settings.priceKey; delete data.settings.priceSheet; }
             const prefix = APP_EDITION.country === 'US' ? 'zerodebtplan' : 'plan_financiero_ecuador';
             const name = `${prefix}_${new Date().toISOString().slice(0, 10)}.json`;
             Native.saveSecure(name, JSON.stringify(data), 'application/json', { title: 'Encrypt the backup' }).then(how => {

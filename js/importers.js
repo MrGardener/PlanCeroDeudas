@@ -489,7 +489,36 @@
         return null;
     }
 
-    const Importers = { detectDateOrder, parseOFX, classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    // A Google Sheet published as CSV (File → Share → Publish to web → CSV) with a symbol in the
+    // first column and its =GOOGLEFINANCE() price next to it → { SYMBOL: price }. "NASDAQ:AAPL"
+    // also counts as AAPL; headers, #N/A and "Loading…" cells are skipped.
+    function sheetPrices(text) {
+        const { rows } = parseCSV(text, ',');
+        const dec = detectDecimal([].concat(...rows.map(r => r.slice(1))));
+        const out = {};
+        rows.forEach(r => {
+            const sym = String(r[0] || '').trim().toUpperCase();
+            if (!/^[A-Z0-9.^:\-]{1,24}$/.test(sym)) return;
+            const cell = r.slice(1).find(c => /\d/.test(c || '') && !/#/.test(c));
+            const p = cell === undefined ? null : parseAmount(cell, dec);
+            if (!(p > 0)) return;
+            out[sym] = p;
+            if (sym.includes(':')) out[sym.split(':').pop()] = p;
+        });
+        return out;
+    }
+
+    // What a pasted Google Sheets link should be to read it as CSV: the "Publish to web" link,
+    // with output=csv. A normal (edit) link can't be read without signing in: null.
+    function sheetCsvUrl(link) {
+        let u;
+        try { u = new URL(String(link || '').trim()); } catch (e) { return null; }
+        if (u.protocol !== 'https:' || u.hostname !== 'docs.google.com' || !/^\/spreadsheets\/d\/e\/[\w-]+\/pub/.test(u.pathname)) return null;
+        u.searchParams.set('output', 'csv');
+        return u.toString();
+    }
+
+    const Importers = { sheetPrices, sheetCsvUrl, detectDateOrder, parseOFX, classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
     if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
     else root.Importers = Importers;
 })(this);

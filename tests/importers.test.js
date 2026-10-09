@@ -255,3 +255,16 @@ test('pay stub earnings (US): rate × hours in either column order, overtime and
     const c = I.parsePaystub('Regular Salary 2,307.69 46,153.80\nNet Pay 1,700.00');
     assert.deepEqual([c.earnings.regular.amount, c.earnings.regular.rate], [2307.69, undefined]);                  // salaried: no rate
 });
+
+test('investment prices from a published Google Sheet (GOOGLEFINANCE)', () => {
+    const csv = 'Symbol,Price\r\nAAPL,227.52\r\nNASDAQ:MSFT,"1,234.50"\r\nMUTF:VFIAX,512.3\r\nBAD,#N/A\r\nLOAD,Loading...\r\n,\r\n';
+    assert.deepEqual(I.sheetPrices(csv), { AAPL: 227.52, 'NASDAQ:MSFT': 1234.5, MSFT: 1234.5, 'MUTF:VFIAX': 512.3, VFIAX: 512.3 });
+    // A sheet in a Spanish locale writes decimal commas.
+    assert.deepEqual(I.sheetPrices('VTI,"287,15"\nVOO,"512,40"'), { VTI: 287.15, VOO: 512.4 });
+    // Only a "Publish to web" link is read (as CSV); an edit link or another site isn't.
+    assert.equal(I.sheetCsvUrl('https://docs.google.com/spreadsheets/d/e/2PACX-abc_1/pub?gid=0&single=true&output=html'), 'https://docs.google.com/spreadsheets/d/e/2PACX-abc_1/pub?gid=0&single=true&output=csv');
+    assert.equal(I.sheetCsvUrl('https://docs.google.com/spreadsheets/d/1AbC/edit#gid=0'), null);
+    assert.equal(I.sheetCsvUrl('http://docs.google.com/spreadsheets/d/e/2PACX-abc/pub'), null);
+    assert.equal(I.sheetCsvUrl('https://example.com/spreadsheets/d/e/2PACX-abc/pub'), null);
+    assert.equal(I.sheetCsvUrl(''), null);
+});

@@ -1582,11 +1582,20 @@
                 <div class="section-label"><i class="fa-solid fa-chart-line text-indigo-600"></i> Investment prices</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
                     <label class="field"><span class="field-label">Provider</span>
-                        <select class="input" data-bind="settings.priceProvider"><option value="finnhub">Finnhub (US stocks and ETFs)</option><option value="alphavantage">Alpha Vantage (includes mutual funds)</option></select></label>
-                    <label class="field"><span class="field-label">Your free key (API key)</span>
+                        <select class="input" data-bind="settings.priceProvider" data-structural="true"><option value="gsheet">Google Sheets (GOOGLEFINANCE, no key, no limit)</option><option value="finnhub">Finnhub (US stocks and ETFs, 60 a minute)</option><option value="alphavantage">Alpha Vantage (mutual funds too, 25 a day)</option></select></label>
+                    <label class="field" id="cfg-price-key"><span class="field-label">Your free key (API key)</span>
                         <input type="password" class="input" autocomplete="off" data-bind="settings.priceKey" placeholder="Paste your key here"></label>
+                    <label class="field" id="cfg-price-sheet"><span class="field-label">Link to your published sheet (CSV)</span>
+                        <input type="url" class="input" autocomplete="off" data-bind="settings.priceSheet" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv"></label>
                 </div>
-                <p class="help mt-2">Create a free key at <a class="link" href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a> o <a class="link" href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">alphavantage.co</a>. It's saved only in this browser (not in the backup) and only used to fetch prices.</p>
+                <label class="field flex-row items-center gap-2 mt-3"><input type="checkbox" class="w-4 h-4" data-bind="settings.priceAuto"> <span class="field-label mb-0">Update prices by themselves once a day (when the app is opened)</span></label>
+                <p class="help mt-2" id="cfg-price-key-help">Create a free key at <a class="link" href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a> or <a class="link" href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">alphavantage.co</a>. It's saved only in this browser (not in the backup) and only used to fetch prices. Alpha Vantage's free key allows 25 prices a day, one per second: the app waits between them.</p>
+                <div class="help mt-2" id="cfg-price-sheet-help"><p>Prices from Google, no key and no daily limit:</p>
+                    <ol class="list-decimal ml-5 mt-1 space-y-0.5">
+                        <li>In a new Google Sheet, put each symbol in column A (AAPL, VTI, MUTF:VFIAX…) and in column B <code>=GOOGLEFINANCE(A1)</code> (A2, A3… for the next rows).</li>
+                        <li>File → Share → Publish to web → pick the sheet and <strong>Comma-separated values (.csv)</strong> → Publish.</li>
+                        <li>Paste that link here. Only the symbols are in the sheet: no amounts, no names.</li>
+                    </ol></div>
             </div>
             <div class="panel tone-slate" id="cfg-device">
                 <div class="section-label"><i class="fa-solid fa-mobile-screen text-indigo-600"></i> This device</div>

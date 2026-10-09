@@ -284,6 +284,7 @@
             if (prev) {
                 if (prev.welcomeDismissed) this.state.settings.welcomeDismissed = true;
                 if (prev.priceKey && !this.state.settings.priceKey) this.state.settings.priceKey = prev.priceKey;
+                if (prev.priceSheet && !this.state.settings.priceSheet) this.state.settings.priceSheet = prev.priceSheet;
                 if (prev.lastBackupAt && (!this.state.settings.lastBackupAt || prev.lastBackupAt > this.state.settings.lastBackupAt)) this.state.settings.lastBackupAt = prev.lastBackupAt;
             }
             this.year(this.state.activeYear);
