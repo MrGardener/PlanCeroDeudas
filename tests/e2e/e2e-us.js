@@ -879,6 +879,48 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.click('[data-action="trends.up"]');
   await page.waitForTimeout(150);
   ok(await page.evaluate(() => !Store.ui.trends.drill.cat && !Store.ui.trends.drill.sub), 'trends drill: back up to the month');
+  // Zoom: + twice = 4×, centered on the tapped band; a thin band fills enough of the chart to tap it;
+  // drag moves (and isn't a tap); Ctrl+wheel zooms; "Show all" goes back.
+  const thin = await page.evaluate(() => {
+    const c = UI.chartInstance('trends-chart'), n = c.data.labels.length - 2;
+    const sets = c.data.datasets.filter(d => d.stack === 'spend');
+    let best = -1; sets.forEach((d, k) => { if (d.data[n] > 0 && (best < 0 || d.data[n] < sets[best].data[n])) best = k; });
+    const sums = c.data.labels.map((_, i) => sets.reduce((t, d) => t + d.data[i], 0));
+    return { band: best, month: n, value: sets[best].data[n], share: sets[best].data[n] / Math.max(...sums), label: sets[best].label };
+  });
+  await page.evaluate(({ band, month }) => { const o = Store.ui.trends, r = Engine.categoryTrend(Store.state.transactions, { end: new Date(), months: o.months, account: o.account, category: o.category }); const x = r.series[band]; o.focus = x.key === null ? '__other' : x.key; o.focusMonth = r.months[month]; o.drill = null; App.update(); }, thin);
+  await page.click('[data-action="trends.zoom"][data-dir="1"]');
+  await page.click('[data-action="trends.zoom"][data-dir="1"]');
+  await page.waitForTimeout(150);
+  const z1 = await page.evaluate(({ band, month }) => {
+    const c = UI.chartInstance('trends-chart'), y = c.scales.y, meta = c.getDatasetMeta(band).data[month];
+    const below = band ? c.getDatasetMeta(band - 1).data[month].y : y.getPixelForValue(0);
+    return { zoom: Store.ui.trends.zoom, level: document.getElementById('trends-zoom-level').textContent, range: y.max - y.min, top: c.options.scales.y.max, px: Math.abs(below - meta.y), mid: (below + meta.y) / 2, pan: getComputedStyle(document.querySelector('[data-action="trends.pan"]')).display !== 'none' };
+  }, thin);
+  ok(z1.zoom === 4 && z1.level === '4×' && z1.pan && z1.px >= 12, 'trends zoom: + + = 4×, centered on the tapped band, which is now tall enough to tap; ▲ ▼ appear', { thin, z1 });
+  await page.evaluate(() => { Store.ui.trends.focus = null; });
+  const zc = await page.$('#trends-chart'); await zc.scrollIntoViewIfNeeded(); const zb = await zc.boundingBox();
+  const xAt = await page.evaluate(({ month }) => UI.chartInstance('trends-chart').scales.x.getPixelForValue(month), thin);
+  await page.mouse.click(zb.x + xAt, zb.y + z1.mid);
+  await page.waitForTimeout(200);
+  ok(await page.evaluate((label) => { const o = Store.ui.trends; return !!o.focus && (o.focus === label || I18n.t(o.focus) === label || (o.focus === '__other' && /Other/.test(label))); }, thin.label), 'trends zoom: tapping the thin band (zoomed in) picks it', await page.evaluate(() => Store.ui.trends.focus));
+  const zBefore = await page.evaluate(() => ({ at: Store.ui.trends.zoomAt, focus: Store.ui.trends.focus }));
+  await page.mouse.move(zb.x + zb.width / 2, zb.y + zb.height * 0.4);
+  await page.mouse.down();
+  await page.mouse.move(zb.x + zb.width / 2, zb.y + zb.height * 0.6, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const zAfter = await page.evaluate(() => ({ at: Store.ui.trends.zoomAt, focus: Store.ui.trends.focus }));
+  ok(zAfter.at > zBefore.at && zAfter.focus === zBefore.focus, 'trends zoom: dragging down moves the view up (and is not a tap)', { zBefore, zAfter });
+  await page.mouse.move(zb.x + zb.width / 2, zb.y + zb.height / 2);
+  await page.keyboard.down('Control'); await page.mouse.wheel(0, -100); await page.keyboard.up('Control');
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => Store.ui.trends.zoom) > 4, 'trends zoom: Ctrl + mouse wheel zooms in', await page.evaluate(() => Store.ui.trends.zoom));
+  await page.click('[data-action="trends.pan"][data-dir="1"]');
+  await page.click('[data-action="trends.zoomReset"]');
+  await page.waitForTimeout(150);
+  const z0 = await page.evaluate(() => { const c = UI.chartInstance('trends-chart'); return { zoom: Store.ui.trends.zoom, min: c.options.scales.y.min, level: document.getElementById('trends-zoom-level').textContent, pan: getComputedStyle(document.querySelector('[data-action="trends.pan"]')).display }; });
+  ok(z0.zoom === 1 && z0.min === undefined && z0.level === '1×' && z0.pan === 'none', 'trends zoom: "Show all" goes back to the whole chart', z0);
   // Debt payoff controls: "what if" extra slider, add it to the budget; a debt's schedule.
   await page.evaluate(() => { Store.reset('example'); Store.ui.debtExtraTry = 0; App.changed({ structural: true }); App.go('futuro/metas'); });
   await page.waitForTimeout(300);

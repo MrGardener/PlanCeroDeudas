@@ -146,7 +146,83 @@
     }
 
     // ------------------------------------------------------------------ trends
-    const topts = () => (Store.ui.trends = Object.assign({ months: 6, category: '', account: '' }, Store.ui.trends));
+    // One settings object (the chart's tap handler keeps a reference to it): filled in once.
+    const topts = () => {
+        const t = Store.ui.trends;
+        if (!t || t.zoom === undefined) Store.ui.trends = Object.assign({ months: 6, category: '', account: '', zoom: 1, zoomAt: null }, t);
+        return Store.ui.trends;
+    };
+
+    // Zoom: thin bands (small categories) get tall enough to tap. The chart shows 1/zoom of its
+    // height around zoomAt; drag (or ▲ ▼) moves up and down, pinch or Ctrl+wheel zooms.
+    let zoomTop = 0, trendsSeries = null;
+    function zoomView(o) { return Engine.zoomRange(zoomTop, o.zoom, o.zoomAt); }
+    function applyZoom(chart) {
+        const o = topts(), z = zoomView(o);
+        o.zoom = z.zoom;
+        if (z.zoom > 1) o.zoomAt = (z.min + z.max) / 2;
+        const y = chart.options.scales.y;
+        if (z.zoom > 1) { y.min = z.min; y.max = z.max; } else { delete y.min; delete y.max; }
+        const ctl = document.querySelector('#trends-card .zoom-ctl');
+        if (ctl) ctl.classList.toggle('is-zoomed', z.zoom > 1);
+        UI.text('trends-zoom-level', `${Math.round(z.zoom * 10) / 10}×`);
+        chart.canvas.style.touchAction = z.zoom > 1 ? 'none' : 'pan-y';
+    }
+    function setZoom(zoom, center) {
+        const o = topts();
+        o.zoom = Math.min(Engine.ZOOM_MAX, Math.max(1, zoom));
+        if (center !== undefined) o.zoomAt = center;
+        const chart = UI.chartInstance('trends-chart');
+        if (!chart) return;
+        applyZoom(chart);
+        chart.update('none');
+    }
+    // Where "+" zooms: on the tapped band, else the middle of what's showing.
+    function zoomCenter(o) {
+        if (o.focus && trendsSeries && o.focusMonth) {
+            const i = trendsSeries.months.indexOf(o.focusMonth), b = trendsSeries.series.findIndex(x => (x.key === null ? '__other' : x.key) === o.focus);
+            if (i >= 0 && b >= 0) return Engine.bandMiddle(trendsSeries.series.map(x => x.values), i, b);
+        }
+        const z = zoomView(o);
+        return (z.min + z.max) / 2;
+    }
+    function zoomGestures(canvas) {
+        if (canvas.dataset.zoomReady) return;
+        canvas.dataset.zoomReady = '1';
+        const pts = new Map();
+        let drag = null, pinch = null;
+        const valueAt = (clientY) => { const c = UI.chartInstance('trends-chart'); const r = canvas.getBoundingClientRect(); return c ? c.scales.y.getValueForPixel(clientY - r.top) : null; };
+        const gap = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+        canvas.addEventListener('pointerdown', (e) => {
+            pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: gap(), zoom: topts().zoom, at: valueAt((a.y + b.y) / 2) }; drag = null; }
+            else if (pts.size === 1 && topts().zoom > 1) drag = { y: e.clientY, at: topts().zoomAt, moved: false };
+        });
+        canvas.addEventListener('pointermove', (e) => {
+            if (!pts.has(e.pointerId)) return;
+            pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (pinch && pts.size === 2) { const d = gap(); if (pinch.d > 10 && d > 10) setZoom(pinch.zoom * d / pinch.d, pinch.at); canvas.dataset.dragged = '1'; return; }
+            if (!drag) return;
+            const c = UI.chartInstance('trends-chart');
+            if (!c || Math.abs(e.clientY - drag.y) < 4 && !drag.moved) return;
+            drag.moved = true; canvas.dataset.dragged = '1';
+            const perPx = (c.scales.y.max - c.scales.y.min) / Math.max(1, c.chartArea.bottom - c.chartArea.top);
+            setZoom(topts().zoom, drag.at + (e.clientY - drag.y) * perPx);
+        });
+        const end = (e) => {
+            pts.delete(e.pointerId);
+            if (pts.size < 2) pinch = null;
+            if (!pts.size) { drag = null; setTimeout(() => { delete canvas.dataset.dragged; }, 50); }
+        };
+        canvas.addEventListener('pointerup', end);
+        canvas.addEventListener('pointercancel', end);
+        // A computer: Ctrl (or ⌘) + wheel zooms where the pointer is; a trackpad pinch sends the same.
+        canvas.addEventListener('wheel', (e) => {
+            if (!(e.ctrlKey || e.metaKey)) return;
+            e.preventDefault();
+            setZoom(topts().zoom * (e.deltaY < 0 ? 1.25 : 0.8), valueAt(e.clientY));
+        }, { passive: false });
+    }
 
     function trends(ctx) {
         if (!document.getElementById('trends-chart')) return;
@@ -173,13 +249,17 @@
             backgroundColor: color(x, i) + (dim(x) ? '40' : 'b3'), borderColor: color(x, i) + (dim(x) ? '66' : ''), borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
             pointBackgroundColor: pal.surface, pointBorderColor: color(x, i), pointBorderWidth: 2, tension: 0.4 }));
         if (r.income) datasets.push({ label: 'Income', data: r.income.map(v => Math.round(v * 100) / 100), stack: 'income', fill: false, borderColor: pal.text, backgroundColor: pal.text, borderWidth: 3, pointRadius: 3, pointBackgroundColor: pal.surface, pointBorderWidth: 2, tension: 0.4 });
-        UI.chart('trends-chart', {
+        // The top of the whole chart (zoom 1): the tallest month's spending or income.
+        zoomTop = Math.max(1, ...r.months.map((_, i) => Math.max(r.series.reduce((t, x) => t + Math.max(0, x.values[i] || 0), 0), r.income ? r.income[i] || 0 : 0))) * 1.05;
+        trendsSeries = r;
+        const chart = UI.chart('trends-chart', {
             type: 'line',
             data: { labels: r.months.map(label), datasets },
             options: { scales: { y: { stacked: true } }, plugins: { legend: { position: 'bottom' } },
                 // Tap a band: its months in a card; tap it again (or "Open") to see its subcategories.
-                // Tap above the bands: that month's breakdown.
+                // Tap above the bands: that month's breakdown. A drag (zoomed in) is not a tap.
                 onClick: (e, els, chart) => {
+                    if (chart.canvas.dataset.dragged) return;
                     const i = els.length ? els[0].index : Math.round(chart.scales.x.getValueForPixel(e.x));
                     if (!(i >= 0 && i < r.months.length)) return;
                     const k = r.months[i];
@@ -197,6 +277,7 @@
                     App.update();
                 } }
         });
+        if (chart) { applyZoom(chart); chart.update('none'); zoomGestures(chart.canvas); }
         focusCard(o, r, label, name, color, fkey);
         drill(ctx, o, r, label);
         const now = Engine.isoDate(ctx.today).slice(0, 7);
@@ -245,7 +326,7 @@
 
     function openCategory(key) {
         const o = topts();
-        o.category = key; o.focus = null; o.drill = null;
+        o.category = key; o.focus = null; o.drill = null; o.zoom = 1; o.zoomAt = null;
         App.update();
         const card = document.getElementById('trends-card');
         if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -306,12 +387,15 @@
         },
         'trends.txnsBack': () => { if (txnSheet) { txnSheet.close(); txnSheet = null; } },
         'trends.txnOpen': (el) => { if (txnSheet) { txnSheet.close(); txnSheet = null; } if (window.TxnDetails) TxnDetails.open(Number(el.dataset.id)); },
-        'trends.back': () => { const o = topts(); o.category = ''; o.focus = null; o.drill = null; App.update(); },
+        'trends.back': () => { const o = topts(); o.category = ''; o.focus = null; o.drill = null; o.zoom = 1; o.zoomAt = null; App.update(); },
         'trends.unfocus': () => { topts().focus = null; App.update(); },
         'trends.drill': (el) => { const o = topts(); if (!o.drill) return; if (o.category || o.drill.cat) o.drill.sub = el.dataset.key; else o.drill.cat = el.dataset.key; App.update(); },
         'trends.up': () => { const o = topts(); if (!o.drill) return; if (o.drill.sub) o.drill.sub = null; else o.drill.cat = null; App.update(); },
         'trends.months': (el) => { topts().months = Math.max(1, Math.min(12, Number(el.dataset.months) || 6)); App.update(); },
-        'trends.category': (el) => { const o = topts(); o.category = el.value; o.focus = null; o.drill = null; App.update(); },
+        'trends.category': (el) => { const o = topts(); o.category = el.value; o.focus = null; o.drill = null; o.zoom = 1; o.zoomAt = null; App.update(); },
+        'trends.zoom': (el) => { const o = topts(), up = Number(el.dataset.dir) > 0; setZoom(up ? o.zoom * 2 : o.zoom / 2, up ? zoomCenter(o) : undefined); },
+        'trends.zoomReset': () => setZoom(1, null),
+        'trends.pan': (el) => { const o = topts(), z = zoomView(o); setZoom(o.zoom, (z.min + z.max) / 2 + (Number(el.dataset.dir) || 0) * (z.max - z.min) / 2); },
         'trends.account': (el) => { topts().account = el.value; App.update(); }
     });
 

@@ -184,6 +184,10 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 .modal-title { font-size: 1.05rem; font-weight: 800; color: var(--ink); display: flex; gap: .55rem; align-items: center; margin-bottom: .6rem; }
 .modal-title i { color: #059669; } .modal-danger .modal-title i { color: #dc2626; }
 .modal-message { font-size: .82rem; color: var(--ink-2); line-height: 1.55; margin-bottom: .9rem; white-space: pre-line; }
+/* Chart zoom: − 2× + and, when zoomed, ▲ ▼ "Show all". */
+.zoom-ctl { display: inline-flex; align-items: center; gap: .25rem; margin-left: auto; }
+.zoom-ctl .zoom-level { min-width: 2.2rem; text-align: center; font-size: .75rem; font-weight: 700; color: var(--ink-2); }
+.zoom-ctl:not(.is-zoomed) .trends-pan { display: none; }
 .modal-error { font-size: .75rem; color: #b91c1c; font-weight: 700; margin-top: .6rem; }
 /* Fields folded under "More options" in a dialog. */
 .modal-more > summary { cursor: pointer; color: var(--link); font-weight: 700; font-size: .8rem; padding: .25rem 0; list-style-position: inside; }

@@ -2,6 +2,13 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Move down": "Bajar",
+    "Move up": "Subir",
+    "Show all": "Ver todo",
+    "Zoom": "Zoom",
+    "Zoom in": "Acercar",
+    "Zoom out": "Alejar",
+    "A thin band hard to tap? Tap near it and zoom in (the magnifier, a pinch, or Ctrl with the mouse wheel); drag to move up and down.": "¿Una franja delgada difícil de tocar? Toca cerca y acerca (la lupa, pellizcando, o Ctrl con la rueda del mouse); arrastra para subir y bajar.",
     "Saved only in this browser (not in the backup). With a PIN or passcode the plan is saved encrypted. The app locks when it opens and after 5 minutes away, and then forgets the open plan until the PIN is typed again. Also use your phone's or computer's own lock.": "Se guarda solo en este navegador (no va en la copia de respaldo). Con PIN o contraseña el plan se guarda cifrado. La app se bloquea al abrirla y después de 5 minutos fuera, y entonces olvida el plan abierto hasta que se escriba el PIN otra vez. Usa también el bloqueo de tu teléfono o computadora.",
     "The 10-wrong-tries erase stops guessing on this screen. Someone who copies this device's data could try every PIN on their own computer: a short PIN falls in minutes, a passcode of 12 or more characters doesn't.": "El borrado tras 10 intentos fallidos detiene a quien adivina en esta pantalla. Alguien que copie los datos de este dispositivo podría probar todos los PIN en su propia computadora: un PIN corto cae en minutos; una contraseña de 12 caracteres o más, no.",
     "Google Sheets": "Google Sheets",
