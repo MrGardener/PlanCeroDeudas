@@ -40,6 +40,9 @@
         }
         const fresh = D.newYear();
         Object.keys(fresh).forEach(k => { if (yd[k] === undefined) yd[k] = fresh[k]; });
+        // A US tax table saved before a field was added (limits, the overtime deduction) gets it,
+        // when it's the same year's table.
+        if (yd.usTax && fresh.usTax && Number(yd.usTax.year) === Number(fresh.usTax.year)) Object.keys(fresh.usTax).forEach(k => { if (yd.usTax[k] === undefined) yd.usTax[k] = fresh.usTax[k]; });
         const nw = yd.netWorth || (yd.netWorth = {});
         if (nw.cash !== undefined && nw.checking === undefined) { nw.checking = nw.cash; nw.savings = 0; }
         delete nw.cash; delete nw.realEstate; delete nw.vehicles; delete nw.personalProperty;

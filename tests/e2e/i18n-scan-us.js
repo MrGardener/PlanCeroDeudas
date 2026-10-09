@@ -33,7 +33,7 @@ const ALLOWED = ["@title: Cambiar a español"];
   };
   for (const v of views) { await page.evaluate(v => App.go(v), v); await page.waitForTimeout(250); await collect(v); }
   // sheets / dialogs
-  const opens = [['resumen', '.fab'], ['resumen', '#wi-open'], ['presupuesto/ingresos', '#pay-edit'], ['presupuesto/ingresos', '[data-action="ded.add"]']];
+  const opens = [['resumen', '.fab'], ['resumen', '#wi-open'], ['presupuesto/ingresos', '#pay-edit'], ['presupuesto/ingresos', '[data-action="payx.dedAdd"][data-target="main"]']];
   for (const [v, sel] of opens) { await page.evaluate(v => App.go(v), v); await page.waitForTimeout(150); await page.click(sel); await page.waitForTimeout(200); if (sel === '#wi-open') { await page.fill('#wi-amount', '500'); await page.dispatchEvent('#wi-amount', 'input'); } await collect(v + ' ' + sel); await page.keyboard.press('Escape'); await page.evaluate(() => document.querySelectorAll('.modal-backdrop').forEach(b => b.remove())); }
   await page.evaluate(() => PayScan.fromText(`Pay Period: 09/14/2026 - 09/27/2026\nGross Pay 2,000.00\nFederal Income Tax 182.40\nNet Pay 1,817.60`)); await page.waitForTimeout(150); await collect('payscan');
   await page.evaluate(() => document.querySelectorAll('.modal-backdrop').forEach(b => b.remove()));

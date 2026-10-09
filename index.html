@@ -373,7 +373,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <!-- US: salary or hourly (with overtime), and bonuses — js/views/ingresos.js -->
                 <div class="field-box tone-amber sm:col-span-2 lg:col-span-5 space-y-3" data-country="US" id="inc-paytype"></div>
-                <label class="field field-box tone-amber">
+                <label class="field field-box tone-amber" data-country="EC">
                     <span class="field-label"><span id="inc-sueldo-label">Monthly gross salary</span> (<span class="cur">$</span>)</span>
                     <input type="number" class="input" step="50" min="0" data-bind="year.sueldo" id="inc-sueldo">
                     <span class="help" data-country="EC">Salary as an employee.</span>
@@ -450,16 +450,17 @@
             <div class="card-head">
                 <div>
                     <div class="card-title"><i class="fa-solid fa-file-invoice-dollar text-amber-600"></i> Your paycheck deductions</div>
-                    <div class="card-sub">What your employer takes out besides taxes: 401(k), health, dental and vision insurance, HSA, life insurance, child support, loans… Pre-tax ones lower your taxes.</div>
+                    <div class="card-sub">What your employer takes out besides taxes: 401(k) (pre-tax, Roth or after-tax), health, dental and vision insurance, FSA, HSA, life and disability insurance, child support, loans… Each type says what it does to your taxes. Type them per paycheck, as a % of pay or a month.</div>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <label class="btn btn-primary btn-sm cursor-pointer"><i class="fa-solid fa-camera"></i> Scan my pay stub (PDF or photo)<input type="file" id="ded-file" class="hidden" accept="application/pdf,image/*" data-change="ded.file"></label>
-                    <button type="button" class="btn btn-secondary btn-sm" data-action="ded.add"><i class="fa-solid fa-plus"></i> Add by hand</button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-action="ded.add" data-country="EC"><i class="fa-solid fa-plus"></i> Add by hand</button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-action="payx.dedAdd" data-target="main" data-country="US"><i class="fa-solid fa-plus"></i> Add by hand</button>
                 </div>
             </div>
             <div id="ded-status" class="text-sm mb-2"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3" id="ded-kpis"></div>
-            <div class="table-wrap"><table class="table"><thead><tr><th>Deduction</th><th>Type</th><th class="num">Per month</th><th>Counts as</th><th></th></tr></thead><tbody id="ded-body"></tbody></table></div>
+            <div class="table-wrap"><table class="table"><thead id="ded-head"><tr><th>Deduction</th><th>Type</th><th class="num">Per month</th><th>Counts as</th><th></th></tr></thead><tbody id="ded-body"></tbody></table></div>
             <div id="ded-limits"></div>
             <p class="help mt-2" id="ded-last"></p>
         </div>
@@ -1872,6 +1873,7 @@
 <script src="js/views/presupuesto.js"></script>
 <script src="js/views/anuales.js"></script>
 <script src="js/views/cierre.js"></script>
+<script src="js/views/payedit.js"></script>
 <script src="js/views/ingresos.js"></script>
 <script src="js/views/earners.js"></script>
 <script src="js/views/refund.js"></script>

@@ -204,14 +204,19 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   ok(/Other paychecks in the household/.test(await text(page, 'inc-earners-card')) && !!(await page.$('[data-action="earner.add"][data-member="2"]')), 'Income & Taxes: other paychecks card offers Sarah\'s paycheck');
   await page.click('[data-action="earner.add"][data-member="2"]');
   await page.waitForTimeout(250);
-  await page.fill('#inc-earners [data-f="gross"]', '4000');
-  await page.dispatchEvent('#inc-earners [data-f="gross"]', 'change');
+  await page.fill('#inc-earners [data-f="yearly"]', '48000');
+  await page.dispatchEvent('#inc-earners [data-f="yearly"]', 'change');
   await page.waitForTimeout(250);
-  await page.fill('#inc-earners [data-f="retirement"]', '200');
-  await page.dispatchEvent('#inc-earners [data-f="retirement"]', 'change');
+  // Her 401(k), with the same "Add a deduction" as the main paycheck: a traditional one, $200 a month.
+  await page.click('#inc-earners [data-action="payx.dedAdd"]');
+  await page.waitForSelector('.modal-backdrop:not(.hidden) [data-dialog-ok]');
+  await page.selectOption('.modal select[name="type"]', '401k');
+  await page.fill('.modal input[name="amount"]', '200');
+  await page.selectOption('.modal select[name="per"]', 'month');
+  await page.click('.modal [data-dialog-ok]');
   await page.waitForTimeout(250);
   const hhPay = await page.evaluate(() => { const c = App.buildContext(), y = Store.active(), l = y.otherIncomes[0], e = c.pay.earners[0]; return { pay: l.pay.sueldo, k401: l.pay.payDeductions.map(d => d.kind + ':' + d.monthly).join(), amount: l.amount, net: e && e.netoM, fed: e && e.fedM, main: c.pay.netoM, joint: c.pay.household.joint, budgetIncome: c.monthBudget.income, card: document.getElementById('inc-earners').innerText }; });
-  ok(hhPay.pay === 4000 && hhPay.k401 === 'retirement:200' && Math.abs(hhPay.amount - hhPay.net) < 0.01 && hhPay.net > 2000 && hhPay.net < 3800 && hhPay.fed > 0 && hhPay.joint && /Married filing jointly/.test(hhPay.card) && /Take-home a month/.test(hhPay.card), 'Sarah\'s pay before taxes: federal, FICA, state and city taken; her take-home is the budget line', hhPay);
+  ok(hhPay.pay === 4000 && hhPay.k401 === 'retirement:200' && Math.abs(hhPay.amount - hhPay.net) < 0.01 && hhPay.net > 2000 && hhPay.net < 3800 && hhPay.fed > 0 && hhPay.joint && /Married filing jointly/.test(hhPay.card) && /Take-home pay/.test(hhPay.card) && /Per paycheck/i.test(hhPay.card), 'Sarah\'s pay before taxes: federal, FICA, state and city taken; her take-home is the budget line', hhPay);
   ok(hhPay.main < mainAlone && Math.abs(hhPay.budgetIncome - (hhPay.main + hhPay.net)) < 0.02, 'filing jointly, the main paycheck pays its share of the higher bracket; the budget counts both take-homes', { mainAlone, main: hhPay.main, net: hhPay.net, income: hhPay.budgetIncome });
   await page.evaluate(() => App.go('presupuesto/plan'));
   await page.waitForTimeout(250);
@@ -231,7 +236,7 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.click('#inc-earners [data-action="earner.add"]:not([data-member])');
   await page.waitForSelector('.modal-backdrop:not(.hidden) [data-dialog-ok]');
   await page.fill('.modal input[name="name"]', 'Emma');
-  await page.fill('.modal input[name="gross"]', '900');
+  await page.fill('.modal input[name="gross"]', '10800');
   await page.click('.modal [data-dialog-ok]');
   await page.waitForTimeout(250);
   const emma = await page.evaluate(() => { const s = Store.state, m = s.members.find(x => x.name === 'Emma'), l = Store.active().otherIncomes.find(x => m && x.memberId === m.id); return { m: !!m, gross: l && l.pay.sueldo, amount: l && l.amount }; });
@@ -381,15 +386,16 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.evaluate(() => { Store.reset('example'); Store.active().sueldo = 5000; Store.active().payDeductions = []; App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
   await page.waitForTimeout(200);
   const net0 = await page.evaluate(() => Engine.payroll(Store.effective(Store.state.activeYear)).netoM);
-  await page.selectOption('#inc-paytype [data-change="paytype.set"]', 'hourly');
+  await page.selectOption('#inc-paytype select[data-f="payType"]', 'hourly');
   await page.waitForTimeout(200);
-  const hr = await page.evaluate(() => ({ t: Store.active().payType, rate: Store.active().hourly.rate, sueldo: Store.active().sueldo, ro: document.getElementById('inc-sueldo').readOnly, label: document.getElementById('inc-sueldo-label').textContent }));
-  ok(hr.t === 'hourly' && Math.abs(hr.rate - 28.85) < 0.01 && Math.abs(hr.sueldo - 5000) < 2 && hr.ro && /base pay/.test(hr.label), 'switching to hourly starts from the salary (same base pay); the monthly field is worked out', hr);
-  const setHourly = async (field, v) => { await page.fill(`#inc-paytype input[data-field="${field}"]`, String(v)); await page.dispatchEvent(`#inc-paytype input[data-field="${field}"]`, 'change'); await page.waitForTimeout(150); };
-  await setHourly('rate', 25); await setHourly('hours', 40); await setHourly('otHours', 5);
-  const h1 = await page.evaluate(() => ({ sueldo: Store.active().sueldo, net: Engine.payroll(Store.effective(Store.state.activeYear)).netoM, txt: document.getElementById('inc-paytype').textContent.replace(/\s+/g, ' '), annual: document.getElementById('inc-annual').textContent }));
-  ok(Math.abs(h1.sueldo - 4333.33) < 0.01 && /Base pay: \$4,333\.33 a month/.test(h1.txt) && /Usual overtime: \$812\.50 a month/.test(h1.txt) && /\$61,750\.00/.test(h1.annual), '$25 × 40 h: base $4,333.33; overtime $812.50; the year $61,750', h1);
-  await page.check('#inc-paytype input[data-field="otInBudget"]');
+  const hr = await page.evaluate(() => ({ t: Store.active().payType, rate: Store.active().hourly.rate, sueldo: Store.active().sueldo, rateField: !!document.getElementById('inc-rate'), yearly: !!document.getElementById('inc-yearly') }));
+  ok(hr.t === 'hourly' && Math.abs(hr.rate - 28.85) < 0.01 && Math.abs(hr.sueldo - 5000) < 2 && hr.rateField && !hr.yearly, 'switching to hourly starts from the salary (same base pay); the rate and hours replace the yearly salary', hr);
+  const setHourly = async (field, v) => { await page.fill(`#inc-paytype input[data-f="${field}"]`, String(v)); await page.dispatchEvent(`#inc-paytype input[data-f="${field}"]`, 'change'); await page.waitForTimeout(150); };
+  // Every 2 weeks, 10 hours of overtime on a usual paycheck = 5 a week.
+  await setHourly('rate', 25); await setHourly('hours', 40); await setHourly('otPerCheck', 10);
+  const h1 = await page.evaluate(() => ({ sueldo: Store.active().sueldo, net: Engine.payroll(Store.effective(Store.state.activeYear)).netoM, txt: document.getElementById('inc-paytype').textContent.replace(/\s+/g, ' '), annual: App.buildContext().pay.sueldoAnual }));
+  ok(Math.abs(h1.sueldo - 4333.33) < 0.01 && /\$2,000\.00/.test(h1.txt) && /\$4,333\.33 a month/.test(h1.txt) && /Overtime: \$375\.00 a paycheck, \$812\.50 a month/.test(h1.txt) && Math.abs(h1.annual - 61750) < 0.01, '$25 × 40 h: $2,000 a paycheck, base $4,333.33 a month; 10 h of overtime a paycheck $812.50 a month; the year $61,750', h1);
+  await page.check('#inc-paytype input[data-f="otInBudget"]');
   await page.waitForTimeout(150);
   const h2 = await page.evaluate(() => Engine.payroll(Store.effective(Store.state.activeYear)).netoM);
   ok(h2 > h1.net + 500, 'counting overtime raises the budget\'s take-home pay', [h1.net, h2]);
@@ -405,13 +411,59 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.evaluate(() => { Device.setLang('es'); });
   await page.waitForTimeout(250);
   const esTxt = (await page.textContent('#inc-paytype')).replace(/\s+/g, ' ');
-  ok(/Cómo te pagan/.test(esTxt) && /Bonos este año/.test(esTxt) && /Pago por hora/.test(esTxt) && /Diciembre/.test(esTxt), 'the pay block in Spanish', esTxt.slice(0, 160));
+  ok(/Tipo de pago/.test(esTxt) && /Bonos este año/.test(esTxt) && /Por hora/.test(esTxt) && /Cada 2 semanas/.test(esTxt) && /Diciembre/.test(esTxt), 'the pay block in Spanish', esTxt.slice(0, 200));
   await page.evaluate(() => { Device.setLang('en'); });
   await page.waitForTimeout(150);
-  await page.selectOption('#inc-paytype [data-change="paytype.set"]', 'salary');
+  await page.selectOption('#inc-paytype select[data-f="payType"]', 'salary');
   await page.waitForTimeout(150);
-  ok(await page.evaluate(() => Store.active().payType === 'salary' && !document.getElementById('inc-sueldo').readOnly), 'back to salary: the monthly field is typed again');
+  ok(await page.evaluate(() => Store.active().payType === 'salary' && !!document.getElementById('inc-yearly')), 'back to salary: the yearly salary is typed again');
   ok(net0 > 0, 'baseline take-home', net0);
+  // Paychecks as they are (docs/plans/paychecks.md): a yearly salary and how often; each deduction by
+  // type, per paycheck or as a % of pay; limits; overtime on a usual paycheck; every earner the same.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
+  await page.waitForTimeout(250);
+  await page.fill('#inc-yearly', '85000'); await page.dispatchEvent('#inc-yearly', 'change'); await page.waitForTimeout(150);
+  await page.selectOption('#inc-paytype select[data-f="paysPerYear"]', '52'); await page.waitForTimeout(200);
+  const yp = await page.evaluate(() => ({ sueldo: Store.active().sueldo, ppy: Store.active().paysPerYear, txt: document.getElementById('inc-paytype').innerText, k401: Engine.resolveDeductions(Store.effective(Store.state.activeYear))[0].monthly, rows: document.querySelectorAll('#ded-body tr[data-row]').length, payroll: document.getElementById('inc-payroll').innerText }));
+  ok(Math.abs(yp.sueldo - 85000 / 12) < 1e-6 && yp.ppy === 52 && /\$1,634\.62/.test(yp.txt) && /\$7,083\.33 a month/.test(yp.txt) && Math.abs(yp.k401 - 85000 / 12 * 0.06) < 0.01 && /per paycheck/i.test(yp.payroll), '$85,000 a year, weekly: $1,634.62 a paycheck, $7,083.33 a month; the 6% 401(k) follows the pay', yp);
+  const fed = () => page.evaluate(() => { const p = App.buildContext().pay; return { fed: p.fedM, fica: p.ssM + p.medM, net: p.netoM }; });
+  const f0 = await fed();
+  await page.selectOption('#ded-body tr[data-row="1"] select[data-f="type"]', '401k-roth'); await page.waitForTimeout(200);
+  const f1 = await fed();
+  ok(f1.fed > f0.fed + 30 && f1.net < f0.net && Math.abs(f1.fica - f0.fica) < 0.01 && /After tax/.test(await text(page, 'ded-body')), 'the same 401(k) as a Roth: more federal tax (no pre-tax break), the same Social Security and Medicare', { f0, f1 });
+  await page.selectOption('#ded-body tr[data-row="2"] select[data-f="type"]', 'life-spouse'); await page.waitForTimeout(200);
+  const f2 = await fed();
+  ok(f2.fica > f1.fica + 30 && f2.fed > f1.fed, 'an after-tax deduction (spouse life) lowers neither income tax nor FICA, unlike medical', { f1, f2 });
+  await page.evaluate(() => App.undo()); await page.evaluate(() => App.undo()); await page.waitForTimeout(150);
+  // A limited-purpose FSA, $20 a paycheck (weekly): $86.67 a month; lowers income tax and FICA.
+  await page.click('[data-action="payx.dedAdd"][data-target="main"]');
+  await page.waitForSelector('.modal-backdrop:not(.hidden) [data-dialog-ok]');
+  await page.selectOption('.modal select[name="type"]', 'lpfsa');
+  await page.fill('.modal input[name="amount"]', '20');
+  await page.click('.modal [data-dialog-ok]'); await page.waitForTimeout(250);
+  const fsa = await page.evaluate(() => { const d = Store.active().payDeductions.find(x => x.type === 'lpfsa'); return { d, row: document.querySelector(`#ded-body tr[data-row="${d.id}"]`).innerText }; });
+  ok(fsa.d.per === 'check' && fsa.d.perPay === 20 && Math.abs(fsa.d.monthly - 86.67) < 0.01 && /\$86\.67/.test(fsa.row) && /Social Security/.test(fsa.row), 'an FSA per paycheck: $20 × 52 ÷ 12 = $86.67 a month, before FICA', fsa);
+  // Over the 401(k) limit: 30% of $85,000.
+  await page.fill('#ded-body tr[data-row="1"] input[data-f="amount"]', '30'); await page.dispatchEvent('#ded-body tr[data-row="1"] input[data-f="amount"]', 'change'); await page.waitForTimeout(200);
+  ok(/over the \$24,500\.00 limit/.test(await text(page, 'ded-limits')), 'over the 401(k) limit: a warning', await text(page, 'ded-limits'));
+  // Overtime on a salary (non-exempt): 4 hours a paycheck; the overtime deduction comes off taxable income.
+  await page.fill('#inc-paytype input[data-f="otPerCheck"]', '4'); await page.dispatchEvent('#inc-paytype input[data-f="otPerCheck"]', 'change'); await page.waitForTimeout(200);
+  const ot = await page.evaluate(() => { const p = App.buildContext().pay; return { ded: p.otDeduction, prem: p.otPremiumY, txt: document.getElementById('inc-paytype').innerText, kpi: document.getElementById('inc-us-ded-kpis').innerText }; });
+  ok(ot.prem > 0 && Math.abs(ot.prem - 85000 / 2080 * 0.5 * 4 * 52) < 0.01 && ot.ded === ot.prem && /Overtime: \$245\.19 a paycheck/.test(ot.txt) && /overtime deduction/.test(ot.kpi), 'salaried overtime: 4 h × $40.87 × 1.5 a paycheck; its extra half comes off federal taxable income', ot);
+  // Another earner, the same editor: weekly, by the hour, a dependent care FSA lowers her taxes.
+  await page.evaluate(() => { const y = Store.active(); y.otherIncomes = [{ id: 1, name: 'Sarah (paycheck)', amount: 0, category: 'Ingresos Laborales', memberId: 2, pay: { payType: 'salary', sueldo: 3000, paysPerYear: 26, hourly: { rate: 0, hours: 40, otRate: 1.5 }, payDeductions: [] } }]; Earners.syncAmounts(); App.changed({ structural: true }); });
+  await page.waitForTimeout(250);
+  await page.selectOption('#inc-earners select[data-f="payType"]', 'hourly'); await page.waitForTimeout(200);
+  await page.selectOption('#inc-earners select[data-f="paysPerYear"]', '52'); await page.waitForTimeout(200);
+  const e0 = await page.evaluate(() => { const e = App.buildContext().pay.earners[0]; return { rate: Store.active().otherIncomes[0].pay.hourly.rate, ppy: e.ppy, fed: e.fedM + e.stateM, fica: e.ficaM }; });
+  await page.click('#inc-earners [data-action="payx.dedAdd"]');
+  await page.waitForSelector('.modal-backdrop:not(.hidden) [data-dialog-ok]');
+  await page.selectOption('.modal select[name="type"]', 'dcfsa');
+  await page.fill('.modal input[name="amount"]', '100');
+  await page.click('.modal [data-dialog-ok]'); await page.waitForTimeout(250);
+  const e1 = await page.evaluate(() => { const e = App.buildContext().pay.earners[0]; return { fed: e.fedM + e.stateM, fica: e.ficaM, net: e.netoM, amount: Store.active().otherIncomes[0].amount, table: document.querySelector('#inc-earners [data-earner]').innerText }; });
+  ok(Math.abs(e0.rate - 17.31) < 0.01 && e0.ppy === 52 && e1.fed < e0.fed && e1.fica < e0.fica && Math.abs(e1.amount - e1.net) < 0.01 && /Dependent care FSA/.test(e1.table), 'Sarah by the hour, weekly, with a dependent care FSA: lower income tax and FICA; her take-home is the budget line', { e0, e1: Object.assign({}, e1, { table: undefined }) });
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   // Pay stub with hours, overtime and a bonus (phase 4): back to a salary first, then scan.
   await page.evaluate(() => { const y = Store.active(); y.payType = 'salary'; y.bonuses = []; App.changed({ structural: true }); PayScan.fromText('Pay Period: 09/14/2026 - 09/27/2026  Pay Date: 10/02/2026\nEarnings Rate Hours Current YTD\nRegular 25.0000 80.00 2,000.00 38,000.00\nOvertime 37.5000 6.00 225.00 1,125.00\nBonus 500.00 500.00\nGross Pay 2,725.00\nFederal Income Tax 250.00\nNet Pay 2,100.00'); });
   await page.waitForTimeout(250);

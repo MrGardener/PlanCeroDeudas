@@ -37,13 +37,22 @@
     function render(ctx) {
         const host = document.getElementById('ded-body');
         if (!host) return;
-        const p = ctx.pay, items = list();
-        const sum = Engine.payDeductionsSummary(yd());
+        const p = ctx.pay, items = list(), us = Store.COUNTRY === 'US';
+        // (From the computed year: a deduction can be a % of pay or an amount per paycheck.)
+        const sum = Engine.payDeductionsSummary(us ? ctx.budgetYear : yd());
         UI.html('ded-kpis', `
             <div class="kpi tone-slate"><span class="kpi-label">Net before these deductions</span><span class="kpi-value">${money(p.netoAntesM)}</span><span class="kpi-note">a month</span></div>
             <div class="kpi ${sum.taken > 0 ? 'tone-amber' : 'tone-slate'}"><span class="kpi-label">Deductions on the stub</span><span class="kpi-value">−${money(sum.taken)}</span><span class="kpi-note">${items.filter(d => d.group !== 'employer').length} a month</span></div>
             <div class="kpi tone-emerald"><span class="kpi-label">Net you receive</span><span class="kpi-value" id="ded-net">${money(p.netoM)}</span><span class="kpi-note">It's your budget's income</span></div>
             <div class="kpi tone-blue"><span class="kpi-label">Savings through payroll</span><span class="kpi-value">${money(sum.retirement)}</span><span class="kpi-note">Counts toward retirement</span></div>`);
+        // US: each deduction by type, what it does to taxes, per paycheck / % of pay / a month (payedit.js).
+        if (us && window.PayEdit) {
+            UI.html('ded-head', PayEdit.HEAD);
+            host.innerHTML = PayEdit.rows('main', { loanLink: true });
+            UI.html('ded-limits', PayEdit.limits('main', Number(Store.state.retirement.edadActual) || null));
+            renderLast(p);
+            return;
+        }
         host.innerHTML = items.length ? items.map(d => `<tr data-row="${d.id}">
                 <td><input class="cell-input font-semibold" value="${esc(d.name)}" data-change="ded.set" data-id="${d.id}" data-field="name" aria-label="Name"></td>
                 <td><select class="cell-input text-xs" data-change="ded.set" data-id="${d.id}" data-field="group" aria-label="Type">${Object.keys(GROUPS).map(g => `<option value="${g}" ${d.group === g ? 'selected' : ''}>${GROUPS[g]}</option>`).join('')}</select></td>
@@ -63,6 +72,9 @@
             if (hsa > tax.limitHSA.family) warn.push(`Your HSA (${money(hsa)} a year) is over the family limit of ${money(tax.limitHSA.family)}.`);
             UI.html('ded-limits', warn.map(w => `<div class="bs-banner warn mt-2"><i class="fa-solid fa-triangle-exclamation"></i> ${w}</div>`).join(''));
         }
+        renderLast(p);
+    }
+    function renderLast(p) {
         const last = yd().lastPaystub;
         UI.html('ded-last', last ? (() => {
             const stubMonthly = last.net * last.ppy / 12;
@@ -247,11 +259,16 @@
             readReview();
             const y = yd(), f = draft.ppy / 12;
             let added = 0, updated = 0;
+            const us = Store.COUNTRY === 'US';
+            // US: the stub says how often you're paid, and each line is an amount per paycheck of a type.
+            if (us) y.paysPerYear = draft.ppy;
             draft.rows.filter(r => r.include && r.amount > 0).forEach(r => {
                 const monthly = Math.round(r.amount * f * 100) / 100;
                 const same = list().find(x => Importers.norm(x.name) === Importers.norm(r.label));
-                if (same) { Object.assign(same, { group: r.group, monthly, perPay: r.amount, paysPerYear: draft.ppy }); updated++; }
-                else { list().push({ id: Store.nextId(list()), name: r.label, group: r.group, kind: r.kind, pretax: !!r.pretax, monthly, perPay: r.amount, paysPerYear: draft.ppy }); added++; }
+                const d = same || { id: Store.nextId(list()), name: r.label, kind: r.kind, pretax: !!r.pretax };
+                Object.assign(d, { group: r.group, monthly, perPay: r.amount, paysPerYear: draft.ppy });
+                if (us) { d.per = 'check'; if (window.PayEdit) PayEdit.setType(d, Engine.deductionType(Object.assign({}, d, { type: null, kind: same ? same.kind : r.kind, name: r.label })).type); }
+                if (same) updated++; else { list().push(d); added++; }
             });
             if (draft.useHourly && draft.reg) {
                 y.payType = 'hourly';

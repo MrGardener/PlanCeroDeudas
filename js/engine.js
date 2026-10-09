@@ -71,14 +71,130 @@
     const DEDUCTION_GROUPS = ['mandatory', 'retirement', 'insurance', 'garnishment', 'loan', 'other', 'employer'];
     // Lines the app computes itself (so a pay stub's copy isn't subtracted twice).
     const COMPUTED_KINDS = { EC: ['iess', 'ir'], US: ['federal', 'state', 'local', 'ss', 'medicare'] };
+
+    // US paycheck deductions by type, and what each does to taxes: 'retire' lowers income tax only
+    // (traditional 401(k), 403(b), 457(b)); 'sec125' lowers income tax and Social Security + Medicare
+    // (cafeteria-plan insurance and FSAs, HSA through payroll, commuter benefits); 'after' lowers
+    // nothing (Roth and after-tax 401(k), life and disability insurance, loans…); 'employer' is paid
+    // by the employer on top of pay. `limit` names the yearly cap it counts toward; `percent`: can be
+    // a % of pay.
+    const US_DEDUCTIONS = [
+        { type: '401k', set: 'Retirement', label: 'Traditional 401(k) (pre-tax)', group: 'retirement', kind: 'retirement', tax: 'retire', limit: 'deferral', percent: true },
+        { type: '401k-roth', set: 'Retirement', label: 'Roth 401(k)', group: 'retirement', kind: 'retirement', tax: 'after', limit: 'deferral', percent: true },
+        { type: '401k-after', set: 'Retirement', label: 'After-tax 401(k) (not Roth)', group: 'retirement', kind: 'retirement', tax: 'after', limit: 'total', percent: true },
+        { type: '403b', set: 'Retirement', label: 'Traditional 403(b) (pre-tax)', group: 'retirement', kind: 'retirement', tax: 'retire', limit: 'deferral', percent: true },
+        { type: '403b-roth', set: 'Retirement', label: 'Roth 403(b)', group: 'retirement', kind: 'retirement', tax: 'after', limit: 'deferral', percent: true },
+        { type: '457b', set: 'Retirement', label: '457(b) (pre-tax)', group: 'retirement', kind: 'retirement', tax: 'retire', limit: '457', percent: true },
+        { type: '457b-roth', set: 'Retirement', label: 'Roth 457(b)', group: 'retirement', kind: 'retirement', tax: 'after', limit: '457', percent: true },
+        { type: 'medical', set: 'Health', label: 'Medical insurance', group: 'insurance', kind: 'health', tax: 'sec125' },
+        { type: 'dental', set: 'Health', label: 'Dental insurance', group: 'insurance', kind: 'dental', tax: 'sec125' },
+        { type: 'vision', set: 'Health', label: 'Vision insurance', group: 'insurance', kind: 'vision', tax: 'sec125' },
+        { type: 'hsa', set: 'Health', label: 'HSA (health savings account)', group: 'retirement', kind: 'hsa', tax: 'sec125', limit: 'hsa' },
+        { type: 'fsa', set: 'Health', label: 'Health care FSA', group: 'insurance', kind: 'fsa', tax: 'sec125', limit: 'fsa' },
+        { type: 'lpfsa', set: 'Health', label: 'Limited-purpose FSA (dental and vision)', group: 'insurance', kind: 'fsa', tax: 'sec125', limit: 'fsa' },
+        { type: 'dcfsa', set: 'Health', label: 'Dependent care FSA', group: 'insurance', kind: 'dcfsa', tax: 'sec125', limit: 'dcfsa' },
+        { type: 'life', set: 'Insurance', label: 'Life insurance (yours)', group: 'insurance', kind: 'life', tax: 'after' },
+        { type: 'life-spouse', set: 'Insurance', label: 'Spouse life insurance', group: 'insurance', kind: 'life', tax: 'after' },
+        { type: 'life-child', set: 'Insurance', label: 'Child life insurance', group: 'insurance', kind: 'life', tax: 'after' },
+        { type: 'add', set: 'Insurance', label: 'AD&D (accidental death)', group: 'insurance', kind: 'life', tax: 'after' },
+        { type: 'std', set: 'Insurance', label: 'Short-term disability', group: 'insurance', kind: 'disability', tax: 'after' },
+        { type: 'ltd', set: 'Insurance', label: 'Long-term disability', group: 'insurance', kind: 'disability', tax: 'after' },
+        { type: 'commuter', set: 'Other', label: 'Commuter, transit or parking (pre-tax)', group: 'other', kind: 'commuter', tax: 'sec125' },
+        { type: 'pretax-other', set: 'Other', label: 'Other pre-tax (cafeteria plan)', group: 'insurance', kind: 'other', tax: 'sec125' },
+        { type: 'loan', set: 'Other', label: 'Loan repayment (401(k) or other)', group: 'loan', kind: 'loan', tax: 'after' },
+        { type: 'garnishment', set: 'Other', label: 'Child support or garnishment', group: 'garnishment', kind: 'garnishment', tax: 'after' },
+        { type: 'union', set: 'Other', label: 'Union dues', group: 'other', kind: 'other', tax: 'after' },
+        { type: 'other', set: 'Other', label: 'Other (after tax)', group: 'other', kind: 'other', tax: 'after' },
+        { type: 'match', set: 'Paid by your employer', label: 'Employer 401(k) match', group: 'employer', kind: 'retirement', tax: 'employer', limit: 'total', percent: true },
+        { type: 'employer-other', set: 'Paid by your employer', label: 'Other paid by your employer', group: 'employer', kind: 'other', tax: 'employer' }
+    ];
+    const US_DEDUCTION = {};
+    US_DEDUCTIONS.forEach(x => { US_DEDUCTION[x.type] = x; });
+    // The type of a deduction saved before types (group, kind, pretax and its name).
+    function deductionType(d) {
+        if (!d) return US_DEDUCTION.other;
+        if (US_DEDUCTION[d.type]) return US_DEDUCTION[d.type];
+        const n = String(d.name || '').toLowerCase(), g = d.group, k = d.kind;
+        const pick = (t) => US_DEDUCTION[t];
+        if (g === 'employer') return pick(k === 'retirement' ? 'match' : 'employer-other');
+        if (k === 'hsa') return pick('hsa');
+        if (g === 'retirement') {
+            const plan = /457/.test(n) ? '457b' : /403/.test(n) ? '403b' : '401k';
+            if (/roth/.test(n)) return pick(plan + '-roth');
+            if (!d.pretax) return pick(/after/.test(n) ? '401k-after' : plan + '-roth');
+            return pick(plan);
+        }
+        if (g === 'insurance') {
+            if (k === 'health') return pick('medical');
+            if (k === 'dental' || k === 'vision') return pick(k);
+            if (k === 'fsa') return pick(/depend|child ?care|dcap/.test(n) ? 'dcfsa' : /limited|lpfsa|lp fsa/.test(n) ? 'lpfsa' : 'fsa');
+            if (k === 'life') return pick(/spouse/.test(n) ? 'life-spouse' : /child/.test(n) ? 'life-child' : /ad&d|ad ?& ?d|accident/.test(n) ? 'add' : /long|\bltd\b/.test(n) ? 'ltd' : /short|\bstd\b/.test(n) ? 'std' : 'life');
+            return pick(d.pretax ? 'pretax-other' : 'other');
+        }
+        if (g === 'loan') return pick('loan');
+        if (g === 'garnishment') return pick('garnishment');
+        if (k === 'commuter' || /commut|transit|parking/.test(n)) return pick('commuter');
+        if (/union|dues/.test(n)) return pick('union');
+        return pick(d.pretax ? 'pretax-other' : 'other');
+    }
+
+    // Paychecks a year: weekly 52, every 2 weeks 26, twice a month 24, monthly 12 (what was chosen,
+    // else the pay calendar's; a US paycheck is every 2 weeks unless said otherwise).
+    const PAY_FREQUENCIES = [52, 26, 24, 12];
+    function paysPerYear(e) {
+        const n = num(e && e.paysPerYear);
+        if (PAY_FREQUENCIES.includes(n)) return n;
+        const s = e && e.paySchedule ? nominalPaymentsPerYear(e.paySchedule) : 0;
+        if (s > 0) return s;
+        return e && e.country === 'US' ? 26 : 12;
+    }
+    // What a deduction takes, a month (from the budget's paycheck) and a year (for taxes): typed a
+    // month, per paycheck (× paychecks a year ÷ 12) or as a % of pay — of the budget's paycheck for
+    // the month, of the whole year's pay (overtime and bonuses too) for the year.
+    function deductionAmounts(d, { ppy = 12, budgetM = 0, annual = 0 } = {}) {
+        if (d && d.per === 'percent') { const r = Math.max(0, Math.min(100, num(d.percent))) / 100; return { monthly: num(budgetM) * r, annual: num(annual) * r }; }
+        if (d && d.per === 'check') { const m = Math.max(0, num(d.perPay)) * num(ppy) / 12; return { monthly: m, annual: m * 12 }; }
+        const m = Math.max(0, num(d && d.monthly));
+        return { monthly: m, annual: m * 12 };
+    }
+    // Every deduction of a paycheck with its type (US) and amounts.
+    function resolveDeductions(e) {
+        const us = e && e.country === 'US';
+        const g = us ? usGrossPay(e) : { budgetM: Math.max(0, num(e && e.sueldo)), annual: Math.max(0, num(e && e.sueldo)) * 12 };
+        const ppy = paysPerYear(e);
+        return ((e && e.payDeductions) || []).map(d => {
+            const t = us ? deductionType(d) : null;
+            return Object.assign({ d, t, group: t ? t.group : d.group }, deductionAmounts(d, { ppy, budgetM: g.budgetM, annual: g.annual }));
+        });
+    }
+    // The yearly caps a paycheck's deductions go over (US): 401(k)/403(b) deferrals, pre-tax and Roth
+    // together, with the catch-up from 50 (more from 60 to 63); 457(b) on its own; everything with
+    // after-tax and the match (415(c), catch-up apart); HSA (family coverage cap); health FSA with the
+    // limited-purpose one; dependent care FSA. `age` unknown (null): no catch-up.
+    function deductionLimits(e, t, age = null) {
+        const ded = resolveDeductions(Object.assign({}, e, { country: 'US' }));
+        const by = (lim) => sum(ded.filter(x => x.t.limit === lim), x => x.annual);
+        const a = num(age), known = age !== null && age !== undefined && age !== '' && a > 0;
+        const catchUp = !known ? 0 : a >= 60 && a <= 63 ? num(t.superCatchUp401k) || num(t.catchUp401k) : a >= 50 ? num(t.catchUp401k) : 0;
+        const out = [];
+        const check = (key, label, amount, limit) => { if (limit > 0 && amount > limit + 0.5) out.push({ key, label, amount: cents(amount), limit: cents(limit) }); };
+        const deferral = by('deferral');
+        check('deferral', '401(k) / 403(b) contributions (pre-tax and Roth)', deferral, num(t.limit401k) + catchUp);
+        check('457', '457(b) contributions', by('457'), num(t.limit401k) + catchUp);
+        check('total', 'All 401(k) / 403(b) contributions, after-tax and the match included', deferral + by('total'), num(t.limit415c) + catchUp);
+        check('hsa', 'HSA', by('hsa'), num((t.limitHSA || {}).family));
+        check('fsa', 'Health care FSA', by('fsa'), num(t.limitFSA));
+        check('dcfsa', 'Dependent care FSA', by('dcfsa'), num(t.limitDCFSA));
+        return out;
+    }
     function payDeductionsSummary(yd) {
         const computed = COMPUTED_KINDS[(yd && yd.country) || 'EC'] || [];
-        const list = ((yd && yd.payDeductions) || []).filter(d => !(d.group === 'mandatory' && computed.includes(d.kind)));
+        const list = resolveDeductions(yd).filter(x => !(x.d.group === 'mandatory' && computed.includes(x.d.kind)));
         const byGroup = {};
         DEDUCTION_GROUPS.forEach(g => { byGroup[g] = 0; });
-        list.forEach(d => { const g = DEDUCTION_GROUPS.includes(d.group) ? d.group : 'other'; byGroup[g] += Math.max(0, num(d.monthly)); });
+        list.forEach(x => { const g = DEDUCTION_GROUPS.includes(x.group) ? x.group : 'other'; byGroup[g] += x.monthly; });
         const taken = sum(DEDUCTION_GROUPS.filter(g => g !== 'employer'), g => byGroup[g]);
-        return { byGroup, taken, retirement: byGroup.retirement + list.filter(d => d.group === 'employer' && d.kind === 'retirement').reduce((a, d) => a + Math.max(0, num(d.monthly)), 0), employer: byGroup.employer };
+        return { byGroup, taken, retirement: byGroup.retirement + list.filter(x => x.group === 'employer' && x.d.kind === 'retirement').reduce((a, x) => a + x.monthly, 0), employer: byGroup.employer };
     }
 
     // ------------------------------------------------------------------ US payroll
@@ -99,15 +215,26 @@
     // or itemized deduction, the brackets, minus child / other-dependent credits — which phase out
     // $50 per $1,000 (or part) of income above $200,000 ($400,000 married filing jointly), IRC §24(b).
     // `stdExtra`: what still comes off when taking the standard deduction (cash gifts to charity, from 2026).
-    function usFederalTax({ income, status = 'single', dependents = 0, otherDependents = 0, itemized = 0, stdExtra = 0, t = {} }) {
+    // `overtime`: the year's qualified overtime premium (overtimeDeduction takes it off taxable income).
+    function usFederalTax({ income, status = 'single', dependents = 0, otherDependents = 0, itemized = 0, stdExtra = 0, overtime = 0, t = {} }) {
         const std = num((t.stdDeduction || {})[status]);
         const dedApplied = Math.max(std + num(stdExtra), num(itemized));
-        const taxable = Math.max(0, num(income) - dedApplied);
+        const otDeduction = overtimeDeduction(overtime, income, status, t);
+        const taxable = Math.max(0, num(income) - dedApplied - otDeduction);
         const baseCredits = num(dependents) * num(t.childCredit) + num(otherDependents) * num(t.otherDependentCredit);
         const phaseStart = num((t.ctcPhaseoutStart || { single: 200000, mfj: 400000, hoh: 200000 })[status]);
         const credits = Math.max(0, baseCredits - Math.ceil(Math.max(0, num(income) - phaseStart) / 1000) * (num(t.ctcPhaseoutStep) || 50));
         const before = bracketTax(taxable, (t.brackets || {})[status]);
-        return { std, dedApplied, taxable, credits, before, tax: Math.max(0, before - credits) };
+        return { std, dedApplied, otDeduction, taxable, credits, before, tax: Math.max(0, before - credits) };
+    }
+    // "No tax on overtime" (tax years 2025–2028): the extra half of time-and-a-half comes off taxable
+    // income, up to $12,500 ($25,000 filing jointly); that cap shrinks by 10% of income above
+    // $150,000 ($300,000 jointly). Tables without it (other years) give 0.
+    function overtimeDeduction(premium, income, status, t) {
+        const od = t && t.overtimeDeduction;
+        if (!od || !(num(premium) > 0)) return 0;
+        const cap = num((od.max || {})[status]) - Math.max(0, num(income) - num((od.phaseoutStart || {})[status])) * (num(od.phaseoutRate) || 0.1);
+        return Math.max(0, Math.min(num(premium), cap));
     }
 
     // Interest paid on a loan over the next `months` payments, from its balance today.
@@ -243,11 +370,11 @@
     // extra withholding per paycheck (Step 4(c)) when you'd owe, less when the refund is large.
     // Bonuses still to come this year are withheld apart from the paychecks, usually at a flat 22%
     // federal (supplemental wages): bonusesLeft (gross) adds that to the year's withholding.
-    function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0, stdExtra = 0, bonusesLeft = 0 }) {
+    function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0, stdExtra = 0, bonusesLeft = 0, overtime = 0 }) {
         const t = yd.usTax || {};
         const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
         const income = Math.max(0, num(wagesIncome) + num(otherWages) + num(untaxedIncome));
-        const f = usFederalTax({ income, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, stdExtra, t });
+        const f = usFederalTax({ income, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, stdExtra, overtime, t });
         const supplemental = (num(t.supplementalRate) || 22) / 100;
         const withheld = num(withheldYtd) + num(perCheck) * Math.max(0, num(checksLeft)) + num(otherWithheld) + Math.max(0, num(bonusesLeft)) * supplemental;
         const diff = withheld - f.tax;        // > 0 refund, < 0 owe
@@ -261,18 +388,22 @@
     // usual overtime, plus the bonuses expected this year. Taxes are on the whole year; the monthly
     // budget counts only the pay you can count on (Ramsey): base pay, plus overtime only when the
     // person says so. Bonuses count in their month only when marked to plan them (bonusForMonth).
+    // Overtime: hours on a usual paycheck (otPerCheck) × paychecks a year, or — saved before that —
+    // hours a week (hourly pay only). A salary's hourly rate is the year's salary ÷ 2,080 hours.
+    // `otPremiumY`: the extra half of time-and-a-half, what the overtime deduction applies to.
     const WEEKS_PER_MONTH = 52 / 12;
     function usGrossPay(yd) {
         const bonusesY = sum((yd.bonuses || []).filter(b => num(b.amount) > 0), b => num(b.amount));
-        if (yd.payType !== 'hourly') {
-            const base = Math.max(0, num(yd.sueldo));
-            return { payType: 'salary', baseM: base, overtimeM: 0, budgetM: base, bonusesY, annual: base * 12 + bonusesY };
-        }
-        const h = yd.hourly || {};
-        const rate = Math.max(0, num(h.rate));
-        const baseM = rate * Math.max(0, num(h.hours)) * WEEKS_PER_MONTH;
-        const overtimeM = rate * (num(h.otRate) || 1.5) * Math.max(0, num(h.otHours)) * WEEKS_PER_MONTH;
-        return { payType: 'hourly', baseM, overtimeM, budgetM: baseM + (h.otInBudget ? overtimeM : 0), bonusesY, annual: (baseM + overtimeM) * 12 + bonusesY };
+        const h = yd.hourly || {}, ppy = paysPerYear(yd), hourly = yd.payType === 'hourly';
+        const perCheck = h.otPerCheck !== undefined && h.otPerCheck !== null && h.otPerCheck !== '';
+        const otHoursY = perCheck ? Math.max(0, num(h.otPerCheck)) * ppy : hourly ? Math.max(0, num(h.otHours)) * 52 : 0;
+        const mult = num(h.otRate) || 1.5;
+        const baseM = hourly ? Math.max(0, num(h.rate)) * Math.max(0, num(h.hours)) * WEEKS_PER_MONTH : Math.max(0, num(yd.sueldo));
+        const rate = hourly ? Math.max(0, num(h.rate)) : baseM * 12 / 2080;
+        const overtimeM = rate * mult * otHoursY / 12;
+        const budgetM = baseM + (h.otInBudget ? overtimeM : 0);
+        return { payType: hourly ? 'hourly' : 'salary', ppy, rate, baseM, overtimeM, otHoursY, otPremiumY: rate * Math.min(0.5, Math.max(0, mult - 1)) * otHoursY,
+            budgetM, bonusesY, annual: (baseM + overtimeM) * 12 + bonusesY };
     }
 
     // One person's wages for the year (US): gross, pre-tax deductions, the wages income tax and
@@ -280,21 +411,23 @@
     function usWages(e, t) {
         const pay = usGrossPay(e);
         const gross = pay.annual;
-        const ded = (e.payDeductions || []).filter(d => d.pretax && d.group !== 'employer');
-        const pretaxRetire = sum(ded.filter(d => d.group === 'retirement' && d.kind !== 'hsa'), d => num(d.monthly)) * 12;
-        const pretax125 = sum(ded.filter(d => !(d.group === 'retirement' && d.kind !== 'hsa')), d => num(d.monthly)) * 12;
+        // Each deduction lowers what its type lowers (US_DEDUCTIONS): traditional retirement plans
+        // income tax; cafeteria-plan ones income tax and FICA.
+        const ded = resolveDeductions(Object.assign({}, e, { country: 'US' }));
+        const pretaxRetire = sum(ded.filter(x => x.t.tax === 'retire'), x => x.annual);
+        const pretax125 = sum(ded.filter(x => x.t.tax === 'sec125'), x => x.annual);
         const incomeWages = Math.max(0, gross - pretaxRetire - pretax125);
         const ficaWages = Math.max(0, gross - pretax125);
         const ssAnnual = Math.min(ficaWages, num(t.ssWageBase) || Infinity) * num(t.ssRate) / 100;
         // Employers withhold the extra 0.9% Medicare on wages above $200,000 whatever the filing
         // status (the yearly liability threshold differs; it's settled on the tax return).
         const medAnnual = ficaWages * num(t.medicareRate) / 100 + Math.max(0, ficaWages - (num(t.addlMedicareWithholding) || 200000)) * num(t.addlMedicareRate) / 100;
-        return { pay, gross, pretaxRetire, pretax125, incomeWages, ficaWages, ssAnnual, medAnnual };
+        return { pay, gross, pretaxRetire, pretax125, incomeWages, ficaWages, ssAnnual, medAnnual, otPremium: pay.otPremiumY };
     }
 
     // The household's other paychecks: income lines with `pay` (a member's pay before taxes, the
     // same fields as the main paycheck) → that person as a year: the household's settings, their pay.
-    const PAY_FIELDS = { sueldo: 0, payType: 'salary', hourly: {}, bonuses: [], payDeductions: [] };
+    const PAY_FIELDS = { sueldo: 0, payType: 'salary', hourly: {}, bonuses: [], payDeductions: [], paysPerYear: null, paySchedule: null };
     function otherEarners(yd) {
         return (yd.otherIncomes || []).filter(l => l && l.pay && typeof l.pay === 'object')
             .map(l => ({ line: l, yd: Object.assign({}, yd, PAY_FIELDS, l.pay, { otherIncomes: [] }) }));
@@ -315,8 +448,9 @@
         const total = (f) => sum(ws, f);
         const shareBy = (f, w) => { const all = total(f); return all > 0 ? f(w) / all : (w === main ? 1 : 0); };
         // Federal income tax
-        const fedMain = usFederalTax({ income: joint ? total(w => w.incomeWages) : main.incomeWages, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, t });
-        const fedOf = (w) => (joint ? fedMain.tax * shareBy(x => x.incomeWages, w) : w === main ? fedMain.tax : usFederalTax({ income: w.incomeWages, status: 'single', t }).tax);
+        const fedMain = usFederalTax({ income: joint ? total(w => w.incomeWages) : main.incomeWages, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, overtime: joint ? total(w => w.otPremium) : main.otPremium, t });
+        const ownReturn = (w) => usFederalTax({ income: w.incomeWages, status: 'single', overtime: w.otPremium, t });
+        const fedOf = (w) => (joint ? fedMain.tax * shareBy(x => x.incomeWages, w) : w === main ? fedMain.tax : ownReturn(w).tax);
         // State (flat or a rate you enter); some states (Pennsylvania) tax 401(k) deferrals.
         const st = Object.assign({}, US_STATE_DEFAULT, (states || []).find(x => x.code === yd.state) || {});
         const stateRate = yd.stateRate !== null && yd.stateRate !== undefined && yd.stateRate !== '' ? num(yd.stateRate) : (st.type === 'none' ? 0 : num(st.rate));
@@ -354,7 +488,8 @@
                 ssM: c.w.ssAnnual / 12 * c.share, medM: c.w.medAnnual / 12 * c.share, ficaM: c.ficaM, fedM: c.fed / 12 * c.share, stateM: c.state / 12 * c.share,
                 localM: c.local.annual / 12 * c.share, localRate: c.local.rate, localResident: c.local.resident, isrM: c.incomeTaxAnnual / 12 * c.share,
                 pretaxM: (c.w.pretaxRetire + c.w.pretax125) / 12, incomeWages: c.w.incomeWages, otrosDescuentosM: c.otros, netoAntesM: c.netoAntesM, netoM: c.netoM, avgTaxRate: c.avgTaxRate,
-                baseImponible: joint ? fedMain.taxable : usFederalTax({ income: c.w.incomeWages, status: 'single', t }).taxable };
+                otPremiumY: c.w.otPremium, otDeduction: joint ? 0 : ownReturn(c.w).otDeduction, ppy: c.w.pay.ppy,
+                baseImponible: joint ? fedMain.taxable : ownReturn(c.w).taxable };
         });
         const ficaAll = total(w => w.ssAnnual + w.medAnnual);
         return {
@@ -364,6 +499,8 @@
             iessM: m.ficaM, iessAnual: main.ssAnnual + main.medAnnual, ssM: main.ssAnnual / 12 * m.share, medM: main.medAnnual / 12 * m.share,
             fedM: m.fed / 12 * m.share, stateM: m.state / 12 * m.share, localM: m.local.annual / 12 * m.share, localRate: m.local.rate, localResident: m.local.resident, stateRate, stateType: st.type,
             pretaxM: (main.pretaxRetire + main.pretax125) / 12, stdDeduction: fedMain.std, credits: fedMain.credits, incomeWages: main.incomeWages,
+            // The overtime deduction on the main return (the household's when filing jointly).
+            otPremiumY: main.otPremium, otDeduction: fedMain.otDeduction, ppy: main.pay.ppy,
             sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied: fedMain.dedApplied, baseImponible: fedMain.taxable,
             isrAnual: m.incomeTaxAnnual, isrM: m.incomeTaxAnnual / 12 * m.share,
             netoAntesM: m.netoAntesM, otrosDescuentosM: m.otros, netoM: m.netoM,
@@ -3091,7 +3228,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, jointWagesUS, sideIncomeTaxes, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
