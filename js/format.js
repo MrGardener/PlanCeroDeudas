@@ -34,7 +34,11 @@
         if (hidden) return cur.after ? `••• ${cur.symbol}` : `${cur.symbol}•••`;
         const v = Number(n) || 0;
         const d = Math.min(decimals, cur.decimals);
-        const num = Math.abs(v).toLocaleString(cur.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
+        // From $100 million up, a short form ($250.0M, $1.2B): such amounts are typos or far-off
+        // projections, and the full figure wouldn't fit a phone's row.
+        const big = Math.abs(v) >= 1e8;
+        const num = big ? (Math.abs(v) >= 1e9 ? `${(Math.abs(v) / 1e9).toLocaleString(cur.locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}B` : `${(Math.abs(v) / 1e6).toLocaleString(cur.locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}M`)
+            : Math.abs(v).toLocaleString(cur.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
         const s = cur.after ? `${num} ${cur.symbol}` : `${cur.symbol}${cur.symbol.length > 1 && !cur.symbol.endsWith('$') ? ' ' : ''}${num}`;
         // A true minus sign (U+2212), the same one the views put before amounts.
         return v < 0 && Math.abs(v) >= 0.5 * Math.pow(10, -d) ? '\u2212' + s : s;
@@ -48,10 +52,15 @@
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
+    // A typed number. "1,234.56" counts the thousands; anything beyond ±100 billion is held there
+    // (1e308 typed in a field would otherwise add up to Infinity across the plan).
+    const MAX_INPUT = 1e11;
     const parseNum = (v, fallback = 0) => {
         if (v === '' || v === null || v === undefined) return fallback;
-        const n = parseFloat(v);
-        return Number.isFinite(n) ? n : fallback;
+        let t = typeof v === 'string' ? v.trim() : v;
+        if (typeof t === 'string' && /^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) t = t.replace(/,/g, '');
+        const n = parseFloat(t);
+        return Number.isFinite(n) ? Math.max(-MAX_INPUT, Math.min(MAX_INPUT, n)) : fallback;
     };
 
     const monthsAsYears = (m) => {
@@ -84,7 +93,7 @@
     // "30 de septiembre" / "September 30"
     const dayMonth = (date) => (lang === 'en' ? `${MONTH_NAMES[date.getMonth()]} ${date.getDate()}` : `${date.getDate()} de ${MONTH_NAMES[date.getMonth()].toLowerCase()}`);
 
-    const Fmt = { setHidden, get hidden() { return hidden; }, MONTH_NAMES, MONTH_SHORT, DOW_SHORT, WEEKDAYS, monthLower, CURRENCIES, setCurrency, currency, money, money0, pct, esc, parseNum, monthsAsYears, monthYear, setLang, dayMonth, get lang() { return lang; } };
+    const Fmt = { setHidden, get hidden() { return hidden; }, MONTH_NAMES, MONTH_SHORT, DOW_SHORT, WEEKDAYS, monthLower, CURRENCIES, setCurrency, currency, money, money0, pct, esc, parseNum, monthsAsYears, monthYear, setLang, dayMonth, MAX_INPUT, get lang() { return lang; } };
     if (typeof module !== 'undefined' && module.exports) module.exports = Fmt;
     else root.Fmt = Fmt;
 })(this);

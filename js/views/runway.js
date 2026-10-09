@@ -29,7 +29,7 @@
         const other = c.other === null || c.other === undefined ? autoOther : Number(c.other) || 0;
         const checking = Engine.accountTotal(s.accounts, 'cash');
         const cash = ctx.pools.emergency + checking;
-        const benefits = Array.isArray(c.benefits) && c.benefits.length ? c.benefits : new Array(Math.max(0, Number(c.benefitMonths) || 0)).fill(Number(c.benefit) || 0);
+        const benefits = Array.isArray(c.benefits) && c.benefits.length ? c.benefits : new Array(Math.min(24, Math.max(0, Math.floor(Number(c.benefitMonths) || 0)))).fill(Number(c.benefit) || 0);
         const r = Engine.jobLossRunway({ cash, monthlyNeeds: needs, otherIncome: other, benefits, lumpSum: Number(c.lump) || 0 });
         return { list, needs, other, autoOther, cash, checking, benefits, r, c };
     }

@@ -38,7 +38,9 @@
     --focus: 0 0 0 3px var(--ring);
 }
 
-body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--canvas); color: var(--ink); }
+body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--canvas); color: var(--ink); overflow-wrap: anywhere; }
+/* A word longer than the screen breaks instead of widening the page; tables keep their columns (they scroll). */
+table { overflow-wrap: normal; }
 .wrap { max-width: 80rem; margin: 0 auto; padding-left: 1rem; padding-right: 1rem; }
 @media (min-width: 640px) { .wrap { padding-left: 1.5rem; padding-right: 1.5rem; } }
 
@@ -357,6 +359,8 @@ input[type="file"].hidden { display: none; }
 html[data-theme="dark"] .annual-step.short { border-color: #7f1d1d; background: #2a0d0d; }
 .annual-when { font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-size: var(--fs-2xs); margin-bottom: .25rem; }
 .annual-what { display: grid; gap: .2rem; color: var(--ink); }
+/* Grid cells may shrink below their content (a long name truncates instead of widening the page). */
+.annual-what > *, .annual-step > *, .grid > * { min-width: 0; }
 .annual-after { margin-top: .3rem; font-size: var(--fs-2xs); font-weight: 700; }
 .check-row { display: flex; align-items: flex-start; gap: .4rem; padding-bottom: .55rem; font-size: var(--fs-xs); color: var(--ink-2); line-height: 1.35; cursor: pointer; }
 .check-row input { margin-top: .15rem; accent-color: var(--brand); }
@@ -1474,7 +1478,7 @@ button.gm-row:hover { background: var(--surface-3); }
                     <span class="field-label">State and city</span>
                     <select class="input" id="inc-state" data-change="us.state" aria-label="Status"></select>
                     <div class="grid grid-cols-2 gap-2 mt-1">
-                        <label><span class="help block" id="inc-state-rate-label">State income tax (%)</span><input type="number" class="input" min="0" step="0.01" id="inc-state-rate" data-change="us.stateRate" placeholder="Automatic"></label>
+                        <label><span class="help block" id="inc-state-rate-label">State income tax (%)</span><input type="number" class="input" min="0" max="20" step="0.01" id="inc-state-rate" data-change="us.stateRate" placeholder="Automatic"></label>
                         <label><span class="help block">City income tax (%)</span><select class="input" id="inc-city" data-change="us.city"></select></label>
                     </div>
                     <label class="check mt-1" id="inc-city-resident"><input type="checkbox" data-bind="year.localResident" data-structural="true"><span>I live in this city <span class="block text-[11px] font-normal text-slate-500">If you only work there, you pay the non-resident rate (half).</span></span></label>
@@ -2062,8 +2066,8 @@ button.gm-row:hover { background: var(--surface-3); }
             </table></div>
             <div class="flex flex-wrap items-end gap-3 mt-3">
                 <button type="button" class="btn btn-secondary btn-sm" data-action="college.add"><i class="fa-solid fa-plus"></i> Add child</button>
-                <label class="field" style="width:9rem"><span class="field-label">Cost rises (%/yr)</span><input type="number" class="input" id="college-infl" min="0" step="0.5" data-input="college.setting" data-field="costInflation"></label>
-                <label class="field" style="width:9rem"><span class="field-label">Savings return (%/yr)</span><input type="number" class="input" id="college-ret" min="0" step="0.5" data-input="college.setting" data-field="returnPct"></label>
+                <label class="field" style="width:9rem"><span class="field-label">Cost rises (%/yr)</span><input type="number" class="input" id="college-infl" min="0" max="50" step="0.5" data-input="college.setting" data-field="costInflation"></label>
+                <label class="field" style="width:9rem"><span class="field-label">Savings return (%/yr)</span><input type="number" class="input" id="college-ret" min="0" max="50" step="0.5" data-input="college.setting" data-field="returnPct"></label>
             </div>
             <div id="college-results" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4"></div>
             <p class="help mt-2" data-country="US">Starting costs: College Board 2024–25 averages (tuition, fees, room and board). Change them to the school you have in mind.</p>
@@ -9903,7 +9907,11 @@ I18n.override('EC', 'es', {
         if (hidden) return cur.after ? `••• ${cur.symbol}` : `${cur.symbol}•••`;
         const v = Number(n) || 0;
         const d = Math.min(decimals, cur.decimals);
-        const num = Math.abs(v).toLocaleString(cur.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
+        // From $100 million up, a short form ($250.0M, $1.2B): such amounts are typos or far-off
+        // projections, and the full figure wouldn't fit a phone's row.
+        const big = Math.abs(v) >= 1e8;
+        const num = big ? (Math.abs(v) >= 1e9 ? `${(Math.abs(v) / 1e9).toLocaleString(cur.locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}B` : `${(Math.abs(v) / 1e6).toLocaleString(cur.locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}M`)
+            : Math.abs(v).toLocaleString(cur.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
         const s = cur.after ? `${num} ${cur.symbol}` : `${cur.symbol}${cur.symbol.length > 1 && !cur.symbol.endsWith('$') ? ' ' : ''}${num}`;
         // A true minus sign (U+2212), the same one the views put before amounts.
         return v < 0 && Math.abs(v) >= 0.5 * Math.pow(10, -d) ? '\u2212' + s : s;
@@ -9917,10 +9925,15 @@ I18n.override('EC', 'es', {
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
+    // A typed number. "1,234.56" counts the thousands; anything beyond ±100 billion is held there
+    // (1e308 typed in a field would otherwise add up to Infinity across the plan).
+    const MAX_INPUT = 1e11;
     const parseNum = (v, fallback = 0) => {
         if (v === '' || v === null || v === undefined) return fallback;
-        const n = parseFloat(v);
-        return Number.isFinite(n) ? n : fallback;
+        let t = typeof v === 'string' ? v.trim() : v;
+        if (typeof t === 'string' && /^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) t = t.replace(/,/g, '');
+        const n = parseFloat(t);
+        return Number.isFinite(n) ? Math.max(-MAX_INPUT, Math.min(MAX_INPUT, n)) : fallback;
     };
 
     const monthsAsYears = (m) => {
@@ -9953,7 +9966,7 @@ I18n.override('EC', 'es', {
     // "30 de septiembre" / "September 30"
     const dayMonth = (date) => (lang === 'en' ? `${MONTH_NAMES[date.getMonth()]} ${date.getDate()}` : `${date.getDate()} de ${MONTH_NAMES[date.getMonth()].toLowerCase()}`);
 
-    const Fmt = { setHidden, get hidden() { return hidden; }, MONTH_NAMES, MONTH_SHORT, DOW_SHORT, WEEKDAYS, monthLower, CURRENCIES, setCurrency, currency, money, money0, pct, esc, parseNum, monthsAsYears, monthYear, setLang, dayMonth, get lang() { return lang; } };
+    const Fmt = { setHidden, get hidden() { return hidden; }, MONTH_NAMES, MONTH_SHORT, DOW_SHORT, WEEKDAYS, monthLower, CURRENCIES, setCurrency, currency, money, money0, pct, esc, parseNum, monthsAsYears, monthYear, setLang, dayMonth, MAX_INPUT, get lang() { return lang; } };
     if (typeof module !== 'undefined' && module.exports) module.exports = Fmt;
     else root.Fmt = Fmt;
 })(this);
@@ -13299,9 +13312,11 @@ I18n.override('EC', 'es', {
     // One child's studies: the total cost when they start (each year's cost grown by college-cost
     // inflation), what the savings will have grown to, the gap and the monthly saving that closes it.
     function collegePlan({ age = 0, startAge = 18, years = 4, annualCost = 0, costInflation = 5, saved = 0, monthly = 0, returnPct = 6 }) {
-        const toStart = Math.max(0, num(startAge) - num(age));
-        const n = Math.max(1, Math.round(num(years)));
-        const g = 1 + num(costInflation) / 100;
+        // Kept to what a school can be (a typo of 99999999999 years mustn't hang the page).
+        const toStart = Math.min(30, Math.max(0, num(startAge) - num(age)));
+        const n = Math.min(10, Math.max(1, Math.round(num(years))));
+        const g = 1 + Math.min(50, Math.max(0, num(costInflation))) / 100;
+        returnPct = Math.min(50, Math.max(0, num(returnPct)));
         const total = sum(Array.from({ length: n }, (_, k) => k), k => num(annualCost) * Math.pow(g, toStart + k));
         const projected = growthValue(saved, monthly, returnPct, toStart, 0).value;
         const gap = Math.max(0, total - projected);
@@ -13877,7 +13892,7 @@ I18n.override('EC', 'es', {
     // (which ends the loan early instead of running the full contracted term).
     function amortization(system, principal, annualRatePct, months, extraMonthly) {
         principal = Math.max(0, num(principal));
-        months = Math.max(1, Math.round(num(months)));
+        months = Math.min(600, Math.max(1, Math.round(num(months))));      // at most 50 years
         const extra = Math.max(0, num(extraMonthly));
         const i = Math.max(0, num(annualRatePct)) / 1200;
         const fixedPayment = frenchPayment(principal, num(annualRatePct), months);
@@ -13978,8 +13993,8 @@ I18n.override('EC', 'es', {
     // today's money with inflation, so they add up with Social Security / the IESS pension, which
     // are estimated in today's money. A pension only counts from the age you can collect it.
     function retirement(inp) {
-        const edadActual = Math.max(0, Math.round(num(inp.edadActual)));
-        const edadJubilacion = Math.max(edadActual, Math.round(num(inp.edadJubilacion)) || 65);
+        const edadActual = Math.min(110, Math.max(0, Math.round(num(inp.edadActual))));
+        const edadJubilacion = Math.min(110, Math.max(edadActual, Math.round(num(inp.edadJubilacion)) || 65));
         const anios = edadJubilacion - edadActual;
         const months = anios * 12;
         const rate = Math.max(0, num(inp.tasaRetorno));
@@ -15847,9 +15862,22 @@ I18n.override('EC', 'es', {
         run(name, data = {}) { return actions[name] && actions[name]({ dataset: data }); },
 
         initEvents() {
+            // A number field keeps to its own min / max (and to whole numbers when its step is 1)
+            // before any handler reads it: 99999999999 years or 0.001 months never reach the plan.
+            // While typing only the max applies (typing 15 passes through 1).
+            const keepInRange = (el, commit) => {
+                if (!el || el.tagName !== 'INPUT' || el.type !== 'number' || el.value === '') return;
+                const v = Number(el.value);
+                if (!Number.isFinite(v)) return;
+                const min = el.min !== '' ? Number(el.min) : -Infinity, max = el.max !== '' ? Number(el.max) : Infinity;
+                let c = Math.min(max, v);
+                if (commit) { c = Math.max(min, c); if (el.step === '1') c = Math.round(c); }
+                if (c !== v) el.value = String(c);
+            };
             const dispatch = (attr) => (e) => {
                 const el = e.target.closest(`[${attr}]`);
                 if (!el) return;
+                if (attr !== 'data-action') keepInRange(el, attr === 'data-change' || e.type === 'change');
                 const fn = actions[el.getAttribute(attr)];
                 if (!fn) { console.warn('Unregistered action:', el.getAttribute(attr)); return; }
                 if (attr === 'data-action' && el.tagName === 'A') e.preventDefault();
@@ -19628,7 +19656,7 @@ I18n.override('EC', 'es', {
             App.undoable(`Bonus "${(b && b.name) || ''}" removed`, () => { y.bonuses = y.bonuses.filter(x => x !== b); });
         },
         'us.state': (el) => { const y = Store.active(); y.state = el.value; y.stateRate = null; y.localName = ''; y.localRate = 0; App.changed({ structural: true, step: true }); },
-        'us.stateRate': (el) => { Store.active().stateRate = el.value === '' ? null : Math.max(0, Fmt.parseNum(el.value, 0)); App.changed({ step: true }); },
+        'us.stateRate': (el) => { Store.active().stateRate = el.value === '' ? null : Math.min(20, Math.max(0, Fmt.parseNum(el.value, 0))); App.changed({ step: true }); },
         'us.city': async (el) => {
             const y = Store.active();
             if (el.value === '__custom') {
@@ -25158,7 +25186,7 @@ I18n.override('EC', 'es', {
         const other = c.other === null || c.other === undefined ? autoOther : Number(c.other) || 0;
         const checking = Engine.accountTotal(s.accounts, 'cash');
         const cash = ctx.pools.emergency + checking;
-        const benefits = Array.isArray(c.benefits) && c.benefits.length ? c.benefits : new Array(Math.max(0, Number(c.benefitMonths) || 0)).fill(Number(c.benefit) || 0);
+        const benefits = Array.isArray(c.benefits) && c.benefits.length ? c.benefits : new Array(Math.min(24, Math.max(0, Math.floor(Number(c.benefitMonths) || 0)))).fill(Number(c.benefit) || 0);
         const r = Engine.jobLossRunway({ cash, monthlyNeeds: needs, otherIncome: other, benefits, lumpSum: Number(c.lump) || 0 });
         return { list, needs, other, autoOther, cash, checking, benefits, r, c };
     }
@@ -25318,7 +25346,8 @@ I18n.override('EC', 'es', {
     function render(ctx) {
         if (!document.getElementById('metas-college')) return;
         const c = cfg(), d = defs(), goals = ctx.state.goals || [];
-        const num = (k, field, step, val, ph) => `<input type="number" class="cell-input num" min="0" step="${step}" data-input="college.set" data-id="${k.id}" data-field="${field}" value="${val === null || val === undefined ? '' : esc(String(val))}" ${ph ? `placeholder="${esc(ph)}"` : ''}>`;
+        const MAX = { age: 30, years: 10 };
+        const num = (k, field, step, val, ph) => `<input type="number" class="cell-input num" min="0" ${MAX[field] ? `max="${MAX[field]}"` : ''} step="${step}" data-input="college.set" data-id="${k.id}" data-field="${field}" value="${val === null || val === undefined ? '' : esc(String(val))}" ${ph ? `placeholder="${esc(ph)}"` : ''}>`;
         UI.html('college-body', c.kids.length ? c.kids.map(k => {
             const g = goalOf(k), t = typeOf(k);
             return `<tr data-row="${k.id}">
@@ -25364,11 +25393,11 @@ I18n.override('EC', 'es', {
             if (f === 'name' || f === 'type') k[f] = el.value;
             else if (f === 'goalId') k.goalId = el.value ? Number(el.value) : null;
             else if (f === 'cost') k.cost = el.value === '' ? null : Math.max(0, Fmt.parseNum(el.value, 0));
-            else k[f] = Math.max(0, Fmt.parseNum(el.value, 0));
+            else k[f] = Math.min(f === 'age' ? 30 : f === 'years' ? 10 : Fmt.MAX_INPUT, Math.max(0, Fmt.parseNum(el.value, 0)));
             App.changed({ structural: f === 'goalId' || f === 'type', step: true });
         },
         'college.setting': (el) => {
-            cfg()[el.dataset.field] = el.value === '' ? null : Math.max(0, Fmt.parseNum(el.value, 0));
+            cfg()[el.dataset.field] = el.value === '' ? null : Math.min(50, Math.max(0, Fmt.parseNum(el.value, 0)));
             App.changed({ step: true });
         },
         'college.add': () => {
@@ -25426,7 +25455,8 @@ I18n.override('EC', 'es', {
 
     const field = (calc, key, label, opts = {}) => `<label class="field"><span class="field-label">${label}</span>
         <input type="number" class="input" inputmode="decimal" min="0" step="${opts.step || 'any'}" data-input="calc.set" data-calc="${calc}" data-key="${key}" value="${esc(String(st()[calc][key]))}"></label>`;
-    const result = (rows) => `<div class="calc-result">${rows.map(([k, v, strong]) => `<div class="flex justify-between gap-3"><span>${k}</span><span class="${strong ? 'font-black text-base' : 'font-bold'} whitespace-nowrap">${v}</span></div>`).join('')}</div>`;
+    // An amount stays on one line; a sentence ("Never: it doesn't cover the interest") may wrap.
+    const result = (rows) => `<div class="calc-result">${rows.map(([k, v, strong]) => `<div class="flex justify-between gap-3"><span>${k}</span><span class="${strong ? 'font-black text-base' : 'font-bold'} ${String(v).length > 18 ? 'text-right' : 'whitespace-nowrap'}">${v}</span></div>`).join('')}</div>`;
 
     function render() {
         UI.html('calc-loan-in', field('loan', 'amount', 'Loan amount ($)', { step: 100 }) + field('loan', 'rate', 'Annual rate (%)', { step: 0.1 }) + field('loan', 'years', 'Term (years)', { step: 1 }));
@@ -25456,8 +25486,8 @@ I18n.override('EC', 'es', {
             + `<p class="help mt-2">${G.contributed > 0 && G.growth > G.contributed ? 'Compound interest earned more than your own deposits: that\'s why starting early pays.' : 'With more years, growth matters more and more than what you put in.'}</p>`);
 
         const need = Engine.monthlyToReach(c.goal.target, c.goal.have, c.goal.rate, c.goal.months);
-        const n = Engine.goalMonths({ target: c.goal.target, current: c.goal.have, monthly: c.goal.monthly, rate: c.goal.rate });
-        const inMonths = n === 'never' || n === null || n === undefined ? 'Never' : n === 0 ? 'You already have it' : `${n} months (${when(n)})`;
+        const g = Engine.goalMonths({ target: c.goal.target, current: c.goal.have, monthly: c.goal.monthly, rate: c.goal.rate });
+        const inMonths = g.status === 'never' || g.months === null ? 'Never' : g.months === 0 ? 'You already have it' : `${g.months} months (${when(g.months)})`;
         UI.html('calc-goal-out', result([[`To have it in ${Number(c.goal.months) || 0} months`, need > 0 ? `${money(need)}/mo` : 'You already have it', true], [`With ${money0(c.goal.monthly)}/mo you get there in`, inMonths]]));
     }
 

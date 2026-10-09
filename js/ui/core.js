@@ -24,9 +24,22 @@
         run(name, data = {}) { return actions[name] && actions[name]({ dataset: data }); },
 
         initEvents() {
+            // A number field keeps to its own min / max (and to whole numbers when its step is 1)
+            // before any handler reads it: 99999999999 years or 0.001 months never reach the plan.
+            // While typing only the max applies (typing 15 passes through 1).
+            const keepInRange = (el, commit) => {
+                if (!el || el.tagName !== 'INPUT' || el.type !== 'number' || el.value === '') return;
+                const v = Number(el.value);
+                if (!Number.isFinite(v)) return;
+                const min = el.min !== '' ? Number(el.min) : -Infinity, max = el.max !== '' ? Number(el.max) : Infinity;
+                let c = Math.min(max, v);
+                if (commit) { c = Math.max(min, c); if (el.step === '1') c = Math.round(c); }
+                if (c !== v) el.value = String(c);
+            };
             const dispatch = (attr) => (e) => {
                 const el = e.target.closest(`[${attr}]`);
                 if (!el) return;
+                if (attr !== 'data-action') keepInRange(el, attr === 'data-change' || e.type === 'change');
                 const fn = actions[el.getAttribute(attr)];
                 if (!fn) { console.warn('Unregistered action:', el.getAttribute(attr)); return; }
                 if (attr === 'data-action' && el.tagName === 'A') e.preventDefault();

@@ -419,7 +419,7 @@
                     <span class="field-label">State and city</span>
                     <select class="input" id="inc-state" data-change="us.state" aria-label="Status"></select>
                     <div class="grid grid-cols-2 gap-2 mt-1">
-                        <label><span class="help block" id="inc-state-rate-label">State income tax (%)</span><input type="number" class="input" min="0" step="0.01" id="inc-state-rate" data-change="us.stateRate" placeholder="Automatic"></label>
+                        <label><span class="help block" id="inc-state-rate-label">State income tax (%)</span><input type="number" class="input" min="0" max="20" step="0.01" id="inc-state-rate" data-change="us.stateRate" placeholder="Automatic"></label>
                         <label><span class="help block">City income tax (%)</span><select class="input" id="inc-city" data-change="us.city"></select></label>
                     </div>
                     <label class="check mt-1" id="inc-city-resident"><input type="checkbox" data-bind="year.localResident" data-structural="true"><span>I live in this city <span class="block text-[11px] font-normal text-slate-500">If you only work there, you pay the non-resident rate (half).</span></span></label>
@@ -1007,8 +1007,8 @@
             </table></div>
             <div class="flex flex-wrap items-end gap-3 mt-3">
                 <button type="button" class="btn btn-secondary btn-sm" data-action="college.add"><i class="fa-solid fa-plus"></i> Add child</button>
-                <label class="field" style="width:9rem"><span class="field-label">Cost rises (%/yr)</span><input type="number" class="input" id="college-infl" min="0" step="0.5" data-input="college.setting" data-field="costInflation"></label>
-                <label class="field" style="width:9rem"><span class="field-label">Savings return (%/yr)</span><input type="number" class="input" id="college-ret" min="0" step="0.5" data-input="college.setting" data-field="returnPct"></label>
+                <label class="field" style="width:9rem"><span class="field-label">Cost rises (%/yr)</span><input type="number" class="input" id="college-infl" min="0" max="50" step="0.5" data-input="college.setting" data-field="costInflation"></label>
+                <label class="field" style="width:9rem"><span class="field-label">Savings return (%/yr)</span><input type="number" class="input" id="college-ret" min="0" max="50" step="0.5" data-input="college.setting" data-field="returnPct"></label>
             </div>
             <div id="college-results" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4"></div>
             <p class="help mt-2" data-country="US">Starting costs: College Board 2024–25 averages (tuition, fees, room and board). Change them to the school you have in mind.</p>

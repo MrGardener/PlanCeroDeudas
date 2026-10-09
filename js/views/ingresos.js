@@ -376,7 +376,7 @@
             App.undoable(`Bonus "${(b && b.name) || ''}" removed`, () => { y.bonuses = y.bonuses.filter(x => x !== b); });
         },
         'us.state': (el) => { const y = Store.active(); y.state = el.value; y.stateRate = null; y.localName = ''; y.localRate = 0; App.changed({ structural: true, step: true }); },
-        'us.stateRate': (el) => { Store.active().stateRate = el.value === '' ? null : Math.max(0, Fmt.parseNum(el.value, 0)); App.changed({ step: true }); },
+        'us.stateRate': (el) => { Store.active().stateRate = el.value === '' ? null : Math.min(20, Math.max(0, Fmt.parseNum(el.value, 0))); App.changed({ step: true }); },
         'us.city': async (el) => {
             const y = Store.active();
             if (el.value === '__custom') {

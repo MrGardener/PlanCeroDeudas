@@ -21,7 +21,8 @@
     function render(ctx) {
         if (!document.getElementById('metas-college')) return;
         const c = cfg(), d = defs(), goals = ctx.state.goals || [];
-        const num = (k, field, step, val, ph) => `<input type="number" class="cell-input num" min="0" step="${step}" data-input="college.set" data-id="${k.id}" data-field="${field}" value="${val === null || val === undefined ? '' : esc(String(val))}" ${ph ? `placeholder="${esc(ph)}"` : ''}>`;
+        const MAX = { age: 30, years: 10 };
+        const num = (k, field, step, val, ph) => `<input type="number" class="cell-input num" min="0" ${MAX[field] ? `max="${MAX[field]}"` : ''} step="${step}" data-input="college.set" data-id="${k.id}" data-field="${field}" value="${val === null || val === undefined ? '' : esc(String(val))}" ${ph ? `placeholder="${esc(ph)}"` : ''}>`;
         UI.html('college-body', c.kids.length ? c.kids.map(k => {
             const g = goalOf(k), t = typeOf(k);
             return `<tr data-row="${k.id}">
@@ -67,11 +68,11 @@
             if (f === 'name' || f === 'type') k[f] = el.value;
             else if (f === 'goalId') k.goalId = el.value ? Number(el.value) : null;
             else if (f === 'cost') k.cost = el.value === '' ? null : Math.max(0, Fmt.parseNum(el.value, 0));
-            else k[f] = Math.max(0, Fmt.parseNum(el.value, 0));
+            else k[f] = Math.min(f === 'age' ? 30 : f === 'years' ? 10 : Fmt.MAX_INPUT, Math.max(0, Fmt.parseNum(el.value, 0)));
             App.changed({ structural: f === 'goalId' || f === 'type', step: true });
         },
         'college.setting': (el) => {
-            cfg()[el.dataset.field] = el.value === '' ? null : Math.max(0, Fmt.parseNum(el.value, 0));
+            cfg()[el.dataset.field] = el.value === '' ? null : Math.min(50, Math.max(0, Fmt.parseNum(el.value, 0)));
             App.changed({ step: true });
         },
         'college.add': () => {

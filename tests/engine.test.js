@@ -1844,3 +1844,17 @@ test('household paychecks (US): joint return shares federal and state tax; FICA 
     assert.equal(E.paycheckLines(typed)[0].amount, 650);
     assert.deepEqual(E.payroll(typed).earners, []);
 });
+
+test('typed numbers: thousands commas, and nothing beyond ±100 billion (no Infinity in the plan)', () => {
+    const F = require('../js/format.js');
+    assert.equal(F.parseNum('1,234.56'), 1234.56);
+    assert.equal(F.parseNum(' 42 '), 42);
+    assert.equal(F.parseNum('1e308'), F.MAX_INPUT);
+    assert.equal(F.parseNum('-1e308'), -F.MAX_INPUT);
+    assert.equal(F.parseNum('abc', 7), 7);
+    assert.equal(F.parseNum('', null), null);
+    assert.ok(Number.isFinite(F.parseNum('1e308') * 1000));
+    // A college plan with an impossible number of years doesn't hang.
+    const p = E.collegePlan({ age: 5, years: 99999999999, annualCost: 10000, returnPct: 99999 });
+    assert.ok(Number.isFinite(p.total) && p.total > 0);
+});

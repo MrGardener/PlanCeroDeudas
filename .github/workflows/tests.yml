@@ -43,3 +43,30 @@ jobs:
           name: e2e-output
           path: tests/e2e/out/
           retention-days: 7
+
+  # Every field on every screen with boundary values (empty, 0, negative, huge, text, a script tag,
+  # impossible dates, every option): tests/e2e/e2e-bounds.js. Three parts side by side.
+  bounds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ['US computer', 'US phone', 'Ecuador computer']
+    name: bounds (${{ matrix.part }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: mobile
+      - name: Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Boundary values in every field
+        run: node tests/e2e/e2e-bounds.js "${{ matrix.part }}"

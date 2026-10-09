@@ -1663,9 +1663,11 @@
     // One child's studies: the total cost when they start (each year's cost grown by college-cost
     // inflation), what the savings will have grown to, the gap and the monthly saving that closes it.
     function collegePlan({ age = 0, startAge = 18, years = 4, annualCost = 0, costInflation = 5, saved = 0, monthly = 0, returnPct = 6 }) {
-        const toStart = Math.max(0, num(startAge) - num(age));
-        const n = Math.max(1, Math.round(num(years)));
-        const g = 1 + num(costInflation) / 100;
+        // Kept to what a school can be (a typo of 99999999999 years mustn't hang the page).
+        const toStart = Math.min(30, Math.max(0, num(startAge) - num(age)));
+        const n = Math.min(10, Math.max(1, Math.round(num(years))));
+        const g = 1 + Math.min(50, Math.max(0, num(costInflation))) / 100;
+        returnPct = Math.min(50, Math.max(0, num(returnPct)));
         const total = sum(Array.from({ length: n }, (_, k) => k), k => num(annualCost) * Math.pow(g, toStart + k));
         const projected = growthValue(saved, monthly, returnPct, toStart, 0).value;
         const gap = Math.max(0, total - projected);
@@ -2241,7 +2243,7 @@
     // (which ends the loan early instead of running the full contracted term).
     function amortization(system, principal, annualRatePct, months, extraMonthly) {
         principal = Math.max(0, num(principal));
-        months = Math.max(1, Math.round(num(months)));
+        months = Math.min(600, Math.max(1, Math.round(num(months))));      // at most 50 years
         const extra = Math.max(0, num(extraMonthly));
         const i = Math.max(0, num(annualRatePct)) / 1200;
         const fixedPayment = frenchPayment(principal, num(annualRatePct), months);
@@ -2342,8 +2344,8 @@
     // today's money with inflation, so they add up with Social Security / the IESS pension, which
     // are estimated in today's money. A pension only counts from the age you can collect it.
     function retirement(inp) {
-        const edadActual = Math.max(0, Math.round(num(inp.edadActual)));
-        const edadJubilacion = Math.max(edadActual, Math.round(num(inp.edadJubilacion)) || 65);
+        const edadActual = Math.min(110, Math.max(0, Math.round(num(inp.edadActual))));
+        const edadJubilacion = Math.min(110, Math.max(edadActual, Math.round(num(inp.edadJubilacion)) || 65));
         const anios = edadJubilacion - edadActual;
         const months = anios * 12;
         const rate = Math.max(0, num(inp.tasaRetorno));

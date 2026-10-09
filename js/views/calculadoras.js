@@ -22,7 +22,8 @@
 
     const field = (calc, key, label, opts = {}) => `<label class="field"><span class="field-label">${label}</span>
         <input type="number" class="input" inputmode="decimal" min="0" step="${opts.step || 'any'}" data-input="calc.set" data-calc="${calc}" data-key="${key}" value="${esc(String(st()[calc][key]))}"></label>`;
-    const result = (rows) => `<div class="calc-result">${rows.map(([k, v, strong]) => `<div class="flex justify-between gap-3"><span>${k}</span><span class="${strong ? 'font-black text-base' : 'font-bold'} whitespace-nowrap">${v}</span></div>`).join('')}</div>`;
+    // An amount stays on one line; a sentence ("Never: it doesn't cover the interest") may wrap.
+    const result = (rows) => `<div class="calc-result">${rows.map(([k, v, strong]) => `<div class="flex justify-between gap-3"><span>${k}</span><span class="${strong ? 'font-black text-base' : 'font-bold'} ${String(v).length > 18 ? 'text-right' : 'whitespace-nowrap'}">${v}</span></div>`).join('')}</div>`;
 
     function render() {
         UI.html('calc-loan-in', field('loan', 'amount', 'Loan amount ($)', { step: 100 }) + field('loan', 'rate', 'Annual rate (%)', { step: 0.1 }) + field('loan', 'years', 'Term (years)', { step: 1 }));
@@ -52,8 +53,8 @@
             + `<p class="help mt-2">${G.contributed > 0 && G.growth > G.contributed ? 'Compound interest earned more than your own deposits: that\'s why starting early pays.' : 'With more years, growth matters more and more than what you put in.'}</p>`);
 
         const need = Engine.monthlyToReach(c.goal.target, c.goal.have, c.goal.rate, c.goal.months);
-        const n = Engine.goalMonths({ target: c.goal.target, current: c.goal.have, monthly: c.goal.monthly, rate: c.goal.rate });
-        const inMonths = n === 'never' || n === null || n === undefined ? 'Never' : n === 0 ? 'You already have it' : `${n} months (${when(n)})`;
+        const g = Engine.goalMonths({ target: c.goal.target, current: c.goal.have, monthly: c.goal.monthly, rate: c.goal.rate });
+        const inMonths = g.status === 'never' || g.months === null ? 'Never' : g.months === 0 ? 'You already have it' : `${g.months} months (${when(g.months)})`;
         UI.html('calc-goal-out', result([[`To have it in ${Number(c.goal.months) || 0} months`, need > 0 ? `${money(need)}/mo` : 'You already have it', true], [`With ${money0(c.goal.monthly)}/mo you get there in`, inMonths]]));
     }
 
