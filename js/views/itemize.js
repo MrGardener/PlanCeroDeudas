@@ -26,8 +26,11 @@
         const yd = ctx.year, p = ctx.pay, c = cfg(yd), a = auto(ctx);
         const val = (k) => (c[k] === null || c[k] === undefined || c[k] === '' ? a[k] : Number(c[k]) || 0);
         const w = yd.withholding || {};
-        const income = (Number(p.incomeWages) || 0) + (yd.filingStatus === 'mfj' ? Number(w.spouseWages) || 0 : 0) + (Number(w.untaxed) || 0);
-        const saltIncome = ((Number(p.stateM) || 0) + (Number(p.localM) || 0)) * 12;
+        // A joint return carries the other paychecks' wages and their state and city tax too.
+        const j = Engine.jointWagesUS(p, w);
+        const income = (Number(p.incomeWages) || 0) + j.wages + (Number(w.untaxed) || 0);
+        const earners = j.joint ? p.earners || [] : [];
+        const saltIncome = ((Number(p.stateM) || 0) + (Number(p.localM) || 0) + earners.reduce((a, e) => a + (Number(e.stateM) || 0) + (Number(e.localM) || 0), 0)) * 12;
         const r = Engine.usItemizeCheck({ yd, income, mortgageInterest: val('mortgage'), saltIncome, propertyTax: val('property'), charity: val('charity'), medical: val('medical') });
         return { yd, c, a, val, saltIncome, r };
     }
@@ -86,5 +89,5 @@
         }
     });
 
-    window.Itemize = { render, giftsOffStandard };
+    window.Itemize = { render, giftsOffStandard, check };
 })();

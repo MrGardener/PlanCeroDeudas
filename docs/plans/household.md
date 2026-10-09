@@ -28,8 +28,12 @@ Ask: **"Do step N of docs/plans/household.md"** (or "continue the household plan
 3. ✅ **Expenses per person**: Reports → By person — each one's pay before taxes, taxes, take-home
    and retirement savings (a month), what they received and spent in the report's period, and what
    they spend most on; shared spending under Household. (Later: a budget line can belong to someone.)
-4. **Tax tools per person**: side-income tax set-aside per person, itemizing on the joint return,
-   each W-4.
+4. ✅ **Tax tools per person**: side-income taxes person by person (each one's self-employment tax
+   with their own Social Security room; income tax on the joint return, or on their own as single);
+   itemizing counts the joint return's wages and both paychecks' state and city tax; the refund
+   screen's W-4 note for two jobs on one return (Step 2(c)), and on separate returns each other
+   earner's own federal tax and what their paycheck should withhold.
+   (Later: separate ages and 401(k)/IRA limits per person; a budget line that belongs to someone.)
 
 ## Notes
 - New saved fields get defaults in `newState()` / `newYear()`; each engine change gets a unit test.

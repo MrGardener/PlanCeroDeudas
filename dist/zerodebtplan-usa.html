@@ -5891,6 +5891,16 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Side income": "Ingreso extra",
+    "Calculated for": "Calculado para",
+    "Check Step 2(c) on both W-4s when the pays are about the same, or put the extra withholding on the higher-paying job's W-4.": "Marca el Paso 2(c) en los dos W-4 cuando los sueldos sean parecidos, o pon la retención extra en el W-4 del trabajo que paga más.",
+    "Compare it with their pay stub.": "Compáralo con su talón de pago.",
+    "Files separately.": "Declara por separado.",
+    "On their own return, as single.": "En su propia declaración, como soltero/a.",
+    "On your joint return.": "En tu declaración conjunta.",
+    "Two jobs, one return:": "Dos trabajos, una declaración:",
+    "a W-4 filled in as if it were the only job withholds too little.": "un W-4 llenado como si fuera el único trabajo retiene muy poco.",
+    "files their own return: about {0} of federal tax for the year, {1} per paycheck every 2 weeks.": "presenta su propia declaración: unos {0} de impuesto federal al año, {1} por cheque cada 2 semanas.",
     "Pay, taxes and retirement savings are a month; take-home is after taxes and payroll deductions (income typed as take-home counts as it is).": "El sueldo, los impuestos y el ahorro para la jubilación son al mes; lo que llega es después de impuestos y descuentos del rol (los ingresos escritos como netos cuentan tal cual).",
     "Take-home": "Lo que llega",
     "By person": "Por persona",
@@ -11854,7 +11864,7 @@ I18n.override('EC', 'es', {
     // wages), then federal income tax on top of your other taxable income — half the SE tax and the
     // 20% qualified-business-income deduction come off first — plus the state's flat rate.
     // Ecuador: the extra income tax from the SRI table when it's added to your taxable base.
-    function sideIncomeTax({ country = 'US', net = 0, yd = {}, wages = 0, taxableBefore = 0, stateRate = 0, ecBase = 0 }) {
+    function sideIncomeTax({ country = 'US', net = 0, yd = {}, wages = 0, taxableBefore = 0, stateRate = 0, ecBase = 0, status: asked = null }) {
         const n = Math.max(0, num(net));
         if (n <= 0) return { net: 0, total: 0, pct: 0, parts: {} };
         if (country !== 'US') {
@@ -11863,7 +11873,7 @@ I18n.override('EC', 'es', {
             return { net: cents(n), total: cents(ir), pct: ir / n, parts: { ir: cents(ir) } };
         }
         const t = yd.usTax || {};
-        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const status = ['single', 'mfj', 'hoh'].includes(asked || yd.filingStatus) ? asked || yd.filingStatus : 'single';
         const base = n * 0.9235;
         const ssRoom = Math.max(0, (num(t.ssWageBase) || Infinity) - num(wages));
         const se = Math.min(base, ssRoom) * 2 * num(t.ssRate) / 100 + base * 2 * num(t.medicareRate) / 100;
@@ -11873,7 +11883,41 @@ I18n.override('EC', 'es', {
         const fed = bracketTax(num(taxableBefore) + added, brackets) - bracketTax(num(taxableBefore), brackets);
         const state = n * num(stateRate) / 100;
         const total = se + fed + state;
-        return { net: cents(n), total: cents(total), pct: total / n, parts: { se: cents(se), fed: cents(fed), state: cents(state) } };
+        return { net: cents(n), total: cents(total), pct: total / n, added, parts: { se: cents(se), fed: cents(fed), state: cents(state) } };
+    }
+
+    // Wages on the household's federal return besides the main paycheck: the other paychecks'
+    // (Income & Taxes) when filing jointly, unless an amount was typed (yd.withholding); none on
+    // separate returns. Their withholding: typed, or their share of the tax as if their W-4 were right.
+    function jointWagesUS(pay, w = {}) {
+        const joint = !!(pay && pay.household && pay.household.joint);
+        const earners = joint ? (pay.earners || []) : [];
+        const fromPay = sum(earners, e => num(e.incomeWages));
+        const typed = num(w.spouseWages);
+        return { joint, earners: earners.length, fromPay, wages: joint ? typed || fromPay : 0,
+            withheld: joint ? num(w.spouseWithheld) || (typed ? 0 : sum(earners, e => num(e.fedM) * 12)) : 0, withheldFromPay: sum(earners, e => num(e.fedM) * 12) };
+    }
+
+    // Side income's taxes person by person (US): self-employment tax on each one's own earnings, with
+    // Social Security only up to the wage base their own paycheck leaves; income tax on the joint
+    // return stacked on the household's taxable income (filing jointly), or each on their own return
+    // (the main earner with the filing status, the others as single). people: [{ memberId, net }]
+    // (memberId null or the main earner's = the main paycheck).
+    function sideIncomeTaxes({ yd = {}, pay = {}, people = [], mainId = null, stateRate = 0, typedSpouseWages = 0 }) {
+        const joint = !!(pay.household && pay.household.joint);
+        const earners = pay.earners || [];
+        // A spouse's wages typed on the refund screen count when no other paycheck is entered.
+        let jointBase = num(pay.baseImponible) + (joint && !earners.length ? num(typedSpouseWages) : 0);
+        return people.map(x => {
+            const isMain = !x.memberId || x.memberId === mainId;
+            const e = isMain ? null : earners.find(k => k.memberId === x.memberId);
+            const wages = isMain ? num(pay.sueldoAnual) : e ? num(e.annual) : 0;
+            const taxableBefore = joint ? jointBase : isMain ? num(pay.baseImponible) : e ? num(e.baseImponible) : 0;
+            const status = joint ? 'mfj' : isMain ? yd.filingStatus : 'single';
+            const r = sideIncomeTax({ country: 'US', net: x.net, yd, status, wages, taxableBefore, stateRate });
+            if (joint) jointBase += r.added || 0;
+            return Object.assign({ memberId: x.memberId || null, main: isMain, joint }, r);
+        });
     }
 
     // Refund or owe: the year's federal tax for the household against what will have been withheld
@@ -11991,7 +12035,8 @@ I18n.override('EC', 'es', {
             return { id: o.line.id, memberId: o.line.memberId, name: o.line.name, sueldo: c.sueldo, annual: c.w.gross, gross: c.w.pay, budgetShare: c.share,
                 ssM: c.w.ssAnnual / 12 * c.share, medM: c.w.medAnnual / 12 * c.share, ficaM: c.ficaM, fedM: c.fed / 12 * c.share, stateM: c.state / 12 * c.share,
                 localM: c.local.annual / 12 * c.share, localRate: c.local.rate, localResident: c.local.resident, isrM: c.incomeTaxAnnual / 12 * c.share,
-                pretaxM: (c.w.pretaxRetire + c.w.pretax125) / 12, incomeWages: c.w.incomeWages, otrosDescuentosM: c.otros, netoAntesM: c.netoAntesM, netoM: c.netoM, avgTaxRate: c.avgTaxRate };
+                pretaxM: (c.w.pretaxRetire + c.w.pretax125) / 12, incomeWages: c.w.incomeWages, otrosDescuentosM: c.otros, netoAntesM: c.netoAntesM, netoM: c.netoM, avgTaxRate: c.avgTaxRate,
+                baseImponible: joint ? fedMain.taxable : usFederalTax({ income: c.w.incomeWages, status: 'single', t }).taxable };
         });
         const ficaAll = total(w => w.ssAnnual + w.medAnnual);
         return {
@@ -14674,7 +14719,7 @@ I18n.override('EC', 'es', {
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, jointWagesUS, sideIncomeTaxes, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
@@ -19952,11 +19997,10 @@ I18n.override('EC', 'es', {
         const computedPer = k.paid + k.left > 0 ? p.fedM * 12 / (k.paid + k.left) : 0;
         // Filing jointly with the household's other paychecks (Income & Taxes): their wages count on
         // the same return; their withholding is assumed to be their share until it's typed.
-        const joint = p.household && p.household.joint && (p.earners || []).length;
-        const payWages = joint ? p.earners.reduce((a, e) => a + e.incomeWages, 0) : 0;
-        const payWithheld = joint ? p.earners.reduce((a, e) => a + e.fedM * 12, 0) : 0;
-        const spouseWages = Number(c.spouseWages) || payWages;
-        const spouseWithheld = Number(c.spouseWithheld) || (Number(c.spouseWages) ? 0 : payWithheld);
+        const j = Engine.jointWagesUS(p, c);
+        const joint = j.joint && j.earners > 0;
+        const payWages = j.fromPay, payWithheld = j.withheldFromPay;
+        const spouseWages = j.wages, spouseWithheld = j.withheld;
         const inputs = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             ${field('perCheck', 'Federal withholding per paycheck ($)', c.perCheck, `From your latest pay stub ("Federal Withholding"). Based on your W-4 it would be about ${money0(computedPer)}.`)}
             ${field('ytd', 'Withheld so far this year ($)', c.ytd, `The stub's year-to-date ("YTD"). Empty = ${k.paid} paychecks × the amount above.`, money0(per * k.paid))}
@@ -19977,11 +20021,19 @@ I18n.override('EC', 'es', {
             ? `<p class="text-xs mt-2"><strong>W-4:</strong> to avoid owing, ask for <strong>${money(r.adjustPerCheck)} more per paycheck</strong> (Step 4(c), "Extra withholding") on your ${k.left} remaining paychecks.${r.penaltyRisk ? ' <span class="text-red-700">Owing more than $1,000 can bring an underpayment penalty.</span>' : ''}</p>`
             : r.diff > 1500 ? `<p class="text-xs mt-2"><strong>W-4:</strong> you're lending the IRS ${money0(r.diff)} interest-free. You could withhold about <strong>${money(-r.adjustPerCheck)} less per paycheck</strong> and send that money to your plan each month.</p>`
             : '<p class="text-xs mt-2 text-emerald-700"><i class="fa-solid fa-circle-check"></i> Your withholding is well tuned.</p>';
+        // Each W-4: two jobs on one return need it said on the W-4s; on separate returns, each
+        // other earner's own federal tax and about what their paycheck should withhold.
+        const members = ctx.state.members || [];
+        const nameOf = (e) => (members.find(m => m.id === e.memberId) || {}).name || e.name;
+        const others = (p.earners || []).filter(e => e.sueldo > 0);
+        const eachW4 = !others.length ? ''
+            : joint ? '<p class="text-xs mt-2"><strong>Two jobs, one return:</strong> <span>a W-4 filled in as if it were the only job withholds too little.</span> <span>Check Step 2(c) on both W-4s when the pays are about the same, or put the extra withholding on the higher-paying job\'s W-4.</span></p>'
+            : `<div class="text-xs mt-2 space-y-1">${others.map(e => `<p><strong data-i18n-skip>${esc(nameOf(e))}</strong> <span>files their own return: about ${money0(e.fedM * 12)} of federal tax for the year, ${money0(e.fedM * 12 / 26)} per paycheck every 2 weeks.</span> <span>Compare it with their pay stub.</span></p>`).join('')}</div>`;
         UI.html('inc-refund', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
                 <div class="kpi tone-slate"><span class="kpi-label">Federal tax for the year</span><span class="kpi-value">${money0(r.tax)}</span><span class="kpi-note">on ${money0(r.income)}, minus ${money0(r.dedApplied)} deduction${r.credits ? ` and ${money0(r.credits)} in credits` : ''}</span></div>
                 <div class="kpi tone-slate"><span class="kpi-label">Withheld for the year</span><span class="kpi-value">${money0(r.withheld)}</span><span class="kpi-note">${money0(ytd)} so far + ${k.left} paychecks${k.assumed ? ' (every 2 weeks)' : ''}</span>${r.bonusWithheld > 0 ? `<span class="kpi-note">Includes ${money0(r.bonusWithheld)} withheld from bonuses (22%)</span>` : ''}</div>
                 <div class="kpi ${tone}"><span class="kpi-label">${r.diff >= 0 ? 'Your refund would be' : 'You\'d owe'}</span><span class="kpi-value">${money0(Math.abs(r.diff))}</span><span class="kpi-note">${big ? (r.diff >= 0 ? 'in April' : 'when you file in April') : 'close to zero'}</span></div>
-            </div>${w4}
+            </div>${w4}${eachW4}
             <p class="help mt-2">An estimate of federal tax on wages only (not state, nor special credits). For an exact W-4, use the IRS Tax Withholding Estimator.</p>`);
     }
 
@@ -20025,8 +20077,11 @@ I18n.override('EC', 'es', {
         const yd = ctx.year, p = ctx.pay, c = cfg(yd), a = auto(ctx);
         const val = (k) => (c[k] === null || c[k] === undefined || c[k] === '' ? a[k] : Number(c[k]) || 0);
         const w = yd.withholding || {};
-        const income = (Number(p.incomeWages) || 0) + (yd.filingStatus === 'mfj' ? Number(w.spouseWages) || 0 : 0) + (Number(w.untaxed) || 0);
-        const saltIncome = ((Number(p.stateM) || 0) + (Number(p.localM) || 0)) * 12;
+        // A joint return carries the other paychecks' wages and their state and city tax too.
+        const j = Engine.jointWagesUS(p, w);
+        const income = (Number(p.incomeWages) || 0) + j.wages + (Number(w.untaxed) || 0);
+        const earners = j.joint ? p.earners || [] : [];
+        const saltIncome = ((Number(p.stateM) || 0) + (Number(p.localM) || 0) + earners.reduce((a, e) => a + (Number(e.stateM) || 0) + (Number(e.localM) || 0), 0)) * 12;
         const r = Engine.usItemizeCheck({ yd, income, mortgageInterest: val('mortgage'), saltIncome, propertyTax: val('property'), charity: val('charity'), medical: val('medical') });
         return { yd, c, a, val, saltIncome, r };
     }
@@ -20085,7 +20140,7 @@ I18n.override('EC', 'es', {
         }
     });
 
-    window.Itemize = { render, giftsOffStandard };
+    window.Itemize = { render, giftsOffStandard, check };
 })();
 </script>
     <script>/* js/views/mezcla.js */
@@ -20285,25 +20340,33 @@ I18n.override('EC', 'es', {
 <script>/* js/views/sideincome.js */
 /* Ingresos → Impuestos de tus ingresos extra: freelance / small-business income of the last 12
  * months (minus its business expenses) and how much of it to set aside for taxes
- * (Engine.sideIncomeTax). US: self-employment + income tax + state, and the quarterly due dates. */
+ * (Engine.sideIncomeTaxes), person by person: each one's self-employment tax, and income tax on the
+ * joint return or their own. US: self-employment + income tax + state, and the quarterly due dates. */
 (function () {
     'use strict';
     const { money, money0, esc } = Fmt;
     const SIDE = 'Ingresos Independientes', BIZ = 'Negocio Propio / Freelance';
 
+    // Side income of the last 12 months, person by person: income under SIDE by whose it is (none,
+    // the household or the first person = the main earner), each one's business expenses off their
+    // own (expenses of someone with no side income go to whoever earns the most of it).
     function facts(ctx) {
         const s = ctx.state, t = ctx.today;
         const since = Engine.isoDate(new Date(t.getFullYear() - 1, t.getMonth(), t.getDate() + 1)), month = Engine.isoDate(t).slice(0, 7);
         const inc = s.transactions.filter(x => x.type === 'Ingreso' && x.parentCategory === SIDE && x.date >= since);
         const exp = s.transactions.filter(x => (x.type || 'Gasto') === 'Gasto' && x.parentCategory === BIZ && x.date >= since);
-        const income = inc.reduce((a, x) => a + Number(x.amount), 0), expenses = exp.reduce((a, x) => a + Engine.spendAmount(x), 0);
-        const thisMonth = inc.filter(x => x.date.startsWith(month)).reduce((a, x) => a + Number(x.amount), 0);
-        // Who earns it (Ecuador taxes each person separately): when it's all someone other than
-        // the main earner (the first person in the household), it isn't added to the salary.
         const members = s.members || [], main = members[0];
-        const owners = [...new Set(inc.map(x => x.memberId).filter(Boolean))];
-        const other = main && owners.length > 0 && !owners.includes(main.id) ? members.find(m => m.id === owners[0]) : null;
-        return { income, expenses, net: Math.max(0, income - expenses), thisMonth, count: inc.length, other: owners.length === 1 ? other : null };
+        const keyOf = (x) => (members.some(m => m.id === x.memberId) && x.memberId !== (main && main.id) ? x.memberId : 0);
+        const by = {};
+        const person = (k) => by[k] || (by[k] = { memberId: k || null, name: k ? (members.find(m => m.id === k) || {}).name : (main ? main.name : ''), income: 0, expenses: 0, thisMonth: 0, count: 0 });
+        inc.forEach(x => { const p = person(keyOf(x)); p.income += Number(x.amount) || 0; p.count++; if (x.date.startsWith(month)) p.thisMonth += Number(x.amount) || 0; });
+        const earning = Object.values(by).sort((a, b) => b.income - a.income);
+        exp.forEach(x => { const p = by[keyOf(x)] || earning[0]; if (p) p.expenses += Engine.spendAmount(x); });
+        const people = earning.map(p => Object.assign(p, { net: Math.max(0, p.income - p.expenses) }));
+        const total = (k) => people.reduce((a, p) => a + p[k], 0);
+        const expenses = exp.reduce((a, x) => a + Engine.spendAmount(x), 0);
+        return { people, income: total('income'), expenses, net: total('net'), thisMonth: total('thisMonth'), count: inc.length,
+            other: people.length === 1 && people[0].memberId ? members.find(m => m.id === people[0].memberId) : null };
     }
 
     function quarterly(today) {
@@ -20312,25 +20375,39 @@ I18n.override('EC', 'es', {
         return dues.find(d => d >= today) || new Date(y + 1, 3, 15);
     }
 
+    // Each person's estimate: US on the joint return or their own (Engine.sideIncomeTaxes);
+    // Ecuador taxes each person separately (the main earner's on top of their salary).
+    function taxes(ctx, f) {
+        const p = ctx.pay, yd = ctx.year;
+        if (p.country === 'US') return Engine.sideIncomeTaxes({ yd, pay: p, people: f.people, stateRate: p.stateRate, typedSpouseWages: (yd.withholding || {}).spouseWages });
+        return f.people.map(x => Engine.sideIncomeTax({ country: 'EC', net: x.net, yd, ecBase: x.memberId ? 0 : p.baseImponible }));
+    }
+
     function render(ctx) {
         if (!document.getElementById('inc-side')) return;
         const f = facts(ctx), p = ctx.pay, yd = ctx.year, us = p.country === 'US';
         if (!f.count) { UI.html('inc-side', `<p class="help">When you log income under «${esc(SIDE)}» (gigs, sales, professional fees), you'll see here how much to set aside for taxes.</p>`); return; }
-        const w = yd.withholding || {};
-        const r = Engine.sideIncomeTax(us
-            ? { country: 'US', net: f.net, yd, wages: p.sueldoAnual + (Number(w.spouseWages) || 0), taxableBefore: p.baseImponible + (Number(w.spouseWages) || 0), stateRate: p.stateRate }
-            : { country: 'EC', net: f.net, yd, ecBase: f.other ? 0 : p.baseImponible });
-        const pct = Math.round(r.pct * 100);
+        const each = taxes(ctx, f);
+        const add = (get) => each.reduce((a, r) => a + (get(r) || 0), 0);
+        const r = { total: add(x => x.total), parts: { se: add(x => x.parts.se), fed: add(x => x.parts.fed), state: add(x => x.parts.state) } };
+        const pct = f.net > 0 ? Math.round(r.total / f.net * 100) : 0;
         const parts = us ? `autoempleo ${money0(r.parts.se)} + federal ${money0(r.parts.fed)}${r.parts.state ? ` + estatal ${money0(r.parts.state)}` : ''}` : `income tax at your rate`;
         const due = quarterly(ctx.today);
+        const joint = us && !!(p.household && p.household.joint);
+        // Whose return it goes on (someone other than the main earner).
+        const whose = (x) => (!x.memberId ? '' : joint ? 'On your joint return.' : us ? 'On their own return, as single.' : 'Files separately.');
+        const byPerson = f.people.length > 1 ? `<div class="table-wrap mt-3"><table class="table"><thead><tr><th style="min-width:9rem">Person</th><th class="num">Side income</th><th class="num">Estimated taxes</th><th class="num">Set aside</th></tr></thead><tbody>${f.people.map((x, i) => `<tr>
+                <td><span class="font-semibold" data-i18n-skip>${esc(x.name || '')}</span>${whose(x) ? `<div class="text-[11px] text-slate-500">${whose(x)}</div>` : ''}</td>
+                <td class="num whitespace-nowrap">${money0(x.net)}</td><td class="num whitespace-nowrap">${money0(each[i].total)}</td><td class="num">${Math.round(each[i].pct * 100)}%</td></tr>`).join('')}</tbody></table></div>`
+            : f.other ? `<p class="text-xs mt-3"><span>Calculated for</span> <strong data-i18n-skip>${esc(f.other.name)}</strong>. <span>${whose(f.people[0])}</span></p>` : '';
         UI.html('inc-side', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div class="kpi tone-slate"><span class="kpi-label">Side income (12 months)</span><span class="kpi-value">${money0(f.net)}</span><span class="kpi-note">${money0(f.income)} received − ${money0(f.expenses)} of business expenses</span></div>
                 <div class="kpi tone-amber"><span class="kpi-label">Estimated taxes</span><span class="kpi-value">${money0(r.total)}</span><span class="kpi-note">${parts}</span></div>
-                <div class="kpi tone-emerald"><span class="kpi-label">Set aside from each payment</span><span class="kpi-value">${pct}%</span><span class="kpi-note">${f.thisMonth ? `this month: ${money0(f.thisMonth * r.pct)} of ${money0(f.thisMonth)}` : 'of what you\'re paid'}</span></div>
-            </div>
+                <div class="kpi tone-emerald"><span class="kpi-label">Set aside from each payment</span><span class="kpi-value">${pct}%</span><span class="kpi-note">${f.thisMonth ? `this month: ${money0(f.thisMonth * pct / 100)} of ${money0(f.thisMonth)}` : 'of what you\'re paid'}</span></div>
+            </div>${byPerson}
             <p class="text-xs mt-3">${us
                 ? `No one withholds taxes from this money. Pay them quarterly (next: <strong>${esc(Fmt.dayMonth ? Fmt.dayMonth(due) : due.toISOString().slice(0, 10))}</strong>, about ${money0(r.total / 4)}) or raise the withholding on your W-4 to cover them.`
-                : `${f.other ? `<span>Calculated as ${esc(f.other.name)}'s income, who files separately.</span> ` : ''}<span>It goes in the yearly income tax return. If clients withhold tax, that part is already paid; under RIMPE the calculation is different (on sales).</span>`}
+                : '<span>It goes in the yearly income tax return. If clients withhold tax, that part is already paid; under RIMPE the calculation is different (on sales).</span>'}
                 <button type="button" class="link" data-action="side.goal" data-amount="${Math.round(r.total)}">Set up a fund for these taxes</button></p>
             <p class="help mt-1">Estimated with your ${yd.taxTableYear || ctx.state.activeYear} tables. It counts your income under «${esc(SIDE)}» and your expenses under «${esc(BIZ)}».</p>`);
     }

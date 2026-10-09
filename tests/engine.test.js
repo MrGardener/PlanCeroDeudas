@@ -1900,3 +1900,34 @@ test('personSummary: each person\'s paycheck, what they received and spent, shar
     // Nothing shared in the period: no household row.
     assert.equal(E.personSummary({ members, pay, transactions: tx.filter(t => t.id !== 5) , from: '2026-10-01', to: '2026-10-31' }).length, 2);
 });
+
+test('side income per person: Social Security room is each one\'s own; joint return stacks, separate returns don\'t', () => {
+    const U = require('../js/defaults-us.js');
+    const yd = Object.assign(U.newYear(), { filingStatus: 'mfj' });
+    const pay = { sueldoAnual: 200000, baseImponible: 150000, household: { joint: true }, earners: [{ memberId: 2, annual: 40000, baseImponible: 150000 }] };
+    const [mike, sarah, emma] = E.sideIncomeTaxes({ yd, pay, people: [{ memberId: null, net: 10000 }, { memberId: 2, net: 10000 }, { memberId: 3, net: 2000 }], stateRate: 4.25 });
+    assert.equal(mike.parts.se, 267.82);                         // over the wage base: Medicare only
+    assert.equal(sarah.parts.se, 1412.96);                       // her own wages leave room: full SE tax
+    assert.equal(emma.parts.se, Math.round(2000 * 0.9235 * 0.153 * 100) / 100);
+    // One return: Sarah's income goes on top of the household's and Mike's side income.
+    const sarahAlone = E.sideIncomeTax({ country: 'US', net: 10000, yd, status: 'mfj', wages: 40000, taxableBefore: 150000 + mike.added, stateRate: 4.25 });
+    assert.equal(sarah.parts.fed, sarahAlone.parts.fed);
+    assert.ok(mike.joint && sarah.joint && !sarah.main && mike.main);
+    // Separate returns: Sarah on her own (single) taxable income; Emma with no paycheck from zero.
+    const single = Object.assign(U.newYear(), { filingStatus: 'single' });
+    const sep = { sueldoAnual: 200000, baseImponible: 150000, household: { joint: false }, earners: [{ memberId: 2, annual: 40000, baseImponible: 25000 }] };
+    const [, s2, e2] = E.sideIncomeTaxes({ yd: single, pay: sep, people: [{ memberId: null, net: 10000 }, { memberId: 2, net: 10000 }, { memberId: 3, net: 2000 }] });
+    assert.equal(s2.parts.fed, E.sideIncomeTax({ country: 'US', net: 10000, yd: single, status: 'single', wages: 40000, taxableBefore: 25000 }).parts.fed);
+    assert.equal(e2.parts.fed, E.sideIncomeTax({ country: 'US', net: 2000, yd: single, status: 'single', wages: 0, taxableBefore: 0 }).parts.fed);
+    // A spouse's wages typed on the refund screen count on the joint return when no paycheck is entered.
+    const typed = E.sideIncomeTaxes({ yd, pay: { sueldoAnual: 80000, baseImponible: 50000, household: { joint: true }, earners: [] }, people: [{ memberId: null, net: 10000 }], typedSpouseWages: 30000 })[0];
+    assert.equal(typed.parts.fed, E.sideIncomeTax({ country: 'US', net: 10000, yd, wages: 80000, taxableBefore: 80000 }).parts.fed);
+});
+
+test('jointWagesUS: the other paychecks on a joint return, unless typed; nothing on separate returns', () => {
+    const pay = { household: { joint: true }, earners: [{ incomeWages: 30000, fedM: 200 }] };
+    assert.deepEqual([E.jointWagesUS(pay).wages, E.jointWagesUS(pay).withheld], [30000, 2400]);
+    assert.deepEqual([E.jointWagesUS(pay, { spouseWages: 35000 }).wages, E.jointWagesUS(pay, { spouseWages: 35000 }).withheld], [35000, 0]);
+    assert.equal(E.jointWagesUS(pay, { spouseWithheld: 3000 }).withheld, 3000);
+    assert.equal(E.jointWagesUS({ household: { joint: false }, earners: pay.earners }, { spouseWages: 35000 }).wages, 0);
+});

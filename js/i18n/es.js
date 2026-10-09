@@ -2,6 +2,16 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Side income": "Ingreso extra",
+    "Calculated for": "Calculado para",
+    "Check Step 2(c) on both W-4s when the pays are about the same, or put the extra withholding on the higher-paying job's W-4.": "Marca el Paso 2(c) en los dos W-4 cuando los sueldos sean parecidos, o pon la retención extra en el W-4 del trabajo que paga más.",
+    "Compare it with their pay stub.": "Compáralo con su talón de pago.",
+    "Files separately.": "Declara por separado.",
+    "On their own return, as single.": "En su propia declaración, como soltero/a.",
+    "On your joint return.": "En tu declaración conjunta.",
+    "Two jobs, one return:": "Dos trabajos, una declaración:",
+    "a W-4 filled in as if it were the only job withholds too little.": "un W-4 llenado como si fuera el único trabajo retiene muy poco.",
+    "files their own return: about {0} of federal tax for the year, {1} per paycheck every 2 weeks.": "presenta su propia declaración: unos {0} de impuesto federal al año, {1} por cheque cada 2 semanas.",
     "Pay, taxes and retirement savings are a month; take-home is after taxes and payroll deductions (income typed as take-home counts as it is).": "El sueldo, los impuestos y el ahorro para la jubilación son al mes; lo que llega es después de impuestos y descuentos del rol (los ingresos escritos como netos cuentan tal cual).",
     "Take-home": "Lo que llega",
     "By person": "Por persona",
