@@ -710,8 +710,11 @@ test('US pay: hourly with overtime — taxes on the year, the budget on base pay
     near(g.overtimeM, 25 * 1.5 * 5 * 52 / 12, 'overtime at 1.5×');
     near(g.annual, 61750, 'the year: base + overtime');
     near(g.budgetM, g.baseM, 'overtime not in the budget');
-    // Overtime counted: same as a salary of the same monthly gross.
-    near(E.payroll(hourly(true)).netoM, E.payroll(usYear({ sueldo: 61750 / 12 })).netoM, 'overtime in the budget = salary');
+    // Overtime counted: same as a salary of the same monthly gross (without the overtime
+    // deduction, which only overtime gets: then a little more).
+    const noOtDed = (y) => Object.assign(y, { usTax: Object.assign({}, y.usTax, { overtimeDeduction: null }) });
+    near(E.payroll(noOtDed(hourly(true))).netoM, E.payroll(usYear({ sueldo: 61750 / 12 })).netoM, 'overtime in the budget = salary');
+    assert.ok(E.payroll(hourly(true)).netoM > E.payroll(usYear({ sueldo: 61750 / 12 })).netoM, 'the overtime deduction lowers the tax');
     // Not counted: the budget gets its share of the year's take-home pay.
     near(E.payroll(hourly(false)).netoM, E.payroll(hourly(true)).netoM * 52000 / 61750, 'base share of the take-home');
     near(E.usGrossPay(usYear({ payType: 'hourly', hourly: { rate: 20, hours: 30, otHours: 4 } })).overtimeM, 20 * 1.5 * 4 * 52 / 12, 'overtime rate defaults to 1.5×');
@@ -1968,4 +1971,87 @@ test('categoryTrend by week and by day: points inside the window only', () => {
     assert.deepEqual([day.months, day.spend, day.unit], [['2026-09-19', '2026-09-20', '2026-09-21'], [0, 30, 20], 'day']);
     assert.deepEqual(E.trendPointRange(day, '2026-09-20'), ['2026-09-20', '2026-09-20']);
     assert.deepEqual(E.trendPointRange({ unit: 'month' }, '2026-02'), ['2026-02-01', '2026-02-28']);
+});
+
+test('paychecks: a year of pay in paychecks and months; deductions per paycheck, % of pay or a month', () => {
+    assert.equal(E.paysPerYear({ paysPerYear: 24 }), 24);
+    assert.equal(E.paysPerYear({ paySchedule: { freq: 'weekly', weekday: 5, interval: 2, anchor: '2026-01-02' } }), 26);
+    assert.equal(E.paysPerYear({ country: 'US' }), 26);
+    assert.equal(E.paysPerYear({ paysPerYear: 13 }), 12);     // not a frequency: the default
+    assert.deepEqual(E.deductionAmounts({ per: 'check', perPay: 100 }, { ppy: 26 }), { monthly: 100 * 26 / 12, annual: 2600 });
+    assert.deepEqual(E.deductionAmounts({ per: 'percent', percent: 6 }, { budgetM: 5000, annual: 66000 }), { monthly: 300, annual: 3960 });
+    assert.deepEqual(E.deductionAmounts({ monthly: 50 }), { monthly: 50, annual: 600 });
+    // Saved before types: guessed from the group, kind, pre-tax flag and name.
+    const g = (d) => E.deductionType(d).type;
+    assert.equal(g({ group: 'retirement', kind: 'retirement', pretax: true, name: '401(k) 6%' }), '401k');
+    assert.equal(g({ group: 'retirement', kind: 'retirement', pretax: false, name: 'Roth 401k' }), '401k-roth');
+    assert.equal(g({ group: 'retirement', kind: 'retirement', pretax: true, name: '403(b)' }), '403b');
+    assert.equal(g({ group: 'retirement', kind: 'hsa', pretax: true, name: 'HSA' }), 'hsa');
+    assert.equal(g({ group: 'insurance', kind: 'life', name: 'Spouse Life' }), 'life-spouse');
+    assert.equal(g({ group: 'insurance', kind: 'life', name: 'LTD' }), 'ltd');
+    assert.equal(g({ group: 'insurance', kind: 'fsa', pretax: true, name: 'Dependent Care FSA' }), 'dcfsa');
+    assert.equal(g({ group: 'employer', kind: 'retirement', name: 'ER match' }), 'match');
+    assert.equal(g({ type: 'lpfsa', group: 'other' }), 'lpfsa');                 // a type wins
+});
+
+test('paycheck deductions by type: what each lowers (income tax, Social Security and Medicare, or nothing)', () => {
+    const U = require('../js/defaults-us.js');
+    const t = U.usTax2026();
+    const base = { country: 'US', sueldo: 6000, payType: 'salary', paysPerYear: 26 };
+    const w = (deds) => E.usWages(Object.assign({}, base, { payDeductions: deds }), t);
+    const none = w([]);
+    const pre = w([{ type: '401k', per: 'percent', percent: 10 }]);
+    assert.equal(pre.incomeWages, none.incomeWages - 7200);       // 10% of $72,000
+    assert.equal(pre.ficaWages, none.ficaWages);                   // Social Security and Medicare still apply
+    const roth = w([{ type: '401k-roth', per: 'percent', percent: 10 }, { type: '401k-after', monthly: 100 }, { type: 'ltd', monthly: 20 }, { type: 'life-spouse', per: 'check', perPay: 5 }]);
+    assert.deepEqual([roth.incomeWages, roth.ficaWages], [none.incomeWages, none.ficaWages]);
+    const cafe = w([{ type: 'medical', per: 'check', perPay: 200 }, { type: 'dcfsa', monthly: 100 }, { type: 'lpfsa', monthly: 50 }, { type: 'hsa', monthly: 100 }]);
+    const yearly = 200 * 26 + 1200 + 600 + 1200;
+    assert.deepEqual([cafe.incomeWages, cafe.ficaWages], [none.incomeWages - yearly, none.ficaWages - yearly]);
+    // The budget's month: a % of the month's pay, a paycheck amount × 26 ÷ 12; the match isn't taken.
+    const s = E.payDeductionsSummary(Object.assign({}, base, { payDeductions: [{ type: '401k', group: 'retirement', kind: 'retirement', per: 'percent', percent: 5 }, { type: 'medical', group: 'insurance', per: 'check', perPay: 120 }, { type: 'match', group: 'employer', kind: 'retirement', per: 'percent', percent: 4 }] }));
+    assert.ok(Math.abs(s.taken - (300 + 120 * 26 / 12)) < 1e-9);
+    assert.ok(Math.abs(s.retirement - (300 + 240)) < 1e-9);
+});
+
+test('overtime per paycheck: hourly or salaried, in taxes always, in the budget when asked; the overtime deduction', () => {
+    const U = require('../js/defaults-us.js');
+    const t = U.usTax2026();
+    const hourly = E.usGrossPay({ country: 'US', payType: 'hourly', paysPerYear: 26, hourly: { rate: 30, hours: 40, otPerCheck: 8, otRate: 1.5 } });
+    assert.equal(hourly.otHoursY, 208);
+    assert.ok(Math.abs(hourly.overtimeM - 30 * 1.5 * 208 / 12) < 1e-9);
+    assert.equal(hourly.budgetM, hourly.baseM);                      // not counted in the budget unless asked
+    assert.equal(hourly.otPremiumY, 30 * 0.5 * 208);
+    const salary = E.usGrossPay({ country: 'US', payType: 'salary', sueldo: 52000 / 12, paysPerYear: 52, hourly: { otPerCheck: 2, otInBudget: true } });
+    assert.ok(Math.abs(salary.rate - 25) < 1e-9);                    // $52,000 ÷ 2,080 hours
+    assert.ok(Math.abs(salary.budgetM - (52000 / 12 + 25 * 1.5 * 104 / 12)) < 1e-9);
+    // Saved before per paycheck: hours a week (hourly pay only).
+    assert.equal(E.usGrossPay({ payType: 'hourly', hourly: { rate: 20, hours: 40, otHours: 5 } }).otHoursY, 260);
+    // The deduction: the extra half, capped, and the cap shrinks above $150,000 ($300,000 joint).
+    assert.equal(E.overtimeDeduction(3120, 80000, 'single', t), 3120);
+    assert.equal(E.overtimeDeduction(20000, 80000, 'single', t), 12500);
+    assert.equal(E.overtimeDeduction(20000, 200000, 'single', t), 7500);
+    assert.equal(E.overtimeDeduction(20000, 200000, 'mfj', t), 20000);
+    assert.equal(E.overtimeDeduction(5000, 80000, 'single', {}), 0);  // a table without it
+    const yd = Object.assign(U.newYear(), { country: 'US', payType: 'hourly', paysPerYear: 26, hourly: { rate: 30, hours: 40, otPerCheck: 8, otRate: 1.5 }, payDeductions: [], filingStatus: 'single', dependents: 0, state: 'MI', localName: '', localRate: 0 });
+    const p = E.payrollUS(yd);
+    const noOt = E.payrollUS(Object.assign({}, yd, { usTax: Object.assign({}, t, { overtimeDeduction: null }) }));
+    assert.equal(p.otDeduction, 3120);
+    assert.ok(Math.abs((noOt.isrAnual - p.isrAnual) - 3120 * 0.22) < 0.01);   // $3,120 less taxed at 22%
+});
+
+test('deductionLimits: 401(k) deferrals with the catch-up, 415(c) with after-tax and the match, HSA, FSAs', () => {
+    const U = require('../js/defaults-us.js');
+    const t = U.usTax2026();
+    const e = { sueldo: 20000, payType: 'salary', paysPerYear: 26, payDeductions: [
+        { type: '401k', per: 'percent', percent: 10 },          // $24,000
+        { type: '401k-roth', monthly: 100 },                     // + $1,200 = $25,200 > $24,500
+        { type: '401k-after', monthly: 3000 },                   // $36,000
+        { type: 'match', per: 'percent', percent: 6 },           // $14,400 → $75,600 > $72,000
+        { type: 'fsa', per: 'check', perPay: 100 }, { type: 'lpfsa', per: 'check', perPay: 40 },   // $3,640 > $3,400
+        { type: 'dcfsa', monthly: 600 }, { type: 'hsa', monthly: 500 }] };
+    assert.deepEqual(E.deductionLimits(e, t, 40).map(x => x.key), ['deferral', 'total', 'fsa']);
+    assert.deepEqual(E.deductionLimits(e, t, 55).map(x => x.key), ['fsa']);           // + $8,000 catch-up
+    const over = E.deductionLimits(Object.assign({}, e, { payDeductions: [{ type: 'dcfsa', monthly: 700 }, { type: 'hsa', monthly: 800 }] }), t);
+    assert.deepEqual(over.map(x => [x.key, x.amount, x.limit]), [['hsa', 9600, 8750], ['dcfsa', 8400, 7500]]);
 });

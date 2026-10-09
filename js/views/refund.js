@@ -44,7 +44,9 @@
         if (!per && !Number(c.ytd)) { UI.html('inc-refund', '<p class="text-xs mt-3"><i class="fa-solid fa-circle-info text-blue-600"></i> Enter the federal withholding from your latest pay stub to see whether you\'ll get a refund or owe.</p>'); return; }
         // Bonuses still to come this year (the income already counts them): withheld apart, at 22%.
         const bonusesLeft = (yd.bonuses || []).filter(b => Number(b.month) > ctx.today.getMonth() + 1).reduce((a, b) => a + (Number(b.amount) || 0), 0);
-        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: spouseWages, otherWithheld: spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left, stdExtra: window.Itemize ? Itemize.giftsOffStandard(ctx) : 0, bonusesLeft });
+        const r = Engine.usRefundEstimate({ yd, wagesIncome: p.incomeWages, otherWages: spouseWages, otherWithheld: spouseWithheld, untaxedIncome: c.untaxed, withheldYtd: ytd, perCheck: per, checksLeft: k.left, stdExtra: window.Itemize ? Itemize.giftsOffStandard(ctx) : 0, bonusesLeft,
+            // Overtime's extra half comes off this return's taxable income (the household's when joint).
+            overtime: (Number(p.otPremiumY) || 0) + (joint ? (p.earners || []).reduce((a, e) => a + (Number(e.otPremiumY) || 0), 0) : 0) });
         const big = Math.abs(r.diff) >= 500;
         const tone = r.diff >= 0 && r.diff < 1500 ? 'tone-emerald' : r.diff >= 0 ? 'tone-amber' : 'tone-red';
         const w4 = r.adjustPerCheck === null ? '' : r.diff < -100

@@ -123,10 +123,11 @@
         // Retirement savings = the budget's own savings rubros (not goal lines, not the emergency
         // fund line) + auto-sweep + retirement saved straight from the paycheck (401k, ahorro
         // voluntario). The employer match grows the nest egg but isn't part of YOUR 15% (Step 4).
-        lazy('payRetirement', () => Engine.payDeductionsSummary(ctx.year));
+        // (From the computed year: a deduction can be a % of pay or an amount per paycheck.)
+        lazy('payRetirement', () => Engine.payDeductionsSummary(ctx.budgetYear));
         // The household's other paychecks save for retirement too (their 401(k) and its match).
-        lazy('earnersRetirement', () => (ctx.year.otherIncomes || []).filter(l => l.pay).map(l => {
-            const d = Engine.payDeductionsSummary({ country: ctx.budgetYear.country, payDeductions: l.pay.payDeductions || [] });
+        lazy('earnersRetirement', () => Engine.otherEarners(ctx.budgetYear).map(o => {
+            const d = Engine.payDeductionsSummary(o.yd), l = o.line;
             return { id: l.id, memberId: l.memberId, name: l.name, own: d.byGroup.retirement, match: d.retirement - d.byGroup.retirement };
         }));
         lazy('ownRetirementMonthly', () => ctx.year.budgetBase.filter(i => Engine.isSavingsItem(i) && Engine.savingsPurpose(i) !== 'emergencia').reduce((t, i) => t + (Number(i.real) || 0), 0)

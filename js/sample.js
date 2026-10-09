@@ -177,13 +177,15 @@
             return {
                 sueldo: s, tasa: 4.0, filingStatus: 'mfj', dependents: y >= cur - 2 ? 2 : 1, otherDependents: 0, state: 'MI', localName: 'Grand Rapids', localResident: true,
                 otherIncomes: [{ id: 1, name: "Sarah's part-time job", amount: y >= cur ? 1900 : round5(1900 * Math.pow(0.975, cur - y)), category: 'Ingresos Laborales', memberId: SARAH }],
+                // Every 2 weeks; the 401(k) and its match as a % of pay (docs/plans/paychecks.md).
+                paysPerYear: 26,
                 payDeductions: [
-                    { id: 1, name: '401(k) 6%', group: 'retirement', kind: 'retirement', pretax: true, monthly: round2(s * 0.06) },
-                    { id: 2, name: 'Medical (family HDHP)', group: 'insurance', kind: 'health', pretax: true, monthly: y >= cur ? 465 : 440 },
-                    { id: 3, name: 'Dental', group: 'insurance', kind: 'dental', pretax: true, monthly: 48 },
-                    { id: 4, name: 'Vision', group: 'insurance', kind: 'vision', pretax: true, monthly: 12 },
-                    { id: 5, name: 'HSA', group: 'retirement', kind: 'hsa', pretax: true, monthly: 150 },
-                    { id: 6, name: '401(k) employer match 4%', group: 'employer', kind: 'retirement', pretax: false, monthly: round2(s * 0.04) }
+                    { id: 1, name: '401(k) 6%', type: '401k', group: 'retirement', kind: 'retirement', pretax: true, per: 'percent', percent: 6, monthly: round2(s * 0.06) },
+                    { id: 2, name: 'Medical (family HDHP)', type: 'medical', group: 'insurance', kind: 'health', pretax: true, monthly: y >= cur ? 465 : 440 },
+                    { id: 3, name: 'Dental', type: 'dental', group: 'insurance', kind: 'dental', pretax: true, monthly: 48 },
+                    { id: 4, name: 'Vision', type: 'vision', group: 'insurance', kind: 'vision', pretax: true, monthly: 12 },
+                    { id: 5, name: 'HSA', type: 'hsa', group: 'retirement', kind: 'hsa', pretax: true, monthly: 150 },
+                    { id: 6, name: '401(k) employer match 4%', type: 'match', group: 'employer', kind: 'retirement', pretax: false, per: 'percent', percent: 4, monthly: round2(s * 0.04) }
                 ]
             };
         };

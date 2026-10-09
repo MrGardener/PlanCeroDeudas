@@ -35,8 +35,14 @@
         ctcPhaseoutStart: { single: 200000, mfj: 400000, hoh: 200000 }, ctcPhaseoutStep: 50,
         ssRate: 6.2, ssWageBase: 184500,
         medicareRate: 1.45, addlMedicareRate: 0.9, addlMedicareThreshold: { single: 200000, mfj: 250000, hoh: 200000 }, addlMedicareWithholding: 200000,
-        // Contribution limits (for warnings)
-        limit401k: 24500, catchUp401k: 8000, limitIRA: 7500, limitHSA: { self: 4400, family: 8750 },
+        // Contribution limits (for warnings): 401(k)/403(b) deferrals, pre-tax and Roth together (457(b)
+        // has its own); catch-up from 50 (more from 60 to 63); everything incl. after-tax and the match
+        // (415(c)); health FSA (limited-purpose shares it); dependent care FSA per household (from 2026).
+        limit401k: 24500, catchUp401k: 8000, superCatchUp401k: 11250, limit415c: 72000, limitIRA: 7500, limitHSA: { self: 4400, family: 8750 },
+        limitFSA: 3400, limitDCFSA: 7500,
+        // "No tax on overtime" (2025–2028): the extra half of time-and-a-half, up to these amounts, less
+        // 10% of income above the phase-out start.
+        overtimeDeduction: { max: { single: 12500, mfj: 25000, hoh: 12500 }, phaseoutStart: { single: 150000, mfj: 300000, hoh: 150000 }, phaseoutRate: 0.1 },
         // Social Security benefit formula (PIA bend points, full retirement age 67)
         ssBend1: 1286, ssBend2: 7749, ssFullAge: 67,
         // Bonuses and other supplemental wages: employers usually withhold a flat 22% federal.
@@ -143,9 +149,10 @@
             country: 'US',
             sueldo: 5000,               // gross pay per month (with hourly pay: the base pay, kept in sync)
             payType: 'salary',          // 'salary' | 'hourly'
-            hourly: { rate: 0, hours: 40, otHours: 0, otRate: 1.5, otInBudget: false },   // hours per week
+            hourly: { rate: 0, hours: 40, otHours: 0, otRate: 1.5, otInBudget: false },   // hours per week; otPerCheck: overtime hours on a usual paycheck (any pay type)
             bonuses: [],                // [{ id, name, amount, month: '1'…'12', inBudget }] gross, this year
             budgetOnPaychecks: false,   // weekly / every 2 weeks: budget on the usual paychecks; extra ones are extra income
+            paysPerYear: null,          // paychecks a year (52, 26, 24, 12); null: the pay calendar's, else every 2 weeks
             tasa: 4.0,                  // savings / CD rate (APY %)
             d3: false, d4: false, iessRate: 0, sbu: 0, canasta: 0, sriCapMultiplier: 0, sriBrackets: [],
             cosede: 250000,             // FDIC / NCUA coverage per depositor, per bank, per ownership category

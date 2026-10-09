@@ -60,10 +60,10 @@ const Vault_ok = (d) => { try { const o = JSON.parse(d); return o.cipher === 'AE
   // The keyboard takes half the screen: the field being typed in stays visible, the bottom bar steps aside.
   await page.evaluate(() => { App.go('presupuesto/ingresos'); });
   await page.waitForTimeout(200);
-  await page.focus('#inc-sueldo');
+  await page.focus('#inc-yearly');
   await page.setViewportSize({ width: 412, height: 460 });
   await page.waitForTimeout(700);
-  const kb = await page.evaluate(() => { const r = document.getElementById('inc-sueldo').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: innerHeight, open: document.documentElement.classList.contains('kb-open'), nav: getComputedStyle(document.getElementById('main-nav')).display }; });
+  const kb = await page.evaluate(() => { const r = document.getElementById('inc-yearly').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: innerHeight, open: document.documentElement.classList.contains('kb-open'), nav: getComputedStyle(document.getElementById('main-nav')).display }; });
   ok(kb.top >= 0 && kb.bottom <= kb.h && kb.open && kb.nav === 'none', 'keyboard open: the field stays in view and the bottom bar hides ' + JSON.stringify(kb));
   await page.evaluate(() => document.activeElement.blur());
   await page.setViewportSize({ width: 412, height: 915 });

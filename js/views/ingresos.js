@@ -181,26 +181,10 @@
     function renderPayType(ctx) {
         const el = document.getElementById('inc-paytype');
         if (!el) return;
-        const yd = ctx.year, g = Engine.usGrossPay(yd), hourly = g.payType === 'hourly';
-        const h = Object.assign({}, HOURLY, yd.hourly || {});
-        const num = (field, label, step, value, help) => `<label class="field"><span class="field-label">${label}</span><input type="number" class="input" min="0" step="${step}" value="${value}" data-change="paytype.hourly" data-field="${field}">${help ? `<span class="help">${help}</span>` : ''}</label>`;
+        const yd = ctx.year;
         const bonuses = yd.bonuses || [];
-        el.innerHTML = `
-            <div class="flex flex-wrap items-center gap-3">
-                <span class="field-label mb-0">How you're paid</span>
-                <select class="input w-auto" data-change="paytype.set" aria-label="How you're paid">
-                    <option value="salary" ${hourly ? '' : 'selected'}>Salary (the same every month)</option>
-                    <option value="hourly" ${hourly ? 'selected' : ''}>By the hour</option>
-                </select>
-                ${hourly ? `<span class="text-xs text-slate-600"><span>Base pay: ${money(g.baseM)} a month</span>${g.overtimeM > 0 ? ` · <span>Usual overtime: ${money(g.overtimeM)} a month</span>` : ''}</span>` : ''}
-            </div>
-            ${hourly ? `<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                ${num('rate', `Hourly rate (${esc(Fmt.currency().symbol)})`, '0.01', h.rate || '', '')}
-                ${num('hours', 'Regular hours a week', '0.5', h.hours, '')}
-                ${num('otHours', 'Usual overtime hours a week', '0.5', h.otHours || '', 'An average; 0 if it varies a lot')}
-                ${num('otRate', 'Overtime pay (× your rate)', '0.1', h.otRate, 'Usually 1.5 (time and a half)')}
-            </div>
-            <label class="check"><input type="checkbox" data-change="paytype.hourly" data-field="otInBudget" ${h.otInBudget ? 'checked' : ''}><span>Count my usual overtime in the budget <span class="block text-[11px] font-normal text-slate-500">Dave Ramsey: budget on the pay you can count on. Leave overtime out and give it a job when it comes.</span></span></label>` : ''}
+        // How you're paid, how often and overtime: the same editor as every other earner's (payedit.js).
+        el.innerHTML = `${window.PayEdit ? PayEdit.fields('main') : ''}
             <div>
                 <div class="flex items-center justify-between gap-2"><span class="field-label mb-0">Bonuses this year</span><button type="button" class="btn btn-secondary btn-sm" data-action="bonus.add"><i class="fa-solid fa-plus"></i> Add a bonus</button></div>
                 ${bonuses.length ? `<div class="space-y-2 mt-2">${bonuses.map(b => `<div class="grid grid-cols-2 sm:grid-cols-[1fr_8rem_9rem_auto_auto] gap-2 items-center">
@@ -212,12 +196,9 @@
                 </div>`).join('')}</div>
                 <p class="help mt-1">Bonuses always count in your taxes. Check "Plan it" only for a bonus you're sure of; otherwise give it a job when it arrives.</p>` : '<p class="help mt-1">Expect a bonus or commission this year? Add it so your taxes are right.</p>'}
             </div>`;
-        // The monthly gross: typed for a salary, worked out from the hours when paid by the hour.
-        // (Kept in sync here too, for plans set up elsewhere: a backup, the example family.)
-        if (hourly) syncSalary(yd);
-        const input = document.getElementById('inc-sueldo');
-        if (input) { input.readOnly = hourly; input.classList.toggle('bg-slate-50', hourly); if (hourly) input.value = yd.sueldo; }
-        UI.text('inc-sueldo-label', hourly ? 'Monthly base pay (from your hours)' : 'Monthly gross salary');
+        // By the hour, the monthly gross follows the hours (kept in sync here too, for plans set up
+        // elsewhere: a backup, the example family).
+        syncSalary(yd);
     }
 
     function renderUS(ctx) {
@@ -245,22 +226,25 @@
         renderPayType(ctx);
         const extra = p.gross && p.gross.annual - p.gross.budgetM * 12 > 0.5;
         UI.text('inc-annual', extra ? `Before taxes. The year with overtime and bonuses: ${money(p.sueldoAnual)}.` : `Before taxes. Per year: ${money(p.sueldoAnual)}.`);
+        // Per paycheck and a month, side by side (a month = the year ÷ 12).
+        const after = p.otrosDescuentosM - p.pretaxM;
         const rows = [
-            [p.gross && p.gross.payType === 'hourly' ? 'Monthly base pay' : 'Monthly gross salary', money(p.sueldo), 'text-slate-900'],
-            p.pretaxM > 0 ? ['Pre-tax deductions (401(k), health insurance…)', '−' + money(p.pretaxM), 'text-blue-700'] : null,
-            ['Federal income tax', '−' + money(p.fedM), 'text-red-600'],
-            ['Seguro Social', '−' + money(p.ssM), 'text-red-600'],
-            ['Medicare', '−' + money(p.medM), 'text-red-600'],
-            [`State income tax (${esc(st.name) + (p.stateRate ? ` ${p.stateRate}%` : '')})`, '−' + money(p.stateM), 'text-red-600'],
-            p.localM > 0 ? [`City tax${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'residente' : 'non-resident'} ${p.localRate}%)` : ''}`, '−' + money(p.localM), 'text-red-600'] : null,
-            p.otrosDescuentosM - p.pretaxM > 0.004 ? ['Other paycheck deductions (after tax)', '−' + money(p.otrosDescuentosM - p.pretaxM), 'text-red-600'] : null
+            [p.gross && p.gross.payType === 'hourly' ? 'Base pay' : 'Gross salary', p.sueldo, 'text-slate-900'],
+            p.pretaxM > 0 ? ['Pre-tax deductions (traditional 401(k), health insurance, FSA, HSA…)', -p.pretaxM, 'text-blue-700'] : null,
+            ['Federal income tax', -p.fedM, 'text-red-600'],
+            ['Seguro Social', -p.ssM, 'text-red-600'],
+            ['Medicare', -p.medM, 'text-red-600'],
+            [`State income tax (${esc(st.name) + (p.stateRate ? ` ${p.stateRate}%` : '')})`, -p.stateM, 'text-red-600'],
+            p.localM > 0 ? [`City tax${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'resident' : 'non-resident'} ${p.localRate}%)` : ''}`, -p.localM, 'text-red-600'] : null,
+            after > 0.004 ? ['After-tax deductions (Roth 401(k), life and disability insurance…)', -after, 'text-red-600'] : null,
+            ['Take-home pay', p.netoM, 'text-emerald-700']
         ].filter(Boolean);
-        UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join('')
+        UI.html('inc-payroll', PayEdit.breakdown(rows, p.ppy || 12)
             + (extra ? `<p class="help pt-2">Taxes are figured on the whole year (${money(p.sueldoAnual)}). This paycheck carries its share; overtime and bonuses keep the rest.</p>` : ''));
         UI.text('inc-neto', money(p.netoM));
         UI.html('inc-us-ded-kpis', `
             <div class="kpi tone-slate"><span class="kpi-label">Deduction applied</span><span class="kpi-value">${money(p.dedApplied)}</span><span class="kpi-note">${Number(yd.itemized) > p.stdDeduction ? 'Itemized' : `Standard (${money(p.stdDeduction)})`}</span></div>
-            <div class="kpi tone-slate"><span class="kpi-label">Federal taxable income</span><span class="kpi-value">${money(p.baseImponible)}</span><span class="kpi-note">a year</span></div>
+            <div class="kpi tone-slate"><span class="kpi-label">Federal taxable income</span><span class="kpi-value">${money(p.baseImponible)}</span><span class="kpi-note">${p.otDeduction > 0 ? `a year, after ${money(p.otDeduction)} of overtime deduction` : 'a year'}</span></div>
             <div class="kpi tone-blue"><span class="kpi-label">Dependent credits</span><span class="kpi-value">${money(p.credits)}</span><span class="kpi-note">a year</span></div>
             <div class="kpi tone-amber"><span class="kpi-label">Income taxes</span><span class="kpi-value">${money(p.isrAnual)}</span><span class="kpi-note">a year (federal + state + city)</span></div>`);
         if (window.PayScan) PayScan.render(ctx);
@@ -408,6 +392,9 @@
             const st = Store.state.settings;
             st.paySchedule = sch;
             st.paydays = sch.freq === 'monthly' && sch.interval === 1 ? sch.days : [];
+            // How often you're paid follows the calendar (weekly, every 2 weeks, twice a month, monthly).
+            const n = Engine.nominalPaymentsPerYear(sch);
+            if (Engine.PAY_FREQUENCIES.includes(n)) Store.active().paysPerYear = n;
             sheet.close();
             App.changed({ structural: true, step: true });
             UI.toast(`${window.I18n ? I18n.t('Saved') : 'Saved'}: ${describe(sch)}`, 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });

@@ -12,7 +12,8 @@
         const seen = (yd.budgetBase || []).map(i => i.name).concat(s.transactions.filter(t => t.date >= since && (t.type || 'Gasto') === 'Gasto').map(t => `${t.category || ''} ${t.description || ''} ${t.store || ''}`));
         // Paycheck deductions (employer health, life, disability plans) and the mortgage's escrow.
         const KIND = { health: 'health insurance', life: 'life insurance', disability: 'disability' };
-        (yd.payDeductions || []).forEach(d => seen.push(`${d.name || ''} ${KIND[d.kind] || ''}`));
+        // (Every paycheck in the household: a spouse's job can carry the family's coverage.)
+        (yd.payDeductions || []).concat(...(yd.otherIncomes || []).filter(l => l.pay).map(l => l.pay.payDeductions || [])).forEach(d => seen.push(`${d.name || ''} ${KIND[d.kind] || ''}`));
         if (ctx.ownsHome && Number((s.mortgage || {}).homeInsurance) > 0) seen.push('homeowner');
         // In Ecuador a salaried worker is covered by the IESS (health and disability pension).
         if (yd.country !== 'US' && Number(yd.sueldo) > 0) seen.push('IESS');
