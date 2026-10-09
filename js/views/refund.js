@@ -27,11 +27,10 @@
         const computedPer = k.paid + k.left > 0 ? p.fedM * 12 / (k.paid + k.left) : 0;
         // Filing jointly with the household's other paychecks (Income & Taxes): their wages count on
         // the same return; their withholding is assumed to be their share until it's typed.
-        const joint = p.household && p.household.joint && (p.earners || []).length;
-        const payWages = joint ? p.earners.reduce((a, e) => a + e.incomeWages, 0) : 0;
-        const payWithheld = joint ? p.earners.reduce((a, e) => a + e.fedM * 12, 0) : 0;
-        const spouseWages = Number(c.spouseWages) || payWages;
-        const spouseWithheld = Number(c.spouseWithheld) || (Number(c.spouseWages) ? 0 : payWithheld);
+        const j = Engine.jointWagesUS(p, c);
+        const joint = j.joint && j.earners > 0;
+        const payWages = j.fromPay, payWithheld = j.withheldFromPay;
+        const spouseWages = j.wages, spouseWithheld = j.withheld;
         const inputs = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             ${field('perCheck', 'Federal withholding per paycheck ($)', c.perCheck, `From your latest pay stub ("Federal Withholding"). Based on your W-4 it would be about ${money0(computedPer)}.`)}
             ${field('ytd', 'Withheld so far this year ($)', c.ytd, `The stub's year-to-date ("YTD"). Empty = ${k.paid} paychecks × the amount above.`, money0(per * k.paid))}
@@ -52,11 +51,19 @@
             ? `<p class="text-xs mt-2"><strong>W-4:</strong> to avoid owing, ask for <strong>${money(r.adjustPerCheck)} more per paycheck</strong> (Step 4(c), "Extra withholding") on your ${k.left} remaining paychecks.${r.penaltyRisk ? ' <span class="text-red-700">Owing more than $1,000 can bring an underpayment penalty.</span>' : ''}</p>`
             : r.diff > 1500 ? `<p class="text-xs mt-2"><strong>W-4:</strong> you're lending the IRS ${money0(r.diff)} interest-free. You could withhold about <strong>${money(-r.adjustPerCheck)} less per paycheck</strong> and send that money to your plan each month.</p>`
             : '<p class="text-xs mt-2 text-emerald-700"><i class="fa-solid fa-circle-check"></i> Your withholding is well tuned.</p>';
+        // Each W-4: two jobs on one return need it said on the W-4s; on separate returns, each
+        // other earner's own federal tax and about what their paycheck should withhold.
+        const members = ctx.state.members || [];
+        const nameOf = (e) => (members.find(m => m.id === e.memberId) || {}).name || e.name;
+        const others = (p.earners || []).filter(e => e.sueldo > 0);
+        const eachW4 = !others.length ? ''
+            : joint ? '<p class="text-xs mt-2"><strong>Two jobs, one return:</strong> <span>a W-4 filled in as if it were the only job withholds too little.</span> <span>Check Step 2(c) on both W-4s when the pays are about the same, or put the extra withholding on the higher-paying job\'s W-4.</span></p>'
+            : `<div class="text-xs mt-2 space-y-1">${others.map(e => `<p><strong data-i18n-skip>${esc(nameOf(e))}</strong> <span>files their own return: about ${money0(e.fedM * 12)} of federal tax for the year, ${money0(e.fedM * 12 / 26)} per paycheck every 2 weeks.</span> <span>Compare it with their pay stub.</span></p>`).join('')}</div>`;
         UI.html('inc-refund', `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
                 <div class="kpi tone-slate"><span class="kpi-label">Federal tax for the year</span><span class="kpi-value">${money0(r.tax)}</span><span class="kpi-note">on ${money0(r.income)}, minus ${money0(r.dedApplied)} deduction${r.credits ? ` and ${money0(r.credits)} in credits` : ''}</span></div>
                 <div class="kpi tone-slate"><span class="kpi-label">Withheld for the year</span><span class="kpi-value">${money0(r.withheld)}</span><span class="kpi-note">${money0(ytd)} so far + ${k.left} paychecks${k.assumed ? ' (every 2 weeks)' : ''}</span>${r.bonusWithheld > 0 ? `<span class="kpi-note">Includes ${money0(r.bonusWithheld)} withheld from bonuses (22%)</span>` : ''}</div>
                 <div class="kpi ${tone}"><span class="kpi-label">${r.diff >= 0 ? 'Your refund would be' : 'You\'d owe'}</span><span class="kpi-value">${money0(Math.abs(r.diff))}</span><span class="kpi-note">${big ? (r.diff >= 0 ? 'in April' : 'when you file in April') : 'close to zero'}</span></div>
-            </div>${w4}
+            </div>${w4}${eachW4}
             <p class="help mt-2">An estimate of federal tax on wages only (not state, nor special credits). For an exact W-4, use the IRS Tax Withholding Estimator.</p>`);
     }
 

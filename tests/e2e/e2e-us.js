@@ -264,6 +264,26 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.waitForTimeout(200);
   ok(await page.evaluate(() => document.getElementById('rep-people-card').classList.contains('hidden')), 'by person: hidden for a household of one');
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); Store.ui.report = {}; });
+  // Household step 4: side income per person (each one's own Social Security room; the joint return
+  // or their own), the joint return's wages and state tax in itemizing, each W-4.
+  await page.evaluate(() => { App.go('presupuesto/ingresos'); });
+  await page.waitForTimeout(250);
+  const side1 = (await page.textContent('#inc-side')).replace(/\s+/g, ' ');
+  ok(/Calculated for Sarah/.test(side1) && /On your joint return/.test(side1), 'side income: Sarah\'s photography, on the joint return', side1.slice(0, 400));
+  await page.evaluate(() => { const s = Store.state; s.transactions.push({ id: Store.nextId(s.transactions), type: 'Ingreso', parentCategory: 'Ingresos Independientes', category: 'Freelance/Consultoría', amount: 3000, date: Engine.isoDate(new Date()), memberId: s.members[0].id, description: 'Consulting' }); App.changed({ structural: true }); });
+  await page.waitForTimeout(250);
+  const side2 = await page.evaluate(() => [...document.querySelectorAll('#inc-side tbody tr')].map(tr => tr.innerText.replace(/\s+/g, ' ')));
+  ok(side2.length === 2 && /^Mike/.test(side2[0]) && /Sarah.*On your joint return/.test(side2[1]), 'side income: a row per person', side2);
+  const salt0 = await page.evaluate(() => Itemize.check(App.buildContext()).saltIncome);
+  await page.evaluate(() => { const y = Store.active(); y.otherIncomes = [{ id: 1, name: 'Sarah (paycheck)', amount: 0, category: 'Ingresos Laborales', memberId: 2, pay: { payType: 'salary', sueldo: 4000, payDeductions: [] } }]; y.withholding = Object.assign(y.withholding || {}, { perCheck: 300, spouseWages: 0, spouseWithheld: 0 }); Earners.syncAmounts(); App.changed({ structural: true }); });
+  await page.waitForTimeout(250);
+  const w4j = await page.evaluate(() => ({ salt: Itemize.check(App.buildContext()).saltIncome, text: document.getElementById('inc-refund').innerText.replace(/\s+/g, ' ') }));
+  ok(w4j.salt > salt0 + 1000 && /Two jobs, one return/.test(w4j.text) && /Step 2\(c\)/.test(w4j.text), 'filing jointly: itemizing counts both paychecks\' state and city tax; the W-4 note for two jobs', { salt0, salt: w4j.salt, text: w4j.text.slice(-400) });
+  await page.evaluate(() => { Store.active().filingStatus = 'single'; App.changed({ structural: true }); });
+  await page.waitForTimeout(250);
+  const w4s = await page.evaluate(() => ({ refund: document.getElementById('inc-refund').innerText.replace(/\s+/g, ' '), side: [...document.querySelectorAll('#inc-side tbody tr')].map(tr => tr.innerText.replace(/\s+/g, ' ')), salt: Itemize.check(App.buildContext()).saltIncome, own: (App.buildContext().pay.stateM + App.buildContext().pay.localM) * 12 }));
+  ok(/Sarah files their own return: about \$[\d,]+ of federal tax for the year/.test(w4s.refund) && /Sarah.*On their own return, as single/.test(w4s.side.join()) && Math.abs(w4s.salt - w4s.own) < 1, 'separate returns: Sarah\'s own federal tax and paycheck withholding; her side income on her own return', w4s);
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   // Investment prices: Alpha Vantage's one-a-second limit is waited out, its daily limit keeps the last
   // price (and says so), Google Sheets needs no key (one request), and the daily update runs once.
   await page.evaluate(() => { const s = Store.state; s.holdings = [{ id: 1, ticker: 'AAA', name: '', kind: 'ETF', shares: 2, price: 10, priceAt: '2026-01-01T00:00:00Z', priceSource: 'alphavantage' }, { id: 2, ticker: 'BBB', name: '', kind: 'ETF', shares: 1, price: 0, priceAt: null, priceSource: 'manual' }]; s.settings.priceProvider = 'alphavantage'; s.settings.priceKey = 'TESTKEY'; App.changed({ structural: true }); App.go('patrimonio'); });

@@ -182,7 +182,7 @@
     // wages), then federal income tax on top of your other taxable income — half the SE tax and the
     // 20% qualified-business-income deduction come off first — plus the state's flat rate.
     // Ecuador: the extra income tax from the SRI table when it's added to your taxable base.
-    function sideIncomeTax({ country = 'US', net = 0, yd = {}, wages = 0, taxableBefore = 0, stateRate = 0, ecBase = 0 }) {
+    function sideIncomeTax({ country = 'US', net = 0, yd = {}, wages = 0, taxableBefore = 0, stateRate = 0, ecBase = 0, status: asked = null }) {
         const n = Math.max(0, num(net));
         if (n <= 0) return { net: 0, total: 0, pct: 0, parts: {} };
         if (country !== 'US') {
@@ -191,7 +191,7 @@
             return { net: cents(n), total: cents(ir), pct: ir / n, parts: { ir: cents(ir) } };
         }
         const t = yd.usTax || {};
-        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const status = ['single', 'mfj', 'hoh'].includes(asked || yd.filingStatus) ? asked || yd.filingStatus : 'single';
         const base = n * 0.9235;
         const ssRoom = Math.max(0, (num(t.ssWageBase) || Infinity) - num(wages));
         const se = Math.min(base, ssRoom) * 2 * num(t.ssRate) / 100 + base * 2 * num(t.medicareRate) / 100;
@@ -201,7 +201,41 @@
         const fed = bracketTax(num(taxableBefore) + added, brackets) - bracketTax(num(taxableBefore), brackets);
         const state = n * num(stateRate) / 100;
         const total = se + fed + state;
-        return { net: cents(n), total: cents(total), pct: total / n, parts: { se: cents(se), fed: cents(fed), state: cents(state) } };
+        return { net: cents(n), total: cents(total), pct: total / n, added, parts: { se: cents(se), fed: cents(fed), state: cents(state) } };
+    }
+
+    // Wages on the household's federal return besides the main paycheck: the other paychecks'
+    // (Income & Taxes) when filing jointly, unless an amount was typed (yd.withholding); none on
+    // separate returns. Their withholding: typed, or their share of the tax as if their W-4 were right.
+    function jointWagesUS(pay, w = {}) {
+        const joint = !!(pay && pay.household && pay.household.joint);
+        const earners = joint ? (pay.earners || []) : [];
+        const fromPay = sum(earners, e => num(e.incomeWages));
+        const typed = num(w.spouseWages);
+        return { joint, earners: earners.length, fromPay, wages: joint ? typed || fromPay : 0,
+            withheld: joint ? num(w.spouseWithheld) || (typed ? 0 : sum(earners, e => num(e.fedM) * 12)) : 0, withheldFromPay: sum(earners, e => num(e.fedM) * 12) };
+    }
+
+    // Side income's taxes person by person (US): self-employment tax on each one's own earnings, with
+    // Social Security only up to the wage base their own paycheck leaves; income tax on the joint
+    // return stacked on the household's taxable income (filing jointly), or each on their own return
+    // (the main earner with the filing status, the others as single). people: [{ memberId, net }]
+    // (memberId null or the main earner's = the main paycheck).
+    function sideIncomeTaxes({ yd = {}, pay = {}, people = [], mainId = null, stateRate = 0, typedSpouseWages = 0 }) {
+        const joint = !!(pay.household && pay.household.joint);
+        const earners = pay.earners || [];
+        // A spouse's wages typed on the refund screen count when no other paycheck is entered.
+        let jointBase = num(pay.baseImponible) + (joint && !earners.length ? num(typedSpouseWages) : 0);
+        return people.map(x => {
+            const isMain = !x.memberId || x.memberId === mainId;
+            const e = isMain ? null : earners.find(k => k.memberId === x.memberId);
+            const wages = isMain ? num(pay.sueldoAnual) : e ? num(e.annual) : 0;
+            const taxableBefore = joint ? jointBase : isMain ? num(pay.baseImponible) : e ? num(e.baseImponible) : 0;
+            const status = joint ? 'mfj' : isMain ? yd.filingStatus : 'single';
+            const r = sideIncomeTax({ country: 'US', net: x.net, yd, status, wages, taxableBefore, stateRate });
+            if (joint) jointBase += r.added || 0;
+            return Object.assign({ memberId: x.memberId || null, main: isMain, joint }, r);
+        });
     }
 
     // Refund or owe: the year's federal tax for the household against what will have been withheld
@@ -319,7 +353,8 @@
             return { id: o.line.id, memberId: o.line.memberId, name: o.line.name, sueldo: c.sueldo, annual: c.w.gross, gross: c.w.pay, budgetShare: c.share,
                 ssM: c.w.ssAnnual / 12 * c.share, medM: c.w.medAnnual / 12 * c.share, ficaM: c.ficaM, fedM: c.fed / 12 * c.share, stateM: c.state / 12 * c.share,
                 localM: c.local.annual / 12 * c.share, localRate: c.local.rate, localResident: c.local.resident, isrM: c.incomeTaxAnnual / 12 * c.share,
-                pretaxM: (c.w.pretaxRetire + c.w.pretax125) / 12, incomeWages: c.w.incomeWages, otrosDescuentosM: c.otros, netoAntesM: c.netoAntesM, netoM: c.netoM, avgTaxRate: c.avgTaxRate };
+                pretaxM: (c.w.pretaxRetire + c.w.pretax125) / 12, incomeWages: c.w.incomeWages, otrosDescuentosM: c.otros, netoAntesM: c.netoAntesM, netoM: c.netoM, avgTaxRate: c.avgTaxRate,
+                baseImponible: joint ? fedMain.taxable : usFederalTax({ income: c.w.incomeWages, status: 'single', t }).taxable };
         });
         const ficaAll = total(w => w.ssAnnual + w.medAnnual);
         return {
@@ -3002,7 +3037,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, jointWagesUS, sideIncomeTaxes, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
