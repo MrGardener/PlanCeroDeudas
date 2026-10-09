@@ -34,7 +34,11 @@
         if (hidden) return cur.after ? `••• ${cur.symbol}` : `${cur.symbol}•••`;
         const v = Number(n) || 0;
         const d = Math.min(decimals, cur.decimals);
-        const num = Math.abs(v).toLocaleString(cur.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
+        // From $100 million up, a short form ($250.0M, $1.2B): such amounts are typos or far-off
+        // projections, and the full figure wouldn't fit a phone's row.
+        const big = Math.abs(v) >= 1e8;
+        const num = big ? (Math.abs(v) >= 1e9 ? `${(Math.abs(v) / 1e9).toLocaleString(cur.locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}B` : `${(Math.abs(v) / 1e6).toLocaleString(cur.locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}M`)
+            : Math.abs(v).toLocaleString(cur.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
         const s = cur.after ? `${num} ${cur.symbol}` : `${cur.symbol}${cur.symbol.length > 1 && !cur.symbol.endsWith('$') ? ' ' : ''}${num}`;
         // A true minus sign (U+2212), the same one the views put before amounts.
         return v < 0 && Math.abs(v) >= 0.5 * Math.pow(10, -d) ? '\u2212' + s : s;

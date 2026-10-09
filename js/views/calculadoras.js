@@ -22,7 +22,8 @@
 
     const field = (calc, key, label, opts = {}) => `<label class="field"><span class="field-label">${label}</span>
         <input type="number" class="input" inputmode="decimal" min="0" step="${opts.step || 'any'}" data-input="calc.set" data-calc="${calc}" data-key="${key}" value="${esc(String(st()[calc][key]))}"></label>`;
-    const result = (rows) => `<div class="calc-result">${rows.map(([k, v, strong]) => `<div class="flex justify-between gap-3"><span>${k}</span><span class="${strong ? 'font-black text-base' : 'font-bold'} whitespace-nowrap">${v}</span></div>`).join('')}</div>`;
+    // An amount stays on one line; a sentence ("Never: it doesn't cover the interest") may wrap.
+    const result = (rows) => `<div class="calc-result">${rows.map(([k, v, strong]) => `<div class="flex justify-between gap-3"><span>${k}</span><span class="${strong ? 'font-black text-base' : 'font-bold'} ${String(v).length > 18 ? 'text-right' : 'whitespace-nowrap'}">${v}</span></div>`).join('')}</div>`;
 
     function render() {
         UI.html('calc-loan-in', field('loan', 'amount', 'Loan amount ($)', { step: 100 }) + field('loan', 'rate', 'Annual rate (%)', { step: 0.1 }) + field('loan', 'years', 'Term (years)', { step: 1 }));

@@ -17,7 +17,9 @@
     --focus: 0 0 0 3px var(--ring);
 }
 
-body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--canvas); color: var(--ink); overflow-wrap: break-word; }
+body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--canvas); color: var(--ink); overflow-wrap: anywhere; }
+/* A word longer than the screen breaks instead of widening the page; tables keep their columns (they scroll). */
+table { overflow-wrap: normal; }
 .wrap { max-width: 80rem; margin: 0 auto; padding-left: 1rem; padding-right: 1rem; }
 @media (min-width: 640px) { .wrap { padding-left: 1.5rem; padding-right: 1.5rem; } }
 

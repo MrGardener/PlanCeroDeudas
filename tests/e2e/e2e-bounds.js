@@ -3,7 +3,7 @@
 // text, a script tag, impossible dates, every option of a list — and after each one:
 //   no page error, nothing like NaN / Infinity / undefined on screen, every saved number finite,
 //   no script run from what was typed, nothing wider than a phone screen, and no hang.
-// `node tests/e2e/e2e-bounds.js` (or `node tests/e2e/run.js bounds`).
+// `node tests/e2e/e2e-bounds.js ["US phone" ["patrimonio,config"]]` (a part, and some screens).
 const { launch, ROOT, tailwind } = require('./harness');
 const path = require('path');
 const fs = require('fs');
@@ -193,10 +193,12 @@ async function fields(tab, label, phone, scope) {
     for (const [label, file, size, phone] of runs) {
         const tab = tabFor(browser, file, size);
         await tab.reopen();
-        for (const v of VIEWS) {
+        for (const v of VIEWS.filter(x => !process.argv[3] || process.argv[3].split(',').includes(x))) {
             const t0 = Date.now(), f0 = nFields, d0 = nDialogs;
             tab.v = v;
             await tab.fresh().catch(() => tab.reopen());
+            // 0. The screen as it opens, before anything is typed.
+            await check(tab, `${label} ${v}`, { sel: '(as it opens)', kind: 'screen' }, '', phone, 0, tab.errors.length);
             // 1. The screen's own fields.
             nFields += (await fields(tab, `${label} ${v}`, phone, null)).n;
             // 2. The dialogs and sheets its buttons open: their fields with every value, then OK.
