@@ -5,6 +5,9 @@ let pass = 0, fail = 0;
 const ok = (c, name, extra) => { if (c) pass++; else { fail++; console.log('FAIL:', name, extra !== undefined ? JSON.stringify(extra) : ''); } };
 const text = (page, id) => page.evaluate(id => (document.getElementById(id) || {}).textContent || '', id);
 const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') document.querySelectorAll('[data-tab=config] details').forEach(d => { d.open = true; }); }, k);
+// Locking again saves the plan and reloads the page (nothing of it stays in memory): run `fn` in the
+// page and wait for the lock screen of the new page.
+const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('load', { timeout: 10000 }), page.evaluate(fn)]); await page.waitForSelector('#lock-screen'); await page.waitForTimeout(150); };
 (async () => {
   const { browser, page, errors } = await openApp({ file: 'index.html?edition=us', viewport: { width: 1366, height: 900 } });
   await page.evaluate(() => { Store.reset('starter'); App.commitHistory(); App.go('resumen'); });
@@ -1235,8 +1238,8 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   const payToast = await page.evaluate(() => [...document.querySelectorAll('.toast')].map(t => t.textContent).join('|'));
   ok(/Saved: On the 15th and 30th, every month/.test(payToast) && /On the 15th and 30th/.test(await page.textContent('#pay-summary')), 'pay schedule saved message and summary in English', payToast);
   // PIN lock screen in English.
-  await page.evaluate(async () => { await Device.setPin('1234'); Device.lockNow(); });
-  await page.waitForTimeout(150);
+  await page.evaluate(() => Device.setPin('1234'));
+  await lockAndWait(page, () => { Device.lockNow(); });
   const lockTxt = await page.textContent('#lock-screen');
   await page.fill('#lock-pin', '9999');
   await page.click('#lock-screen button[type="submit"]');
@@ -1280,7 +1283,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.click('.modal [data-dialog-ok]');
   await page.waitForTimeout(1200);
   ok(await page.evaluate(() => Device.isPasscode() && /passcode/.test(document.getElementById('cfg-lock').textContent)), 'passcode saved (the lock says so)');
-  await page.evaluate(() => Device.lockNow());
+  await lockAndWait(page, () => { Device.lockNow(); });
   const pcIn = await page.evaluate(() => { const i = document.getElementById('lock-pin'); return { mode: i.getAttribute('inputmode'), label: i.getAttribute('aria-label'), sub: document.querySelector('.lock-sub').textContent }; });
   ok(!pcIn.mode && pcIn.label === 'Passcode' && /passcode/.test(pcIn.sub), 'the lock asks for the passcode with a full keyboard', pcIn);
   await page.fill('#lock-pin', 'Maple-tree 77');
@@ -1288,6 +1291,64 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(1200);
   ok(!(await page.$('#lock-screen')), 'the passcode unlocks');
   await page.evaluate(() => Device.removePin());
+  // The PIN against the browser's developer tools (someone with the device, not the PIN).
+  await page.evaluate(async () => { Store.reset('example'); App.changed({ structural: true }); Store.saveNow(); await Device.setPin('2580'); await new Promise(r => setTimeout(r, 300)); });
+  const devKey = await page.evaluate(() => Store.KEY);
+  const secret = await page.evaluate(() => Store.state.transactions.map(t => t.description).find(d => d && d.length > 8));
+  const nTx = await page.evaluate(() => Store.state.transactions.length);
+  // Coming back after 5 minutes away (or "Lock now") starts the page over: the plan isn't in memory.
+  await lockAndWait(page, () => { Device.lockNow(); });
+  const behind = await page.evaluate((secret) => {
+    document.getElementById('lock-screen').remove();
+    document.documentElement.classList.remove('app-locked', 'app-covered');
+    return { state: !!(window.Store && Store.state), shown: document.body.innerText.includes(secret), stored: localStorage.getItem(Store.KEY).startsWith('zdpenc1:') && !localStorage.getItem(Store.KEY).includes(secret) };
+  }, secret);
+  ok(!behind.state && !behind.shown && behind.stored, 'dev tools: deleting the lock screen shows nothing of the plan (it is not even open)', behind);
+  const tricks = await page.evaluate(async (secret) => {
+    const out = {};
+    try { App.init(); } catch (e) { /* listeners twice: fine for this check */ }
+    out.init = !!Store.state;                                   // the app still waits for the PIN
+    out.remove = Device.removePin();                            // refused while locked
+    out.setPin = await Device.setPin('1111');                   // refused while locked
+    out.hasPin = Device.hasPin();
+    Store.init(localStorage);                                   // the store started by hand
+    Store.state.transactions = []; Store.saveNow();
+    out.storeShows = JSON.stringify(Store.state).includes(secret);
+    out.kept = localStorage.getItem(Store.KEY).startsWith('zdpenc1:');  // it didn't write over the encrypted plan
+    return out;
+  }, secret);
+  ok(!tricks.init && tricks.remove === false && tricks.setPin === false && tricks.hasPin && !tricks.storeShows && tricks.kept, 'dev tools: starting the app or the store, removing or changing the PIN from the console: refused, nothing shown, nothing overwritten', tricks);
+  await page.reload();
+  await page.waitForSelector('#lock-screen');
+  await page.fill('#lock-pin', '2580');
+  await page.click('#lock-screen button[type="submit"]');
+  await page.waitForFunction(() => window.Store && Store.state && !document.getElementById('lock-screen'), null, { timeout: 8000 });
+  ok(await page.evaluate((n) => Store.state.transactions.length === n, nTx), 'after all that the right PIN still opens the whole plan');
+  // Deleting the lock (and its key) from storage doesn't open anything: the plan stays encrypted.
+  await page.evaluate(() => { const d = Device.read(); window.__lock = d.lock; delete d.lock; localStorage.setItem(Device.KEY, JSON.stringify(d)); });
+  const savedLock = await page.evaluate(() => window.__lock);
+  await page.reload();
+  await page.waitForTimeout(600);
+  const noLock = await page.evaluate((secret) => ({ lost: /Your plan is locked/.test((document.getElementById('lock-screen') || {}).textContent || ''), state: !!(window.Store && Store.state), shown: document.body.innerText.includes(secret), enc: localStorage.getItem(Store.KEY).startsWith('zdpenc1:') }), secret);
+  ok(noLock.lost && !noLock.state && !noLock.shown && noLock.enc, 'dev tools: deleting the PIN from storage only shows "Your plan is locked"; the plan stays encrypted', noLock);
+  await page.evaluate((lock) => { const d = Device.read(); d.lock = lock; localStorage.setItem(Device.KEY, JSON.stringify(d)); }, savedLock);
+  await page.reload();
+  await page.waitForSelector('#lock-screen');
+  await page.fill('#lock-pin', '2580');
+  await page.click('#lock-screen button[type="submit"]');
+  await page.waitForFunction(() => window.Store && Store.state && !document.getElementById('lock-screen'), null, { timeout: 8000 });
+  ok(await page.evaluate((n) => Store.state.transactions.length === n, nTx), 'with the lock put back, the PIN opens the plan again');
+  // Away from the app: covered at once, so the plan doesn't flash when coming back.
+  const cover = await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    const away = document.documentElement.classList.contains('app-covered');
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+    document.dispatchEvent(new Event('visibilitychange'));
+    return { away, back: document.documentElement.classList.contains('app-covered') };
+  });
+  ok(cover.away && !cover.back, 'leaving the app covers it at once; back within 5 minutes it opens as it was', cover);
+  await page.evaluate(() => { delete document.hidden; Device.removePin(); });
   // Hide amounts: every amount shows as •••; the plan itself doesn't change.
   await page.evaluate(() => App.go('resumen'));
   await page.click('#privacy-toggle');
@@ -1298,7 +1359,8 @@ const go = (page, k) => page.evaluate(k => { App.go(k); if (k === 'config') docu
   await page.waitForTimeout(200);
   ok(await page.evaluate(() => /\$[1-9]/.test(document.querySelector('[data-tab="resumen"]').innerText) && !Device.hidden()), 'hide amounts: off again');
   // 10 wrong PINs erase everything this app keeps on the device (the count survives a reload).
-  await page.evaluate(async () => { await Device.setPin('1234'); Store.saveNow(); Device.lockNow(); });
+  await page.evaluate(async () => { await Device.setPin('1234'); Store.saveNow(); });
+  await lockAndWait(page, () => { Device.lockNow(); });
   const pinKey = await page.evaluate(() => Store.KEY);
   const wrongPin = async () => { await page.fill('#lock-pin', '0000'); await page.click('#lock-screen button[type="submit"]'); await page.waitForTimeout(350); };
   for (let k = 0; k < 4; k++) await wrongPin();

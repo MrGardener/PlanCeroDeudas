@@ -50,6 +50,9 @@ async function openApp({ file = 'index.html', viewport = { width: 1366, height: 
     if (localStorageSeed) {
         await page.addInitScript(([k, v]) => { if (!sessionStorage.getItem('__seeded')) { localStorage.setItem(k, v); sessionStorage.setItem('__seeded', '1'); } }, localStorageSeed);
     }
+    // The styles come back after every reload too (the lock reloads the page).
+    let loads = 0;
+    if (styled) page.on('load', () => { if (loads++) page.addStyleTag({ content: tw }).catch(() => {}); });
     await page.goto('file://' + path.join(ROOT, file));
     if (styled) await page.addStyleTag({ content: tw });
     await page.waitForTimeout(400);

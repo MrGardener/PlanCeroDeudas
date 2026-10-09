@@ -530,7 +530,7 @@ html[data-theme="dark"] :is(.border-slate-100, .border-slate-200, .border-slate-
 html[data-theme="dark"] .divide-slate-100 > * + * { border-color: var(--line-soft) !important; }
 
 /* ================================================================ PIN lock */
-html.app-locked body > :not(#lock-screen):not(script) { visibility: hidden; }
+html.app-locked body > :not(#lock-screen):not(script), html.app-covered body > :not(#lock-screen):not(script) { visibility: hidden; }
 .lock-screen { position: fixed; inset: 0; z-index: 100; background: #0f172a; display: grid; place-items: center; padding: 1rem; }
 .lock-box { width: 100%; max-width: 20rem; background: #fff; border-radius: 1rem; padding: 1.5rem; text-align: center; box-shadow: 0 20px 50px rgba(0, 0, 0, .35); }
 .lock-title { font-weight: 800; color: #0f172a; font-size: 1.05rem; }
@@ -2663,7 +2663,7 @@ button.gm-row:hover { background: var(--surface-3); }
                 <div class="field mt-3 max-w-2xl" data-web-only><span class="field-label">Shortcut to quick entry</span>
                     <div class="flex gap-2"><input id="cfg-quick-link" class="input" readonly aria-label="Quick entry link"><button type="button" class="btn btn-secondary btn-sm" data-action="device.copyQuick"><i class="fa-regular fa-copy"></i> Copy</button></div>
                     <span class="help">Save it as a bookmark (or on your home screen once the app is online): it opens the keypad straight away to log an expense. On a computer, the key <kbd>N</kbd> does the same.</span></div>
-                <p class="help mt-2">Saved only in this browser (not in the backup). The PIN hides the app when it opens and after 5 minutes in the background; it doesn't encrypt your data, so also use your phone's or computer's lock.</p>
+                <p class="help mt-2">Saved only in this browser (not in the backup). With a PIN or passcode the plan is saved encrypted. The app locks when it opens and after 5 minutes away, and then forgets the open plan until the PIN is typed again. Also use your phone's or computer's own lock.</p>
             </div>
             <div class="panel tone-slate">
                 <div class="section-label"><i class="fa-solid fa-coins text-amber-600"></i> Currency</div>
@@ -5852,6 +5852,8 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Saved only in this browser (not in the backup). With a PIN or passcode the plan is saved encrypted. The app locks when it opens and after 5 minutes away, and then forgets the open plan until the PIN is typed again. Also use your phone's or computer's own lock.": "Se guarda solo en este navegador (no va en la copia de respaldo). Con PIN o contraseña el plan se guarda cifrado. La app se bloquea al abrirla y después de 5 minutos fuera, y entonces olvida el plan abierto hasta que se escriba el PIN otra vez. Usa también el bloqueo de tu teléfono o computadora.",
+    "The 10-wrong-tries erase stops guessing on this screen. Someone who copies this device's data could try every PIN on their own computer: a short PIN falls in minutes, a passcode of 12 or more characters doesn't.": "El borrado tras 10 intentos fallidos detiene a quien adivina en esta pantalla. Alguien que copie los datos de este dispositivo podría probar todos los PIN en su propia computadora: un PIN corto cae en minutos; una contraseña de 12 caracteres o más, no.",
     "Google Sheets": "Google Sheets",
     "or": "o",
     "(A2, A3… for the next rows).": "(A2, A3… en las filas siguientes).",
@@ -9395,7 +9397,7 @@ I18n.override('EC', 'es', {
     // After the right PIN: get the data key (or make one for a plan saved before encryption),
     // decrypt the plan into memory and let the app start.
     async function openData(pin) {
-        if (!c()) return;
+        if (!c()) { const waiting = pending; pending = []; waiting.forEach(fn => fn()); return; }
         const d = read();
         if (d.lock && d.lock.wrap) { try { dataKey = await unwrapKey(pin, d.lock.wrap); } catch (e) { dataKey = null; } }
         if (!dataKey) await startEncryption(pin);
@@ -9420,8 +9422,9 @@ I18n.override('EC', 'es', {
         write(d);
         dataKey = await c().subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
     }
-    // App.init calls this: run now, or once the PIN has opened the data.
-    function whenReady(fn) { if (dataLocked()) pending.push(fn); else fn(); }
+    // App.init calls this: run now, or once the PIN has opened the data. With a PIN the app never
+    // starts before it, so nothing of the plan is in memory behind the lock screen.
+    function whenReady(fn) { if (dataLocked() || hasPin()) pending.push(fn); else fn(); }
 
     let hiddenAt = null;
     // Wrong tries and the wait live with the lock, so closing or reloading the app doesn't reset them.
@@ -9524,6 +9527,9 @@ I18n.override('EC', 'es', {
     // Turning the PIN on encrypts the saved plan; changing it re-wraps the same data key.
     // kind: 'pin' (4–8 digits) or 'passcode' (8+ characters, letters too: much harder to guess).
     async function setPin(pin, kind = 'pin') {
+        // Only from the open app: while locked (someone typing in the browser's console) it would
+        // only make the plan unreadable.
+        if (locked()) return false;
         const salt = randomSalt();
         const d = read();
         const keep = d.lock && d.lock.wrap && dataKey;
@@ -9542,14 +9548,47 @@ I18n.override('EC', 'es', {
     }
     // Removing the PIN saves the plan readable again (it's this device's choice).
     function removePin() {
+        if (locked()) return false;
         const d = read(); delete d.lock; write(d);
         dataKey = null;
         if (root.Store && Store.state) { Store.storage = root.localStorage; Store._lastSaved = null; Store.saveNow(); }
+        return true;
     }
 
+    // Locked = the lock screen is up, or the plan hasn't been opened with the PIN.
+    const locked = () => hasPin() && (!!document.getElementById('lock-screen') || dataLocked() || pending.length > 0);
+
+    // Locking again ("Lock now", or 5 minutes away) forgets the open plan: it's saved (encrypted),
+    // then the page starts over and waits for the PIN. A lock screen over a running app could be
+    // removed with the browser's developer tools; this way nothing readable is left in memory.
+    let relocking = false;
+    async function relock() {
+        if (!hasPin() || relocking) return;
+        relocking = true;
+        document.documentElement.classList.add('app-covered');
+        try {
+            if (root.Store && Store.state && Store.storage) { Store.saveNow(); if (Store.storage.flush) await Store.storage.flush(); }
+            if (root.Native && Native.flush) await Native.flush();
+        } catch (e) { /* start over anyway */ }
+        dataKey = null;
+        if (root.Store) Store.storage = null;              // nothing is written on the way out
+        location.reload();
+    }
+    // Away from the app: covered at once (no flash of the plan when coming back), and after 5
+    // minutes it locks again, even while still in the background.
+    let idleTimer = null;
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) hiddenAt = Date.now();
-        else if (hiddenAt && Date.now() - hiddenAt >= IDLE_MS) showLock();
+        if (!hasPin()) return;
+        if (document.hidden) {
+            hiddenAt = Date.now();
+            document.documentElement.classList.add('app-covered');
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(relock, IDLE_MS);
+        } else {
+            clearTimeout(idleTimer);
+            if (hiddenAt && Date.now() - hiddenAt >= IDLE_MS) relock();
+            else document.documentElement.classList.remove('app-covered');
+        }
     });
     // An encrypted plan whose key is gone (device settings cleared): it can't be opened here.
     function showLost() {
@@ -9566,7 +9605,7 @@ I18n.override('EC', 'es', {
     }
     document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); applyPrivacy(); if (dataLocked() && !hasPin()) showLost(); else showLock(); });
 
-    root.Device = { applyPrivacy, setPrivacy, hidden: () => !!read().hideAmounts, isPasscode: () => !!(read().lock && read().lock.kind === 'passcode'), storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
+    root.Device = { applyPrivacy, setPrivacy, hidden: () => !!read().hideAmounts, isPasscode: () => !!(read().lock && read().lock.kind === 'passcode'), storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: relock, locked, hashPin, KEY };
 })(this);
 </script>
 <script>/* js/native.js */
@@ -9655,6 +9694,7 @@ I18n.override('EC', 'es', {
     function exit() { const a = plugin('App'); if (a && a.exitApp) a.exitApp(); }
 
     // Keep a copy of every save in native storage; put it back if the web view lost it.
+    let pendingCopy = Promise.resolve();
     function startMirror() {
         const prefs = plugin('Preferences');
         if (!prefs || !KEY || !root.Store) return;
@@ -9670,7 +9710,7 @@ I18n.override('EC', 'es', {
                 try { data = localStorage.getItem(KEY); } catch (e) { data = null; }
                 if (!data || data === last) return;
                 last = data;
-                prefs.set({ key: KEY, value: data }).catch(() => { last = null; });
+                pendingCopy = prefs.set({ key: KEY, value: data }).catch(() => { last = null; });
             };
             root.Store.onChange(mirror);
             document.addEventListener('zdp:stored', mirror);
@@ -9684,7 +9724,7 @@ I18n.override('EC', 'es', {
         document.addEventListener('DOMContentLoaded', () => setTimeout(startMirror, 0));
     }
 
-    root.Native = { isApp, saveFile, saveSecure, askPassword, wipe, exit, platform: isApp ? cap.getPlatform() : 'web' };
+    root.Native = { isApp, saveFile, saveSecure, askPassword, wipe, exit, flush: () => pendingCopy, platform: isApp ? cap.getPlatform() : 'web' };
 })(this);
 </script>
 <script>/* js/vault.js */
@@ -15463,8 +15503,11 @@ I18n.override('EC', 'es', {
 
         init(storage) {
             this.storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
-            let raw = null;
-            try { raw = this.storage && JSON.parse(this.storage.getItem(KEY)); } catch (e) { raw = null; }
+            let raw = null, stored = null;
+            try { stored = this.storage && this.storage.getItem(KEY); raw = JSON.parse(stored); } catch (e) { raw = null; }
+            // A plan saved encrypted (js/device.js) that wasn't opened with the PIN (someone starting
+            // the store by hand from the browser's console): never write over it.
+            if (typeof stored === 'string' && stored.startsWith('zdpenc1:')) this.storage = null;
             // A first visit starts with an empty plan (the welcome offers the example family).
             this.state = migrate(raw || D.emptyState());
             this._lastSaved = raw ? JSON.stringify(this.state) : null;
@@ -26433,6 +26476,7 @@ I18n.override('EC', 'es', {
     async function askPin(title) {
         const r = await UI.form({
             title, confirmText: 'Save',
+            message: 'The 10-wrong-tries erase stops guessing on this screen. Someone who copies this device\'s data could try every PIN on their own computer: a short PIN falls in minutes, a passcode of 12 or more characters doesn\'t.',
             fields: [{ name: 'kind', label: 'Type', options: [{ value: 'passcode', label: 'Passcode: 8 or more characters, letters too (safer)' }, { value: 'pin', label: 'PIN: 4 to 8 digits' }] },
                 { name: 'pin', label: 'PIN or passcode', type: 'password' }, { name: 'again', label: 'Type it again', type: 'password' }],
             validate: v => (v.kind === 'pin' ? (!/^\d{4,8}$/.test(v.pin) ? 'Use 4 to 8 digits.' : null) : (String(v.pin).length < 8 ? 'Use at least 8 characters.' : null)) || (v.pin !== v.again ? 'The two don\'t match.' : null)
