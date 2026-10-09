@@ -52,8 +52,8 @@
             + `<p class="help mt-2">${G.contributed > 0 && G.growth > G.contributed ? 'Compound interest earned more than your own deposits: that\'s why starting early pays.' : 'With more years, growth matters more and more than what you put in.'}</p>`);
 
         const need = Engine.monthlyToReach(c.goal.target, c.goal.have, c.goal.rate, c.goal.months);
-        const n = Engine.goalMonths({ target: c.goal.target, current: c.goal.have, monthly: c.goal.monthly, rate: c.goal.rate });
-        const inMonths = n === 'never' || n === null || n === undefined ? 'Never' : n === 0 ? 'You already have it' : `${n} months (${when(n)})`;
+        const g = Engine.goalMonths({ target: c.goal.target, current: c.goal.have, monthly: c.goal.monthly, rate: c.goal.rate });
+        const inMonths = g.status === 'never' || g.months === null ? 'Never' : g.months === 0 ? 'You already have it' : `${g.months} months (${when(g.months)})`;
         UI.html('calc-goal-out', result([[`To have it in ${Number(c.goal.months) || 0} months`, need > 0 ? `${money(need)}/mo` : 'You already have it', true], [`With ${money0(c.goal.monthly)}/mo you get there in`, inMonths]]));
     }
 

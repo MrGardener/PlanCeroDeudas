@@ -2243,7 +2243,7 @@
     // (which ends the loan early instead of running the full contracted term).
     function amortization(system, principal, annualRatePct, months, extraMonthly) {
         principal = Math.max(0, num(principal));
-        months = Math.max(1, Math.round(num(months)));
+        months = Math.min(600, Math.max(1, Math.round(num(months))));      // at most 50 years
         const extra = Math.max(0, num(extraMonthly));
         const i = Math.max(0, num(annualRatePct)) / 1200;
         const fixedPayment = frenchPayment(principal, num(annualRatePct), months);
@@ -2344,8 +2344,8 @@
     // today's money with inflation, so they add up with Social Security / the IESS pension, which
     // are estimated in today's money. A pension only counts from the age you can collect it.
     function retirement(inp) {
-        const edadActual = Math.max(0, Math.round(num(inp.edadActual)));
-        const edadJubilacion = Math.max(edadActual, Math.round(num(inp.edadJubilacion)) || 65);
+        const edadActual = Math.min(110, Math.max(0, Math.round(num(inp.edadActual))));
+        const edadJubilacion = Math.min(110, Math.max(edadActual, Math.round(num(inp.edadJubilacion)) || 65));
         const anios = edadJubilacion - edadActual;
         const months = anios * 12;
         const rate = Math.max(0, num(inp.tasaRetorno));

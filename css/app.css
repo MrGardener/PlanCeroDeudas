@@ -336,6 +336,8 @@ input[type="file"].hidden { display: none; }
 html[data-theme="dark"] .annual-step.short { border-color: #7f1d1d; background: #2a0d0d; }
 .annual-when { font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-size: var(--fs-2xs); margin-bottom: .25rem; }
 .annual-what { display: grid; gap: .2rem; color: var(--ink); }
+/* Grid cells may shrink below their content (a long name truncates instead of widening the page). */
+.annual-what > *, .annual-step > *, .grid > * { min-width: 0; }
 .annual-after { margin-top: .3rem; font-size: var(--fs-2xs); font-weight: 700; }
 .check-row { display: flex; align-items: flex-start; gap: .4rem; padding-bottom: .55rem; font-size: var(--fs-xs); color: var(--ink-2); line-height: 1.35; cursor: pointer; }
 .check-row input { margin-top: .15rem; accent-color: var(--brand); }
