@@ -169,6 +169,34 @@
                 <td class="num text-xs">${money(g.total / g.count)}</td>
             </tr>`).join('') + `<tr class="font-bold"><td>Total</td><td class="num">${r.list.length}</td><td class="num">${money(r.total)}</td><td></td><td></td></tr>`
             : '<tr class="empty-row"><td colspan="5">No transactions in this period.</td></tr>');
+        people(ctx, r);
+    }
+
+    // By person: each one's paycheck (a month: Engine.payrollUS/payroll) and what they received
+    // and spent in the report's period. Only for a household of two or more.
+    function people(ctx, r) {
+        const members = ctx.state.members || [];
+        UI.show('rep-people-card', members.length > 1);
+        if (members.length < 2) return;
+        const retirement = [{ memberId: members[0].id, own: ctx.payRetirement.byGroup.retirement }].concat(ctx.earnersRetirement);
+        const rows = Engine.personSummary({ members, pay: ctx.pay, incomes: ctx.budgetYear.otherIncomes, retirement, transactions: ctx.state.transactions, from: r.from, to: r.to });
+        const shared = (row) => row.memberId === Engine.HOUSEHOLD;
+        const who = (row) => {
+            if (shared(row)) return '<span class="member-dot sm" style="background:#64748b"><i class="fa-solid fa-house text-[8px]"></i></span> <span class="font-semibold">Household</span>';
+            const m = members.find(x => x.id === row.memberId) || {};
+            return `<span class="member-dot sm" style="background:${esc(m.color || '#64748b')}">${esc(String(row.name || '?').charAt(0).toUpperCase())}</span> <span class="font-semibold" data-i18n-skip>${esc(row.name)}</span>`;
+        };
+        // A paycheck entered before taxes shows all three; income typed as take-home, only that.
+        const cell = (show, v, cls) => (show ? `<td class="num whitespace-nowrap ${cls}">${money(v)}</td>` : '<td class="num text-slate-400">—</td>');
+        UI.html('rep-people', rows.map(row => `<tr>
+                <td class="whitespace-nowrap">${who(row)}</td>
+                ${cell(row.gross > 0, row.gross, '')}${cell(row.gross > 0, -row.taxes, 'text-red-600')}${cell(row.net > 0, row.net, 'font-bold text-emerald-700')}${cell(row.saved > 0, row.saved, 'text-blue-700')}
+                <td class="num whitespace-nowrap">${money(row.received)}</td>
+                <td class="num whitespace-nowrap font-bold">${money(row.spent)}</td>
+                <td>${row.top ? `<span>${esc(row.top.category)}</span> <span class="text-[11px] text-slate-500 whitespace-nowrap">${money0(row.top.amount)}</span>` : '<span class="text-slate-400">—</span>'}</td>
+            </tr>`).join(''));
+        const range = r.o.range === 'all' ? '<span>the whole history</span>' : `<span>${esc(r.from)} – ${esc(r.to)}</span>`;
+        UI.html('rep-people-note', `<span>Pay, taxes and retirement savings are a month; take-home is after taxes and payroll deductions (income typed as take-home counts as it is).</span> <span>Received and spent:</span> ${range}`);
     }
 
     // A download in the browser; the share sheet in the phone app (js/native.js).

@@ -1,7 +1,21 @@
 /* Jubilación: DPF future value + estimated IESS pension, with a "what if" contribution slider. */
 (function () {
     'use strict';
-    const { money, money0 } = Fmt;
+    const { money, money0, esc } = Fmt;
+
+    // Whose: retirement accounts by owner, the other paychecks' 401(k), Social Security per earner.
+    function byPerson(ctx) {
+        const s = ctx.state, r = ctx.retirement, people = s.members || [];
+        const nameOf = (id) => (people.find(m => m.id === id) || {}).name;
+        const ret = (s.accounts || []).filter(Engine.isRetirementMoney);
+        const owners = {};
+        ret.forEach(a => { const k = a.memberId && nameOf(a.memberId) ? nameOf(a.memberId) : ''; owners[k] = (owners[k] || 0) + (Number(a.balance) || 0); });
+        const who = (k) => (k ? `<span data-i18n-skip>${esc(k)}</span>` : '<span>Household</span>');
+        UI.html('ret-ahorro-who', ret.some(a => a.memberId) ? `<span>Retirement accounts:</span> ${Object.keys(owners).map(k => `${who(k)} ${money0(owners[k])}`).join(' · ')}` : '');
+        const er = (ctx.earnersRetirement || []).filter(e => e.own + e.match > 0);
+        UI.html('ret-aporte-who', er.length ? `<span>Includes the other paychecks:</span> ${er.map(e => `${who(nameOf(e.memberId) || e.name)} <span>401(k)</span> ${money0(e.own)}${e.match > 0 ? ` + ${money0(e.match)} <span>match</span>` : ''}`).join(' · ')}` : '');
+        return (r.pensions || []).length > 1 ? r.pensions.map(x => `${who(x.name)} ${money0(x.amount)}`).join(' · ') : '';
+    }
 
     function render(ctx) {
         const slider = document.getElementById('ret-whatif');
@@ -63,7 +77,8 @@
         UI.text('ret-fv-note', `in today's dollars · ${money0(r.valorFuturo)} in ${ctx.today.getFullYear() + r.aniosRestantes} dollars`);
         UI.text('ret-income-savings', money0(r.ingresoAhorro));
         UI.text('ret-pension', money0(r.pension));
-        UI.text('ret-pension-note', r.pensionDesde === null ? 'You don\'t have the minimum years of contributions yet' : `from age ${r.pensionDesde}`);
+        const each = byPerson(ctx);
+        UI.html('ret-pension-note', r.pensionDesde === null ? 'You don\'t have the minimum years of contributions yet' : `<span>from age ${r.pensionDesde}</span>${each ? ` · ${each}` : ''}`);
         const bridge = document.getElementById('ret-bridge');
         if (r.pensionDesde === null) bridge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> With your years of contributions you don't qualify for the IESS pension (at least 10 years at 70, 15 at 65, 30 at 60 or 40 at any age). Your retirement would depend on your savings alone.`;
         else if (r.aniosPuente > 0) bridge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Between ages ${r.edadJubilacion} and ${r.pensionDesde} you won't receive ${yd.country === 'US' ? 'Social Security' : 'the pension'}: you'd live on your savings alone (${money0(r.ingresoAhorro)}/month).`;

@@ -2,6 +2,17 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Pay, taxes and retirement savings are a month; take-home is after taxes and payroll deductions (income typed as take-home counts as it is).": "El sueldo, los impuestos y el ahorro para la jubilación son al mes; lo que llega es después de impuestos y descuentos del rol (los ingresos escritos como netos cuentan tal cual).",
+    "Take-home": "Lo que llega",
+    "By person": "Por persona",
+    "Each person's paycheck, a month, and what they received and spent in the report's period. Spending marked as shared, or that doesn't say whose, is under Household.": "El sueldo de cada persona, al mes, y lo que recibió y gastó en el periodo del reporte. Los gastos marcados como compartidos, o que no dicen de quién son, van en Hogar.",
+    "Received and spent:": "Recibido y gastado:",
+    "Spends most on": "En qué gasta más",
+    "Taxes": "Impuestos",
+    "Includes the other paychecks:": "Incluye los otros sueldos:",
+    "Retirement accounts:": "Cuentas de jubilación:",
+    "Whose account": "De quién es la cuenta",
+    "match": "aporte del empleador",
     "After taxes: figured in Income & Taxes": "Después de impuestos: calculado en Ingresos e Impuestos",
     "Another person's paycheck": "El sueldo de otra persona",
     "Anyone else who works: their pay before taxes. The app figures their taxes with yours, and the budget counts their take-home.": "Cualquier otra persona que trabaje: su sueldo antes de impuestos. La app calcula sus impuestos junto con los tuyos, y el presupuesto cuenta lo que le llega.",

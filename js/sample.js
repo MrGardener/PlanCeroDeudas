@@ -176,7 +176,7 @@
             const s = salary(y);
             return {
                 sueldo: s, tasa: 4.0, filingStatus: 'mfj', dependents: y >= cur - 2 ? 2 : 1, otherDependents: 0, state: 'MI', localName: 'Grand Rapids', localResident: true,
-                otherIncomes: [{ id: 1, name: "Sarah's part-time job", amount: y >= cur ? 1900 : round5(1900 * Math.pow(0.975, cur - y)), category: 'Ingresos Laborales' }],
+                otherIncomes: [{ id: 1, name: "Sarah's part-time job", amount: y >= cur ? 1900 : round5(1900 * Math.pow(0.975, cur - y)), category: 'Ingresos Laborales', memberId: SARAH }],
                 payDeductions: [
                     { id: 1, name: '401(k) 6%', group: 'retirement', kind: 'retirement', pretax: true, monthly: round2(s * 0.06) },
                     { id: 2, name: 'Medical (family HDHP)', group: 'insurance', kind: 'health', pretax: true, monthly: y >= cur ? 465 : 440 },
@@ -208,8 +208,8 @@
             { id: 1, name: 'LMCU Checking', kind: 'corriente', balance: 1846.55, plusBills: true },
             { id: 2, name: 'Ally High-Yield Savings', kind: 'ahorros', balance: 6520.18 },
             { id: 3, name: 'Cash (wallet)', kind: 'efectivo', balance: 86 },
-            { id: 4, name: "Mike's 401(k) – Fidelity", kind: 'retiro', balance: 118240.77 },
-            { id: 5, name: "Sarah's Roth IRA – Vanguard", kind: 'retiro', balance: 31085.4 },
+            { id: 4, name: "Mike's 401(k) – Fidelity", kind: 'retiro', balance: 118240.77, memberId: MIKE },
+            { id: 5, name: "Sarah's Roth IRA – Vanguard", kind: 'retiro', balance: 31085.4, memberId: SARAH },
             { id: 6, name: 'HSA – HealthEquity', kind: 'retiro', balance: 4210.32 }
         ];
         const holdings = [

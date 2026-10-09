@@ -1858,3 +1858,45 @@ test('typed numbers: thousands commas, and nothing beyond ±100 billion (no Infi
     const p = E.collegePlan({ age: 5, years: 99999999999, annualCost: 10000, returnPct: 99999 });
     assert.ok(Number.isFinite(p.total) && p.total > 0);
 });
+
+test('retirement (US): every earner in the household gets their own Social Security', () => {
+    const t = US.newYear().usTax;
+    const base = { country: 'US', usTax: t, edadActual: 40, edadJubilacion: 67, aniosAportados: 15, ahorroActual: 100000, aporteMensual: 1000, tasaRetorno: 7, inflacion: 3, tasaRetiroSegura: 4, sueldoPromedio: 6000, name: 'Mike' };
+    const alone = E.retirement(base);
+    assert.equal(alone.pensions.length, 1);
+    const two = E.retirement(Object.assign({}, base, { others: [{ name: 'Sarah', sueldoPromedio: 4000 }] }));
+    const sarah = E.socialSecurity({ ...base, sueldoPromedio: 4000, aniosRestantes: 27, edadJubilacion: 67 });
+    assert.deepEqual(two.pensions.map(p => p.name), ['Mike', 'Sarah']);
+    assert.ok(Math.abs(two.pensions[1].amount - sarah) < 1e-9 && sarah > 0);
+    assert.ok(Math.abs(two.pension - (alone.pension + sarah)) < 1e-9);
+    assert.ok(Math.abs(two.ingresoTotal - (alone.ingresoTotal + sarah)) < 1e-9);
+});
+
+test('personSummary: each person\'s paycheck, what they received and spent, shared spending apart', () => {
+    const members = [{ id: 1, name: 'Mike' }, { id: 2, name: 'Sarah' }];
+    const pay = { sueldo: 6000, isrM: 700, iessM: 459, netoM: 4841, earners: [{ memberId: 2, sueldo: 4000, isrM: 400, ficaM: 306, netoM: 3094 }] };
+    const tx = [
+        { id: 1, type: 'Gasto', parentCategory: 'Alimentación', amount: 120, date: '2026-10-03', memberId: 1 },
+        { id: 2, type: 'Gasto', parentCategory: 'Transporte', amount: 60, date: '2026-10-04', memberId: 1 },
+        { id: 3, type: 'Gasto', parentCategory: 'Vestimenta', amount: 80, date: '2026-10-05', memberId: 2 },
+        { id: 4, type: 'Gasto', parentCategory: 'Vestimenta', amount: 30, date: '2026-10-06', memberId: 2, refund: true },
+        { id: 5, type: 'Gasto', parentCategory: 'Vivienda', amount: 1500, date: '2026-10-01', memberId: -1 },
+        { id: 6, type: 'Ingreso', parentCategory: 'Ingresos Laborales', amount: 2400, date: '2026-10-10', memberId: 1 },
+        { id: 7, type: 'Gasto', parentCategory: 'Alimentación', amount: 999, date: '2026-09-30', memberId: 1 },          // before the period
+        { id: 8, type: 'Transferencia', amount: 500, date: '2026-10-07', from: 'acc-1', to: 'acc-2', memberId: 1 }
+    ];
+    const r = E.personSummary({ members, pay, transactions: tx, from: '2026-10-01', to: '2026-10-31' });
+    assert.deepEqual(r.map(x => x.name), ['Mike', 'Sarah', '']);
+    assert.deepEqual([r[0].gross, r[0].taxes, r[0].net, r[0].received, r[0].spent, r[0].top.category], [6000, 1159, 4841, 2400, 180, 'Alimentación']);
+    assert.deepEqual([r[1].gross, r[1].taxes, r[1].net, r[1].spent, r[1].top.amount], [4000, 706, 3094, 50, 50]);
+    assert.equal(r[2].spent, 1500);                                                   // shared: the household row
+    // Income typed as take-home, by whose it is (paycheck lines are counted from pay.earners).
+    const incomes = [{ id: 1, amount: 900, memberId: 2 }, { id: 2, amount: 3094, memberId: 2, pay: {} }, { id: 3, amount: 50 }];
+    const withTyped = E.personSummary({ members, pay, incomes, transactions: tx, from: '2026-10-01', to: '2026-10-31' });
+    assert.deepEqual([withTyped[0].net, withTyped[1].net, withTyped[1].gross], [4841, 3994, 4000]);
+    // What each puts into a 401(k) from their pay.
+    const saving = E.personSummary({ members, pay, retirement: [{ memberId: 1, own: 492 }, { memberId: 2, own: 200 }], transactions: [] });
+    assert.deepEqual(saving.map(x => x.saved), [492, 200]);
+    // Nothing shared in the period: no household row.
+    assert.equal(E.personSummary({ members, pay, transactions: tx.filter(t => t.id !== 5) , from: '2026-10-01', to: '2026-10-31' }).length, 2);
+});

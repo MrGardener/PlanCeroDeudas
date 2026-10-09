@@ -930,6 +930,16 @@
             <p class="help mb-2" id="rep-spark-note">Under each group, the line shows its last 12 months (the current month, dotted, isn't over yet).</p>
             <div class="table-wrap"><table class="table"><thead><tr><th id="rep-group-head">Category</th><th class="num">Transactions</th><th class="num">Total</th><th style="min-width:10rem">Share of total</th><th class="num">Average</th></tr></thead><tbody id="rep-body"></tbody></table></div>
         </div>
+        <div class="card" id="rep-people-card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title"><i class="fa-solid fa-people-group text-blue-600"></i> By person</div>
+                    <div class="card-sub">Each person's paycheck, a month, and what they received and spent in the report's period. Spending marked as shared, or that doesn't say whose, is under Household.</div>
+                </div>
+            </div>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Person</th><th class="num">Pay before taxes</th><th class="num">Taxes</th><th class="num">Take-home</th><th class="num">Retirement savings</th><th class="num">Received</th><th class="num">Spent</th><th>Spends most on</th></tr></thead><tbody id="rep-people"></tbody></table></div>
+            <p class="help mt-2" id="rep-people-note"></p>
+        </div>
     </div>
 </section>
 <!-- ============================================================== FUTURO -->
@@ -1316,11 +1326,13 @@
                     <span class="field-label"><span>Already saved for retirement (<span class="cur">$</span>)</span></span>
                     <div class="input input-readonly" id="ret-ahorro"></div>
                     <span class="linked">🔗 Automatic: what you've already saved and invested beyond your emergency fund (<a href="#" class="link" data-goto="futuro/polizas">CDs</a>, accounts and investments).</span>
+                    <span class="help" id="ret-ahorro-who"></span>
                 </div>
                 <div class="field-box tone-emerald">
                     <span class="field-label"><span>Monthly retirement contribution (<span class="cur">$</span>)</span></span>
                     <div class="input input-readonly" id="ret-aporte"></div>
                     <span class="linked">🔗 Automatic: your Savings lines from the <a href="#" class="link" data-goto="presupuesto/plan">budget</a> (not counting goals)<span id="ret-aporte-sweep"></span>. To contribute more, raise it there. To just explore, use the simulator below.</span>
+                    <span class="help" id="ret-aporte-who"></span>
                 </div>
                 <div class="field-box tone-emerald">
                     <span class="field-label"><span>Expected annual return (%)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="tasaRetorno" title="Link again to the savings rate">↻ enlazar</button></span>
