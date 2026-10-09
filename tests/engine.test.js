@@ -1931,3 +1931,41 @@ test('jointWagesUS: the other paychecks on a joint return, unless typed; nothing
     assert.equal(E.jointWagesUS(pay, { spouseWithheld: 3000 }).withheld, 3000);
     assert.equal(E.jointWagesUS({ household: { joint: false }, earners: pay.earners }, { spouseWages: 35000 }).wages, 0);
 });
+
+test('trendWindow: zooming the dates narrows the window and steps from months to weeks to days', () => {
+    const today = new Date(2026, 9, 9);
+    const all = E.trendWindow({ end: today, months: 6 });
+    assert.deepEqual([all.from, all.to, all.unit, all.zoom], ['2026-05-01', '2026-10-31', 'month', 1]);
+    const w = E.trendWindow({ end: today, months: 6, zoom: 4, center: '2026-09-15' });
+    assert.deepEqual([w.unit, w.center], ['week', '2026-09-15']);
+    assert.ok(w.days > 21 && w.days <= 92 && w.from <= '2026-09-15' && w.to >= '2026-09-15');
+    const d = E.trendWindow({ end: today, months: 6, zoom: 999, center: '2026-09-15' });
+    assert.deepEqual([d.unit, d.days, d.from, d.to], ['day', E.TREND_MIN_DAYS, '2026-09-12', '2026-09-18']);
+    // Kept inside the period, and never past today.
+    const late = E.trendWindow({ end: today, months: 6, zoom: 10, center: '2026-12-25' });
+    assert.equal(late.to, '2026-10-09');
+    const early = E.trendWindow({ end: today, months: 6, zoom: 10, center: '2020-01-01' });
+    assert.equal(early.from, '2026-05-01');
+});
+
+test('categoryTrend by week and by day: points inside the window only', () => {
+    const tx = [
+        { id: 1, type: 'Gasto', parentCategory: 'Alimentación', amount: 50, date: '2026-09-14' },     // Monday
+        { id: 2, type: 'Gasto', parentCategory: 'Alimentación', amount: 30, date: '2026-09-20' },     // Sunday, same week
+        { id: 3, type: 'Gasto', parentCategory: 'Mascotas', amount: 20, date: '2026-09-21' },          // next Monday
+        { id: 4, type: 'Gasto', parentCategory: 'Mascotas', amount: 999, date: '2026-09-09' },         // before the window
+        { id: 5, type: 'Ingreso', parentCategory: 'Ingresos Laborales', amount: 2000, date: '2026-09-18' }
+    ];
+    assert.deepEqual(E.trendKeys('2026-09-10', '2026-09-27', 'week'), ['2026-09-10', '2026-09-14', '2026-09-21']);
+    const wk = E.categoryTrend(tx, { end: new Date(2026, 9, 9), from: '2026-09-10', to: '2026-09-27', unit: 'week' });
+    assert.deepEqual(wk.months, ['2026-09-10', '2026-09-14', '2026-09-21']);
+    assert.deepEqual(wk.series.find(x => x.key === 'Alimentación').values, [0, 80, 0]);
+    assert.deepEqual(wk.series.find(x => x.key === 'Mascotas').values, [0, 0, 20]);
+    assert.deepEqual(wk.income, [0, 2000, 0]);
+    assert.deepEqual(E.trendPointRange(wk, '2026-09-10'), ['2026-09-10', '2026-09-13']);
+    assert.deepEqual(E.trendPointRange(wk, '2026-09-21'), ['2026-09-21', '2026-09-27']);
+    const day = E.categoryTrend(tx, { end: new Date(2026, 9, 9), from: '2026-09-19', to: '2026-09-21', unit: 'day' });
+    assert.deepEqual([day.months, day.spend, day.unit], [['2026-09-19', '2026-09-20', '2026-09-21'], [0, 30, 20], 'day']);
+    assert.deepEqual(E.trendPointRange(day, '2026-09-20'), ['2026-09-20', '2026-09-20']);
+    assert.deepEqual(E.trendPointRange({ unit: 'month' }, '2026-02'), ['2026-02-01', '2026-02-28']);
+});
