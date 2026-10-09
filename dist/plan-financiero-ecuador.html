@@ -2633,11 +2633,20 @@ button.gm-row:hover { background: var(--surface-3); }
                 <div class="section-label"><i class="fa-solid fa-chart-line text-indigo-600"></i> Investment prices</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
                     <label class="field"><span class="field-label">Provider</span>
-                        <select class="input" data-bind="settings.priceProvider"><option value="finnhub">Finnhub (US stocks and ETFs)</option><option value="alphavantage">Alpha Vantage (includes mutual funds)</option></select></label>
-                    <label class="field"><span class="field-label">Your free key (API key)</span>
+                        <select class="input" data-bind="settings.priceProvider" data-structural="true"><option value="gsheet">Google Sheets (GOOGLEFINANCE, no key, no limit)</option><option value="finnhub">Finnhub (US stocks and ETFs, 60 a minute)</option><option value="alphavantage">Alpha Vantage (mutual funds too, 25 a day)</option></select></label>
+                    <label class="field" id="cfg-price-key"><span class="field-label">Your free key (API key)</span>
                         <input type="password" class="input" autocomplete="off" data-bind="settings.priceKey" placeholder="Paste your key here"></label>
+                    <label class="field" id="cfg-price-sheet"><span class="field-label">Link to your published sheet (CSV)</span>
+                        <input type="url" class="input" autocomplete="off" data-bind="settings.priceSheet" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv"></label>
                 </div>
-                <p class="help mt-2">Create a free key at <a class="link" href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a> o <a class="link" href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">alphavantage.co</a>. It's saved only in this browser (not in the backup) and only used to fetch prices.</p>
+                <label class="field flex-row items-center gap-2 mt-3"><input type="checkbox" class="w-4 h-4" data-bind="settings.priceAuto"> <span class="field-label mb-0">Update prices by themselves once a day (when the app is opened)</span></label>
+                <p class="help mt-2" id="cfg-price-key-help">Create a free key at <a class="link" href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a> or <a class="link" href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">alphavantage.co</a>. It's saved only in this browser (not in the backup) and only used to fetch prices. Alpha Vantage's free key allows 25 prices a day, one per second: the app waits between them.</p>
+                <div class="help mt-2" id="cfg-price-sheet-help"><p>Prices from Google, no key and no daily limit:</p>
+                    <ol class="list-decimal ml-5 mt-1 space-y-0.5">
+                        <li>In a new Google Sheet, put each symbol in column A (AAPL, VTI, MUTF:VFIAX…) and in column B <code>=GOOGLEFINANCE(A1)</code> (A2, A3… for the next rows).</li>
+                        <li>File → Share → Publish to web → pick the sheet and <strong>Comma-separated values (.csv)</strong> → Publish.</li>
+                        <li>Paste that link here. Only the symbols are in the sheet: no amounts, no names.</li>
+                    </ol></div>
             </div>
             <div class="panel tone-slate" id="cfg-device">
                 <div class="section-label"><i class="fa-solid fa-mobile-screen text-indigo-600"></i> This device</div>
@@ -5843,6 +5852,33 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Google Sheets": "Google Sheets",
+    "or": "o",
+    "(A2, A3… for the next rows).": "(A2, A3… en las filas siguientes).",
+    "(Google Sheets needs no key). Or type the price by hand.": "(Google Sheets no necesita clave). O escribe el precio a mano.",
+    "Alpha Vantage (mutual funds too, 25 a day)": "Alpha Vantage (también fondos mutuos, 25 al día)",
+    "Comma-separated values (.csv)": "Valores separados por comas (.csv)",
+    "File → Share → Publish to web → pick the sheet and": "Archivo → Compartir → Publicar en la Web → elige la hoja y",
+    "Finnhub (US stocks and ETFs, 60 a minute)": "Finnhub (acciones y ETF de EE. UU., 60 por minuto)",
+    "First paste the link to your published sheet in Settings → Prices.": "Primero pega el enlace de tu hoja publicada en Configuración → Precios.",
+    "Google Sheets (GOOGLEFINANCE, no key, no limit)": "Google Sheets (GOOGLEFINANCE, sin clave, sin límite)",
+    "In a new Google Sheet, put each symbol in column A (AAPL, VTI, MUTF:VFIAX…) and in column B": "En una hoja nueva de Google, pon cada símbolo en la columna A (AAPL, VTI, MUTF:VFIAX…) y en la columna B",
+    "Last update failed:": "La última actualización falló:",
+    "Link to your published sheet (CSV)": "Enlace de tu hoja publicada (CSV)",
+    "Paste that link here. Only the symbols are in the sheet: no amounts, no names.": "Pega ese enlace aquí. En la hoja solo van los símbolos: ni montos ni nombres.",
+    "Prices from Google, no key and no daily limit:": "Precios de Google, sin clave y sin límite diario:",
+    "They update once a day by themselves, or when you tap the button.": "Se actualizan solos una vez al día, o cuando tocas el botón.",
+    "They update when you tap the button.": "Se actualizan cuando tocas el botón.",
+    "To fetch market prices, set up": "Para traer precios de mercado, configura",
+    "Update prices by themselves once a day (when the app is opened)": "Actualizar los precios solos una vez al día (al abrir la app)",
+    "daily limit of the free key": "límite diario de la clave gratis",
+    "not in the sheet": "no está en la hoja",
+    "one request a second": "una consulta por segundo",
+    "request limit": "límite de consultas",
+    "the link isn't a published sheet": "el enlace no es una hoja publicada",
+    "the sheet couldn't be read": "no se pudo leer la hoja",
+    ". It's saved only in this browser (not in the backup) and only used to fetch prices. Alpha Vantage's free key allows 25 prices a day, one per second: the app waits between them.": ". Se guarda solo en este navegador (no va en la copia de respaldo) y solo se usa para pedir precios. La clave gratis de Alpha Vantage permite 25 precios al día, uno por segundo: la app espera entre uno y otro.",
+    "Couldn't: {0}. The last price stays; you can also type it by hand.": "No se pudo: {0}. Se queda el último precio; también puedes escribirlo a mano.",
     "New line": "Nuevo rubro",
     "New debt": "Nueva deuda",
     "New goal": "Nueva meta",
@@ -9980,7 +10016,7 @@ I18n.override('EC', 'es', {
                 { id: 3, type: 'Ingreso', description: 'Remesa mensual de mi hermano', store: 'Western Union', parentCategory: 'Remesas del Exterior', category: 'Remesa Familiar (EE.UU.)', amount: 200, date: iso, paymentType: 'Tarjeta de Débito' }
             ],
             taxonomy: { expense: clone(EXPENSE_TAXONOMY), income: clone(INCOME_TAXONOMY) },
-            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', paydays: [], paySchedule: null, cashBuffer: 0, alertsDismissed: {}, flowExclude: [], flowIntroSeen: false, dismissedEvents: [], taxonomyRev: 0 },
+            settings: { retireWhatIfMax: 500, mortgageWhatIfMax: 2000, mortgageSystem: 'frances', welcomeDismissed: false, lastBackupAt: null, currency: 'USD', importProfiles: {}, priceProvider: 'finnhub', priceKey: '', priceSheet: '', priceAuto: true, pricesCheckedAt: null, paydays: [], paySchedule: null, cashBuffer: 0, alertsDismissed: {}, flowExclude: [], flowIntroSeen: false, dismissedEvents: [], taxonomyRev: 0 },
             // "Description contains X → category / budget line", used on import and new transactions.
             rules: [],
             // Investments: { id, ticker, name, kind, shares, price, priceAt, auto }
@@ -14889,7 +14925,36 @@ I18n.override('EC', 'es', {
         return null;
     }
 
-    const Importers = { detectDateOrder, parseOFX, classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    // A Google Sheet published as CSV (File → Share → Publish to web → CSV) with a symbol in the
+    // first column and its =GOOGLEFINANCE() price next to it → { SYMBOL: price }. "NASDAQ:AAPL"
+    // also counts as AAPL; headers, #N/A and "Loading…" cells are skipped.
+    function sheetPrices(text) {
+        const { rows } = parseCSV(text, ',');
+        const dec = detectDecimal([].concat(...rows.map(r => r.slice(1))));
+        const out = {};
+        rows.forEach(r => {
+            const sym = String(r[0] || '').trim().toUpperCase();
+            if (!/^[A-Z0-9.^:\-]{1,24}$/.test(sym)) return;
+            const cell = r.slice(1).find(c => /\d/.test(c || '') && !/#/.test(c));
+            const p = cell === undefined ? null : parseAmount(cell, dec);
+            if (!(p > 0)) return;
+            out[sym] = p;
+            if (sym.includes(':')) out[sym.split(':').pop()] = p;
+        });
+        return out;
+    }
+
+    // What a pasted Google Sheets link should be to read it as CSV: the "Publish to web" link,
+    // with output=csv. A normal (edit) link can't be read without signing in: null.
+    function sheetCsvUrl(link) {
+        let u;
+        try { u = new URL(String(link || '').trim()); } catch (e) { return null; }
+        if (u.protocol !== 'https:' || u.hostname !== 'docs.google.com' || !/^\/spreadsheets\/d\/e\/[\w-]+\/pub/.test(u.pathname)) return null;
+        u.searchParams.set('output', 'csv');
+        return u.toString();
+    }
+
+    const Importers = { sheetPrices, sheetCsvUrl, detectDateOrder, parseOFX, classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
     if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
     else root.Importers = Importers;
 })(this);
@@ -15506,6 +15571,7 @@ I18n.override('EC', 'es', {
             if (prev) {
                 if (prev.welcomeDismissed) this.state.settings.welcomeDismissed = true;
                 if (prev.priceKey && !this.state.settings.priceKey) this.state.settings.priceKey = prev.priceKey;
+                if (prev.priceSheet && !this.state.settings.priceSheet) this.state.settings.priceSheet = prev.priceSheet;
                 if (prev.lastBackupAt && (!this.state.settings.lastBackupAt || prev.lastBackupAt > this.state.settings.lastBackupAt)) this.state.settings.lastBackupAt = prev.lastBackupAt;
             }
             this.year(this.state.activeYear);
@@ -16528,7 +16594,9 @@ I18n.override('EC', 'es', {
         else if (openQuick) Store.ui.quickAfterUnlock = true;
         // Post repeating transactions that came due since the app was last opened.
         if (window.Recurring) window.Recurring.maintain();
-        document.addEventListener('visibilitychange', () => { if (!document.hidden && window.Recurring) window.Recurring.maintain(); });
+        // Investment prices once a day (when set up in Settings → Prices).
+        if (window.Prices) window.Prices.daily();
+        document.addEventListener('visibilitychange', () => { if (document.hidden) return; if (window.Recurring) window.Recurring.maintain(); if (window.Prices) window.Prices.daily(); });
         renderSaveStatus({ lastSavedAt: new Date(), error: null });
         // A fresh install opens the setup guide once (browser tests open it themselves).
         if (window.Setup && !openQuick && !navigator.webdriver && !document.documentElement.classList.contains('app-locked')) Setup.maybeOpen();
@@ -25677,36 +25745,113 @@ I18n.override('EC', 'es', {
             if (!row) return;
             row.querySelector('[data-cell="value"]').textContent = money(Engine.holdingValue(h));
             row.querySelector('[data-cell="gain"]').innerHTML = gainHTML(Number(h.cost) > 0 ? Engine.holdingValue(h) - Number(h.cost) : null, Number(h.cost));
-            row.querySelector('[data-cell="when"]').innerHTML = h.priceAt ? `${h.priceSource === 'manual' ? 'Manual' : 'Market'} · ${esc(new Date(h.priceAt).toLocaleString(window.I18n && I18n.lang === 'en' ? 'en-US' : 'es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">No price</span>';
+            row.querySelector('[data-cell="when"]').innerHTML = (h.priceAt ? `${h.priceSource === 'manual' ? 'Manual' : 'Market'} · ${esc(new Date(h.priceAt).toLocaleString(window.I18n && I18n.lang === 'en' ? 'en-US' : 'es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">No price</span>')
+                + (h.priceFail ? `<div class="text-[11px] text-amber-700"><i class="fa-solid fa-triangle-exclamation"></i> <span>Last update failed:</span> <span>${esc(h.priceFail)}</span></div>` : '');
         });
         UI.text('hold-total', money0(Engine.holdingsValue(s.holdings)));
         const mix = Engine.portfolioMix(s.holdings, null);
         UI.text('hold-cost', mix.cost > 0 ? money0(mix.cost) : '');
         UI.html('hold-gain', gainHTML(mix.gain, mix.cost));
         if (window.Mix) Mix.update(ctx);
-        const key = (s.settings.priceKey || '').trim();
-        UI.html('hold-key-note', key ? `Prices from <strong>${s.settings.priceProvider === 'alphavantage' ? 'Alpha Vantage' : 'Finnhub'}</strong> with your key. They update when you tap the button.`
-            : 'To fetch market prices, paste your free key in <a href="#" class="link" data-goto="config" data-focus="cfg-prices">Settings → Prices</a>. Without a key, type the price by hand.');
+        const src = priceSource(s);
+        UI.html('hold-key-note', src ? `<span>Prices from <strong>${PROVIDER_NAMES[src]}</strong>.</span> <span>${s.settings.priceAuto === false ? 'They update when you tap the button.' : 'They update once a day by themselves, or when you tap the button.'}</span>`
+            : 'To fetch market prices, set up <a href="#" class="link" data-goto="config" data-focus="cfg-prices">Settings → Prices</a> (Google Sheets needs no key). Or type the price by hand.');
     }
 
-    // Last price of a symbol from the chosen provider (with the person's own free key).
+    // ------------------------------------------------------------------ market prices
+    // Finnhub / Alpha Vantage with the person's own free key, or a Google Sheet they published
+    // with =GOOGLEFINANCE() (no key, one request for every symbol). A price that can't be
+    // fetched keeps the last one (and says why on its row).
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const PROVIDER_NAMES = { gsheet: 'Google Sheets', alphavantage: 'Alpha Vantage', finnhub: 'Finnhub' };
+    const priceSource = (s) => {
+        const p = s.settings.priceProvider || 'finnhub';
+        return p === 'gsheet' ? (Importers.sheetCsvUrl(s.settings.priceSheet) ? p : null) : ((s.settings.priceKey || '').trim() ? p : null);
+    };
+    function priceError(msg, code) { const e = new Error(msg); e.code = code; return e; }
+
     async function fetchPrice(ticker, provider, key) {
         const sym = encodeURIComponent(ticker.trim().toUpperCase());
         if (provider === 'alphavantage') {
             const r = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${sym}&apikey=${encodeURIComponent(key)}`);
             const j = await r.json();
-            if (j.Note || j.Information) throw new Error('free plan request limit');
+            const note = String(j.Note || j.Information || '');
+            // Two limits: one request a second (wait and try again) and 25 a day (stop for today).
+            if (note) throw /per day|daily/i.test(note) ? priceError('daily limit of the free key', 'daily') : priceError('one request a second', 'burst');
             const p = parseFloat(j['Global Quote'] && j['Global Quote']['05. price']);
-            if (!(p > 0)) throw new Error('symbol not found');
+            if (!(p > 0)) throw priceError('symbol not found');
             return p;
         }
         const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${encodeURIComponent(key)}`);
-        if (r.status === 401 || r.status === 403) throw new Error('invalid key');
-        if (r.status === 429) throw new Error('request limit, try again in a minute');
+        if (r.status === 401 || r.status === 403) throw priceError('invalid key', 'key');
+        if (r.status === 429) throw priceError('request limit', 'burst');
         const j = await r.json();
-        if (!(j.c > 0)) throw new Error('symbol not found');
+        if (!(j.c > 0)) throw priceError('symbol not found');
         return j.c;
     }
+
+    async function fetchSheet(link) {
+        const url = Importers.sheetCsvUrl(link);
+        if (!url) throw priceError('the link isn\'t a published sheet', 'key');
+        const r = await fetch(url, { cache: 'no-store' });
+        if (!r.ok) throw priceError('the sheet couldn\'t be read', 'key');
+        return Importers.sheetPrices(await r.text());
+    }
+
+    // Updates every investment with a symbol. quiet: the daily update (no messages unless
+    // something changed). Returns { ok, failed: ['VTI (symbol not found)'] }.
+    let refreshing = null;
+    function refreshPrices({ quiet = false } = {}) {
+        if (refreshing) return refreshing;
+        refreshing = (async () => {
+            const s = Store.state, provider = priceSource(s);
+            const list = (s.holdings || []).filter(h => h.ticker && h.ticker.trim());
+            const failed = [];
+            let ok = 0;
+            const set = (h, price) => { h.price = Math.round(price * 10000) / 10000; h.priceAt = new Date().toISOString(); h.priceSource = provider; delete h.priceFail; ok++; };
+            const fail = (h, why) => { h.priceFail = why; failed.push(`${h.ticker} (${why})`); };
+            if (provider === 'gsheet') {
+                try {
+                    const prices = await fetchSheet(s.settings.priceSheet);
+                    list.forEach(h => { const p = prices[h.ticker.trim().toUpperCase()]; if (p > 0) set(h, p); else fail(h, 'not in the sheet'); });
+                } catch (e) { list.forEach(h => fail(h, e.message || 'offline')); }
+            } else {
+                const key = s.settings.priceKey.trim();
+                let stop = '';
+                for (let i = 0; i < list.length; i++) {
+                    const h = list[i];
+                    if (stop) { fail(h, stop); continue; }
+                    // Alpha Vantage's free key takes one request a second.
+                    if (i && provider === 'alphavantage') await sleep(1300);
+                    try { set(h, await fetchPrice(h.ticker, provider, key)); } catch (e) {
+                        if (e.code === 'burst') {
+                            await sleep(provider === 'alphavantage' ? 2500 : 1500);
+                            try { set(h, await fetchPrice(h.ticker, provider, key)); continue; } catch (e2) { e = e2; }
+                        }
+                        if (e.code === 'daily' || e.code === 'key') stop = e.message;
+                        fail(h, e.message || 'offline');
+                    }
+                }
+            }
+            s.settings.pricesCheckedAt = new Date().toISOString();
+            if (ok || failed.length) App.changed({ structural: true, step: !quiet });
+            if (ok && !quiet) UI.toast(`${ok} price${ok === 1 ? '' : 's'} updated. Total: ${money0(Engine.holdingsValue(s.holdings))}.`);
+            if (failed.length && !quiet) UI.toast(`Couldn't: ${failed.join(', ')}. The last price stays; you can also type it by hand.`, 'error');
+            return { ok, failed };
+        })();
+        return refreshing.finally(() => { refreshing = null; });
+    }
+
+    // Once a day, when the app is opened (Settings → Investment prices).
+    const DAY_MS = 20 * 3600 * 1000;
+    function dailyPrices() {
+        const s = Store.state;
+        if (!s || s.settings.priceAuto === false || !priceSource(s) || !(s.holdings || []).some(h => h.ticker)) return null;
+        const last = Date.parse(s.settings.pricesCheckedAt || '') || 0;
+        if (Date.now() - last < DAY_MS) return null;
+        return refreshPrices({ quiet: true });
+    }
+    window.Prices = { refresh: refreshPrices, daily: dailyPrices, fetchSheet };
 
     function touch(yd, field, value) {
         yd.netWorth[field] = value;
@@ -25788,7 +25933,7 @@ I18n.override('EC', 'es', {
             const f = el.dataset.field;
             if (f === 'shares' || f === 'price' || f === 'cost') h[f] = Math.max(0, parseNum(el.value, 0));
             else h[f] = f === 'ticker' ? el.value.trim().toUpperCase() : el.value;
-            if (f === 'price') { h.priceAt = new Date().toISOString(); h.priceSource = 'manual'; }
+            if (f === 'price') { h.priceAt = new Date().toISOString(); h.priceSource = 'manual'; delete h.priceFail; }
             App.changed();
         },
         'hold.delete': (el) => {
@@ -25798,25 +25943,10 @@ I18n.override('EC', 'es', {
         },
         'hold.refresh': async (el) => {
             const s = Store.state;
-            const key = (s.settings.priceKey || '').trim();
-            if (!key) { UI.toast('First paste your free key in Settings → Prices.', 'error'); App.go('config', { focus: 'cfg-prices' }); return; }
-            const list = (s.holdings || []).filter(h => h.ticker);
-            if (!list.length) { UI.toast('Add at least one investment with its symbol (ticker).', 'error'); return; }
+            if (!priceSource(s)) { UI.toast(s.settings.priceProvider === 'gsheet' ? 'First paste the link to your published sheet in Settings → Prices.' : 'First paste your free key in Settings → Prices.', 'error'); App.go('config', { focus: 'cfg-prices' }); return; }
+            if (!(s.holdings || []).some(h => h.ticker && h.ticker.trim())) { UI.toast('Add at least one investment with its symbol (ticker).', 'error'); return; }
             el.disabled = true;
-            const failed = [];
-            let ok = 0;
-            for (const h of list) {
-                try {
-                    h.price = Math.round(await fetchPrice(h.ticker, s.settings.priceProvider, key) * 10000) / 10000;
-                    h.priceAt = new Date().toISOString();
-                    h.priceSource = s.settings.priceProvider || 'finnhub';
-                    ok++;
-                } catch (e) { failed.push(`${h.ticker} (${e.message || 'offline'})`); }
-            }
-            el.disabled = false;
-            App.changed({ structural: true, step: true });
-            if (ok) UI.toast(`${ok} price${ok === 1 ? '' : 's'} updated. Total: ${money0(Engine.holdingsValue(s.holdings))}.`);
-            if (failed.length) UI.toast(`Couldn't: ${failed.join(', ')}. You can type the price by hand.`, 'error');
+            try { await refreshPrices(); } finally { el.disabled = false; }
         },
         'nw.set': (el) => {
             touch(Store.active(), el.dataset.field, Math.max(0, parseNum(el.value, 0)));
@@ -26238,6 +26368,12 @@ I18n.override('EC', 'es', {
         if (window.Categories) Categories.render();
         renderMembers();
         renderDevice();
+        // Prices: a key for Finnhub / Alpha Vantage, a sheet link for Google Sheets.
+        const sheet = s.settings.priceProvider === 'gsheet';
+        document.getElementById('cfg-price-key').classList.toggle('hidden', sheet);
+        document.getElementById('cfg-price-sheet').classList.toggle('hidden', !sheet);
+        document.getElementById('cfg-price-sheet-help').classList.toggle('hidden', !sheet);
+        document.getElementById('cfg-price-key-help').classList.toggle('hidden', sheet);
         const curSel = document.getElementById('cfg-currency');
         if (!curSel.options.length) curSel.innerHTML = Views.selectOptions(Fmt.CURRENCIES.map(c => ({ value: c.code, label: c.label })), s.settings.currency || 'USD');
         curSel.value = s.settings.currency || 'USD';
@@ -26393,7 +26529,7 @@ I18n.override('EC', 'es', {
         'cfg.download': () => {
             // The price API key is a credential: it stays in this browser, not in the file.
             const data = JSON.parse(Store.serialize());
-            if (data.settings) delete data.settings.priceKey;
+            if (data.settings) { delete data.settings.priceKey; delete data.settings.priceSheet; }
             const prefix = APP_EDITION.country === 'US' ? 'zerodebtplan' : 'plan_financiero_ecuador';
             const name = `${prefix}_${new Date().toISOString().slice(0, 10)}.json`;
             Native.saveSecure(name, JSON.stringify(data), 'application/json', { title: 'Encrypt the backup' }).then(how => {

@@ -495,7 +495,9 @@
         else if (openQuick) Store.ui.quickAfterUnlock = true;
         // Post repeating transactions that came due since the app was last opened.
         if (window.Recurring) window.Recurring.maintain();
-        document.addEventListener('visibilitychange', () => { if (!document.hidden && window.Recurring) window.Recurring.maintain(); });
+        // Investment prices once a day (when set up in Settings → Prices).
+        if (window.Prices) window.Prices.daily();
+        document.addEventListener('visibilitychange', () => { if (document.hidden) return; if (window.Recurring) window.Recurring.maintain(); if (window.Prices) window.Prices.daily(); });
         renderSaveStatus({ lastSavedAt: new Date(), error: null });
         // A fresh install opens the setup guide once (browser tests open it themselves).
         if (window.Setup && !openQuick && !navigator.webdriver && !document.documentElement.classList.contains('app-locked')) Setup.maybeOpen();

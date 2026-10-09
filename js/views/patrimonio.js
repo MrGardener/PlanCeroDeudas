@@ -278,36 +278,113 @@
             if (!row) return;
             row.querySelector('[data-cell="value"]').textContent = money(Engine.holdingValue(h));
             row.querySelector('[data-cell="gain"]').innerHTML = gainHTML(Number(h.cost) > 0 ? Engine.holdingValue(h) - Number(h.cost) : null, Number(h.cost));
-            row.querySelector('[data-cell="when"]').innerHTML = h.priceAt ? `${h.priceSource === 'manual' ? 'Manual' : 'Market'} · ${esc(new Date(h.priceAt).toLocaleString(window.I18n && I18n.lang === 'en' ? 'en-US' : 'es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">No price</span>';
+            row.querySelector('[data-cell="when"]').innerHTML = (h.priceAt ? `${h.priceSource === 'manual' ? 'Manual' : 'Market'} · ${esc(new Date(h.priceAt).toLocaleString(window.I18n && I18n.lang === 'en' ? 'en-US' : 'es-EC', { dateStyle: 'short', timeStyle: 'short' }))}` : '<span class="text-amber-700">No price</span>')
+                + (h.priceFail ? `<div class="text-[11px] text-amber-700"><i class="fa-solid fa-triangle-exclamation"></i> <span>Last update failed:</span> <span>${esc(h.priceFail)}</span></div>` : '');
         });
         UI.text('hold-total', money0(Engine.holdingsValue(s.holdings)));
         const mix = Engine.portfolioMix(s.holdings, null);
         UI.text('hold-cost', mix.cost > 0 ? money0(mix.cost) : '');
         UI.html('hold-gain', gainHTML(mix.gain, mix.cost));
         if (window.Mix) Mix.update(ctx);
-        const key = (s.settings.priceKey || '').trim();
-        UI.html('hold-key-note', key ? `Prices from <strong>${s.settings.priceProvider === 'alphavantage' ? 'Alpha Vantage' : 'Finnhub'}</strong> with your key. They update when you tap the button.`
-            : 'To fetch market prices, paste your free key in <a href="#" class="link" data-goto="config" data-focus="cfg-prices">Settings → Prices</a>. Without a key, type the price by hand.');
+        const src = priceSource(s);
+        UI.html('hold-key-note', src ? `<span>Prices from <strong>${PROVIDER_NAMES[src]}</strong>.</span> <span>${s.settings.priceAuto === false ? 'They update when you tap the button.' : 'They update once a day by themselves, or when you tap the button.'}</span>`
+            : 'To fetch market prices, set up <a href="#" class="link" data-goto="config" data-focus="cfg-prices">Settings → Prices</a> (Google Sheets needs no key). Or type the price by hand.');
     }
 
-    // Last price of a symbol from the chosen provider (with the person's own free key).
+    // ------------------------------------------------------------------ market prices
+    // Finnhub / Alpha Vantage with the person's own free key, or a Google Sheet they published
+    // with =GOOGLEFINANCE() (no key, one request for every symbol). A price that can't be
+    // fetched keeps the last one (and says why on its row).
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const PROVIDER_NAMES = { gsheet: 'Google Sheets', alphavantage: 'Alpha Vantage', finnhub: 'Finnhub' };
+    const priceSource = (s) => {
+        const p = s.settings.priceProvider || 'finnhub';
+        return p === 'gsheet' ? (Importers.sheetCsvUrl(s.settings.priceSheet) ? p : null) : ((s.settings.priceKey || '').trim() ? p : null);
+    };
+    function priceError(msg, code) { const e = new Error(msg); e.code = code; return e; }
+
     async function fetchPrice(ticker, provider, key) {
         const sym = encodeURIComponent(ticker.trim().toUpperCase());
         if (provider === 'alphavantage') {
             const r = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${sym}&apikey=${encodeURIComponent(key)}`);
             const j = await r.json();
-            if (j.Note || j.Information) throw new Error('free plan request limit');
+            const note = String(j.Note || j.Information || '');
+            // Two limits: one request a second (wait and try again) and 25 a day (stop for today).
+            if (note) throw /per day|daily/i.test(note) ? priceError('daily limit of the free key', 'daily') : priceError('one request a second', 'burst');
             const p = parseFloat(j['Global Quote'] && j['Global Quote']['05. price']);
-            if (!(p > 0)) throw new Error('symbol not found');
+            if (!(p > 0)) throw priceError('symbol not found');
             return p;
         }
         const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${encodeURIComponent(key)}`);
-        if (r.status === 401 || r.status === 403) throw new Error('invalid key');
-        if (r.status === 429) throw new Error('request limit, try again in a minute');
+        if (r.status === 401 || r.status === 403) throw priceError('invalid key', 'key');
+        if (r.status === 429) throw priceError('request limit', 'burst');
         const j = await r.json();
-        if (!(j.c > 0)) throw new Error('symbol not found');
+        if (!(j.c > 0)) throw priceError('symbol not found');
         return j.c;
     }
+
+    async function fetchSheet(link) {
+        const url = Importers.sheetCsvUrl(link);
+        if (!url) throw priceError('the link isn\'t a published sheet', 'key');
+        const r = await fetch(url, { cache: 'no-store' });
+        if (!r.ok) throw priceError('the sheet couldn\'t be read', 'key');
+        return Importers.sheetPrices(await r.text());
+    }
+
+    // Updates every investment with a symbol. quiet: the daily update (no messages unless
+    // something changed). Returns { ok, failed: ['VTI (symbol not found)'] }.
+    let refreshing = null;
+    function refreshPrices({ quiet = false } = {}) {
+        if (refreshing) return refreshing;
+        refreshing = (async () => {
+            const s = Store.state, provider = priceSource(s);
+            const list = (s.holdings || []).filter(h => h.ticker && h.ticker.trim());
+            const failed = [];
+            let ok = 0;
+            const set = (h, price) => { h.price = Math.round(price * 10000) / 10000; h.priceAt = new Date().toISOString(); h.priceSource = provider; delete h.priceFail; ok++; };
+            const fail = (h, why) => { h.priceFail = why; failed.push(`${h.ticker} (${why})`); };
+            if (provider === 'gsheet') {
+                try {
+                    const prices = await fetchSheet(s.settings.priceSheet);
+                    list.forEach(h => { const p = prices[h.ticker.trim().toUpperCase()]; if (p > 0) set(h, p); else fail(h, 'not in the sheet'); });
+                } catch (e) { list.forEach(h => fail(h, e.message || 'offline')); }
+            } else {
+                const key = s.settings.priceKey.trim();
+                let stop = '';
+                for (let i = 0; i < list.length; i++) {
+                    const h = list[i];
+                    if (stop) { fail(h, stop); continue; }
+                    // Alpha Vantage's free key takes one request a second.
+                    if (i && provider === 'alphavantage') await sleep(1300);
+                    try { set(h, await fetchPrice(h.ticker, provider, key)); } catch (e) {
+                        if (e.code === 'burst') {
+                            await sleep(provider === 'alphavantage' ? 2500 : 1500);
+                            try { set(h, await fetchPrice(h.ticker, provider, key)); continue; } catch (e2) { e = e2; }
+                        }
+                        if (e.code === 'daily' || e.code === 'key') stop = e.message;
+                        fail(h, e.message || 'offline');
+                    }
+                }
+            }
+            s.settings.pricesCheckedAt = new Date().toISOString();
+            if (ok || failed.length) App.changed({ structural: true, step: !quiet });
+            if (ok && !quiet) UI.toast(`${ok} price${ok === 1 ? '' : 's'} updated. Total: ${money0(Engine.holdingsValue(s.holdings))}.`);
+            if (failed.length && !quiet) UI.toast(`Couldn't: ${failed.join(', ')}. The last price stays; you can also type it by hand.`, 'error');
+            return { ok, failed };
+        })();
+        return refreshing.finally(() => { refreshing = null; });
+    }
+
+    // Once a day, when the app is opened (Settings → Investment prices).
+    const DAY_MS = 20 * 3600 * 1000;
+    function dailyPrices() {
+        const s = Store.state;
+        if (!s || s.settings.priceAuto === false || !priceSource(s) || !(s.holdings || []).some(h => h.ticker)) return null;
+        const last = Date.parse(s.settings.pricesCheckedAt || '') || 0;
+        if (Date.now() - last < DAY_MS) return null;
+        return refreshPrices({ quiet: true });
+    }
+    window.Prices = { refresh: refreshPrices, daily: dailyPrices, fetchSheet };
 
     function touch(yd, field, value) {
         yd.netWorth[field] = value;
@@ -389,7 +466,7 @@
             const f = el.dataset.field;
             if (f === 'shares' || f === 'price' || f === 'cost') h[f] = Math.max(0, parseNum(el.value, 0));
             else h[f] = f === 'ticker' ? el.value.trim().toUpperCase() : el.value;
-            if (f === 'price') { h.priceAt = new Date().toISOString(); h.priceSource = 'manual'; }
+            if (f === 'price') { h.priceAt = new Date().toISOString(); h.priceSource = 'manual'; delete h.priceFail; }
             App.changed();
         },
         'hold.delete': (el) => {
@@ -399,25 +476,10 @@
         },
         'hold.refresh': async (el) => {
             const s = Store.state;
-            const key = (s.settings.priceKey || '').trim();
-            if (!key) { UI.toast('First paste your free key in Settings → Prices.', 'error'); App.go('config', { focus: 'cfg-prices' }); return; }
-            const list = (s.holdings || []).filter(h => h.ticker);
-            if (!list.length) { UI.toast('Add at least one investment with its symbol (ticker).', 'error'); return; }
+            if (!priceSource(s)) { UI.toast(s.settings.priceProvider === 'gsheet' ? 'First paste the link to your published sheet in Settings → Prices.' : 'First paste your free key in Settings → Prices.', 'error'); App.go('config', { focus: 'cfg-prices' }); return; }
+            if (!(s.holdings || []).some(h => h.ticker && h.ticker.trim())) { UI.toast('Add at least one investment with its symbol (ticker).', 'error'); return; }
             el.disabled = true;
-            const failed = [];
-            let ok = 0;
-            for (const h of list) {
-                try {
-                    h.price = Math.round(await fetchPrice(h.ticker, s.settings.priceProvider, key) * 10000) / 10000;
-                    h.priceAt = new Date().toISOString();
-                    h.priceSource = s.settings.priceProvider || 'finnhub';
-                    ok++;
-                } catch (e) { failed.push(`${h.ticker} (${e.message || 'offline'})`); }
-            }
-            el.disabled = false;
-            App.changed({ structural: true, step: true });
-            if (ok) UI.toast(`${ok} price${ok === 1 ? '' : 's'} updated. Total: ${money0(Engine.holdingsValue(s.holdings))}.`);
-            if (failed.length) UI.toast(`Couldn't: ${failed.join(', ')}. You can type the price by hand.`, 'error');
+            try { await refreshPrices(); } finally { el.disabled = false; }
         },
         'nw.set': (el) => {
             touch(Store.active(), el.dataset.field, Math.max(0, parseNum(el.value, 0)));
