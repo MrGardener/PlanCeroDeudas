@@ -30,6 +30,8 @@ npm test                          # unit tests (fast; run often)
 npm run build:mobile              # phone build (must run from mobile/ — the script does that)
 npm run e2e                       # all browser suites (~6 min); `node tests/e2e/run.js us` runs matching ones
                                   # (e2e-sweep: every screen, phone + file, portrait + landscape)
+npm run e2e:bounds                # every field with boundary values (~20 min; CI runs it in 3 parts:
+                                  # `node tests/e2e/e2e-bounds.js "US phone" "patrimonio,config"` for some)
 npm run check                     # all of the above, before pushing
 npm run i18n:missing              # English text with no Spanish yet (report)
 npm run i18n:spanish              # Spanish text left in the code (only shrinks)
