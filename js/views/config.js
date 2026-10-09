@@ -74,6 +74,7 @@
     async function askPin(title) {
         const r = await UI.form({
             title, confirmText: 'Save',
+            message: 'The 10-wrong-tries erase stops guessing on this screen. Someone who copies this device\'s data could try every PIN on their own computer: a short PIN falls in minutes, a passcode of 12 or more characters doesn\'t.',
             fields: [{ name: 'kind', label: 'Type', options: [{ value: 'passcode', label: 'Passcode: 8 or more characters, letters too (safer)' }, { value: 'pin', label: 'PIN: 4 to 8 digits' }] },
                 { name: 'pin', label: 'PIN or passcode', type: 'password' }, { name: 'again', label: 'Type it again', type: 'password' }],
             validate: v => (v.kind === 'pin' ? (!/^\d{4,8}$/.test(v.pin) ? 'Use 4 to 8 digits.' : null) : (String(v.pin).length < 8 ? 'Use at least 8 characters.' : null)) || (v.pin !== v.again ? 'The two don\'t match.' : null)

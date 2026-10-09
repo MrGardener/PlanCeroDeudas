@@ -169,7 +169,7 @@
     // After the right PIN: get the data key (or make one for a plan saved before encryption),
     // decrypt the plan into memory and let the app start.
     async function openData(pin) {
-        if (!c()) return;
+        if (!c()) { const waiting = pending; pending = []; waiting.forEach(fn => fn()); return; }
         const d = read();
         if (d.lock && d.lock.wrap) { try { dataKey = await unwrapKey(pin, d.lock.wrap); } catch (e) { dataKey = null; } }
         if (!dataKey) await startEncryption(pin);
@@ -194,8 +194,9 @@
         write(d);
         dataKey = await c().subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
     }
-    // App.init calls this: run now, or once the PIN has opened the data.
-    function whenReady(fn) { if (dataLocked()) pending.push(fn); else fn(); }
+    // App.init calls this: run now, or once the PIN has opened the data. With a PIN the app never
+    // starts before it, so nothing of the plan is in memory behind the lock screen.
+    function whenReady(fn) { if (dataLocked() || hasPin()) pending.push(fn); else fn(); }
 
     let hiddenAt = null;
     // Wrong tries and the wait live with the lock, so closing or reloading the app doesn't reset them.
@@ -298,6 +299,9 @@
     // Turning the PIN on encrypts the saved plan; changing it re-wraps the same data key.
     // kind: 'pin' (4–8 digits) or 'passcode' (8+ characters, letters too: much harder to guess).
     async function setPin(pin, kind = 'pin') {
+        // Only from the open app: while locked (someone typing in the browser's console) it would
+        // only make the plan unreadable.
+        if (locked()) return false;
         const salt = randomSalt();
         const d = read();
         const keep = d.lock && d.lock.wrap && dataKey;
@@ -316,14 +320,47 @@
     }
     // Removing the PIN saves the plan readable again (it's this device's choice).
     function removePin() {
+        if (locked()) return false;
         const d = read(); delete d.lock; write(d);
         dataKey = null;
         if (root.Store && Store.state) { Store.storage = root.localStorage; Store._lastSaved = null; Store.saveNow(); }
+        return true;
     }
 
+    // Locked = the lock screen is up, or the plan hasn't been opened with the PIN.
+    const locked = () => hasPin() && (!!document.getElementById('lock-screen') || dataLocked() || pending.length > 0);
+
+    // Locking again ("Lock now", or 5 minutes away) forgets the open plan: it's saved (encrypted),
+    // then the page starts over and waits for the PIN. A lock screen over a running app could be
+    // removed with the browser's developer tools; this way nothing readable is left in memory.
+    let relocking = false;
+    async function relock() {
+        if (!hasPin() || relocking) return;
+        relocking = true;
+        document.documentElement.classList.add('app-covered');
+        try {
+            if (root.Store && Store.state && Store.storage) { Store.saveNow(); if (Store.storage.flush) await Store.storage.flush(); }
+            if (root.Native && Native.flush) await Native.flush();
+        } catch (e) { /* start over anyway */ }
+        dataKey = null;
+        if (root.Store) Store.storage = null;              // nothing is written on the way out
+        location.reload();
+    }
+    // Away from the app: covered at once (no flash of the plan when coming back), and after 5
+    // minutes it locks again, even while still in the background.
+    let idleTimer = null;
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) hiddenAt = Date.now();
-        else if (hiddenAt && Date.now() - hiddenAt >= IDLE_MS) showLock();
+        if (!hasPin()) return;
+        if (document.hidden) {
+            hiddenAt = Date.now();
+            document.documentElement.classList.add('app-covered');
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(relock, IDLE_MS);
+        } else {
+            clearTimeout(idleTimer);
+            if (hiddenAt && Date.now() - hiddenAt >= IDLE_MS) relock();
+            else document.documentElement.classList.remove('app-covered');
+        }
     });
     // An encrypted plan whose key is gone (device settings cleared): it can't be opened here.
     function showLost() {
@@ -340,5 +377,5 @@
     }
     document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); applyPrivacy(); if (dataLocked() && !hasPin()) showLost(); else showLock(); });
 
-    root.Device = { applyPrivacy, setPrivacy, hidden: () => !!read().hideAmounts, isPasscode: () => !!(read().lock && read().lock.kind === 'passcode'), storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: showLock, hashPin, KEY };
+    root.Device = { applyPrivacy, setPrivacy, hidden: () => !!read().hideAmounts, isPasscode: () => !!(read().lock && read().lock.kind === 'passcode'), storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: relock, locked, hashPin, KEY };
 })(this);

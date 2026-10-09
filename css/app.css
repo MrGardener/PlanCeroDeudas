@@ -509,7 +509,7 @@ html[data-theme="dark"] :is(.border-slate-100, .border-slate-200, .border-slate-
 html[data-theme="dark"] .divide-slate-100 > * + * { border-color: var(--line-soft) !important; }
 
 /* ================================================================ PIN lock */
-html.app-locked body > :not(#lock-screen):not(script) { visibility: hidden; }
+html.app-locked body > :not(#lock-screen):not(script), html.app-covered body > :not(#lock-screen):not(script) { visibility: hidden; }
 .lock-screen { position: fixed; inset: 0; z-index: 100; background: #0f172a; display: grid; place-items: center; padding: 1rem; }
 .lock-box { width: 100%; max-width: 20rem; background: #fff; border-radius: 1rem; padding: 1.5rem; text-align: center; box-shadow: 0 20px 50px rgba(0, 0, 0, .35); }
 .lock-title { font-weight: 800; color: #0f172a; font-size: 1.05rem; }

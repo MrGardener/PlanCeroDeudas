@@ -83,6 +83,7 @@
     function exit() { const a = plugin('App'); if (a && a.exitApp) a.exitApp(); }
 
     // Keep a copy of every save in native storage; put it back if the web view lost it.
+    let pendingCopy = Promise.resolve();
     function startMirror() {
         const prefs = plugin('Preferences');
         if (!prefs || !KEY || !root.Store) return;
@@ -98,7 +99,7 @@
                 try { data = localStorage.getItem(KEY); } catch (e) { data = null; }
                 if (!data || data === last) return;
                 last = data;
-                prefs.set({ key: KEY, value: data }).catch(() => { last = null; });
+                pendingCopy = prefs.set({ key: KEY, value: data }).catch(() => { last = null; });
             };
             root.Store.onChange(mirror);
             document.addEventListener('zdp:stored', mirror);
@@ -112,5 +113,5 @@
         document.addEventListener('DOMContentLoaded', () => setTimeout(startMirror, 0));
     }
 
-    root.Native = { isApp, saveFile, saveSecure, askPassword, wipe, exit, platform: isApp ? cap.getPlatform() : 'web' };
+    root.Native = { isApp, saveFile, saveSecure, askPassword, wipe, exit, flush: () => pendingCopy, platform: isApp ? cap.getPlatform() : 'web' };
 })(this);

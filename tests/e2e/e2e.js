@@ -994,7 +994,8 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   ok(dev.lock && dev.lock.hash.startsWith('pbkdf2:') && !JSON.stringify(dev).includes('2468'), 'PIN stored only as a salted hash', dev);
   ok(await page.evaluate(() => !Store.serialize().includes('pbkdf2')), 'PIN is never in the backup');
   ok((await text(page, 'cfg-lock')).includes('Activado'), 'config shows the lock is on');
-  await page.click('[data-action="device.lockNow"]');
+  await Promise.all([page.waitForEvent('load'), page.click('[data-action="device.lockNow"]')]);
+  await page.waitForSelector('#lock-screen');
   ok(await page.isVisible('#lock-screen') && await page.evaluate(() => getComputedStyle(document.querySelector('.app-header')).visibility) === 'hidden', 'lock screen hides the app');
   await page.fill('#lock-pin', '1111');
   await page.press('#lock-pin', 'Enter');
@@ -1004,6 +1005,7 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   await page.press('#lock-pin', 'Enter');
   await page.waitForTimeout(400);
   ok(!(await page.$('#lock-screen')) && await page.evaluate(() => getComputedStyle(document.querySelector('.app-header')).visibility) === 'visible', 'right PIN unlocks');
+  await go(page, 'config');
   await page.click('#cfg-lock [data-action="device.removePin"]');
   await page.fill('.modal input[name="pin"]', '2468');
   await page.click('[data-dialog-ok]');

@@ -176,8 +176,11 @@
 
         init(storage) {
             this.storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
-            let raw = null;
-            try { raw = this.storage && JSON.parse(this.storage.getItem(KEY)); } catch (e) { raw = null; }
+            let raw = null, stored = null;
+            try { stored = this.storage && this.storage.getItem(KEY); raw = JSON.parse(stored); } catch (e) { raw = null; }
+            // A plan saved encrypted (js/device.js) that wasn't opened with the PIN (someone starting
+            // the store by hand from the browser's console): never write over it.
+            if (typeof stored === 'string' && stored.startsWith('zdpenc1:')) this.storage = null;
             // A first visit starts with an empty plan (the welcome offers the example family).
             this.state = migrate(raw || D.emptyState());
             this._lastSaved = raw ? JSON.stringify(this.state) : null;
