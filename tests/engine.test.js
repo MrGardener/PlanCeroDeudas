@@ -1858,3 +1858,16 @@ test('typed numbers: thousands commas, and nothing beyond ±100 billion (no Infi
     const p = E.collegePlan({ age: 5, years: 99999999999, annualCost: 10000, returnPct: 99999 });
     assert.ok(Number.isFinite(p.total) && p.total > 0);
 });
+
+test('retirement (US): every earner in the household gets their own Social Security', () => {
+    const t = US.newYear().usTax;
+    const base = { country: 'US', usTax: t, edadActual: 40, edadJubilacion: 67, aniosAportados: 15, ahorroActual: 100000, aporteMensual: 1000, tasaRetorno: 7, inflacion: 3, tasaRetiroSegura: 4, sueldoPromedio: 6000, name: 'Mike' };
+    const alone = E.retirement(base);
+    assert.equal(alone.pensions.length, 1);
+    const two = E.retirement(Object.assign({}, base, { others: [{ name: 'Sarah', sueldoPromedio: 4000 }] }));
+    const sarah = E.socialSecurity({ ...base, sueldoPromedio: 4000, aniosRestantes: 27, edadJubilacion: 67 });
+    assert.deepEqual(two.pensions.map(p => p.name), ['Mike', 'Sarah']);
+    assert.ok(Math.abs(two.pensions[1].amount - sarah) < 1e-9 && sarah > 0);
+    assert.ok(Math.abs(two.pension - (alone.pension + sarah)) < 1e-9);
+    assert.ok(Math.abs(two.ingresoTotal - (alone.ingresoTotal + sarah)) < 1e-9);
+});

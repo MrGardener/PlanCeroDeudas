@@ -2,6 +2,10 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Includes the other paychecks:": "Incluye los otros sueldos:",
+    "Retirement accounts:": "Cuentas de jubilación:",
+    "Whose account": "De quién es la cuenta",
+    "match": "aporte del empleador",
     "After taxes: figured in Income & Taxes": "Después de impuestos: calculado en Ingresos e Impuestos",
     "Another person's paycheck": "El sueldo de otra persona",
     "Anyone else who works: their pay before taxes. The app figures their taxes with yours, and the budget counts their take-home.": "Cualquier otra persona que trabaje: su sueldo antes de impuestos. La app calcula sus impuestos junto con los tuyos, y el presupuesto cuenta lo que le llega.",

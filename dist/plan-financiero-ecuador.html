@@ -2375,11 +2375,13 @@ button.gm-row:hover { background: var(--surface-3); }
                     <span class="field-label"><span>Already saved for retirement (<span class="cur">$</span>)</span></span>
                     <div class="input input-readonly" id="ret-ahorro"></div>
                     <span class="linked">🔗 Automatic: what you've already saved and invested beyond your emergency fund (<a href="#" class="link" data-goto="futuro/polizas">CDs</a>, accounts and investments).</span>
+                    <span class="help" id="ret-ahorro-who"></span>
                 </div>
                 <div class="field-box tone-emerald">
                     <span class="field-label"><span>Monthly retirement contribution (<span class="cur">$</span>)</span></span>
                     <div class="input input-readonly" id="ret-aporte"></div>
                     <span class="linked">🔗 Automatic: your Savings lines from the <a href="#" class="link" data-goto="presupuesto/plan">budget</a> (not counting goals)<span id="ret-aporte-sweep"></span>. To contribute more, raise it there. To just explore, use the simulator below.</span>
+                    <span class="help" id="ret-aporte-who"></span>
                 </div>
                 <div class="field-box tone-emerald">
                     <span class="field-label"><span>Expected annual return (%)</span><button type="button" class="mini-btn" data-action="ret.relink" data-field="tasaRetorno" title="Link again to the savings rate">↻ enlazar</button></span>
@@ -5879,6 +5881,10 @@ I18n.country('US', {
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Includes the other paychecks:": "Incluye los otros sueldos:",
+    "Retirement accounts:": "Cuentas de jubilación:",
+    "Whose account": "De quién es la cuenta",
+    "match": "aporte del empleador",
     "After taxes: figured in Income & Taxes": "Después de impuestos: calculado en Ingresos e Impuestos",
     "Another person's paycheck": "El sueldo de otra persona",
     "Anyone else who works: their pay before taxes. The app figures their taxes with yours, and the budget counts their take-home.": "Cualquier otra persona que trabaje: su sueldo antes de impuestos. La app calcula sus impuestos junto con los tuyos, y el presupuesto cuenta lo que le llega.",
@@ -10686,7 +10692,7 @@ I18n.override('EC', 'es', {
             const s = salary(y);
             return {
                 sueldo: s, tasa: 4.0, filingStatus: 'mfj', dependents: y >= cur - 2 ? 2 : 1, otherDependents: 0, state: 'MI', localName: 'Grand Rapids', localResident: true,
-                otherIncomes: [{ id: 1, name: "Sarah's part-time job", amount: y >= cur ? 1900 : round5(1900 * Math.pow(0.975, cur - y)), category: 'Ingresos Laborales' }],
+                otherIncomes: [{ id: 1, name: "Sarah's part-time job", amount: y >= cur ? 1900 : round5(1900 * Math.pow(0.975, cur - y)), category: 'Ingresos Laborales', memberId: SARAH }],
                 payDeductions: [
                     { id: 1, name: '401(k) 6%', group: 'retirement', kind: 'retirement', pretax: true, monthly: round2(s * 0.06) },
                     { id: 2, name: 'Medical (family HDHP)', group: 'insurance', kind: 'health', pretax: true, monthly: y >= cur ? 465 : 440 },
@@ -10718,8 +10724,8 @@ I18n.override('EC', 'es', {
             { id: 1, name: 'LMCU Checking', kind: 'corriente', balance: 1846.55, plusBills: true },
             { id: 2, name: 'Ally High-Yield Savings', kind: 'ahorros', balance: 6520.18 },
             { id: 3, name: 'Cash (wallet)', kind: 'efectivo', balance: 86 },
-            { id: 4, name: "Mike's 401(k) – Fidelity", kind: 'retiro', balance: 118240.77 },
-            { id: 5, name: "Sarah's Roth IRA – Vanguard", kind: 'retiro', balance: 31085.4 },
+            { id: 4, name: "Mike's 401(k) – Fidelity", kind: 'retiro', balance: 118240.77, memberId: MIKE },
+            { id: 5, name: "Sarah's Roth IRA – Vanguard", kind: 'retiro', balance: 31085.4, memberId: SARAH },
             { id: 6, name: 'HSA – HealthEquity', kind: 'retiro', balance: 4210.32 }
         ];
         const holdings = [
@@ -14008,11 +14014,14 @@ I18n.override('EC', 'es', {
         const aporte = Math.max(0, num(inp.aporteMensual));
         const extra = Math.max(0, num(inp.whatIfExtra));
         const withdraw = Math.max(0, num(inp.tasaRetiroSegura)) / 100;
-        let pensionM, pensionDesde;
+        let pensionM, pensionDesde, pensions = [];
         if (inp.country === 'US') {
-            // Social Security can't start before 62; claiming later raises it (up to 70).
+            // Social Security can't start before 62; claiming later raises it (up to 70). Every earner
+            // in the household gets their own, from their own pay (inp.others: [{ name, sueldoPromedio }]).
             pensionDesde = Math.min(70, Math.max(62, edadJubilacion));
-            pensionM = socialSecurity({ ...inp, aniosRestantes: anios, edadJubilacion: pensionDesde });
+            const own = socialSecurity({ ...inp, aniosRestantes: anios, edadJubilacion: pensionDesde });
+            pensions = [{ name: inp.name || '', amount: own }].concat((inp.others || []).map(o => ({ name: o.name || '', amount: socialSecurity({ ...inp, sueldoPromedio: num(o.sueldoPromedio), aniosRestantes: anios, edadJubilacion: pensionDesde }) })));
+            pensionM = sum(pensions, x => x.amount);
         } else {
             pensionDesde = iessPensionAge(edadJubilacion, num(inp.aniosAportados) + anios);
             pensionM = pensionDesde === null ? 0 : pension({ ...inp, aniosRestantes: anios });
@@ -14025,7 +14034,7 @@ I18n.override('EC', 'es', {
         const ingresoAhorro = valorFuturoHoy * withdraw / 12;
         const result = {
             edadActual, edadJubilacion, aniosRestantes: anios, inflacion: infl * 100, tasaRetorno: rate,
-            valorFuturo, valorFuturoHoy, ingresoAhorro, pension: pensionM, pensionDesde,
+            valorFuturo, valorFuturoHoy, ingresoAhorro, pension: pensionM, pensionDesde, pensions,
             // Years between retiring and the first pension check, lived on savings alone.
             aniosPuente: pensionDesde === null ? 0 : Math.max(0, pensionDesde - edadJubilacion),
             ingresoTotal: ingresoAhorro + pensionM,
@@ -16437,11 +16446,18 @@ I18n.override('EC', 'es', {
         // fund line) + auto-sweep + retirement saved straight from the paycheck (401k, ahorro
         // voluntario). The employer match grows the nest egg but isn't part of YOUR 15% (Step 4).
         lazy('payRetirement', () => Engine.payDeductionsSummary(ctx.year));
+        // The household's other paychecks save for retirement too (their 401(k) and its match).
+        lazy('earnersRetirement', () => (ctx.year.otherIncomes || []).filter(l => l.pay).map(l => {
+            const d = Engine.payDeductionsSummary({ country: ctx.budgetYear.country, payDeductions: l.pay.payDeductions || [] });
+            return { id: l.id, memberId: l.memberId, name: l.name, own: d.byGroup.retirement, match: d.retirement - d.byGroup.retirement };
+        }));
         lazy('ownRetirementMonthly', () => ctx.year.budgetBase.filter(i => Engine.isSavingsItem(i) && Engine.savingsPurpose(i) !== 'emergencia').reduce((t, i) => t + (Number(i.real) || 0), 0)
-            + ctx.baseBudget.sweep + ctx.payRetirement.byGroup.retirement);
-        lazy('employerMatchMonthly', () => ctx.payRetirement.retirement - ctx.payRetirement.byGroup.retirement);
+            + ctx.baseBudget.sweep + ctx.payRetirement.byGroup.retirement + ctx.earnersRetirement.reduce((t, e) => t + e.own, 0));
+        lazy('employerMatchMonthly', () => ctx.payRetirement.retirement - ctx.payRetirement.byGroup.retirement + ctx.earnersRetirement.reduce((t, e) => t + e.match, 0));
         lazy('retirementMonthly', () => ctx.ownRetirementMonthly + ctx.employerMatchMonthly);
-        lazy('savingsRate', () => ctx.pay.sueldoAnual > 0 ? ctx.ownRetirementMonthly * 12 / ctx.pay.sueldoAnual : 0);
+        // Baby Step 4: 15% of the household's pay (every paycheck's gross).
+        lazy('householdGross', () => (ctx.pay.household ? ctx.pay.household.wages : ctx.pay.sueldoAnual));
+        lazy('savingsRate', () => ctx.householdGross > 0 ? ctx.ownRetirementMonthly * 12 / ctx.householdGross : 0);
         lazy('ownsHome', () => ctx.netWorth.fields.mortgage > 0.01 || (s.assets || []).some(a => a.category === 'Bienes Raíces' && Engine.assetOwned(a, s.activeYear)));
         lazy('steps', () => Engine.babySteps({
             liquid: ctx.ef.liquid, consumerDebt: ctx.debts.totalBalance, monthsCovered: ctx.ef.monthsCovered,
@@ -16457,7 +16473,10 @@ I18n.override('EC', 'es', {
                 aporteMensual: ctx.retirementMonthly,
                 tasaRetorno: r.tasaRetorno === null || r.tasaRetorno === undefined ? ctx.defaultReturn : r.tasaRetorno,
                 inflacion: r.inflacion === null || r.inflacion === undefined ? Engine.DEFAULT_INFLATION[ctx.budgetYear.country] : r.inflacion,
-                sueldoPromedio: r.sueldoPromedio === null || r.sueldoPromedio === undefined ? ctx.year.sueldo : r.sueldoPromedio
+                sueldoPromedio: r.sueldoPromedio === null || r.sueldoPromedio === undefined ? ctx.year.sueldo : r.sueldoPromedio,
+                // The other earners' Social Security (US), from their own pay.
+                name: ((s.members || [])[0] || {}).name || '',
+                others: (ctx.pay.earners || []).map(e => ({ name: ((s.members || []).find(m => m.id === e.memberId) || {}).name || e.name, sueldoPromedio: e.sueldo }))
             };
         });
         // Long-run return when the person hasn't set one: US — the stock market's historical
@@ -25777,7 +25796,21 @@ I18n.override('EC', 'es', {
 /* Jubilación: DPF future value + estimated IESS pension, with a "what if" contribution slider. */
 (function () {
     'use strict';
-    const { money, money0 } = Fmt;
+    const { money, money0, esc } = Fmt;
+
+    // Whose: retirement accounts by owner, the other paychecks' 401(k), Social Security per earner.
+    function byPerson(ctx) {
+        const s = ctx.state, r = ctx.retirement, people = s.members || [];
+        const nameOf = (id) => (people.find(m => m.id === id) || {}).name;
+        const ret = (s.accounts || []).filter(Engine.isRetirementMoney);
+        const owners = {};
+        ret.forEach(a => { const k = a.memberId && nameOf(a.memberId) ? nameOf(a.memberId) : ''; owners[k] = (owners[k] || 0) + (Number(a.balance) || 0); });
+        const who = (k) => (k ? `<span data-i18n-skip>${esc(k)}</span>` : '<span>Household</span>');
+        UI.html('ret-ahorro-who', ret.some(a => a.memberId) ? `<span>Retirement accounts:</span> ${Object.keys(owners).map(k => `${who(k)} ${money0(owners[k])}`).join(' · ')}` : '');
+        const er = (ctx.earnersRetirement || []).filter(e => e.own + e.match > 0);
+        UI.html('ret-aporte-who', er.length ? `<span>Includes the other paychecks:</span> ${er.map(e => `${who(nameOf(e.memberId) || e.name)} <span>401(k)</span> ${money0(e.own)}${e.match > 0 ? ` + ${money0(e.match)} <span>match</span>` : ''}`).join(' · ')}` : '');
+        return (r.pensions || []).length > 1 ? r.pensions.map(x => `${who(x.name)} ${money0(x.amount)}`).join(' · ') : '';
+    }
 
     function render(ctx) {
         const slider = document.getElementById('ret-whatif');
@@ -25839,7 +25872,8 @@ I18n.override('EC', 'es', {
         UI.text('ret-fv-note', `in today's dollars · ${money0(r.valorFuturo)} in ${ctx.today.getFullYear() + r.aniosRestantes} dollars`);
         UI.text('ret-income-savings', money0(r.ingresoAhorro));
         UI.text('ret-pension', money0(r.pension));
-        UI.text('ret-pension-note', r.pensionDesde === null ? 'You don\'t have the minimum years of contributions yet' : `from age ${r.pensionDesde}`);
+        const each = byPerson(ctx);
+        UI.html('ret-pension-note', r.pensionDesde === null ? 'You don\'t have the minimum years of contributions yet' : `<span>from age ${r.pensionDesde}</span>${each ? ` · ${each}` : ''}`);
         const bridge = document.getElementById('ret-bridge');
         if (r.pensionDesde === null) bridge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> With your years of contributions you don't qualify for the IESS pension (at least 10 years at 70, 15 at 65, 30 at 60 or 40 at any age). Your retirement would depend on your savings alone.`;
         else if (r.aniosPuente > 0) bridge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Between ages ${r.edadJubilacion} and ${r.pensionDesde} you won't receive ${yd.country === 'US' ? 'Social Security' : 'the pension'}: you'd live on your savings alone (${money0(r.ingresoAhorro)}/month).`;
@@ -26156,11 +26190,11 @@ I18n.override('EC', 'es', {
         return parts.map(([l, v]) => `<span><span>${l}</span>: <strong class="${v < 0 ? 'text-red-700' : ''}">${v < 0 ? '−' : ''}${money(Math.abs(v))}</strong></span>`).join(' · ');
     }
     function renderAccounts(ctx) {
-        const list = ctx.state.accounts || [];
+        const list = ctx.state.accounts || [], people = ctx.state.members || [];
         UI.html('acct-body', list.length ? list.map(a => `<tr data-row="${a.id}">
             <td><input class="cell-input font-semibold" value="${esc(a.name)}" data-change="acct.set" data-id="${a.id}" data-field="name" aria-label="Account name"></td>
             <td><select class="cell-input" data-change="acct.set" data-id="${a.id}" data-field="kind">${Views.selectOptions(ACCT_KINDS, a.kind)}</select>${a.kind === 'tarjeta' ? `<select class="cell-input text-[11px] mt-1" data-change="acct.set" data-id="${a.id}" data-field="debtId" aria-label="Its debt in your plan">${Views.selectOptions([{ value: '', label: 'Not in my debts' }].concat((ctx.state.debts || []).map(d => ({ value: String(d.id), label: `Debt: ${d.name}` }))), a.debtId ? String(a.debtId) : '')}</select>` : ''}</td>
-            <td><input type="number" class="cell-input num money" step="any" value="${Number(a.balance) || 0}" data-input="acct.set" data-id="${a.id}" data-field="balance" aria-label="Balance"></td>
+            <td><input type="number" class="cell-input num money" step="any" value="${Number(a.balance) || 0}" data-input="acct.set" data-id="${a.id}" data-field="balance" aria-label="Balance">${people.length > 1 ? `<select class="cell-input text-[11px] mt-1" data-change="acct.set" data-id="${a.id}" data-field="memberId" aria-label="Whose account">${Views.selectOptions([{ value: '', label: 'Household (shared)' }].concat(people.map(p => ({ value: String(p.id), label: p.name }))), a.memberId ? String(a.memberId) : '')}</select>` : ''}</td>
             <td class="text-[11px] text-slate-500"><span data-cell="when">${a.updatedAt ? esc(a.updatedAt) : '—'}</span>${a.lastImport ? `<div title="Rows on or before this date start unchecked when you import this account again"><i class="fa-solid fa-lock text-amber-600"></i> <span>Imported up to ${esc(a.lastImport)}</span> <button type="button" class="link" data-action="acct.clearImport" data-id="${a.id}" aria-label="Forget the last import date">×</button></div>` : ''}</td>
             <td class="text-center"><button class="row-del" data-action="acct.delete" data-id="${a.id}" title="Delete account" aria-label="Delete account"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`).join('') : `<tr class="empty-row"><td colspan="5">${Views.emptyState('fa-building-columns', 'Add your accounts (checking, savings, cash, 401(k)…) to see your money at a glance.')}</td></tr>`);
@@ -26361,6 +26395,7 @@ I18n.override('EC', 'es', {
             if (!a) return;
             const f = el.dataset.field;
             if (f === 'debtId') { if (el.value) a.debtId = Number(el.value); else delete a.debtId; }
+            else if (f === 'memberId') { if (el.value) a.memberId = Number(el.value); else delete a.memberId; }
             else a[f] = f === 'balance' ? parseNum(el.value, 0) : el.value;
             if (f === 'balance') a.updatedAt = Engine.isoDate(new Date());
             // A card linked to a debt keeps that debt's balance (what's owed) in step.

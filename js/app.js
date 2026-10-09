@@ -124,11 +124,18 @@
         // fund line) + auto-sweep + retirement saved straight from the paycheck (401k, ahorro
         // voluntario). The employer match grows the nest egg but isn't part of YOUR 15% (Step 4).
         lazy('payRetirement', () => Engine.payDeductionsSummary(ctx.year));
+        // The household's other paychecks save for retirement too (their 401(k) and its match).
+        lazy('earnersRetirement', () => (ctx.year.otherIncomes || []).filter(l => l.pay).map(l => {
+            const d = Engine.payDeductionsSummary({ country: ctx.budgetYear.country, payDeductions: l.pay.payDeductions || [] });
+            return { id: l.id, memberId: l.memberId, name: l.name, own: d.byGroup.retirement, match: d.retirement - d.byGroup.retirement };
+        }));
         lazy('ownRetirementMonthly', () => ctx.year.budgetBase.filter(i => Engine.isSavingsItem(i) && Engine.savingsPurpose(i) !== 'emergencia').reduce((t, i) => t + (Number(i.real) || 0), 0)
-            + ctx.baseBudget.sweep + ctx.payRetirement.byGroup.retirement);
-        lazy('employerMatchMonthly', () => ctx.payRetirement.retirement - ctx.payRetirement.byGroup.retirement);
+            + ctx.baseBudget.sweep + ctx.payRetirement.byGroup.retirement + ctx.earnersRetirement.reduce((t, e) => t + e.own, 0));
+        lazy('employerMatchMonthly', () => ctx.payRetirement.retirement - ctx.payRetirement.byGroup.retirement + ctx.earnersRetirement.reduce((t, e) => t + e.match, 0));
         lazy('retirementMonthly', () => ctx.ownRetirementMonthly + ctx.employerMatchMonthly);
-        lazy('savingsRate', () => ctx.pay.sueldoAnual > 0 ? ctx.ownRetirementMonthly * 12 / ctx.pay.sueldoAnual : 0);
+        // Baby Step 4: 15% of the household's pay (every paycheck's gross).
+        lazy('householdGross', () => (ctx.pay.household ? ctx.pay.household.wages : ctx.pay.sueldoAnual));
+        lazy('savingsRate', () => ctx.householdGross > 0 ? ctx.ownRetirementMonthly * 12 / ctx.householdGross : 0);
         lazy('ownsHome', () => ctx.netWorth.fields.mortgage > 0.01 || (s.assets || []).some(a => a.category === 'Bienes Raíces' && Engine.assetOwned(a, s.activeYear)));
         lazy('steps', () => Engine.babySteps({
             liquid: ctx.ef.liquid, consumerDebt: ctx.debts.totalBalance, monthsCovered: ctx.ef.monthsCovered,
@@ -144,7 +151,10 @@
                 aporteMensual: ctx.retirementMonthly,
                 tasaRetorno: r.tasaRetorno === null || r.tasaRetorno === undefined ? ctx.defaultReturn : r.tasaRetorno,
                 inflacion: r.inflacion === null || r.inflacion === undefined ? Engine.DEFAULT_INFLATION[ctx.budgetYear.country] : r.inflacion,
-                sueldoPromedio: r.sueldoPromedio === null || r.sueldoPromedio === undefined ? ctx.year.sueldo : r.sueldoPromedio
+                sueldoPromedio: r.sueldoPromedio === null || r.sueldoPromedio === undefined ? ctx.year.sueldo : r.sueldoPromedio,
+                // The other earners' Social Security (US), from their own pay.
+                name: ((s.members || [])[0] || {}).name || '',
+                others: (ctx.pay.earners || []).map(e => ({ name: ((s.members || []).find(m => m.id === e.memberId) || {}).name || e.name, sueldoPromedio: e.sueldo }))
             };
         });
         // Long-run return when the person hasn't set one: US — the stock market's historical

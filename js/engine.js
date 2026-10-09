@@ -2359,11 +2359,14 @@
         const aporte = Math.max(0, num(inp.aporteMensual));
         const extra = Math.max(0, num(inp.whatIfExtra));
         const withdraw = Math.max(0, num(inp.tasaRetiroSegura)) / 100;
-        let pensionM, pensionDesde;
+        let pensionM, pensionDesde, pensions = [];
         if (inp.country === 'US') {
-            // Social Security can't start before 62; claiming later raises it (up to 70).
+            // Social Security can't start before 62; claiming later raises it (up to 70). Every earner
+            // in the household gets their own, from their own pay (inp.others: [{ name, sueldoPromedio }]).
             pensionDesde = Math.min(70, Math.max(62, edadJubilacion));
-            pensionM = socialSecurity({ ...inp, aniosRestantes: anios, edadJubilacion: pensionDesde });
+            const own = socialSecurity({ ...inp, aniosRestantes: anios, edadJubilacion: pensionDesde });
+            pensions = [{ name: inp.name || '', amount: own }].concat((inp.others || []).map(o => ({ name: o.name || '', amount: socialSecurity({ ...inp, sueldoPromedio: num(o.sueldoPromedio), aniosRestantes: anios, edadJubilacion: pensionDesde }) })));
+            pensionM = sum(pensions, x => x.amount);
         } else {
             pensionDesde = iessPensionAge(edadJubilacion, num(inp.aniosAportados) + anios);
             pensionM = pensionDesde === null ? 0 : pension({ ...inp, aniosRestantes: anios });
@@ -2376,7 +2379,7 @@
         const ingresoAhorro = valorFuturoHoy * withdraw / 12;
         const result = {
             edadActual, edadJubilacion, aniosRestantes: anios, inflacion: infl * 100, tasaRetorno: rate,
-            valorFuturo, valorFuturoHoy, ingresoAhorro, pension: pensionM, pensionDesde,
+            valorFuturo, valorFuturoHoy, ingresoAhorro, pension: pensionM, pensionDesde, pensions,
             // Years between retiring and the first pension check, lived on savings alone.
             aniosPuente: pensionDesde === null ? 0 : Math.max(0, pensionDesde - edadJubilacion),
             ingresoTotal: ingresoAhorro + pensionM,

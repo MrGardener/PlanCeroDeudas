@@ -230,11 +230,11 @@
         return parts.map(([l, v]) => `<span><span>${l}</span>: <strong class="${v < 0 ? 'text-red-700' : ''}">${v < 0 ? '−' : ''}${money(Math.abs(v))}</strong></span>`).join(' · ');
     }
     function renderAccounts(ctx) {
-        const list = ctx.state.accounts || [];
+        const list = ctx.state.accounts || [], people = ctx.state.members || [];
         UI.html('acct-body', list.length ? list.map(a => `<tr data-row="${a.id}">
             <td><input class="cell-input font-semibold" value="${esc(a.name)}" data-change="acct.set" data-id="${a.id}" data-field="name" aria-label="Account name"></td>
             <td><select class="cell-input" data-change="acct.set" data-id="${a.id}" data-field="kind">${Views.selectOptions(ACCT_KINDS, a.kind)}</select>${a.kind === 'tarjeta' ? `<select class="cell-input text-[11px] mt-1" data-change="acct.set" data-id="${a.id}" data-field="debtId" aria-label="Its debt in your plan">${Views.selectOptions([{ value: '', label: 'Not in my debts' }].concat((ctx.state.debts || []).map(d => ({ value: String(d.id), label: `Debt: ${d.name}` }))), a.debtId ? String(a.debtId) : '')}</select>` : ''}</td>
-            <td><input type="number" class="cell-input num money" step="any" value="${Number(a.balance) || 0}" data-input="acct.set" data-id="${a.id}" data-field="balance" aria-label="Balance"></td>
+            <td><input type="number" class="cell-input num money" step="any" value="${Number(a.balance) || 0}" data-input="acct.set" data-id="${a.id}" data-field="balance" aria-label="Balance">${people.length > 1 ? `<select class="cell-input text-[11px] mt-1" data-change="acct.set" data-id="${a.id}" data-field="memberId" aria-label="Whose account">${Views.selectOptions([{ value: '', label: 'Household (shared)' }].concat(people.map(p => ({ value: String(p.id), label: p.name }))), a.memberId ? String(a.memberId) : '')}</select>` : ''}</td>
             <td class="text-[11px] text-slate-500"><span data-cell="when">${a.updatedAt ? esc(a.updatedAt) : '—'}</span>${a.lastImport ? `<div title="Rows on or before this date start unchecked when you import this account again"><i class="fa-solid fa-lock text-amber-600"></i> <span>Imported up to ${esc(a.lastImport)}</span> <button type="button" class="link" data-action="acct.clearImport" data-id="${a.id}" aria-label="Forget the last import date">×</button></div>` : ''}</td>
             <td class="text-center"><button class="row-del" data-action="acct.delete" data-id="${a.id}" title="Delete account" aria-label="Delete account"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`).join('') : `<tr class="empty-row"><td colspan="5">${Views.emptyState('fa-building-columns', 'Add your accounts (checking, savings, cash, 401(k)…) to see your money at a glance.')}</td></tr>`);
@@ -435,6 +435,7 @@
             if (!a) return;
             const f = el.dataset.field;
             if (f === 'debtId') { if (el.value) a.debtId = Number(el.value); else delete a.debtId; }
+            else if (f === 'memberId') { if (el.value) a.memberId = Number(el.value); else delete a.memberId; }
             else a[f] = f === 'balance' ? parseNum(el.value, 0) : el.value;
             if (f === 'balance') a.updatedAt = Engine.isoDate(new Date());
             // A card linked to a debt keeps that debt's balance (what's owed) in step.

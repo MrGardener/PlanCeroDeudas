@@ -22,8 +22,9 @@ Ask: **"Do step N of docs/plans/household.md"** (or "continue the household plan
    - Budget → Income: each paycheck shows gross → taxes → take-home; the setup guide asks the
      others' pay before taxes ("take-home" stays possible for a pension or anything untaxed).
    - Refund / W-4 check counts both earners' wages and withholding.
-2. **Savings per person**: retirement accounts and contributions say whose; the retirement tool
-   per person (age, Social Security from each one's earnings); 401(k)/IRA limits per person.
+2. ✅ **Savings per person**: accounts say whose; each earner's Social Security from their own pay;
+   the other paychecks' 401(k) and match in the retirement contribution; retirement accounts by
+   person; Baby Step 4 on the household's pay. (Later: separate ages and 401(k)/IRA limits per person.)
 3. **Expenses per person**: a budget line can belong to someone; a per-person summary (earned,
    taxes, spent, saved) and "who spends on what" in Reports.
 4. **Tax tools per person**: side-income tax set-aside per person, itemizing on the joint return,
