@@ -54,6 +54,11 @@
 <main class="wrap flex-grow w-full py-6">
 <div id="offline-banner" class="panel tone-amber mb-5 text-xs text-amber-900 hidden"><i class="fa-solid fa-wifi"></i> <strong>No internet connection:</strong> the styles and charts couldn't load. Your data is safe; connect and open the app again to see it all.</div>
 
+<!-- Without a PIN or passcode the plan is saved unencrypted on this device: say so until one is set. -->
+<div id="protect-banner" class="wrap hidden">
+    <div class="sample-banner protect-banner"><i class="fa-solid fa-lock-open"></i><span><strong>Your plan isn't encrypted on this device.</strong> Set a passcode and it's encrypted: only you can open it, and other pages or apps on this device can't read it.</span>
+        <span class="flex gap-2 ml-auto"><button type="button" class="btn btn-secondary btn-sm" data-action="device.protectLater">Later</button><button type="button" class="btn btn-primary btn-sm" data-action="device.setPin"><i class="fa-solid fa-lock"></i> Protect it</button></span></div>
+</div>
 <div id="sample-banner" class="wrap hidden">
     <div class="sample-banner"><i class="fa-solid fa-people-roof"></i><span>You're looking at an <strong>example family</strong>. None of this is yours.</span><button type="button" class="btn btn-primary btn-sm" data-action="app.startOwn">Start with my own data</button></div>
 </div>
@@ -1873,6 +1878,7 @@
 <script src="js/views/presupuesto.js"></script>
 <script src="js/views/anuales.js"></script>
 <script src="js/views/cierre.js"></script>
+<script src="js/readers.js"></script>
 <script src="js/views/payedit.js"></script>
 <script src="js/views/ingresos.js"></script>
 <script src="js/views/earners.js"></script>

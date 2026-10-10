@@ -480,18 +480,6 @@
         if (session) { renderSetup(); renderPreview(); } else { UI.show('imp-setup', false); UI.show('imp-preview-card', false); }
     }
 
-    // ------------------------------------------------------------------ OCR
-    function loadTesseract() {
-        if (window.Tesseract) return Promise.resolve(window.Tesseract);
-        return new Promise((resolve, reject) => {
-            const sc = document.createElement('script');
-            sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-            sc.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('no Tesseract'));
-            sc.onerror = () => reject(new Error('offline'));
-            document.head.appendChild(sc);
-        });
-    }
-
     // A new person of the household, from the import screen (same as Settings → Household).
     const MEMBER_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
     async function addMember() {
@@ -773,11 +761,9 @@
             const status = (t) => UI.html('imp-photo-status', t);
             status('<i class="fa-solid fa-spinner fa-spin"></i> Getting the text reader ready…');
             try {
-                const T = await loadTesseract();
-                const worker = await T.createWorker('spa', 1, { logger: m => { if (m.status === 'recognizing text') status(`<i class="fa-solid fa-spinner fa-spin"></i> Reading the photo… ${Math.round((m.progress || 0) * 100)}%`); } });
-                const { data } = await worker.recognize(file);
-                await worker.terminate();
-                const r = Importers.parseReceiptText(data.text);
+                // (js/readers.js: Tesseract, pinned and checked, or carried by the phone app.)
+                const text = await Readers.photoText(file, p => status(`<i class="fa-solid fa-spinner fa-spin"></i> Reading the photo… ${Math.round(p * 100)}%`), ['spa', 'eng']);
+                const r = Importers.parseReceiptText(text);
                 const res = resolve({ type: 'Gasto', description: r.merchant, store: '' }, {}, r.merchant ? Categorize.guess(Categorize.parse(r.merchant), { sign: -1, country: Store.COUNTRY }) : null);
                 status(r.total ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> We read ${r.merchant ? `<strong>${esc(r.merchant)}</strong>, ` : ''}total <strong>${money(r.total)}</strong>${r.date ? `, date ${esc(r.date)}` : ''}. Review and save.` : '<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> We couldn\'t find the total in the photo. Fill in the details by hand.');
                 TxnForm.prefill({ type: 'Gasto', description: r.merchant || 'Factura', amount: r.total || '', date: r.date || '', parent: res.category, sub: res.sub });

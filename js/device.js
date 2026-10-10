@@ -377,5 +377,8 @@
     }
     document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); applyPrivacy(); if (dataLocked() && !hasPin()) showLost(); else showLock(); });
 
-    root.Device = { applyPrivacy, setPrivacy, hidden: () => !!read().hideAmounts, isPasscode: () => !!(read().lock && read().lock.kind === 'passcode'), storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: relock, locked, hashPin, KEY };
+    // "Protect it later": the reminder to set a passcode waits a week (this device only).
+    function protectLater(days = 7) { const d = read(); d.protectLater = Date.now() + days * 86400000; write(d); }
+    const protectDue = () => !hasPin() && !(Number(read().protectLater) > Date.now());
+    root.Device = { protectLater, protectDue, applyPrivacy, setPrivacy, hidden: () => !!read().hideAmounts, isPasscode: () => !!(read().lock && read().lock.kind === 'passcode'), storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: relock, locked, hashPin, KEY };
 })(this);

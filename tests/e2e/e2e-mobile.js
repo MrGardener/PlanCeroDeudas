@@ -46,6 +46,48 @@ const Vault_ok = (d) => { try { const o = JSON.parse(d); return o.cipher === 'AE
 
   ok(errors.length === 0, 'page errors: ' + errors.join(' | '));
   ok(external.length === 0, 'external requests: ' + external.join(', '));
+  // The readers come with the app (every outside request is refused here): a PDF pay stub's text
+  // with pdf.js, a photo's with Tesseract (English and Spanish data inside the app).
+  const pdfB64 = (() => {
+    const parts = ['%PDF-1.4\n'], offs = [];
+    const obj = (n, body) => { offs[n] = parts.join('').length; parts.push(`${n} 0 obj\n${body}\nendobj\n`); };
+    const text = 'BT /F1 14 Tf 20 150 Td (Gross Pay 2,000.00) Tj 0 -24 Td (Net Pay 1,817.60) Tj ET';
+    obj(1, '<< /Type /Catalog /Pages 2 0 R >>'); obj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+    obj(3, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>');
+    obj(4, `<< /Length ${text.length} >>\nstream\n${text}\nendstream`); obj(5, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+    const xref = parts.join('').length;
+    parts.push(`xref\n0 6\n0000000000 65535 f \n${[1, 2, 3, 4, 5].map(n => String(offs[n]).padStart(10, '0') + ' 00000 n \n').join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+    return Buffer.from(parts.join(''), 'latin1').toString('base64');
+  })();
+  // (Served like the app serves itself, from a local origin: a file:// page can't start workers.)
+  const srv = require('http').createServer((req, res) => {
+    const dir = require('path').dirname(WWW), f = require('path').join(dir, decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '') || 'index.html');
+    if (!f.startsWith(dir) || !require('fs').existsSync(f)) { res.writeHead(404); return res.end(); }
+    const type = { '.js': 'text/javascript', '.html': 'text/html', '.css': 'text/css', '.gz': 'application/gzip', '.woff2': 'font/woff2' }[require('path').extname(f)] || 'application/octet-stream';
+    res.writeHead(200, { 'Content-Type': type }); require('fs').createReadStream(f).pipe(res);
+  });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const origin = `http://127.0.0.1:${srv.address().port}`;
+  const rctx = await browser.newContext({ viewport: { width: 412, height: 915 } });
+  const outside = [];
+  await rctx.route(/^https?:/, r => (r.request().url().startsWith(origin) ? r.continue() : (outside.push(r.request().url()), r.abort())));
+  const rpage = await rctx.newPage();
+  await rpage.addInitScript(bridge, null);
+  await rpage.goto(origin + '/index.html');
+  await rpage.waitForTimeout(800);
+  const read = await rpage.evaluate(async (b64) => {
+    const out = {};
+    try { out.pdf = await Readers.pdfText(new File([Uint8Array.from(atob(b64), c => c.charCodeAt(0))], 'stub.pdf', { type: 'application/pdf' })); } catch (e) { out.pdfErr = String(e); }
+    const cv = document.createElement('canvas'); cv.width = 640; cv.height = 200;
+    const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 640, 200); g.fillStyle = '#000'; g.font = 'bold 44px sans-serif'; g.fillText('GROCERY MART', 30, 70); g.fillText('TOTAL 23.45', 30, 150);
+    const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+    try { out.photo = await Readers.photoText(blob); } catch (e) { out.photoErr = String(e); }
+    return out;
+  }, pdfB64);
+  ok(/Gross Pay\s+2,000\.00/.test(read.pdf || '') && /Net Pay\s+1,817\.60/.test(read.pdf || ''), 'a PDF pay stub is read with no internet (pdf.js inside the app) ' + JSON.stringify(read).slice(0, 200));
+  ok(/TOTAL\s*23[.,]45/i.test(read.photo || '') && /GROCERY/i.test(read.photo || ''), 'a photo is read with no internet (Tesseract inside the app) ' + JSON.stringify(read).slice(0, 200));
+  ok(outside.length === 0, 'reading files asked the internet for nothing: ' + outside.join(', '));
+  await rctx.close(); srv.close();
   ok(await page.evaluate(() => document.documentElement.classList.contains('is-native')), 'is-native class');
   ok(await page.evaluate(() => document.documentElement.dataset.platform === 'android'), 'platform android');
   ok(await page.isHidden('#offline-banner'), 'offline banner hidden');

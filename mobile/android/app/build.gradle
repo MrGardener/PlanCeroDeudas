@@ -18,19 +18,32 @@ android {
         }
     }
     signingConfigs {
-        // A fixed key for test builds: each new APK installs over the last one and keeps your data.
-        // Store releases are signed with your own key (see docs/MOBILE.md), never this one.
+        // The test key in this (public) repository: anyone can sign with it, so it's only for
+        // trying builds. Your own key replaces it as soon as it's set (docs/MOBILE.md).
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Your own private key: GitHub secrets, decoded to a file by the workflow (mobile.yml).
+        release {
+            if (System.getenv("ANDROID_KEYSTORE_PATH")) {
+                storeFile file(System.getenv("ANDROID_KEYSTORE_PATH"))
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
     }
     buildTypes {
+        // The APK you install is a release build: not debuggable, so `adb run-as` can't read the
+        // app's files even with USB debugging on.
         release {
             minifyEnabled false
+            debuggable false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig System.getenv("ANDROID_KEYSTORE_PATH") ? signingConfigs.release : signingConfigs.debug
         }
     }
 }

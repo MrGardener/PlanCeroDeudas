@@ -25,7 +25,7 @@ Plain HTML/CSS/JS, no framework, no server. Everything runs in the browser; data
 ## Commands
 ```
 npm ci && (cd mobile && npm ci)   # once per machine
-npm run build                     # writes dist/ (tests fail if dist/ is stale)
+npm run build                     # writes dist/ (sealed; needs mobile/node_modules; tests fail if dist/ is stale)
 npm test                          # unit tests (fast; run often)
 npm run build:mobile              # phone build (must run from mobile/ — the script does that)
 npm run e2e                       # all browser suites (~6 min); `node tests/e2e/run.js us` runs matching ones
@@ -76,6 +76,9 @@ While developing, run `npm test` and the one suite you touched; run `npm run che
 - Device settings (theme, language, PIN) live apart from the budget: not in backups, not undoable.
 - Files leave the app encrypted: `Native.saveSecure` (password → `js/vault.js`, AES-256-GCM). Use it for any
   new export; plain `Native.saveFile` only for a copy the person decrypts on purpose.
+- The built file is sealed (scripts/build.js + scripts/vendor.js): no outside scripts, styles or fonts, and
+  a Content Security Policy that only runs its own scripts. A new outside connection (an API) must be added
+  to `connect-src` in `scripts/vendor.js` on purpose; never load code from a CDN at runtime.
 - The 10th wrong PIN erases the app's data on the device (`Device.wipeAll`). With a PIN the saved plan is
   encrypted (js/device.js): the store saves through `Device.storage()`; App starts after `Device.whenReady`.
 
