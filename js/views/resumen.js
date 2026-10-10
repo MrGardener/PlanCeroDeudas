@@ -70,6 +70,41 @@
             reviewDue: !!(window.Checklists && t.getMonth() <= 1 && Checklists.progress().review < 0.5 && s.transactions.length > 0)
         };
     }
+    // ---------------------------------------------------------------- weekly review
+    // Engine.weeklyReview's checks for this month, each with where to go; "Done for this week"
+    // keeps the date (settings.weeklyReviews) for the streak.
+    function reviewHTML(ctx) {
+        const s = ctx.state, t = ctx.today, y = t.getFullYear(), m = String(t.getMonth() + 1);
+        if (!s.transactions.length && !(ctx.year.budgetBase || []).length) return '';
+        const items = Engine.monthItems(Store.effective(y), m);
+        const spend = Engine.lineSpend(items, s.transactions, y, m);
+        const bills = Engine.billsDue({ items, spend, year: y, month: m, today: t });
+        const r = Engine.weeklyReview({ items, transactions: s.transactions, today: t, unassigned: ctx.baseBudget.balanceReal, bills });
+        const dates = s.settings.weeklyReviews || [];
+        const monday = Engine.isoDate(new Date(t.getFullYear(), t.getMonth(), t.getDate() - ((t.getDay() + 6) % 7)));
+        const doneThisWeek = dates.some(d => d >= monday && d <= Engine.isoDate(t));
+        const streak = Engine.reviewStreak(dates, t);
+        const names = (c) => (c.names && c.names.length ? `: <span data-i18n-skip>${c.names.map(esc).join(', ')}</span>` : '');
+        const LINES = {
+            assign: (c) => [!c.count ? 'Every dollar of this month\'s income has a job' : c.amount > 0 ? `${money0(c.amount)} of this month's income has no job yet` : `This month's budget plans ${money0(-c.amount)} more than you earn`, 'presupuesto/plan', 'Give every dollar a job'],
+            lines: (c) => [!c.count ? 'Every expense this month has a budget line' : `${c.count} expense${c.count === 1 ? '' : 's'} this month with no budget line (${money0(c.amount)})`, 'transacciones/lista', 'Give them a line'],
+            over: (c) => [!c.count ? 'No budget line is over' : `${c.count} budget line${c.count === 1 ? '' : 's'} over by ${money0(c.amount)}`, 'presupuesto/plan', 'Move money from another line'],
+            bills: (c) => [!c.count ? 'No bills due in the next 7 days' : `${c.count} bill${c.count === 1 ? '' : 's'} due in the next 7 days${c.overdue ? ' or overdue' : ''} (${money0(c.amount)})`, 'resumen', 'Check they\'re covered'],
+            logged: (c) => [c.count ? 'No spending logged in the last 7 days' : `${c.logged} expense${c.logged === 1 ? '' : 's'} logged in the last 7 days`, 'transacciones/lista', 'Log this week\'s spending']
+        };
+        const row = (c) => {
+            const [text, go, todo] = LINES[c.key](c);
+            const done = c.count === 0;
+            return `<li class="flex items-start gap-2"><i class="fa-solid ${done ? 'fa-circle-check text-emerald-600' : 'fa-circle-exclamation text-amber-500'} mt-0.5"></i>
+                <span class="flex-1 min-w-0"><span>${esc(text)}</span>${done ? '' : names(c)}${done ? '' : ` <a href="#" class="link whitespace-nowrap" data-goto="${go}" ${c.key === 'bills' ? 'data-focus="dash-bills-card"' : ''}>${esc(todo)} →</a>`}</span></li>`;
+        };
+        return `<ul class="space-y-2 text-sm">${r.checks.map(row).join('')}</ul>
+            <div class="flex flex-wrap items-center gap-3 mt-3">
+                ${doneThisWeek ? '<span class="badge badge-ok"><i class="fa-solid fa-check"></i> Reviewed this week</span>' : '<button type="button" class="btn btn-primary btn-sm" data-action="review.done"><i class="fa-solid fa-check"></i> Done for this week</button>'}
+                ${streak > 1 ? `<span class="text-xs text-slate-600"><i class="fa-solid fa-fire text-amber-500"></i> ${streak} weeks in a row</span>` : ''}
+            </div>`;
+    }
+
     // This month or next brings an extra paycheck (weekly / every-2-weeks pay).
     function extraPaycheck(ctx) {
         const t = ctx.today, plan = Engine.extraPaycheckMonths(Cash.paySchedule(), t.getFullYear());
@@ -373,6 +408,9 @@
         const mv = movesHTML(ctx);
         UI.html('dash-moves', mv);
         UI.show('dash-moves-card', !!mv);
+        const rv = reviewHTML(ctx);
+        UI.html('dash-review', rv);
+        UI.show('dash-review-card', !!rv);
         UI.html('dash-steps', Views.stepsHTML(ctx, { compact: true }));
 
         const bb = ctx.baseBudget, debts = ctx.debts, ef = ctx.ef, r = ctx.retirement;
@@ -413,6 +451,11 @@
     }
 
     UI.register({
+        // The weekly review is done: its date kept (the last year of them) for the streak.
+        'review.done': () => {
+            const st = Store.state.settings, today = Engine.isoDate(new Date());
+            App.undoable('Weekly review done', () => { st.weeklyReviews = (st.weeklyReviews || []).filter(d => d !== today).concat(today).slice(-60); });
+        },
         // Logs this month's payment of a bill as an expense on its budget line.
         'bill.pay': (el) => {
             const today = new Date();

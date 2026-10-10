@@ -304,6 +304,16 @@ input[type="file"].hidden { display: none; }
 }
 .txn-search:focus-within { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, .15); }
 .txn-list { max-height: 44rem; overflow-y: auto; }
+/* History groups: the totals on the right, the biggest categories under the title. */
+.txn-month { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+.txn-month-tot { display: inline-flex; gap: .5rem; text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.txn-month-tot .exp { color: #b91c1c; } .txn-month-tot .inc { color: #047857; }
+.txn-month-cats { display: flex; flex-wrap: wrap; gap: .3rem; padding: .25rem .6rem .1rem; }
+.txn-cat-chip { font-size: .7rem; font-weight: 600; color: var(--muted); background: var(--surface-3); border-radius: 999px; padding: .1rem .5rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+html[data-theme="dark"] .txn-month-tot .exp { color: #fca5a5; } html[data-theme="dark"] .txn-month-tot .inc { color: #6ee7b7; }
+.seg-mini { display: inline-flex; background: var(--surface-3); border-radius: .6rem; padding: .15rem; gap: .15rem; }
+.seg-mini button { font-size: .72rem; font-weight: 700; color: var(--muted); padding: .2rem .6rem; border-radius: .45rem; }
+.seg-mini button.active { background: var(--surface); color: var(--brand-dark); box-shadow: var(--sh-1); }
 .txn-month { position: sticky; top: 0; z-index: 1; background: #f8fafc; font-size: .75rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: .05em; padding: .45rem .6rem; border-radius: .5rem; margin-top: .4rem; }
 .txn-item { display: grid; grid-template-columns: 2.9rem minmax(0, 1fr) auto auto auto; grid-template-areas: "date main chip amt actions"; gap: .35rem .75rem; align-items: center; padding: .65rem .4rem; border-bottom: 1px solid #f1f5f9; }
 .txn-date { grid-area: date; } .txn-main { grid-area: main; min-width: 0; } .txn-amt { grid-area: amt; text-align: right; } .txn-chip { grid-area: chip; min-width: 0; } .txn-actions { grid-area: actions; }

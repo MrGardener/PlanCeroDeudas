@@ -2182,3 +2182,65 @@ test('Ecuador: décimos paid monthly and fondos de reserva raise the monthly pay
     assert.equal(iess.netoM, base.netoM);
     assert.ok(Math.abs(iess.fondosIessM - 99.96) < 1e-9);
 });
+
+test('weekly review: money with no job, spending with no line, lines over, bills in 7 days, the week logged; the streak', () => {
+    const today = new Date(2026, 9, 14);   // Wednesday
+    const items = [{ id: 1, name: 'Groceries', type: 'Gasto Variable', real: 100, linkedCategory: 'Alimentación' }, { id: 2, name: 'Phone', type: 'Gasto Fijo', real: 50, dueDay: 18, linkedCategory: 'Servicios Básicos y Comunicación' }];
+    const tx = [{ id: 1, type: 'Gasto', parentCategory: 'Alimentación', category: 'Mercado/Supermercado', amount: 130, date: '2026-10-12', description: 'Food' },
+        { id: 2, type: 'Gasto', parentCategory: 'Mascotas', category: 'Veterinario', amount: 40, date: '2026-10-02', description: 'Vet' }];
+    const spend = E.lineSpend(items, tx, 2026, '10');
+    const bills = E.billsDue({ items, spend, year: 2026, month: '10', today });
+    const r = E.weeklyReview({ items, transactions: tx, today, unassigned: 250, bills });
+    const by = Object.fromEntries(r.checks.map(c => [c.key, c]));
+    assert.equal(by.assign.count, 1);
+    assert.equal(by.lines.count, 1);                 // the vet has no line
+    assert.deepEqual(by.over.names, ['Groceries']);
+    assert.equal(by.over.amount, 30);
+    assert.deepEqual(by.bills.names, ['Phone']);     // due on the 18th
+    assert.equal(by.logged.count, 0);
+    assert.equal(r.open, 4);
+    assert.equal(E.weeklyReview({ items, transactions: [], today, unassigned: 0, bills: [] }).checks.find(c => c.key === 'logged').count, 1);
+    // Weeks in a row, Monday to Sunday; this week not done yet doesn't break it.
+    assert.equal(E.reviewStreak(['2026-09-28', '2026-10-05'], today), 2);
+    assert.equal(E.reviewStreak(['2026-09-28', '2026-10-05', '2026-10-13'], today), 3);
+    assert.equal(E.reviewStreak(['2026-09-21'], today), 0);
+    assert.equal(E.reviewStreak([], today), 0);
+});
+
+test('401(k) match, Roth or traditional, this year\'s IRA', () => {
+    const U = require('../js/defaults-us.js');
+    const t = U.usTax2026();
+    const tiers = [{ rate: 100, upTo: 3 }, { rate: 50, upTo: 2 }];
+    assert.deepEqual(E.matchOptimizer({ salary: 60000, contribPct: 3, tiers }), { pctForMax: 5, matchNow: 1800, matchMax: 2400, missed: 600, extraOwn: 1200 });
+    assert.equal(E.matchOptimizer({ salary: 60000, contribPct: 8, tiers }).missed, 0);
+    assert.equal(E.matchOptimizer({ salary: 60000, contribPct: 4, tiers }).matchNow, 2100);
+    // The lower tax rate wins; the same rate: the same.
+    assert.equal(E.rothVsTraditional({ amount: 6000, rateNow: 22, rateLater: 12, years: 25, returnPct: 7 }).better, 'traditional');
+    assert.equal(E.rothVsTraditional({ amount: 6000, rateNow: 12, rateLater: 22, years: 25, returnPct: 7 }).better, 'roth');
+    assert.equal(E.rothVsTraditional({ amount: 6000, rateNow: 15, rateLater: 15, years: 25, returnPct: 7 }).better, 'same');
+    const g = Math.pow(1.07, 25);
+    assert.equal(E.rothVsTraditional({ amount: 6000, rateNow: 22, rateLater: 12, years: 25, returnPct: 7 }).roth, Math.round(6000 * 0.78 * g * 100) / 100);
+    // IRA: $7,500 ($8,600 from 50); the Roth IRA phases out ($153,000–$168,000 single).
+    const a = E.iraTracker({ contributed: 2000, age: 40, magi: 90000, status: 'single', months: 4, t });
+    assert.deepEqual([a.limit, a.room, a.perMonth, a.rothPhase], [7500, 5500, 1375, 'full']);
+    const b = E.iraTracker({ contributed: 0, age: 52, magi: 160500, status: 'single', months: 12, t });
+    assert.equal(b.limit, 8600);
+    assert.equal(b.rothPhase, 'partial');
+    assert.equal(b.rothLimit, Math.round(8600 * 7500 / 15000 * 100) / 100);
+    assert.equal(E.iraTracker({ magi: 260000, status: 'mfj', t }).rothPhase, 'none');
+    assert.equal(E.iraTracker({ contributed: 9000, t }).room, 0);
+});
+
+test('history groups: by month or by week, with what came in, what went out and the biggest categories', () => {
+    const list = [
+        { id: 4, type: 'Gasto', parentCategory: 'Alimentación', amount: 50, date: '2026-10-14' },
+        { id: 3, type: 'Ingreso', parentCategory: 'Sueldo/Salario', amount: 1000, date: '2026-10-13' },
+        { id: 2, type: 'Gasto', parentCategory: 'Transporte', amount: 30, date: '2026-10-11' },
+        { id: 5, type: 'Transferencia', amount: 500, date: '2026-10-11' },
+        { id: 1, type: 'Gasto', parentCategory: 'Alimentación', amount: 20, date: '2026-09-30' }];
+    const months = E.historyGroups(list, 'month');
+    assert.deepEqual(months.map(g => [g.key, g.items.length, g.income, g.spending]), [['2026-10', 4, 1000, 80], ['2026-09', 1, 0, 20]]);
+    assert.deepEqual(months[0].cats, [{ cat: 'Alimentación', total: 50 }, { cat: 'Transporte', total: 30 }]);
+    const weeks = E.historyGroups(list, 'week');
+    assert.deepEqual(weeks.map(g => [g.key, g.spending]), [['2026-10-12', 50], ['2026-10-05', 30], ['2026-09-28', 20]]);
+});

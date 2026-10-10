@@ -60,6 +60,7 @@
     function update(ctx) {
         const r = ctx.retirement, inp = ctx.retirementInputs, s = ctx.state, yd = ctx.year;
         gap(ctx);
+        if (window.RetireTools) RetireTools.render(ctx);
         UI.text('ret-ahorro', money(inp.ahorroActual));
         UI.text('ret-aporte', money(inp.aporteMensual));
         UI.text('ret-aporte-sweep', ctx.baseBudget.sweep > 0 ? `, including the ${money0(ctx.baseBudget.sweep)} sweep` : '');

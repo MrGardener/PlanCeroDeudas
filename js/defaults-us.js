@@ -44,7 +44,10 @@
         // Contribution limits (for warnings): 401(k)/403(b) deferrals, pre-tax and Roth together (457(b)
         // has its own); catch-up from 50 (more from 60 to 63); everything incl. after-tax and the match
         // (415(c)); health FSA (limited-purpose shares it); dependent care FSA per household (from 2026).
-        limit401k: 24500, catchUp401k: 8000, superCatchUp401k: 11250, limit415c: 72000, limitIRA: 7500, limitHSA: { self: 4400, family: 8750 }, hsaCatchUp: 1000,
+        limit401k: 24500, catchUp401k: 8000, superCatchUp401k: 11250, limit415c: 72000, limitIRA: 7500, iraCatchUp: 1100,
+        // A Roth IRA allows less between these incomes, nothing above (married filing separately: 0–10,000).
+        rothIraPhaseout: { single: [153000, 168000], hoh: [153000, 168000], mfj: [242000, 252000], qss: [242000, 252000], mfs: [0, 10000] },
+        limitHSA: { self: 4400, family: 8750 }, hsaCatchUp: 1000,
         limitFSA: 3400, limitDCFSA: 7500,
         // "No tax on overtime" (2025–2028): the extra half of time-and-a-half, up to these amounts, less
         // 10% of income above the phase-out start. Married people get it only filing jointly (0).
@@ -216,6 +219,8 @@
             blind: 0,                   // people on the return who are blind
             tipsY: 0,                   // qualified tips a year (2025–2028 deduction)
             carLoanInterestY: 0,        // interest on a new US-assembled car's loan a year (2025–2028 deduction)
+            matchTiers: [{ rate: 100, upTo: 3 }, { rate: 50, upTo: 2 }],   // the employer's 401(k) match
+            iraContributed: 0,          // put in an IRA for this year so far
             state: 'MI',
             stateRate: null,            // % override (or the rate for a 'custom' state)
             localName: '',              // city with income tax

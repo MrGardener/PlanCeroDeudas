@@ -1520,6 +1520,47 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   });
   ok(migR.mfs === 7 && migR.senior && migR.ot === 0 && migR.kept === 15000, 'an older saved table gets the new statuses and deductions (what was typed stays)', migR);
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
+  // A Chase card statement (invented rows) is recognized and set up; the CSV template downloads
+  // and imports with no setup.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('transacciones/importar'); });
+  await page.waitForTimeout(200);
+  await page.setInputFiles('#imp-file', { name: 'Chase1234_Activity.csv', mimeType: 'text/csv', buffer: Buffer.from('Transaction Date,Post Date,Description,Category,Type,Amount,Memo\n10/02/2026,10/03/2026,CORNER COFFEE,Food & Drink,Sale,-4.50,\n10/04/2026,10/05/2026,PAYMENT THANK YOU,,Payment,200.00,\n') });
+  await page.waitForTimeout(300);
+  const chaseImp = await page.evaluate(() => ({ note: document.getElementById('imp-profile-note').textContent, summary: document.getElementById('imp-summary').textContent }));
+  let tplFile = null;
+  await page.evaluate(() => { window.__save = Native.saveFile; Native.saveFile = (name, text) => { window.__tpl = { name, text }; return Promise.resolve('saved'); }; });
+  await page.click('[data-action="imp.template"]');
+  await page.waitForTimeout(150);
+  tplFile = await page.evaluate(() => { Native.saveFile = window.__save; return window.__tpl; });
+  await page.setInputFiles('#imp-file', { name: tplFile.name, mimeType: 'text/csv', buffer: Buffer.from(tplFile.text) });
+  await page.waitForTimeout(300);
+  const tplNote = await page.textContent('#imp-profile-note');
+  ok(/Recognized: a Chase credit card statement/.test(chaseImp.note) && /2 to import/.test(chaseImp.summary) && /^\ufeff?Date,Description,Amount,Place,Category\r\n2026-10-01,Weekly groceries,-85\.40,/.test(tplFile.text) && /app's template/.test(tplNote),
+    'a Chase statement is recognized and set up; the CSV template downloads and imports with no setup', { chaseImp, tpl: tplFile.text.slice(0, 80), tplNote });
+  // The history by month or by week, each group with its totals and biggest categories (in English).
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('transacciones/lista'); });
+  await page.waitForTimeout(250);
+  const hm = await page.evaluate(() => ({ head: document.querySelector('#txn-body .txn-month').textContent, cats: (document.querySelector('#txn-body .txn-month-cats') || {}).textContent || '' }));
+  await page.click('[data-action="txn.group"][data-by="week"]');
+  await page.waitForTimeout(200);
+  const hw = await page.evaluate(() => ({ head: document.querySelector('#txn-body .txn-month').textContent, pressed: document.querySelector('[data-action="txn.group"][data-by="week"]').getAttribute('aria-pressed') }));
+  await page.click('[data-action="txn.group"][data-by="month"]');
+  ok(/^\s*[A-Z][a-z]+ 20\d\d/.test(hm.head) && /−\$/.test(hm.head) && /\$/.test(hm.cats) && !/Alimentación|Vivienda|Transporte/.test(hm.cats) && /^\s*Week of/.test(hw.head) && hw.pressed === 'true',
+    'history grouped by month or by week, with totals and the biggest categories', { hm, hw });
+  // The weekly review on the Overview: its checks, then "Done for this week" (undoable).
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('resumen'); });
+  await page.waitForTimeout(250);
+  const rv = await page.evaluate(() => ({ shown: !document.getElementById('dash-review-card').classList.contains('hidden'), items: document.querySelectorAll('#dash-review li').length }));
+  await page.click('[data-action="review.done"]');
+  await page.waitForTimeout(200);
+  const rvDone = await page.evaluate(() => ({ badge: /Reviewed this week/.test(document.getElementById('dash-review').textContent), dates: Store.state.settings.weeklyReviews.slice() }));
+  ok(rv.shown && rv.items === 5 && rvDone.badge && rvDone.dates.length === 1, 'weekly review: five checks, then done for this week', { rv, rvDone });
+  // 401(k) and IRA: the match missed at 3%, Roth or traditional, the IRA's room.
+  await page.evaluate(() => { const y = Store.active(); y.payDeductions = [{ id: 1, type: '401k', per: 'percent', percent: 3, monthly: 0 }]; y.matchTiers = [{ rate: 100, upTo: 3 }, { rate: 50, upTo: 2 }]; y.iraContributed = 1000; App.changed({ structural: true }); App.go('futuro/jubilacion'); });
+  await page.waitForTimeout(300);
+  const rtools = await page.textContent('#ret-tools');
+  ok(/Put in 5%/.test(rtools) && /free money/.test(rtools) && /(Traditional|Roth) leaves|Both end the same/.test(rtools) && /Room left: \$6,500/.test(rtools), '401(k) match missed, Roth or traditional, the IRA room left', rtools.slice(0, 400));
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   // State tables (2026) and other states' cities: Georgia flat after its deduction, Minnesota's
   // brackets, Ohio's cities and school district tax, New York City.
   await page.evaluate(() => App.go('presupuesto/ingresos'));

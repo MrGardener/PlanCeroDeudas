@@ -360,13 +360,17 @@
             .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
         const assignOf = assignments(ctx);
         lastList = list;
-        // Grouped by month, newest first.
-        const groups = [];
-        list.forEach(t => {
-            const key = t.date.slice(0, 7);
-            if (!groups.length || groups[groups.length - 1].key !== key) groups.push({ key, items: [] });
-            groups[groups.length - 1].items.push(t);
-        });
+        // Grouped by month or by week, newest first, each with its totals and biggest categories.
+        const by = Store.ui.txnGroup === 'week' ? 'week' : 'month';
+        UI.$$('[data-action="txn.group"]').forEach(b => { const on = b.dataset.by === by; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+        const groups = Engine.historyGroups(list, by);
+        const groupHead = (g) => {
+            const d = new Date(g.key + (by === 'week' ? 'T00:00:00' : '-01T00:00:00'));
+            const label = by === 'week' ? `Week of ${Fmt.MONTH_SHORT[d.getMonth()]} ${d.getDate()}` : `${Fmt.MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+            const tot = [g.spending ? `<span class="exp">−${money(g.spending)}</span>` : '', g.income ? `<span class="inc">+${money(g.income)}</span>` : ''].filter(Boolean).join(' ');
+            const cats = g.cats.map(c => `<span class="txn-cat-chip"><span>${esc(Views.catPath(c.cat))}</span> ${money(c.total)}</span>`).join('');
+            return `<div class="txn-month"><span>${label}</span><span class="txn-month-tot">${tot}</span></div>${cats ? `<div class="txn-month-cats">${cats}</div>` : ''}`;
+        };
         // Long histories: the newest rows first, more on request (drawing thousands of rows on
         // every keystroke made the list slow on a phone).
         let shown = 0;
@@ -376,7 +380,7 @@
             if (shown >= limit) break;
             const items = g.items.slice(0, limit - shown);
             shown += items.length;
-            html.push(`<div class="txn-month">${Fmt.MONTH_NAMES[Number(g.key.slice(5)) - 1]} ${g.key.slice(0, 4)}</div>` + items.map(t => txnItemHTML(t, assignOf)).join(''));
+            html.push(groupHead(g) + items.map(t => txnItemHTML(t, assignOf)).join(''));
         }
         if (list.length > shown) html.push(`<div class="text-center py-3"><button type="button" class="btn btn-secondary btn-sm" data-action="txn.more">Show ${Math.min(PAGE * 2, list.length - shown)} more <span class="text-slate-400">(${list.length - shown} left)</span></button></div>`);
         UI.html('txn-body', groups.length ? html.join('')
@@ -1039,6 +1043,7 @@
             App.update();
         },
         'txn.download': () => download(),
+        'txn.group': (el) => { Store.ui.txnGroup = el.dataset.by === 'week' ? 'week' : 'month'; App.update(); },
         'txn.moreFilters': (el) => { const box = document.getElementById('txn-filters'); el.setAttribute('aria-expanded', String(box.classList.toggle('open'))); },
         'txn.filter': () => {
             Store.ui.txnLimit = PAGE;

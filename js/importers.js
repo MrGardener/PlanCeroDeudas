@@ -145,7 +145,7 @@
         debit: ['debito', 'debitos', 'cargo', 'cargos', 'retiro', 'retiros', 'egreso', 'egresos', 'debit', 'withdrawal'],
         credit: ['credito', 'creditos', 'abono', 'abonos', 'deposito', 'depositos', 'ingreso', 'ingresos', 'credit', 'deposit'],
         category: ['categoria', 'category', 'rubro', 'tipo de gasto'],
-        store: ['lugar', 'comercio', 'establecimiento', 'merchant', 'tienda', 'oficina', 'agencia'],
+        store: ['lugar', 'comercio', 'establecimiento', 'merchant', 'tienda', 'oficina', 'agencia', 'place'],
         balance: ['saldo', 'saldo disponible', 'saldo contable', 'balance', 'running balance']
     };
 
@@ -186,6 +186,41 @@
 
     const headerSignature = (headers) => headers.map(norm).join('|');
 
+    // Statement files from the big US banks, recognized by their columns: imported with no setup.
+    // `cols`: the headers it must have (normalized); the mapping names columns by header. Wells
+    // Fargo's file has no header row: five columns (date, amount, "*", check number, description).
+    const BANK_PRESETS = [
+        { bank: 'Chase credit card', cols: ['transaction date', 'post date', 'description', 'category', 'type', 'amount'], map: { date: 'transaction date', description: 'description', amount: 'amount', category: 'category' } },
+        { bank: 'Chase checking', cols: ['details', 'posting date', 'description', 'amount', 'type', 'balance'], map: { date: 'posting date', description: 'description', amount: 'amount', balance: 'balance' } },
+        { bank: 'Bank of America credit card', cols: ['posted date', 'reference number', 'payee', 'address', 'amount'], map: { date: 'posted date', description: 'payee', amount: 'amount' } },
+        { bank: 'Bank of America checking', cols: ['date', 'description', 'amount', 'running bal.'], map: { date: 'date', description: 'description', amount: 'amount', balance: 'running bal.' } },
+        { bank: 'Capital One credit card', cols: ['transaction date', 'posted date', 'card no.', 'description', 'category', 'debit', 'credit'], map: { date: 'transaction date', description: 'description', debit: 'debit', credit: 'credit', category: 'category' }, mode: 'split' },
+        { bank: 'Capital One 360', cols: ['transaction date', 'transaction amount', 'transaction type', 'transaction description', 'balance'], map: { date: 'transaction date', description: 'transaction description', amount: 'transaction amount', sign: 'transaction type', balance: 'balance' } },
+        // American Express: charges are positive.
+        { bank: 'American Express', cols: ['date', 'description', 'amount'], also: ['card member', 'account #', 'extended details', 'appears on your statement as', 'reference'], map: { date: 'date', description: 'description', amount: 'amount', category: 'category' }, expensesAre: 'positive' },
+        { bank: 'Wells Fargo', noHeader: true, headers: ['Date', 'Amount', '*', 'Check number', 'Description'], map: { date: 'date', amount: 'amount', description: 'description' } },
+        // This app's own template (Download a CSV template): dates as YYYY-MM-DD, spending negative.
+        { bank: 'template', cols: ['date', 'description', 'amount', 'place', 'category'], map: { date: 'date', description: 'description', amount: 'amount', store: 'place', category: 'category' } },
+        { bank: 'template', cols: ['fecha', 'descripcion', 'monto', 'lugar', 'categoria'], map: { date: 'fecha', description: 'descripcion', amount: 'monto', store: 'lugar', category: 'categoria' } }
+    ];
+    // A file's preset from its header row (null when it isn't one of them). Amex: its three columns
+    // alone are too common, so one of its other columns must be there too.
+    function bankPreset(headers) {
+        const h = (headers || []).map(norm);
+        const p = BANK_PRESETS.find(x => !x.noHeader && x.cols.every(c => h.includes(c)) && (!x.also || x.also.some(c => h.includes(c))));
+        if (!p) return null;
+        const mapping = { mode: p.mode || 'single', expensesAre: p.expensesAre || 'negative', dateFormat: p.bank === 'template' ? 'auto' : 'mdy' };
+        ['date', 'description', 'amount', 'debit', 'credit', 'category', 'store', 'balance', 'sign'].forEach(k => { mapping[k] = p.map[k] ? h.indexOf(p.map[k]) : -1; });
+        return { bank: p.bank, mapping };
+    }
+    // Wells Fargo's file (no header row): every row a date, an amount, "*", maybe a check number, a description.
+    function headerlessPreset(rows) {
+        const sample = (rows || []).slice(0, 5).filter(r => r.some(c => c !== ''));
+        if (!sample.length || !sample.every(r => r.length === 5 && parseDate(r[0], 'mdy') && parseAmount(r[1]) !== null && r[2] === '*')) return null;
+        const p = BANK_PRESETS.find(x => x.noHeader);
+        return { bank: p.bank, headers: p.headers.slice(), mapping: { mode: 'single', expensesAre: 'negative', dateFormat: 'mdy', date: 0, amount: 1, description: 4, debit: -1, credit: -1, category: -1, store: -1, balance: -1, sign: -1 } };
+    }
+
     // Rows of the table (after the header) → candidate transactions, using the mapping:
     // { date, description, store, category?, amount>0, type 'Gasto'|'Ingreso', error? }
     // Day-first or month-first? Look at the whole column: a first number above 12 means day
@@ -222,6 +257,8 @@
             } else {
                 value = parseAmount(get(amount), decimal);
                 if (value !== null && expensesAre === 'positive') value = -value;
+                // An amount always positive, with a column saying debit or credit (Capital One 360).
+                if (value !== null && mapping.sign !== undefined && mapping.sign >= 0) value = /debit|withdraw|cargo|d[eé]bito/i.test(get(mapping.sign)) ? -Math.abs(value) : Math.abs(value);
             }
             if (!out.date) out.error = 'Fecha no reconocida';
             else if (value === null || value === 0) out.error = 'Sin monto';
@@ -518,7 +555,7 @@
         return u.toString();
     }
 
-    const Importers = { sheetPrices, sheetCsvUrl, detectDateOrder, parseOFX, classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
+    const Importers = { bankPreset, headerlessPreset, BANK_PRESETS, sheetPrices, sheetCsvUrl, detectDateOrder, parseOFX, classifyDeduction, parsePaystub, paysPerYearFromPeriod, findMatch, importRef, detectDecimal, latestBalance, toCSV, detectDelimiter, parseCSV, parseAmount, parseDate, guessMapping, headerSignature, buildRows, isDuplicate, applyRules, parseSriXml, parseReceiptText, norm };
     if (typeof module !== 'undefined' && module.exports) module.exports = Importers;
     else root.Importers = Importers;
 })(this);

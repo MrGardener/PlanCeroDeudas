@@ -124,19 +124,25 @@
     function startSession(name, text) {
         const parsed = Importers.parseCSV(text);
         if (parsed.rows.length < 2) { UI.toast('We found no rows in that file. Is it a CSV?', 'error'); return; }
-        const headerRow = guessHeaderRow(parsed.rows);
-        session = { source: 'csv', name, all: parsed.rows, headerRow, include: {}, edits: {}, remember: true };
+        // A file with no header row we know (Wells Fargo): its columns are named for it.
+        const headerless = Importers.headerlessPreset(parsed.rows);
+        const headerRow = headerless ? -1 : guessHeaderRow(parsed.rows);
+        session = { source: 'csv', name, all: parsed.rows, headerRow, headerless, include: {}, edits: {}, remember: true };
         applyHeader();
     }
 
     function applyHeader() {
         const s = session;
-        s.headers = s.all[s.headerRow].map((h, i) => h || `Columna ${i + 1}`);
+        s.headers = s.headerRow < 0 && s.headerless ? s.headerless.headers.slice() : s.all[Math.max(0, s.headerRow)].map((h, i) => h || `Columna ${i + 1}`);
         const width = s.headers.length;
         s.table = s.all.slice(s.headerRow + 1).filter(r => r.length >= Math.min(2, width) && r.some(c => c !== ''));
         s.signature = Importers.headerSignature(s.headers);
         const saved = (Store.state.settings.importProfiles || {})[s.signature];
-        s.mapping = Object.assign({ dateFormat: 'auto', decimal: 'auto', expensesAre: 'negative' }, Importers.guessMapping(s.headers), saved ? saved.mapping : {});
+        // A statement from a bank we know (Chase, Bank of America, Wells Fargo, Capital One, Amex) or
+        // this app's template: set up already. A setup you saved for these columns comes first.
+        const preset = saved ? null : (s.headerRow < 0 ? s.headerless : Importers.bankPreset(s.headers));
+        s.bank = preset ? preset.bank : null;
+        s.mapping = Object.assign({ dateFormat: 'auto', decimal: 'auto', expensesAre: 'negative' }, Importers.guessMapping(s.headers), preset ? preset.mapping : {}, saved ? saved.mapping : {});
         s.catMap = Object.assign({}, saved ? saved.catMap : {});
         s.fromProfile = !!saved;
         // The account files like this one come from (checking, card…), remembered from last time.
@@ -281,7 +287,10 @@
         const s = session;
         UI.show('imp-setup', s.source === 'csv');
         if (s.source !== 'csv') return;
-        UI.html('imp-profile-note', s.fromProfile ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> We used the setup you saved for files like this${s.defaults ? ` (and to every row: ${esc(bulkLabel(s.defaults))})` : ''}. You can change it.` : 'We read the headers and guessed what we could. Fix whatever\'s needed: the preview updates on its own.');
+        UI.html('imp-profile-note', s.fromProfile ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> We used the setup you saved for files like this${s.defaults ? ` (and to every row: ${esc(bulkLabel(s.defaults))})` : ''}. You can change it.`
+            : s.bank === 'template' ? '<i class="fa-solid fa-circle-check text-emerald-600"></i> <span>This is the app\'s template: everything is set up.</span> <span>Check the preview and import.</span>'
+            : s.bank ? `<i class="fa-solid fa-building-columns text-emerald-600"></i> <span>Recognized: a ${esc(s.bank)} statement.</span> <span>Everything is set up: check the preview and import.</span>`
+            : 'We read the headers and guessed what we could. Fix whatever\'s needed: the preview updates on its own.');
         const colOpts = (sel) => `<option value="-1">— None —</option>` + s.headers.map((h, i) => `<option value="${i}" ${Number(sel) === i ? 'selected' : ''}>${esc(h)}</option>`).join('');
         const m = s.mapping;
         const field = (f) => (f.mode && f.mode !== m.mode) ? '' : `<label class="field"><span class="field-label"><span>${f.label}</span>${f.required ? ' *' : ''}</span><select class="input" data-change="imp.map" data-key="${f.key}">${colOpts(m[f.key])}</select></label>`;
@@ -514,6 +523,19 @@
             }
             startSession(file.name, text);
         },
+        // An empty template that imports with no setup (Importers.BANK_PRESETS): two made-up rows
+        // show the format. It holds none of your data, so it's saved as a plain file.
+        'imp.template': () => {
+            // In the app's language (both headers import with no setup).
+            const tr = (x) => (/^[-\d.]+$/.test(x) ? x : I18n.t(x));
+            const rows = [['Date', 'Description', 'Amount', 'Place', 'Category'], ['2026-10-01', 'Weekly groceries', '-85.40', 'Grocery store', 'Food'], ['2026-10-03', 'Paycheck', '1500.00', 'Employer', 'Salary']].map(r => r.map(tr));
+            // Written as is (toCSV guards cells starting with "-" for spreadsheets; here a negative
+            // amount must stay a number). The BOM lets spreadsheets read the accents.
+            const cell = (v) => (/[\x22,\n]/.test(v) ? `\x22${v.replace(/\x22/g, '\x22\x22')}\x22` : v);
+            Native.saveFile(I18n.t('transactions-template') + '.csv', '\ufeff' + rows.map(r => r.map(cell).join(',')).join('\r\n') + '\r\n', 'text/csv;charset=utf-8')
+                .then(() => UI.toast('Template saved: one row per transaction, spending as a negative amount.'))
+                .catch(e => UI.toast('Couldn\'t save the file: ' + (e.message || e), 'error'));
+        },
         'imp.headerRow': (el) => {
             if (!session) return;
             session.headerRow = Math.max(0, Math.min(session.all.length - 2, (parseInt(el.value, 10) || 1) - 1));
@@ -688,10 +710,10 @@
             // Remember how this kind of file maps (not the file): next time it's automatic.
             if (s.source === 'csv') {
                 const profiles = Store.state.settings.importProfiles || (Store.state.settings.importProfiles = {});
-                const { date, description, amount, debit, credit, store, category, mode, dateFormat, decimal, expensesAre } = s.mapping;
+                const { date, description, amount, debit, credit, store, category, mode, dateFormat, decimal, expensesAre, sign = -1, balance = -1 } = s.mapping;
                 const prev = profiles[s.signature];
                 const defaults = s.remember ? (s.bulk ? Object.assign({}, s.defaults || {}, s.bulk) : s.defaults) : null;
-                profiles[s.signature] = { mapping: { date, description, amount, debit, credit, store, category, mode, dateFormat, decimal, expensesAre }, catMap: s.catMap, name: s.name, savedAt: new Date().toISOString().slice(0, 10) };
+                profiles[s.signature] = { mapping: { date, description, amount, debit, credit, store, category, mode, dateFormat, decimal, expensesAre, sign, balance }, catMap: s.catMap, name: s.name, savedAt: new Date().toISOString().slice(0, 10) };
                 if (acct) profiles[s.signature].account = acct.id;
                 if (defaults && Object.keys(defaults).length) profiles[s.signature].defaults = defaults;
                 else if (prev && prev.defaults && s.remember && !s.bulk) profiles[s.signature].defaults = prev.defaults;
