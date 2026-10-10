@@ -100,10 +100,36 @@
         return Engine.deductionLimits(e, e.usTax, age).map(x => `<div class="bs-banner warn mt-2"><i class="fa-solid fa-triangle-exclamation"></i> <span>${esc(I18n.t(x.label))}:</span> <span>${money(x.amount)} a year, over the ${money(x.limit)} limit.</span></div>`).join('');
     }
 
-    // A table of deductions for another earner (the main one lives in its own card: payscan.js).
+    // A table of deductions for another earner (the main one lives in its own card: payscan.js),
+    // with their pay stub scan (read on this device, never stored).
     function table(t) {
+        const id = `earner-file-${esc(String(t))}`;
         return `<div class="table-wrap mt-2"><table class="table"><thead>${HEAD}</thead><tbody>${rows(t)}</tbody></table></div>
-            <div class="flex flex-wrap gap-2 mt-2"><button type="button" class="btn btn-secondary btn-sm" data-action="payx.dedAdd" ${attrs(t)}><i class="fa-solid fa-plus"></i> Add a deduction</button></div>${limits(t, null)}`;
+            <div class="flex flex-wrap gap-2 mt-2">
+                <label class="btn btn-secondary btn-sm cursor-pointer"><i class="fa-solid fa-camera"></i> Scan their pay stub (PDF or photo)<input type="file" id="${id}" class="hidden" accept="application/pdf,image/*" data-change="ded.file" ${attrs(t)} data-status="earner-status-${esc(String(t))}"></label>
+                <button type="button" class="btn btn-secondary btn-sm" data-app-only data-action="cam.photo" data-for="${id}"><i class="fa-solid fa-camera-retro"></i> Take a photo</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-action="payx.dedAdd" ${attrs(t)}><i class="fa-solid fa-plus"></i> Add a deduction</button></div>
+            <div id="earner-status-${esc(String(t))}" class="text-sm mt-1"></div>${limits(t, null)}${groupLife(t)}`;
+    }
+
+    // Life insurance from the employer: coverage over $50,000 is taxed as pay (IRS Table I, by
+    // age), not paid (Engine.groupLifeImputed). Or the "GTL" amount on the pay stub.
+    function groupLife(t) {
+        const e = engineView(t);
+        if (!e) return '';
+        const gl = e.groupLife || {}, w = Engine.usWages(Object.assign({}, e, { country: 'US' }), e.usTax || {}), g = w.groupLife, ppy = w.pay.ppy;
+        const val = (v) => (Number(v) > 0 ? Number(v) : '');
+        const num = (f, label, value, extra, help) => `<label class="field"><span class="field-label">${label}</span><input type="number" class="input" ${extra} inputmode="decimal" value="${value}" data-change="payx.gtl" ${attrs(t)} data-f="${f}">${help ? `<span class="help">${help}</span>` : ''}</label>`;
+        const result = g.needsAge ? '<span class="text-amber-700">Type the age to figure it.</span>'
+            : w.imputed > 0 ? `<strong class="text-lg">${money(w.imputed)}</strong><span class="help">${money(w.imputed / ppy)} a paycheck</span>` : `<strong class="text-lg">${money(0)}</strong><span class="help">Up to $50,000 isn't taxed.</span>`;
+        return `<details class="panel tone-slate mt-3" ${w.imputed > 0 || g.needsAge || Number(gl.coverage) > 0 ? 'open' : ''}><summary class="text-sm font-semibold cursor-pointer"><i class="fa-solid fa-shield-heart text-slate-500"></i> Life insurance from the employer</summary>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-2">
+                ${num('coverage', 'Group life coverage ($)', val(gl.coverage), 'min="0" max="100000000" step="1000"', 'Paid for by the employer.')}
+                ${num('age', 'Age at the end of the year', val(gl.age), 'min="0" max="120" step="1"', '')}
+                ${num('perCheck', 'Or the pay stub\'s "GTL" amount (per paycheck)', val(gl.perCheck), 'min="0" max="100000" step="0.01"', 'It wins when typed.')}
+                <div class="field"><span class="field-label">Taxed as pay, a year</span>${result}</div>
+            </div>
+            <p class="help mt-2">Group-term life coverage over $50,000 counts as income (the IRS's table, by age), less what you pay for it after tax. It isn't paid to you: it adds to income tax, Social Security and Medicare.</p></details>`;
     }
 
     // Per paycheck and per month, side by side: [label, a month, class] rows.
@@ -180,6 +206,22 @@
             if (d.debtId) { const debt = (Store.state.debts || []).find(x => Number(x.id) === Number(d.debtId)); if (debt) debt.monthly = d.monthly; }
             after(tg);
         },
+        'payx.gtl': (el) => {
+            const tg = target(el.dataset.target);
+            if (!tg) return;
+            const gl = tg.pay.groupLife = Object.assign({ coverage: 0, age: null, perCheck: 0 }, tg.pay.groupLife);
+            const f = el.dataset.f, v = Math.max(0, parseNum(el.value, 0));
+            if (f === 'coverage') {
+                gl.coverage = Math.min(1e8, v);
+                // Your age from the retirement plan, to start from.
+                if (!(Number(gl.age) > 0) && String(el.dataset.target) === 'main') gl.age = Number(Store.state.retirement.edadActual) || null;
+            } else if (f === 'age') gl.age = v > 0 ? Math.min(120, Math.round(v)) : null;
+            else if (f === 'perCheck') gl.perCheck = Math.min(1e5, v);
+            // Let go of the field before its panel is redrawn (its own change on leaving it can't
+            // arrive in the middle of the redraw).
+            if (el === document.activeElement) el.blur();
+            after(tg);
+        },
         'payx.dedAdd': async (el) => {
             const t = el.dataset.target, tg = target(t);
             if (!tg) return;
@@ -216,5 +258,5 @@
         }
     });
 
-    window.PayEdit = { fields, rows, table, limits, breakdown, HEAD, FREQ, TAX, setType, engineView };
+    window.PayEdit = { fields, rows, table, limits, groupLife, breakdown, HEAD, FREQ, TAX, setType, engineView };
 })();

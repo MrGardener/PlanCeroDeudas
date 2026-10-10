@@ -23,6 +23,13 @@
 
     function yd() { return Store.active(); }
     const list = () => yd().payDeductions || (yd().payDeductions = []);
+    // The paycheck a scan fills: yours ("main", this year's) or another earner's (an income line's
+    // `pay`, js/views/earners.js), and what the app computes for it.
+    const isMain = (t) => !t || String(t) === 'main';
+    const lineOf = (t) => (yd().otherIncomes || []).find(l => l.id === Number(t) && l.pay) || null;
+    function payOf(t) { if (isMain(t)) return yd(); const l = lineOf(t); return l ? l.pay : null; }
+    function computedOf(t, p) { return isMain(t) ? p : (p.earners || []).find(e => e.id === Number(t)) || null; }
+    const listOf = (y) => y.payDeductions || (y.payDeductions = []);
 
     function usesFor(d) {
         if (d.group === 'retirement') return '<span class="badge badge-ok">Savings (Step 4)</span>';
@@ -50,6 +57,7 @@
             UI.html('ded-head', PayEdit.HEAD);
             host.innerHTML = PayEdit.rows('main', { loanLink: true });
             UI.html('ded-limits', PayEdit.limits('main', Number(Store.state.retirement.edadActual) || null));
+            UI.html('ded-gtl', PayEdit.groupLife('main'));
             renderLast(p);
             return;
         }
@@ -77,13 +85,13 @@
         }
         renderLast(p);
     }
-    function renderLast(p) {
-        const last = yd().lastPaystub;
-        UI.html('ded-last', last ? (() => {
-            const stubMonthly = last.net * last.ppy / 12;
-            const diff = stubMonthly - p.netoM;
-            return `Last stub read${last.payDate ? ` (${esc(last.payDate)})` : ''}: net ${money(last.net)} per paycheck ≈ ${money(stubMonthly)} a month. ${Math.abs(diff) < 1 ? '<span class="text-emerald-700 font-bold">Matches what the app calculates.</span>' : `<span class="text-amber-700 font-bold">The app calculates ${money(p.netoM)}: ${diff > 0 ? 'your stub says ' + money(diff) + ' más' : 'your stub says ' + money(-diff) + ' menos'} a month.</span> Check your gross salary and your deductions.`}`;
-        })() : '');
+    function renderLast(p) { UI.html('ded-last', lastNote(yd().lastPaystub, p.netoM)); }
+    // The last stub read next to the take-home the app computes.
+    function lastNote(last, netoM) {
+        if (!last) return '';
+        const stubMonthly = last.net * last.ppy / 12;
+        const diff = stubMonthly - netoM;
+        return `Last stub read${last.payDate ? ` (${esc(last.payDate)})` : ''}: net ${money(last.net)} per paycheck ≈ ${money(stubMonthly)} a month. ${Math.abs(diff) < 1 ? '<span class="text-emerald-700 font-bold">Matches what the app calculates.</span>' : `<span class="text-amber-700 font-bold">The app calculates ${money(netoM)} a month.</span> <span>${diff > 0 ? `The stub says ${money(diff)} more.` : `The stub says ${money(-diff)} less.`}</span> <span>Check the gross pay and the deductions.</span>`}`;
     }
 
     // ------------------------------------------------------------------ reading a stub
@@ -93,15 +101,18 @@
 
     let draft = null, sheet = null;
 
-    function fromText(text) {
+    function fromText(text, t = 'main') {
+        const cur = payOf(t);
+        if (!cur) return;
         const p = Importers.parsePaystub(text);
         if (!p.deductions.length && p.net === null) { UI.toast('We found no pay stub amounts in that file. You can add the deductions by hand.', 'error'); return; }
-        const schedule = Cash.paySchedule();
-        const ppy = Importers.paysPerYearFromPeriod(p.periodDays) || (schedule ? Math.round(Engine.nominalPaymentsPerYear(schedule)) : 12);
-        draft = { stub: p, ppy: [52, 26, 24, 12].includes(ppy) ? ppy : 12, useGross: false, rows: p.deductions.map(d => ({ label: d.label, group: d.group, kind: d.kind, pretax: d.pretax, amount: d.amount, ytd: d.ytd, include: !COMPUTED[d.kind] })) };
-        draft.useGross = p.gross > 0 && Math.abs(p.gross * draft.ppy / 12 - (Number(yd().sueldo) || 0)) > 1;
+        // How often: the stub's period, else your pay calendar (another earner: their paycheck's).
+        const schedule = isMain(t) ? Cash.paySchedule() : null;
+        const ppy = Importers.paysPerYearFromPeriod(p.periodDays) || (isMain(t) ? (schedule ? Math.round(Engine.nominalPaymentsPerYear(schedule)) : 12) : Engine.paysPerYear(Object.assign({ country: 'US' }, cur)));
+        draft = { target: isMain(t) ? 'main' : Number(t), stub: p, ppy: [52, 26, 24, 12].includes(ppy) ? ppy : 12, useGross: false, rows: p.deductions.map(d => ({ label: d.label, group: d.group, kind: d.kind, pretax: d.pretax, amount: d.amount, ytd: d.ytd, include: !COMPUTED[d.kind] })) };
+        draft.useGross = p.gross > 0 && Math.abs(p.gross * draft.ppy / 12 - (Number(cur.sueldo) || 0)) > 1;
         // US stubs: hourly pay (rate × hours), overtime and a bonus line (docs/plans/hourly-pay.md, phase 4).
-        const e = (Store.COUNTRY === 'US' && p.earnings) || {}, cur = yd(), h = cur.hourly || {};
+        const e = (Store.COUNTRY === 'US' && p.earnings) || {}, h = cur.hourly || {};
         draft.reg = e.regular && e.regular.rate > 0 && e.regular.hours > 0 ? e.regular : null;
         draft.ot = draft.reg && e.overtime && e.overtime.hours > 0 ? e.overtime : null;
         draft.bonus = e.bonus && e.bonus.amount > 0 ? Object.assign({ month: String(Number((p.payDate || Engine.isoDate(new Date())).slice(5, 7))) }, e.bonus) : null;
@@ -109,7 +120,10 @@
         draft.useOt = false;
         draft.addBonus = !!draft.bonus && !(cur.bonuses || []).some(b => Math.abs(Number(b.amount) - draft.bonus.amount) < 0.005 && String(b.month) === draft.bonus.month);
         if (draft.reg) draft.useGross = false;
-        sheet = UI.sheet({ title: 'Review your pay stub', icon: 'fa-file-invoice-dollar', wide: true, html: reviewHTML(), onClose: () => { draft = null; sheet = null; } });
+        // Group-term life over $50,000 ("GTL"): taxed as pay, not paid.
+        draft.gtl = e.gtl && e.gtl.amount > 0 ? e.gtl.amount : 0;
+        draft.useGtl = draft.gtl > 0 && Math.abs((Number((cur.groupLife || {}).perCheck) || 0) - draft.gtl) >= 0.005;
+        sheet = UI.sheet({ title: isMain(t) ? 'Review your pay stub' : 'Review the pay stub', icon: 'fa-file-invoice-dollar', wide: true, html: reviewHTML(), onClose: () => { draft = null; sheet = null; } });
     }
 
     // Hours on the stub (for its pay period) → hours a week.
@@ -123,15 +137,22 @@
     }
 
     function reviewHTML() {
-        const d = draft, p = App.buildContext().pay, f = d.ppy / 12;
+        const d = draft, main = isMain(d.target), p = computedOf(d.target, App.buildContext().pay) || {}, f = d.ppy / 12;
         const stub = d.stub;
         const extra = d.rows.filter(r => r.include && r.group !== 'employer').reduce((a, r) => a + r.amount * f, 0);
         const gross = d.useGross && stub.gross ? stub.gross * f : p.sueldo;
         // Net with this gross (IESS and income tax recomputed) minus the checked deductions.
         const eff = Store.effective(Store.state.activeYear);
-        const est = Math.max(0, Engine.payroll(Object.assign({}, eff, { sueldo: gross, payDeductions: [] }, d.useHourly && d.reg ? { payType: 'hourly', hourly: stubHourly(eff) } : {})).netoAntesM - extra);
+        const base = main ? eff : Object.assign({}, (lineOf(d.target) || {}).pay);
+        const patch = Object.assign({ sueldo: gross, payDeductions: [] }, d.useHourly && d.reg ? { payType: 'hourly', hourly: stubHourly(base) } : {}, d.useGtl ? { groupLife: Object.assign({}, base.groupLife, { perCheck: d.gtl }) } : {});
+        const est = Math.max(0, (main ? Engine.payroll(Object.assign({}, eff, patch)).netoAntesM : (() => {
+            const lines = (eff.otherIncomes || []).map(l => (l.id === d.target && l.pay ? Object.assign({}, l, { pay: Object.assign({}, l.pay, patch) }) : l));
+            const x = (Engine.payroll(Object.assign({}, eff, { otherIncomes: lines })).earners || []).find(e => e.id === d.target);
+            return x ? x.netoAntesM : 0;
+        })()) - extra);
         const stubMonthly = stub.net ? stub.net * f : null;
-        return `<div class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
+        const who = main ? '' : `<p class="text-sm mb-2"><i class="fa-solid fa-user text-slate-500"></i> <span>The paycheck of</span> <strong data-i18n-skip>${esc(nameOf(d.target))}</strong></p>`;
+        return `${who}<div class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
                 <div class="kpi tone-slate"><span class="kpi-label">Gross on the stub</span><span class="kpi-value">${stub.gross ? money(stub.gross) : '—'}</span></div>
                 <div class="kpi tone-slate"><span class="kpi-label">Deductions</span><span class="kpi-value">${stub.totalDeductions ? money(stub.totalDeductions) : money(d.rows.filter(r => r.group !== 'employer').reduce((a, r) => a + r.amount, 0))}</span></div>
                 <div class="kpi tone-emerald"><span class="kpi-label">Net on the stub</span><span class="kpi-value">${stub.net ? money(stub.net) : '—'}</span><span class="kpi-note">${stub.payDate ? 'Paid on ' + esc(stub.payDate) : ''}</span></div>
@@ -151,6 +172,7 @@
             ${d.reg ? `<label class="check mt-3"><input type="checkbox" id="scan-hourly" data-change="scan.field" ${d.useHourly ? 'checked' : ''}><span>Paid by the hour: ${money(d.reg.rate)} an hour, ${weekly(d.reg.hours)} hours a week</span></label>` : ''}
             ${d.reg && d.ot ? `<label class="check mt-1"><input type="checkbox" id="scan-ot" data-change="scan.field" ${d.useOt ? 'checked' : ''}><span>This overtime is usual: ${weekly(d.ot.hours)} hours a week at ${otMultiple()}× <span class="block text-[11px] font-normal text-slate-500">Leave it unchecked if overtime comes and goes.</span></span></label>` : ''}
             ${d.bonus ? `<label class="check mt-1"><input type="checkbox" id="scan-bonus" data-change="scan.field" ${d.addBonus ? 'checked' : ''}><span>Add this ${money(d.bonus.amount)} bonus to this year's bonuses (already paid)</span></label>` : ''}
+            ${d.gtl ? `<label class="check mt-1"><input type="checkbox" id="scan-gtl" data-change="scan.field" ${d.useGtl ? 'checked' : ''}><span>Group-term life over $50,000: ${money(d.gtl)} a paycheck taxed as pay <span class="block text-[11px] font-normal text-slate-500">Not paid to you: it adds to income tax, Social Security and Medicare.</span></span></label>` : ''}
             <div class="bs-banner ${stubMonthly === null || Math.abs(stubMonthly - est) < 1 ? 'ok' : 'warn'} mt-3" id="scan-check">${stubMonthly === null ? `With these deductions you'd receive ≈ ${money(est)} a month.` : `Your stub: ≈ ${money(stubMonthly)} a month. With these deductions the app calculates ≈ ${money(est)}.${Math.abs(stubMonthly - est) < 1 ? ' They match!' : ' Check the checked amounts.'}`}</div>
             <p class="help mt-2">The file was read on this device and isn't saved. Only the deduction names and amounts are kept.</p>
             <div class="flex justify-end gap-2 mt-3"><button type="button" class="btn btn-secondary" data-action="scan.cancel">Cancel</button><button type="button" class="btn btn-primary" data-action="scan.save" id="scan-save"><i class="fa-solid fa-check"></i> Save deductions</button></div>`;
@@ -165,7 +187,7 @@
         UI.$$('.scan-amount').forEach(el => { draft.rows[el.dataset.i].amount = Math.max(0, Fmt.parseNum(el.value, 0)); });
         const g = document.getElementById('scan-gross');
         if (g) draft.useGross = g.checked;
-        [['scan-hourly', 'useHourly'], ['scan-ot', 'useOt'], ['scan-bonus', 'addBonus']].forEach(([id, k]) => { const el = document.getElementById(id); if (el) draft[k] = el.checked; });
+        [['scan-hourly', 'useHourly'], ['scan-ot', 'useOt'], ['scan-bonus', 'addBonus'], ['scan-gtl', 'useGtl']].forEach(([id, k]) => { const el = document.getElementById(id); if (el) draft[k] = el.checked; });
     }
 
     UI.register({
@@ -214,12 +236,13 @@
         'ded.file': async (el) => {
             const file = el.files && el.files[0];
             if (!file) return;
-            const status = (h) => UI.html('ded-status', h);
+            const t = el.dataset.target || 'main';
+            const status = (h) => UI.html(el.dataset.status || 'ded-status', h);
             status('<i class="fa-solid fa-spinner fa-spin"></i> Reading your pay stub…');
             try {
                 const text = /pdf$/i.test(file.type) || /\.pdf$/i.test(file.name) ? await pdfText(file) : await photoText(file, status);
                 status('');
-                fromText(text);
+                fromText(text, t);
             } catch (e) {
                 status('<i class="fa-solid fa-triangle-exclamation text-red-600"></i> Couldn\'t read the file (internet is needed the first time). You can add the deductions by hand.');
             } finally { el.value = ''; }
@@ -229,7 +252,9 @@
         'scan.save': () => {
             if (!draft) return;
             readReview();
-            const y = yd(), f = draft.ppy / 12;
+            const y = payOf(draft.target), f = draft.ppy / 12;
+            if (!y) { sheet.close(); return; }
+            const list = () => listOf(y);
             let added = 0, updated = 0;
             const us = Store.COUNTRY === 'US';
             // US: the stub says how often you're paid, and each line is an amount per paycheck of a type.
@@ -246,17 +271,32 @@
                 y.payType = 'hourly';
                 y.hourly = stubHourly(y);
                 y.sueldo = Math.round(Engine.usGrossPay(y).baseM * 100) / 100;
-            } else if (draft.useGross && draft.stub.gross) y.sueldo = Math.round(draft.stub.gross * f * 100) / 100;
+            } else if (draft.useGross && draft.stub.gross) {
+                y.sueldo = Math.round(draft.stub.gross * f * 100) / 100;
+                // The stub's gross as a salary (by the hour the pay would keep following the hours).
+                if (us) y.payType = 'salary';
+            }
             if (draft.addBonus && draft.bonus) {
                 y.bonuses = y.bonuses || [];
                 y.bonuses.push({ id: Store.nextId(y.bonuses), name: window.I18n ? I18n.t('Bonus') : 'Bonus', amount: draft.bonus.amount, month: draft.bonus.month, inBudget: false });
             }
+            if (draft.useGtl && draft.gtl) y.groupLife = Object.assign({}, y.groupLife, { perCheck: draft.gtl });
             if (draft.stub.net) y.lastPaystub = { payDate: draft.stub.payDate, net: draft.stub.net, gross: draft.stub.gross, ppy: draft.ppy };
+            const other = !isMain(draft.target);
             sheet.close();
+            if (other && window.Earners) Earners.syncAmounts();
             App.changed({ structural: true, step: true });
             UI.toast([`${added} deduction${added === 1 ? '' : 's'} added.`, updated ? `${updated} deduction${updated === 1 ? '' : 's'} updated.` : ''].filter(Boolean).map(x => (window.I18n ? I18n.t(x) : x)).join(' '), 'ok', { label: 'Undo', className: 'toast-undo', onClick: () => App.undo() });
         }
     });
 
-    window.PayScan = { render, fromText, GROUPS };
+    // The name on another earner's paycheck (the household member, else the line's).
+    function nameOf(t) {
+        const l = lineOf(t);
+        if (!l) return '';
+        const m = (Store.state.members || []).find(x => x.id === l.memberId);
+        return m ? m.name : l.name;
+    }
+
+    window.PayScan = { render, fromText, lastNote, GROUPS };
 })();

@@ -2263,3 +2263,32 @@ test('phone reminders: bills the day before at 9:00 (not paid, not past), the we
     assert.ok(r.every(x => Object.keys(x).join() === 'kind,at'));
     assert.equal(E.reminderSchedule({ itemsFor: () => items, today, days: 21, review: false }).filter(x => x.kind === 'review').length, 0);
 });
+
+test('group-term life over $50,000: taxed as pay by IRS Table I, less what you pay; the stub\'s GTL wins; not in the paycheck', () => {
+    // 45 years old, $150,000: $100,000 over × $0.15 a month per $1,000 = $180 a year.
+    assert.deepEqual([E.groupLifeImputed({ coverage: 150000, age: 45 }).imputedY, E.groupLifeImputed({ coverage: 150000, age: 45, paidY: 60 }).imputedY], [180, 120]);
+    assert.equal(E.groupLifeImputed({ coverage: 50000, age: 60 }).imputedY, 0);
+    assert.equal(E.groupLifeImputed({ coverage: 100000, age: 70 }).imputedY, 50 * 2.06 * 12);
+    assert.equal(E.groupLifeImputed({ coverage: 100000, age: 24 }).rate, 0.05);
+    assert.equal(E.groupLifeImputed({ coverage: 100000, age: 25 }).rate, 0.06);
+    const noAge = E.groupLifeImputed({ coverage: 100000 });
+    assert.ok(noAge.needsAge && noAge.imputedY === 0);
+    assert.ok(E.groupLifeImputed({ coverage: 100000, age: 40, paidY: 10000 }).imputedY === 0, 'paying more than the cost: nothing taxed');
+    const stub = E.groupLifeImputed({ coverage: 500000, age: 64, perCheck: 4.62, ppy: 26 });
+    assert.ok(stub.fromStub && Math.abs(stub.imputedY - 4.62 * 26) < 0.001);
+    // In the payroll: income tax, Social Security and Medicare go up; the pay doesn't.
+    const t = usYear({}).usTax;
+    const a = E.payroll(usYear({})), b = E.payroll(usYear({ groupLife: { coverage: 150000, age: 45 } }));
+    assert.equal(b.groupLifeY, 180);
+    close(b.incomeWages - a.incomeWages, 180);
+    close(b.ssM - a.ssM, 180 * t.ssRate / 100 / 12);
+    close(b.medM - a.medM, 180 * t.medicareRate / 100 / 12);
+    assert.ok(b.fedM > a.fedM && b.netoM < a.netoM && b.sueldo === a.sueldo);
+    // Your own after-tax life insurance through payroll lowers it ($5 a month = $60 a year).
+    const c = E.payroll(usYear({ groupLife: { coverage: 150000, age: 45 }, payDeductions: [{ id: 1, type: 'life', per: 'month', monthly: 5 }] }));
+    assert.equal(c.groupLifeY, 120);
+    // Another earner's paycheck has its own.
+    const d = E.payroll(usYear({ otherIncomes: [{ id: 7, amount: 0, category: 'Ingresos Laborales', pay: { payType: 'salary', sueldo: 4000, paysPerYear: 26, payDeductions: [], groupLife: { perCheck: 5 } } }] }));
+    assert.equal(d.earners[0].groupLifeY, 130);
+    assert.equal(d.groupLifeY, 0);
+});

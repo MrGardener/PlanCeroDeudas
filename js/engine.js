@@ -466,6 +466,22 @@
             budgetM, bonusesY, annual: (baseM + overtimeM) * 12 + bonusesY };
     }
 
+    // Group-term life insurance from an employer (IRC §79): coverage over $50,000 is taxed as pay —
+    // its cost by IRS Table I (a month per $1,000, by age at the end of the year), less what the
+    // person pays for it after tax. It isn't cash: it raises income tax, Social Security and
+    // Medicare, never the paycheck. The "GTL" amount on a pay stub (per paycheck) wins when given.
+    const GROUP_LIFE_TABLE = [[24, 0.05], [29, 0.06], [34, 0.08], [39, 0.09], [44, 0.10], [49, 0.15], [54, 0.23], [59, 0.43], [64, 0.66], [69, 1.27], [Infinity, 2.06]];
+    const GROUP_LIFE_EXEMPT = 50000;
+    function groupLifeImputed({ coverage = 0, age = 0, paidY = 0, perCheck = 0, ppy = 26 } = {}) {
+        if (num(perCheck) > 0) return { imputedY: cents(num(perCheck) * num(ppy)), fromStub: true, excess: 0, rate: 0, costY: 0, needsAge: false };
+        const excess = Math.max(0, num(coverage) - GROUP_LIFE_EXEMPT);
+        const a = num(age);
+        const row = a > 0 ? GROUP_LIFE_TABLE.find(r => a <= r[0]) : null;
+        const rate = row ? row[1] : 0;
+        const costY = excess / 1000 * rate * 12;
+        return { imputedY: cents(Math.max(0, costY - Math.max(0, num(paidY)))), fromStub: false, excess, rate, costY: cents(costY), needsAge: excess > 0 && !row };
+    }
+
     // One person's wages for the year (US): gross, pre-tax deductions, the wages income tax and
     // FICA apply to, and their Social Security and Medicare (each person up to the wage base).
     function usWages(e, t) {
@@ -476,13 +492,18 @@
         const ded = resolveDeductions(Object.assign({}, e, { country: 'US' }));
         const pretaxRetire = sum(ded.filter(x => x.t.tax === 'retire'), x => x.annual);
         const pretax125 = sum(ded.filter(x => x.t.tax === 'sec125'), x => x.annual);
-        const incomeWages = Math.max(0, gross - pretaxRetire - pretax125);
-        const ficaWages = Math.max(0, gross - pretax125);
+        // Group-term life over $50,000: taxed, not paid (what you pay for your own life insurance
+        // after tax lowers it).
+        const gl = e.groupLife || {};
+        const groupLife = groupLifeImputed({ coverage: gl.coverage, age: gl.age, perCheck: gl.perCheck, ppy: pay.ppy, paidY: sum(ded.filter(x => x.t.type === 'life'), x => x.annual) });
+        const imputed = groupLife.imputedY;
+        const incomeWages = Math.max(0, gross - pretaxRetire - pretax125) + imputed;
+        const ficaWages = Math.max(0, gross - pretax125) + imputed;
         const ssAnnual = Math.min(ficaWages, num(t.ssWageBase) || Infinity) * num(t.ssRate) / 100;
         // Employers withhold the extra 0.9% Medicare on wages above $200,000 whatever the filing
         // status (the yearly liability threshold differs; it's settled on the tax return).
         const medAnnual = ficaWages * num(t.medicareRate) / 100 + Math.max(0, ficaWages - (num(t.addlMedicareWithholding) || 200000)) * num(t.addlMedicareRate) / 100;
-        return { pay, gross, pretaxRetire, pretax125, incomeWages, ficaWages, ssAnnual, medAnnual, otPremium: pay.otPremiumY };
+        return { pay, gross, pretaxRetire, pretax125, incomeWages, ficaWages, ssAnnual, medAnnual, otPremium: pay.otPremiumY, imputed, groupLife };
     }
 
     // The household's other paychecks: income lines with `pay` (a member's pay before taxes, the
@@ -560,7 +581,7 @@
                 ssM: c.w.ssAnnual / 12 * c.share, medM: c.w.medAnnual / 12 * c.share, ficaM: c.ficaM, fedM: c.fed / 12 * c.share, stateM: c.state / 12 * c.share,
                 localM: c.local.annual / 12 * c.share, localRate: c.local.rate, localResident: c.local.resident, isrM: c.incomeTaxAnnual / 12 * c.share,
                 pretaxM: (c.w.pretaxRetire + c.w.pretax125) / 12, incomeWages: c.w.incomeWages, otrosDescuentosM: c.otros, netoAntesM: c.netoAntesM, netoM: c.netoM, avgTaxRate: c.avgTaxRate,
-                otPremiumY: c.w.otPremium, otDeduction: joint ? 0 : ownReturn(c.w).otDeduction, ppy: c.w.pay.ppy,
+                otPremiumY: c.w.otPremium, otDeduction: joint ? 0 : ownReturn(c.w).otDeduction, ppy: c.w.pay.ppy, groupLifeY: c.w.imputed,
                 baseImponible: joint ? fedMain.taxable : ownReturn(c.w).taxable };
         });
         const ficaAll = total(w => w.ssAnnual + w.medAnnual);
@@ -573,6 +594,8 @@
             pretaxM: (main.pretaxRetire + main.pretax125) / 12, stdDeduction: fedMain.std, credits: fedMain.credits, fedReturn: fedMain, incomeWages: main.incomeWages,
             // The overtime deduction on the main return (the household's when filing jointly).
             otPremiumY: main.otPremium, otDeduction: fedMain.otDeduction, ppy: main.pay.ppy,
+            // Group-term life over $50,000: in the wages taxes see, not in the paycheck.
+            groupLifeY: main.imputed,
             sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied: fedMain.dedApplied, baseImponible: fedMain.taxable,
             isrAnual: m.incomeTaxAnnual, isrM: m.incomeTaxAnnual / 12 * m.share,
             netoAntesM: m.netoAntesM, otrosDescuentosM: m.otros, netoM: m.netoM,
@@ -3426,7 +3449,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usStateTax, US_STATUSES, usStatus, forStatus, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, weeklyReview, reviewStreak, historyGroups, groupTree, reminderSchedule, matchOptimizer, rothVsTraditional, iraTracker, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usStateTax, US_STATUSES, usStatus, forStatus, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, groupLifeImputed, GROUP_LIFE_TABLE, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, weeklyReview, reviewStreak, historyGroups, groupTree, reminderSchedule, matchOptimizer, rothVsTraditional, iraTracker, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

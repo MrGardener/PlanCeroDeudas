@@ -458,14 +458,16 @@
     // US earnings lines: "Regular  25.0000  80.00  2,000.00  24,000.00" (rate, hours, this
     // paycheck, year to date — some stubs put hours first), "Overtime 37.50 5.00 187.50", "Bonus 500.00".
     const EARNINGS = [[/^(regular|reg|reg pay|regular pay|regular earnings|regular hours|hourly|hourly pay|straight time)\b/, 'regular'],
-        [/^(overtime|ot|o\/t|overtime pay|overtime 1\.5x?)\b/, 'overtime'], [/^(bonus|commission|incentive|spot award)/, 'bonus']];
+        [/^(overtime|ot|o\/t|overtime pay|overtime 1\.5x?)\b/, 'overtime'], [/^(bonus|commission|incentive|spot award)/, 'bonus'],
+        // Group-term life over $50,000: imputed income (taxed, not paid), not a deduction.
+        [/^(gtl|grp term life|group term life|group-term life|imputed (income|life|gtl)|life imputed)\b/, 'gtl']];
     function earningsLine(n, line, hoursFirst) {
         const kind = (EARNINGS.find(([re]) => re.test(n)) || [])[1];
         if (!kind) return null;
         const rest = line.replace(/^[^\d$]*/, '');
         const nums = (rest.match(/\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?/g) || []).map(x => ({ v: Number(x.replace(/,/g, '')), dec: (x.split('.')[1] || '').length }));
         if (!nums.length) return null;
-        if (kind === 'bonus') return { kind, amount: nums[0].v };
+        if (kind === 'bonus' || kind === 'gtl') return { kind, amount: nums[0].v };
         // Rate × hours = this paycheck's amount.
         const [a, b, c] = nums;
         if (c && Math.abs(a.v * b.v - c.v) <= Math.max(0.02, c.v * 0.005)) {
@@ -475,7 +477,7 @@
         return { kind, amount: nums[0].v };
     }
     function parsePaystub(text) {
-        const out = { gross: null, net: null, totalDeductions: null, deductions: [], periodStart: null, periodEnd: null, periodDays: null, payDate: null, earnings: { regular: null, overtime: null, bonus: null } };
+        const out = { gross: null, net: null, totalDeductions: null, deductions: [], periodStart: null, periodEnd: null, periodDays: null, payDate: null, earnings: { regular: null, overtime: null, bonus: null, gtl: null } };
         let hoursFirst = false;
         const seen = new Set();
         // Day-first (Ecuador) or month-first (US) dates, decided once for the whole stub.

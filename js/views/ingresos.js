@@ -264,7 +264,8 @@
             ['Take-home pay', p.netoM, 'text-emerald-700']
         ].filter(Boolean);
         UI.html('inc-payroll', PayEdit.breakdown(rows, p.ppy || 12)
-            + (extra ? `<p class="help pt-2">Taxes are figured on the whole year (${money(p.sueldoAnual)}). This paycheck carries its share; overtime and bonuses keep the rest.</p>` : ''));
+            + (extra ? `<p class="help pt-2">Taxes are figured on the whole year (${money(p.sueldoAnual)}). This paycheck carries its share; overtime and bonuses keep the rest.</p>` : '')
+            + (p.groupLifeY > 0 && window.Earners ? `<p class="help pt-2">${Earners.groupLifeNote(p.groupLifeY)}</p>` : ''));
         UI.text('inc-neto', money(p.netoM));
         UI.html('inc-us-ded-kpis', `
             <div class="kpi tone-slate"><span class="kpi-label">Deduction applied</span><span class="kpi-value">${money(p.dedApplied)}</span><span class="kpi-note">${Number(yd.itemized) > p.stdDeduction ? 'Itemized' : `Standard (${money(p.stdDeduction)})`}</span></div>

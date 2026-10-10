@@ -256,6 +256,13 @@ test('pay stub earnings (US): rate × hours in either column order, overtime and
     assert.deepEqual([c.earnings.regular.amount, c.earnings.regular.rate], [2307.69, undefined]);                  // salaried: no rate
 });
 
+test('pay stub: group-term life ("GTL", imputed income) is taxed pay, not a life insurance deduction', () => {
+    const a = I.parsePaystub('Regular Salary 3,846.15 76,923.00\nGTL 4.62 92.40\nGross Pay 3,846.15\nLife Insurance 3.00\nNet Pay 2,900.00');
+    assert.equal(a.earnings.gtl.amount, 4.62);
+    assert.deepEqual(a.deductions.map(d => d.label), ['Life Insurance']);
+    ['Group Term Life 4.62', 'Group-Term Life* 4.62', 'Imputed Income 4.62'].forEach(l => assert.equal(I.parsePaystub(l + '\nNet Pay 100.00').earnings.gtl.amount, 4.62, l));
+});
+
 test('investment prices from a published Google Sheet (GOOGLEFINANCE)', () => {
     const csv = 'Symbol,Price\r\nAAPL,227.52\r\nNASDAQ:MSFT,"1,234.50"\r\nMUTF:VFIAX,512.3\r\nBAD,#N/A\r\nLOAD,Loading...\r\n,\r\n';
     assert.deepEqual(I.sheetPrices(csv), { AAPL: 227.52, 'NASDAQ:MSFT': 1234.5, MSFT: 1234.5, 'MUTF:VFIAX': 512.3, VFIAX: 512.3 });

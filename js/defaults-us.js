@@ -221,6 +221,7 @@
             carLoanInterestY: 0,        // interest on a new US-assembled car's loan a year (2025–2028 deduction)
             matchTiers: [{ rate: 100, upTo: 3 }, { rate: 50, upTo: 2 }],   // the employer's 401(k) match
             iraContributed: 0,          // put in an IRA for this year so far
+            groupLife: { coverage: 0, age: null, perCheck: 0 },   // employer group-term life: coverage $, age at year end; or the stub's GTL per paycheck
             state: 'MI',
             stateRate: null,            // % override (or the rate for a 'custom' state)
             localName: '',              // city with income tax
