@@ -23858,17 +23858,19 @@ I18n.override('EC', 'es', {
         const fkey = (x) => (x.key === null ? '__other' : x.key);
         if (o.focus && !(o.focus === '__income' && r.income) && !r.series.some(x => fkey(x) === o.focus)) o.focus = null;
         const dim = (x) => o.focus && fkey(x) !== o.focus;
-        // By week or by day, each point is a flat step as wide as its column: what's drawn there is
-        // exactly what a tap there picks.
-        const steps = r.unit !== 'month';
-        const datasets = r.series.map((x, i) => ({ label: name(x), data: x.values.map(v => Math.round(v * 100) / 100), stack: 'spend', fill: i === 0 ? 'origin' : '-1',
-            backgroundColor: color(x, i) + (dim(x) ? '40' : 'b3'), borderColor: color(x, i) + (dim(x) ? '66' : ''), borderWidth: 2, pointRadius: steps ? 0 : 3, pointHoverRadius: 5,
-            pointBackgroundColor: pal.surface, pointBorderColor: color(x, i), pointBorderWidth: 2, tension: steps ? 0 : 0.4, stepped: steps ? 'middle' : false }));
-        if (r.income) datasets.push({ label: 'Income', data: r.income.map(v => Math.round(v * 100) / 100), stack: 'income', fill: false, borderColor: pal.text, backgroundColor: pal.text, borderWidth: 3, pointRadius: 3, pointBackgroundColor: pal.surface, pointBorderWidth: 2, tension: steps ? 0 : 0.4 });
+        // The same smooth shaded areas by month, week or day. By week or by day the curve is
+        // "monotone": just as smooth, but it never dips below a $0 day next to a busy one.
+        const fine = r.unit !== 'month';
+        const curve = fine ? { cubicInterpolationMode: 'monotone' } : { tension: 0.4 };
+        const datasets = r.series.map((x, i) => Object.assign({ label: name(x), data: x.values.map(v => Math.round(v * 100) / 100), stack: 'spend', fill: i === 0 ? 'origin' : '-1',
+            backgroundColor: color(x, i) + (dim(x) ? '40' : 'b3'), borderColor: color(x, i) + (dim(x) ? '66' : ''), borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
+            pointBackgroundColor: pal.surface, pointBorderColor: color(x, i), pointBorderWidth: 2 }, curve));
+        if (r.income) datasets.push(Object.assign({ label: 'Income', data: r.income.map(v => Math.round(v * 100) / 100), stack: 'income', fill: false, borderColor: pal.text, backgroundColor: pal.text, borderWidth: 3, pointRadius: 3, pointBackgroundColor: pal.surface, pointBorderWidth: 2 }, curve));
         // The top of the whole chart (zoom 1): the tallest point's spending or income (by week or
-        // by day, its spending only: the income line then runs above the chart on paydays).
-        fitSpend = steps;
-        zoomTop = Math.max(1, ...r.months.map((_, i) => Math.max(r.series.reduce((t, x) => t + Math.max(0, x.values[i] || 0), 0), r.income && !steps ? r.income[i] || 0 : 0))) * 1.05;
+        // by day, its spending only, so the areas fill the chart: the income line then runs above
+        // it on paydays).
+        fitSpend = fine;
+        zoomTop = Math.max(1, ...r.months.map((_, i) => Math.max(r.series.reduce((t, x) => t + Math.max(0, x.values[i] || 0), 0), r.income && !fine ? r.income[i] || 0 : 0))) * 1.05;
         trendsSeries = r;
         const chart = UI.chart('trends-chart', {
             type: 'line',
@@ -23904,7 +23906,7 @@ I18n.override('EC', 'es', {
         const today = Engine.isoDate(ctx.today), lastRange = Engine.trendPointRange(r, r.months[r.months.length - 1]);
         const running = lastRange[0] <= today && Engine.trendPointRange({ unit: r.unit }, r.months[r.months.length - 1])[1] >= today;
         const notes = [!running ? '' : r.unit === 'month' ? 'This month isn\'t over yet.' : r.unit === 'week' ? 'This week isn\'t over yet.' : 'Today isn\'t over yet.',
-            steps && r.income && Math.max(...r.income) > zoomTop ? 'On paydays the income line runs above the chart; the table below has its amounts.' : ''].filter(Boolean);
+            fine && r.income && Math.max(...r.income) > zoomTop ? 'On paydays the income line runs above the chart; the table below has its amounts.' : ''].filter(Boolean);
         UI.html('trends-note', notes.map(x => `<span>${esc(x)}</span>`).join(' '));
         UI.html('trends-head', `<tr><th>${r.unit === 'month' ? 'Month' : r.unit === 'week' ? 'Week of' : 'Day'}</th><th class="num">Spending</th>${r.income ? '<th class="num">Income</th><th class="num">Left over</th>' : ''}</tr>`);
         UI.html('trends-table', r.months.map((k, i) => `<tr><td>${esc(label(k))}</td><td class="num">${money(r.spend[i])}</td>${r.income ? `<td class="num">${money(r.income[i])}</td><td class="num ${r.income[i] - r.spend[i] < 0 ? 'text-red-600' : ''}">${money(r.income[i] - r.spend[i])}</td>` : ''}</tr>`).join(''));
