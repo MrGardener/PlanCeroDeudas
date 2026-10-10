@@ -74,7 +74,7 @@ I18n.add('es', {
     "Check the preview and import.": "Revisa la vista previa e importa.",
     "Recognized: a {0} statement.": "Reconocido: un estado de cuenta de {0}.",
     "Everything is set up: check the preview and import.": "Todo está listo: revisa la vista previa e importa.",
-    "Chase, Bank of America, Wells Fargo, Capital One and American Express files are recognized and set up for you. No file from your bank?": "Los archivos de Chase, Bank of America, Wells Fargo, Capital One y American Express se reconocen y se configuran solos. ¿Tu banco no te da un archivo?",
+    "files from these banks are recognized and set up for you. No file from your bank?": "los archivos de estos bancos se reconocen y se configuran solos. ¿Tu banco no te da un archivo?",
     ", fill it in (a spreadsheet works) and import it.": ", llénala (sirve una hoja de cálculo) e impórtala.",
     "13th-month bonus paid monthly": "Décimo Tercero mensualizado",
     "14th-month bonus paid monthly": "Décimo Cuarto mensualizado",
