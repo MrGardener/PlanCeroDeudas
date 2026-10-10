@@ -1520,6 +1520,22 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   });
   ok(migR.mfs === 7 && migR.senior && migR.ot === 0 && migR.kept === 15000, 'an older saved table gets the new statuses and deductions (what was typed stays)', migR);
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
+  // State tables (2026) and other states' cities: Georgia flat after its deduction, Minnesota's
+  // brackets, Ohio's cities and school district tax, New York City.
+  await page.evaluate(() => App.go('presupuesto/ingresos'));
+  await page.waitForTimeout(200);
+  const stateCase = async (code) => { await page.selectOption('#inc-state', code); await page.waitForTimeout(200); return page.evaluate(() => ({ note: document.getElementById('inc-state-note').textContent, cities: [...document.querySelectorAll('#inc-city option')].map(o => o.value), school: !document.getElementById('inc-school').classList.contains('hidden'), stateM: App.buildContext().pay.stateM })); };
+  const ga = await stateCase('GA'), mn = await stateCase('MN'), oh = await stateCase('OH');
+  await page.selectOption('#inc-city', 'Columbus');
+  await page.fill('#inc-school-rate', '1');
+  await page.dispatchEvent('#inc-school-rate', 'change');
+  await page.waitForTimeout(250);
+  const ohPay = await page.evaluate(() => ({ text: document.getElementById('inc-payroll').textContent, school: App.buildContext().pay.schoolM }));
+  const ny = await stateCase('NY');
+  ok(/4\.99% flat/.test(ga.note) && /30,000/.test(ga.note) && ga.stateM > 0 && /5\.35% to 9\.85% by income/.test(mn.note) && /verify each January/.test(mn.note)
+    && oh.cities.includes('Columbus') && oh.school && !ga.school && /School district tax \(1%\)/.test(ohPay.text) && ohPay.school > 0
+    && ny.cities.includes('New York City') && /type the state tax percentage/.test(ny.note), 'state tables, cities in Ohio, Pennsylvania and New York, Ohio school district tax', { ga, mn: mn.note, oh, ohPay: ohPay.school, ny: ny.cities });
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   // On a phone: the app's name and every tab label in full; the screen starts under the tabs with a
   // one-row example notice; the history's category line in English; the less used filters behind
   // "Filters" (with how many are on); the + button steps aside scrolling down, back scrolling up;
