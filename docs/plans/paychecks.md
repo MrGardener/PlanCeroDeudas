@@ -32,4 +32,5 @@ of time-and-a-half, up to $12,500 ($25,000 joint), less above $150,000 ($300,000
 ## Steps (one PR each)
 1. ✅ Yearly salary, pay frequency, overtime per paycheck, typed deductions with their taxes — the main
    paycheck and every other earner, with the same editor; per paycheck and per month side by side.
-2. (Later) Pay stub scan fills the other earners' paychecks too; imputed income of group life over $50,000.
+2. ✅ Pay stub scan fills the other earners' paychecks too; imputed income of group life over $50,000
+   (IRS Table I by age, less after-tax premiums; or the stub's "GTL" amount) in income tax and FICA.

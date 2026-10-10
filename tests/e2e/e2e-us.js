@@ -466,6 +466,26 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.click('.modal [data-dialog-ok]'); await page.waitForTimeout(250);
   const e1 = await page.evaluate(() => { const e = App.buildContext().pay.earners[0]; return { fed: e.fedM + e.stateM, fica: e.ficaM, net: e.netoM, amount: Store.active().otherIncomes[0].amount, table: document.querySelector('#inc-earners [data-earner]').innerText }; });
   ok(Math.abs(e0.rate - 17.31) < 0.01 && e0.ppy === 52 && e1.fed < e0.fed && e1.fica < e0.fica && Math.abs(e1.amount - e1.net) < 0.01 && /Dependent care FSA/.test(e1.table), 'Sarah by the hour, weekly, with a dependent care FSA: lower income tax and FICA; her take-home is the budget line', { e0, e1: Object.assign({}, e1, { table: undefined }) });
+  // Her pay stub, scanned into her paycheck (not yours): weekly, her gross as a salary, her
+  // deductions next to the FSA, and the group-term life over $50,000 ("GTL") taxed, not paid.
+  const mineBefore = await page.evaluate(() => JSON.stringify(Store.active().payDeductions));
+  ok(!!(await page.$('#inc-earners input[type="file"][data-change="ded.file"][data-target="1"]')), 'her paycheck has its own pay stub scan');
+  await page.evaluate(() => PayScan.fromText('Pay Period: 09/21/2026 - 09/27/2026  Pay Date: 10/02/2026\nRegular Salary 1,000.00 38,000.00\nGTL 2.00 76.00\nGross Pay 1,000.00\nFederal Income Tax 80.00\nSocial Security 62.00\nMedicare 14.50\nDental 6.00\nRoth 401(k) 50.00\nNet Pay 787.50', 1));
+  await page.waitForSelector('#scan-save');
+  const sh = (await page.textContent('.modal-backdrop:not(.hidden) .sheet-body')).replace(/\s+/g, ' ');
+  ok(/The paycheck of Sarah/.test(sh) && /Group-term life over \$50,000: \$2\.00 a paycheck/.test(sh) && await page.inputValue('#scan-ppy') === '52' && /The app already calculates it/.test(sh), 'her stub review: whose paycheck, weekly, her taxes computed, the GTL', sh.slice(0, 300));
+  await page.click('#scan-save'); await page.waitForTimeout(250);
+  const her = await page.evaluate(() => { const c = App.buildContext(), l = Store.active().otherIncomes[0], e = c.pay.earners[0]; return { ppy: l.pay.paysPerYear, type: l.pay.payType, sueldo: l.pay.sueldo, ded: l.pay.payDeductions.map(d => d.type).join(), gtl: e.groupLifeY, last: !!l.pay.lastPaystub, amount: l.amount, net: e.netoM, mine: JSON.stringify(Store.active().payDeductions), card: document.querySelector('#inc-earners [data-earner]').innerText }; });
+  ok(her.ppy === 52 && her.type === 'salary' && Math.abs(her.sueldo - 4333.33) < 0.01 && her.ded === 'dcfsa,dental,401k-roth' && her.gtl === 104 && her.last && Math.abs(her.amount - her.net) < 0.01 && her.mine === mineBefore && /Last stub read/.test(her.card) && /group-term life over \$50,000/.test(her.card), 'saved into her paycheck only: weekly, $1,000 a week as a salary, dental and Roth 401(k), $104 a year of GTL; yours unchanged', Object.assign({}, her, { mine: undefined, card: undefined }));
+  // Your own group life: coverage and age (from the retirement plan) → IRS Table I.
+  await go(page, 'ingresos');
+  await page.evaluate(() => { const d = document.querySelector('#ded-gtl details'); if (d) d.open = true; });
+  const gBefore = await page.evaluate(() => App.buildContext().pay);
+  await page.fill('#ded-gtl [data-f="coverage"]', '150000'); await page.dispatchEvent('#ded-gtl [data-f="coverage"]', 'change'); await page.waitForTimeout(200);
+  const gtl = await page.evaluate(() => { const y = Store.active(), p = App.buildContext().pay; return { age: y.groupLife.age, ret: Number(Store.state.retirement.edadActual), want: Engine.groupLifeImputed({ coverage: 150000, age: Number(Store.state.retirement.edadActual) }).imputedY, got: p.groupLifeY, fed: p.fedM, net: p.netoM, sueldo: p.sueldo, txt: document.getElementById('ded-gtl').innerText, pay: document.getElementById('inc-payroll').innerText }; });
+  ok(gtl.age === gtl.ret && gtl.got === gtl.want && gtl.got > 0 && gtl.fed > gBefore.fedM && gtl.net < gBefore.netoM && gtl.sueldo === gBefore.sueldo && /taxed as pay, a year/i.test(gtl.txt) && /group-term life over \$50,000/.test(gtl.pay), 'your group life over $50,000: age from the retirement plan, taxed as pay by the table, the pay unchanged', Object.assign({}, gtl, { txt: undefined, pay: undefined }));
+  await page.fill('#ded-gtl [data-f="perCheck"]', '3'); await page.dispatchEvent('#ded-gtl [data-f="perCheck"]', 'change'); await page.waitForTimeout(200);
+  ok(await page.evaluate(() => { const p = App.buildContext().pay; return p.groupLifeY === Math.round(3 * p.ppy * 100) / 100; }), 'the stub\'s GTL amount wins over the table');
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   // Pay stub with hours, overtime and a bonus (phase 4): back to a salary first, then scan.
   await page.evaluate(() => { const y = Store.active(); y.payType = 'salary'; y.bonuses = []; App.changed({ structural: true }); PayScan.fromText('Pay Period: 09/14/2026 - 09/27/2026  Pay Date: 10/02/2026\nEarnings Rate Hours Current YTD\nRegular 25.0000 80.00 2,000.00 38,000.00\nOvertime 37.5000 6.00 225.00 1,125.00\nBonus 500.00 500.00\nGross Pay 2,725.00\nFederal Income Tax 250.00\nNet Pay 2,100.00'); });

@@ -49,7 +49,8 @@
                     ${city ? `<label class="check"><input type="checkbox" data-change="earner.set" data-id="${l.id}" data-f="localResident" ${pay.localResident === false ? '' : 'checked'}><span>Lives in the city <span class="block text-[11px] font-normal text-slate-500">If they only work there, the non-resident rate (half).</span></span></label>` : ''}
                     <div><span class="field-label">Paycheck deductions</span>${PayEdit.table(l.id)}</div>
                     <div class="table-wrap">${PayEdit.breakdown(rows(e), e.ppy || 26)}</div>
-                    <p class="help">Taxes are figured on the whole year; the budget counts the take-home that reaches the bank.</p>
+                    <p class="help">Taxes are figured on the whole year; the budget counts the take-home that reaches the bank.${e.groupLifeY > 0 ? ` <span>${groupLifeNote(e.groupLifeY)}</span>` : ''}</p>
+                    ${pay.lastPaystub && window.PayScan ? `<p class="help">${PayScan.lastNote(pay.lastPaystub, e.netoM || 0)}</p>` : ''}
                 </div>`;
             }).join('')}
             ${typed.map(l => `<div class="panel tone-amber mb-3"><p class="text-sm"><strong data-i18n-skip>${esc(nameOf(l))}</strong>: <span>typed as take-home,</span> <strong>${money(l.amount)}</strong> <span>a month, with no taxes figured.</span></p>
@@ -57,6 +58,9 @@
             <div class="flex flex-wrap gap-2">${free.map(m => `<button type="button" class="btn btn-secondary btn-sm" data-action="earner.add" data-member="${m.id}"><i class="fa-solid fa-plus"></i> <span>Paycheck for</span> <span data-i18n-skip>${esc(m.name)}</span></button>`).join('')}
                 <button type="button" class="btn btn-secondary btn-sm" data-action="earner.add"><i class="fa-solid fa-user-plus"></i> Another person's paycheck</button></div>`;
     }
+
+    // Group-term life over $50,000 in the taxes (not in the pay).
+    const groupLifeNote = (y) => `Taxes include ${money(y)} a year of group-term life over $50,000 (taxed as pay, not paid).`;
 
     function newPayLine(member, sueldo) {
         const list = Store.active().otherIncomes || (Store.active().otherIncomes = []);
@@ -116,5 +120,5 @@
         }
     });
 
-    window.Earners = { render, syncAmounts };
+    window.Earners = { render, syncAmounts, groupLifeNote };
 })();
