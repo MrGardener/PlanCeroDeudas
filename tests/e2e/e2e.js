@@ -1354,6 +1354,16 @@ const go = (page, k) => page.evaluate(k => { App.go(k); const f = document.getEl
   await page.waitForTimeout(150);
   ok(/Si al renovarlas la tasa baja 1 punto/.test(await page.textContent('#pol-rate-risk')), 'pólizas renewing 1 point lower');
 
+  // ---- décimos paid monthly and fondos de reserva (Ecuador)
+  await page.evaluate(() => { Store.reset('example'); const y = Store.active(); y.d3 = true; y.d4 = true; y.d3Monthly = false; y.fondos = 'none'; App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
+  await page.waitForTimeout(200);
+  const netBefore = await page.evaluate(() => App.buildContext().pay.netoM);
+  await page.check('#inc-d3-monthly input');
+  await page.selectOption('[data-bind="year.fondos"]', 'monthly');
+  await page.waitForTimeout(250);
+  const dec = await page.evaluate(() => ({ net: App.buildContext().pay.netoM, sueldo: Store.active().sueldo, rows: document.getElementById('inc-payroll').textContent, months: [...document.querySelectorAll('#budget-month option, select[data-change="budget.month"] option')].map(o => o.textContent).join('|') }));
+  ok(Math.abs(dec.net - netBefore - dec.sueldo / 12 - dec.sueldo * 0.0833) < 0.01 && /Décimo Tercero mensualizado/.test(dec.rows) && /Fondos de reserva \(8\.33%\)/.test(dec.rows), 'décimo tercero paid monthly and fondos de reserva raise the monthly pay, said in the payroll', { netBefore, dec: dec.net, rows: dec.rows.slice(-300) });
+
   // ---- English / Spanish
   await go(page, 'config');
   await page.selectOption('#cfg-lang', 'en');

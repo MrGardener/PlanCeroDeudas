@@ -317,7 +317,14 @@
             [`Personal-expense rebate (${pct(p.rebajaRate * 100, 0)} of ${money(p.dedApplied)})`, (p.rebaja >= 0.005 ? '−' : '') + money(p.rebaja), 'text-blue-700'],
             ['Annual income tax', money(p.isrAnual), 'text-amber-700'],
             ['Monthly withholding on your pay', (p.isrM >= 0.005 ? '−' : '') + money(p.isrM), 'text-red-600']
-        ].concat(p.otrosDescuentosM > 0 ? [['Other paycheck deductions (insurance, loans…)', '−' + money(p.otrosDescuentosM), 'text-red-600']] : []);
+        ].concat(p.otrosDescuentosM > 0 ? [['Other paycheck deductions (insurance, loans…)', '−' + money(p.otrosDescuentosM), 'text-red-600']] : [],
+            // Paid with each salary, free of IESS and income tax.
+            p.d3M > 0 ? [['13th-month bonus paid monthly', '+' + money(p.d3M), 'text-emerald-700']] : [],
+            p.d4M > 0 ? [['14th-month bonus paid monthly', '+' + money(p.d4M), 'text-emerald-700']] : [],
+            p.fondosM > 0 ? [['Reserve fund (8.33%)', '+' + money(p.fondosM), 'text-emerald-700']] : [],
+            p.fondosIessM > 0 ? [['Reserve fund saved at the IESS (not in your pay)', money(p.fondosIessM), 'text-slate-500']] : []);
+        UI.show('inc-d3-monthly', !!yd.d3);
+        UI.show('inc-d4-monthly', !!yd.d4);
         UI.html('inc-payroll', rows.map(([k, v, c]) => `<div class="flex justify-between py-2"><dt class="text-slate-600">${k}</dt><dd class="font-bold whitespace-nowrap ${c}">${v}</dd></div>`).join(''));
         UI.text('inc-neto', money(p.netoM));
         if (window.PayScan) PayScan.render(ctx);

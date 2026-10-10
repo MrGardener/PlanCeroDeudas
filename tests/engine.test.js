@@ -2161,3 +2161,24 @@ test('city taxes: Michigan, Ohio (same rate working there), Philadelphia, New Yo
     assert.equal(local(yd('PA', { schoolRate: 1 })), 0);                               // school district tax: Ohio only
     delete global.DefaultsUS;
 });
+
+test('Ecuador: décimos paid monthly and fondos de reserva raise the monthly pay, untaxed; not again in their month', () => {
+    const yd = Object.assign(D.newYear(), { sueldo: 1200, sbu: 482, d3: true, d4: true, d4Region: 'costa' });
+    const base = E.payroll(yd);
+    const m = E.payroll(Object.assign({}, yd, { d3Monthly: true, d4Monthly: true, fondos: 'monthly' }));
+    assert.equal(m.d3M, 100);
+    assert.ok(Math.abs(m.d4M - 482 / 12) < 1e-9);
+    assert.ok(Math.abs(m.fondosM - 1200 * 0.0833) < 1e-9);
+    assert.ok(Math.abs(m.netoM - (base.netoM + 100 + 482 / 12 + 99.96)) < 1e-6);
+    assert.equal(m.isrAnual, base.isrAnual);                     // no income tax on them
+    assert.equal(m.iessM, base.iessM);                           // nor IESS
+    // In their month only when not paid monthly.
+    assert.equal(E.bonusForMonth(yd, '12'), 1200);
+    assert.equal(E.bonusForMonth(Object.assign({}, yd, { d3Monthly: true }), '12'), 0);
+    assert.equal(E.bonusForMonth(Object.assign({}, yd, { d4Monthly: true }), '3'), 0);
+    assert.equal(E.bonusForMonth(yd, '3'), 482);
+    // Saved at the IESS: not in the pay.
+    const iess = E.payroll(Object.assign({}, yd, { fondos: 'iess' }));
+    assert.equal(iess.netoM, base.netoM);
+    assert.ok(Math.abs(iess.fondosIessM - 99.96) < 1e-9);
+});

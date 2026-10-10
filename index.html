@@ -387,8 +387,19 @@
                 <div class="field-box tone-blue space-y-2" data-country="EC">
                     <span class="field-label">Bonuses</span>
                     <label class="check"><input type="checkbox" data-bind="year.d3"><span>Décimo Tercero <span class="block text-[11px] font-normal text-slate-500">An extra salary in December</span></span></label>
+                    <label class="check ml-6" id="inc-d3-monthly"><input type="checkbox" data-bind="year.d3Monthly" data-structural="true"><span>Paid monthly <span class="block text-[11px] font-normal text-slate-500">A twelfth with each salary instead of in December</span></span></label>
                     <label class="check"><input type="checkbox" data-bind="year.d4"><span>Décimo Cuarto <span class="block text-[11px] font-normal text-slate-500">One minimum wage (<span id="inc-sbu"></span>) depending on your region</span></span></label>
+                    <label class="check ml-6" id="inc-d4-monthly"><input type="checkbox" data-bind="year.d4Monthly" data-structural="true"><span>Paid monthly <span class="block text-[11px] font-normal text-slate-500">A twelfth with each salary instead of in its month</span></span></label>
                 </div>
+                <label class="field field-box tone-blue" data-country="EC">
+                    <span class="field-label">Reserve fund</span>
+                    <select class="input" data-bind="year.fondos" data-structural="true">
+                        <option value="none">Not yet (less than a year with this employer)</option>
+                        <option value="monthly">Paid with my salary (8.33%)</option>
+                        <option value="iess">Saved at the IESS</option>
+                    </select>
+                    <span class="help" id="inc-fondos-note">After a year with the same employer: 8.33% of your salary, with no IESS or income tax. Paid monthly, it raises your take-home; saved at the IESS, it grows there.</span>
+                </label>
                 <label class="field field-box tone-blue" data-country="EC">
                     <span class="field-label">14th-month bonus region</span>
                     <select class="input" data-bind="year.d4Region">
