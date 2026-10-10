@@ -1062,11 +1062,11 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   ok(z0.zoom === 1 && z0.min === undefined && z0.level === '1×' && z0.pan === 'none', 'trends zoom: "Show all" goes back to the whole chart', z0);
   // Zoom on the dates: weeks, then days (down to 7), anchored on the latest days; a thin category
   // gets a step wide and tall enough to tap; ◀ ▶, a drag sideways and Shift+wheel move and zoom.
-  const tstate = () => page.evaluate(() => { const c = UI.chartInstance('trends-chart'), o = Store.ui.trends; return { tz: o.tzoom, unit: o.tunit, center: o.tcenter, n: c.data.labels.length, level: document.getElementById('trends-tzoom-level').textContent, head: document.getElementById('trends-head').textContent, stepped: c.data.datasets[0].stepped, reset: !document.getElementById('trends-zoom-reset').classList.contains('hidden'), today: Engine.isoDate(new Date()), last: (Store.ui.trends.tunit !== 'month' && Engine.trendWindow({ end: new Date(), months: o.months, zoom: o.tzoom, center: o.tcenter }).to) }; });
+  const tstate = () => page.evaluate(() => { const c = UI.chartInstance('trends-chart'), o = Store.ui.trends; return { tz: o.tzoom, unit: o.tunit, center: o.tcenter, n: c.data.labels.length, level: document.getElementById('trends-tzoom-level').textContent, head: document.getElementById('trends-head').textContent, curve: c.data.datasets[0].cubicInterpolationMode, stepped: !!c.data.datasets[0].stepped, tension: c.data.datasets[0].tension, reset: !document.getElementById('trends-zoom-reset').classList.contains('hidden'), today: Engine.isoDate(new Date()), last: (Store.ui.trends.tunit !== 'month' && Engine.trendWindow({ end: new Date(), months: o.months, zoom: o.tzoom, center: o.tcenter }).to) }; });
   await page.click('[data-action="trends.tzoom"][data-dir="1"]');
   await page.waitForTimeout(200);
   const t1 = await tstate();
-  ok(t1.unit === 'week' && t1.n > 6 && /days/.test(t1.level) && /Week of/.test(t1.head) && t1.stepped === 'middle' && t1.reset && t1.last === t1.today, 'trends dates: zoomed in, week by week, ending today', t1);
+  ok(t1.unit === 'week' && t1.n > 6 && /days/.test(t1.level) && /Week of/.test(t1.head) && t1.curve === 'monotone' && !t1.stepped && t1.reset && t1.last === t1.today, 'trends dates: zoomed in, week by week (smooth shaded areas, no columns), ending today', t1);
   for (let i = 0; i < 5; i++) await page.click('[data-action="trends.tzoom"][data-dir="1"]').catch(() => {});
   await page.waitForTimeout(200);
   const t2 = await tstate();
@@ -1097,27 +1097,43 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
     // scanning the days would find it.
     const from = Engine.trendWindow({ end: new Date(), months: o.months }).from, all = Store.state.transactions.filter(x => x.date >= from && !Engine.isTransfer(x));
     const day = (d) => all.filter(x => x.date === d), spent = (list) => list.filter(x => (x.type || 'Gasto') === 'Gasto').reduce((a, x) => a + Engine.spendAmount(x), 0);
-    const dates = [...new Set(all.filter(x => (x.type || 'Gasto') === 'Gasto' && cats.includes(x.parentCategory || 'Otros')).map(x => x.date))].filter(d => !day(d).some(x => x.type === 'Ingreso'));
+    // (The example family is built around today, so some days there may be none without income.)
+    const spentOn = [...new Set(all.filter(x => (x.type || 'Gasto') === 'Gasto' && cats.includes(x.parentCategory || 'Otros')).map(x => x.date))];
+    const noIncome = spentOn.filter(d => !day(d).some(x => x.type === 'Ingreso'));
+    const dates = noIncome.length ? noIncome : spentOn;
     const share = (d) => spent(day(d).filter(x => cats.includes(x.parentCategory || 'Otros'))) / Math.max(1, spent(day(d)));
     const date = dates.sort((a, b) => share(b) - share(a))[0];
     return { label, key, date, dayShare: date && share(date), monthShare: Math.max(...sets[k].data) / Math.max(...c.data.labels.map((_, i) => sets.reduce((a, d) => a + d.data[i], 0))) };
   });
   await page.evaluate((d) => { const o = Store.ui.trends; o.tzoom = 99; o.tcenter = d; App.update(); }, thinDay.date);
   await page.waitForTimeout(250);
-  const thinStep = await page.evaluate(({ label, date }) => {
-    const c = UI.chartInstance('trends-chart'), r = Engine.trendWindow({ end: new Date(), months: Store.ui.trends.months, zoom: 99, center: date });
-    const keys = Engine.trendKeys(r.from, r.to, 'day'), i = keys.indexOf(date), k = c.data.datasets.findIndex(d => d.label === label);
+  const measureThin = () => page.evaluate(({ label, date, key: thinKey }) => {
+    const c = UI.chartInstance('trends-chart'), o = Store.ui.trends, r = Engine.trendWindow({ end: new Date(), months: o.months, zoom: o.tzoom, center: o.tcenter });
+    // Its band in the 7 days (or "Other categories" when it's among the smallest there).
+    const keys = Engine.trendKeys(r.from, r.to, 'day'), i = keys.indexOf(date), key = thinKey;
+    const rr = Engine.categoryTrend(Store.state.transactions, { end: new Date(), months: Store.ui.trends.months, from: r.from, to: r.to, unit: 'day' });
+    const k = rr.series.findIndex(x => x.key === key || (x.key === null && (x.other || []).includes(key)));
+    if (i < 0 || k < 0) return { i, k, px: 0, width: 0 };
     const meta = c.getDatasetMeta(k).data[i], below = k ? c.getDatasetMeta(k - 1).data[i].y : c.scales.y.getPixelForValue(0);
-    return { i, k, px: Math.abs(below - meta.y), x: meta.x, mid: (below + meta.y) / 2, width: (c.chartArea.right - c.chartArea.left) / Math.max(1, keys.length - 1) };
+    return { i, k, band: rr.series[k].key === null ? '__other' : rr.series[k].key, px: Math.abs(below - meta.y), x: meta.x, mid: (below + meta.y) / 2, width: (c.chartArea.right - c.chartArea.left) / Math.max(1, keys.length - 1) };
   }, thinDay);
-  ok(thinStep.i >= 0 && thinStep.px >= 12 && thinStep.width >= 40, 'trends dates: by day, the thinnest category is a step big enough to tap', { thinDay, thinStep });
-  await page.mouse.click(tbX.x + thinStep.x, tbX.y + thinStep.mid);
+  let thinStep = await measureThin();
+  // Next to a big day in the same week it can still be thin: then the amounts zoom on it, as a
+  // person would (tap near it, then +).
+  if (thinStep.k >= 0 && thinStep.px < 12) {
+    await page.evaluate(({ band, day }) => { const o = Store.ui.trends; o.focus = band; o.focusMonth = day; App.update(); }, { band: thinStep.band, day: thinDay.date });
+    for (let n = 0; n < 6 && thinStep.px < 12; n++) { await page.click('[data-action="trends.zoom"][data-dir="1"]'); await page.waitForTimeout(150); thinStep = await measureThin(); }
+    await page.evaluate(() => { Store.ui.trends.focus = null; });
+  }
+  ok(thinStep.i >= 0 && thinStep.px >= 12 && thinStep.width >= 40, 'trends dates: by day (and the amounts zoomed when needed), the thinnest category\'s area is big enough to tap', { thinDay, thinStep });
+  const tbY = await (await page.$('#trends-chart')).boundingBox();     // (the zoom buttons may have scrolled the page)
+  await page.mouse.click(tbY.x + thinStep.x, tbY.y + thinStep.mid);
   await page.waitForTimeout(200);
-  ok(await page.evaluate((key) => Store.ui.trends.focus === (key === null ? '__other' : key), thinDay.key), 'trends dates: tapping that step picks the category', await page.evaluate(() => Store.ui.trends.focus));
+  ok(await page.evaluate((band) => Store.ui.trends.focus === band, thinStep.band), 'trends dates: tapping that area picks its band', await page.evaluate(() => Store.ui.trends.focus));
   await page.click('[data-action="trends.months"][data-months="3"]');
   await page.waitForTimeout(200);
   const t6 = await tstate();
-  ok(t6.tz === 1 && t6.unit === 'month' && t6.n === 3 && !t6.reset, 'trends dates: picking 3M shows the whole 3 months again', t6);
+  ok(t6.tz === 1 && t6.unit === 'month' && t6.n === 3 && !t6.reset && t6.tension === 0.4 && !t6.stepped, 'trends dates: picking 3M shows the whole 3 months again, curved as always', t6);
   await page.evaluate(() => { Store.ui.trends = null; });
   // Debt payoff controls: "what if" extra slider, add it to the budget; a debt's schedule.
   await page.evaluate(() => { Store.reset('example'); Store.ui.debtExtraTry = 0; App.changed({ structural: true }); App.go('futuro/metas'); });
