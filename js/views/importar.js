@@ -392,7 +392,7 @@
     // A bank row that looks like something typed by hand: unchecked (it's the same money) until
     // you say it's a different purchase.
     function matchCell(r, i) {
-        const when = r.match.days === 0 ? 'the same day' : `${r.match.days} día${r.match.days === 1 ? '' : 's'} ${r.match.date < r.date ? 'antes' : 'después'}`;
+        const when = r.match.days === 0 ? 'the same day' : (r.match.date < r.date ? `${r.match.days} day${r.match.days === 1 ? '' : 's'} before` : `${r.match.days} day${r.match.days === 1 ? '' : 's'} after`);
         return r.include
             ? `<span class="badge badge-ok">New</span><div class="text-[11px] text-slate-500 mt-1">You'll import both. <button type="button" class="link" data-action="imp.same" data-i="${i}">It's the same one</button></div>`
             : `<span class="badge badge-warn" title="Same amount, ${when}">Already logged it?</span><div class="text-[11px] text-slate-600 mt-1 imp-match">Same as «${esc(r.match.description)}» (${esc(r.match.date)}, typed by hand). It won't be duplicated. <button type="button" class="link" data-action="imp.other" data-i="${i}">It's a different expense</button></div>`;

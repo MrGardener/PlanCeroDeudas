@@ -96,17 +96,17 @@
         const pay = {}, base = {};
         months.forEach(m => { const k = `${m.year}-${String(m.month).padStart(2, '0')}`; pay[k] = m.pay; base[k] = m.payBase; });
         const ev = Engine.cashEvents({ from, to, months: [], recurring: [], schedule: sch, payPerMonth: pay, payBase: base });
-        const pays = ev.filter(e => e.name === 'Día de pago');
+        const pays = ev.filter(e => e.kind === 'payday' && !e.bonus);
         const total = ev.reduce((a, e) => a + e.amount, 0);
         const perYear = Engine.paymentsPerYear(sch, t.getFullYear());
         const each = pays.length ? pays[0].amount : 0;
         return `<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
                 <div class="kpi tone-emerald"><span class="kpi-label">Payments a year</span><span class="kpi-value" id="pay-per-year">${perYear}</span></div>
                 <div class="kpi tone-slate"><span class="kpi-label">Each payment</span><span class="kpi-value">${money(each)}</span><span class="kpi-note">${sch.amount ? 'The amount you typed' : 'Your net salary spread out'}</span></div>
-                <div class="kpi tone-slate"><span class="kpi-label">In 12 months</span><span class="kpi-value">${money(total)}</span><span class="kpi-note">≈ ${money(total / 12)} a month${ev.some(e => e.name !== 'Día de pago') ? ', bonuses included' : ''}</span></div>
+                <div class="kpi tone-slate"><span class="kpi-label">In 12 months</span><span class="kpi-value">${money(total)}</span><span class="kpi-note">≈ ${money(total / 12)} a month${ev.some(e => e.bonus) ? ', bonuses included' : ''}</span></div>
             </div>
             <div class="section-label">Upcoming bills</div>
-            <ul class="pay-next" id="pay-next">${ev.slice(0, 8).map(e => `<li><span>${esc(dayLabel(e.date))}${e.name !== 'Día de pago' ? ` <span class="badge badge-info">${esc(e.name)}</span>` : ''}</span><strong class="num">+${money(e.amount)}</strong></li>`).join('') || '<li class="help">No payments in the next 12 months.</li>'}</ul>
+            <ul class="pay-next" id="pay-next">${ev.slice(0, 8).map(e => `<li><span>${esc(dayLabel(e.date))}${e.bonus ? ` <span class="badge badge-info">${esc(I18n.t(e.name))}</span>` : ''}</span><strong class="num">+${money(e.amount)}</strong></li>`).join('') || '<li class="help">No payments in the next 12 months.</li>'}</ul>
             ${sch.amount ? '<p class="help mt-2">The budget still uses the salary on this tab; this amount only changes the calendar and "Safe to spend".</p>' : ''}`;
     }
 
@@ -116,7 +116,7 @@
         let extra = '';
         if (d.freq === 'monthly') extra = `
             <label class="field"><span class="field-label">Days of the month</span><input class="input" id="ps-days" data-change="pay.field" value="${esc(d.days)}" placeholder="E.g. 15, 30 (31 = last day)" inputmode="numeric"></label>
-            <label class="field"><span class="field-label">How often</span><select class="input" id="ps-interval" data-change="pay.field">${[1, 2, 3, 6, 12].map(n => `<option value="${n}" ${Number(d.interval) === n ? 'selected' : ''}>${EVERY[n].charAt(0).toUpperCase() + EVERY[n].slice(1)}</option>`).join('')}</select></label>
+            <label class="field"><span class="field-label">How often</span><select class="input" id="ps-interval" data-change="pay.field">${[1, 2, 3, 6, 12].map(n => `<option value="${n}" ${Number(d.interval) === n ? 'selected' : ''}>${({ 1: 'Every month', 2: 'Every 2 months', 3: 'Every 3 months', 6: 'Every 6 months', 12: 'Once a year' })[n]}</option>`).join('')}</select></label>
             ${Number(d.interval) > 1 ? `<label class="field"><span class="field-label">A month you get paid</span><input type="month" class="input" id="ps-anchor-month" data-change="pay.field" value="${esc(String(d.anchor).slice(0, 7))}"></label>` : ''}
             <label class="field"><span class="field-label">If it falls on a Saturday or Sunday</span><select class="input" id="ps-weekend" data-change="pay.field"><option value="same" ${d.weekend === 'same' ? 'selected' : ''}>Paid that same day</option><option value="before" ${d.weekend === 'before' ? 'selected' : ''}>Moves up to Friday</option><option value="after" ${d.weekend === 'after' ? 'selected' : ''}>Moves to Monday</option></select></label>`;
         else if (d.freq === 'weekly') extra = wdSel;
@@ -258,7 +258,7 @@
             ['Seguro Social', -p.ssM, 'text-red-600'],
             ['Medicare', -p.medM, 'text-red-600'],
             [`State income tax (${esc(st.name) + (p.stateRate ? ` ${p.stateRate}%` : '')})`, -p.stateM, 'text-red-600'],
-            p.localM - (p.schoolM || 0) > 0.004 ? [`City tax${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'resident' : 'non-resident'} ${p.localRate}%)` : ''}`, -(p.localM - (p.schoolM || 0)), 'text-red-600'] : null,
+            p.localM - (p.schoolM || 0) > 0.004 ? [`City tax${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'resident' : 'non-resident'}, ${p.localRate}%)` : ''}`, -(p.localM - (p.schoolM || 0)), 'text-red-600'] : null,
             p.schoolM > 0.004 ? [`School district tax (${Number(yd.schoolRate)}%)`, -p.schoolM, 'text-red-600'] : null,
             after > 0.004 ? ['After-tax deductions (Roth 401(k), life and disability insurance…)', -after, 'text-red-600'] : null,
             ['Take-home pay', p.netoM, 'text-emerald-700']

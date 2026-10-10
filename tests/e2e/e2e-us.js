@@ -1811,7 +1811,42 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
     return { away, back: document.documentElement.classList.contains('app-covered') };
   });
   ok(cover.away && !cover.back, 'leaving the app covers it at once; back within 5 minutes it opens as it was', cover);
+  // How soon it locks: "right away" locks on switching to another app — but not for the app's own
+  // file picker, camera or share sheet; "never" only when it opens.
+  const awayTo = (hidden) => page.evaluate((h) => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => h }); document.dispatchEvent(new Event('visibilitychange')); }, hidden);
+  await page.evaluate(() => { App.go('config'); document.querySelectorAll('[data-tab=config] details').forEach(d => { d.open = true; }); });
+  await page.waitForTimeout(200);
+  const lockUi = await page.evaluate(() => ({ away: document.getElementById('cfg-lock-away').value, idle: document.getElementById('cfg-lock-idle').value, disabled: document.getElementById('cfg-lock-away').disabled }));
+  ok(lockUi.away === '5' && lockUi.idle === '0' && !lockUi.disabled, 'lock settings: 5 minutes away and no idle lock unless chosen', lockUi);
+  await page.selectOption('#cfg-lock-away', '0');
+  ok(await page.evaluate(() => Device.lockAway() === 0 && !JSON.stringify(Store.state).includes('lockAway')), 'lock "right away" is this device\'s setting (not in the plan or its backups)');
+  await page.evaluate(() => Device.outside());
+  await awayTo(true); await awayTo(false);
+  await page.waitForTimeout(300);
+  ok(!(await page.$('#lock-screen')) && await page.evaluate(() => !!Store.state), '"right away": the app\'s own file picker or camera doesn\'t lock it');
+  await page.waitForTimeout(3100);
+  await lockAndWait(page, () => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); });
+  ok(await page.evaluate(() => !(window.Store && Store.state)), '"right away": switching to another app locks it at once (the plan is forgotten)');
+  await page.fill('#lock-pin', '2580');
+  await page.click('#lock-screen button[type="submit"]');
+  await page.waitForFunction(() => window.Store && Store.state && !document.getElementById('lock-screen'), null, { timeout: 8000 });
+  await page.evaluate(() => Device.setLockAway(-1));
+  await page.evaluate(() => { const real = Date.now; window.__realNow = real; Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); Date.now = () => real() + 3 * 3600000; Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); document.dispatchEvent(new Event('visibilitychange')); Date.now = real; });
+  await page.waitForTimeout(400);
+  ok(!(await page.$('#lock-screen')) && await page.evaluate(() => !!Store.state), '"never": back after 3 hours away it opens as it was');
+  // Not touched for the time chosen while open: it locks.
+  await page.evaluate(() => { Device.setLockAway(5); Device.setLockIdle(1); });
+  await Promise.all([page.waitForEvent('load', { timeout: 20000 }), page.evaluate(() => { const real = window.__realNow; Date.now = () => real() + 90000; })]);
+  await page.waitForSelector('#lock-screen');
+  ok(await page.evaluate(() => !(window.Store && Store.state)), 'lock when not in use: a minute without a touch locks it');
+  await page.fill('#lock-pin', '2580');
+  await page.click('#lock-screen button[type="submit"]');
+  await page.waitForFunction(() => window.Store && Store.state && !document.getElementById('lock-screen'), null, { timeout: 8000 });
+  await page.evaluate(() => { Device.setLockIdle(0); });
   await page.evaluate(() => { delete document.hidden; Device.removePin(); });
+  await page.evaluate(() => { App.go('config'); document.querySelectorAll('[data-tab=config] details').forEach(d => { d.open = true; }); });
+  await page.waitForTimeout(200);
+  ok(await page.evaluate(() => document.getElementById('cfg-lock-away').disabled && /PIN first/.test(document.getElementById('cfg-lock-idle-help').textContent)), 'without a PIN the lock timing waits for one');
   // Hide amounts: every amount shows as •••; the plan itself doesn't change.
   await page.evaluate(() => App.go('resumen'));
   await page.click('#privacy-toggle');

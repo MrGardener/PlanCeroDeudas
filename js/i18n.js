@@ -41,7 +41,7 @@
             let src = '^';
             // A value never ends right before a decimal point: "$3,191.65." must not split at "191".
             parts.forEach((p, i) => {
-                if (i % 2) { src += endings.has(p) ? '(\\S{0,4}?)' : '([\\s\\S]*?)'; order.push(Number(p)); return; }
+                if (i % 2) { src += endings.has(p) ? '([a-zA-Z]{0,4}?)' : '([\\s\\S]*?)'; order.push(Number(p)); return; }
                 let lit = esc(p);
                 if (i > 0 && /^[.,]/.test(p)) lit = lit.replace(/^(\\?[.,])/, '$1(?!\\d)');
                 src += lit;
@@ -51,7 +51,11 @@
             const letters = parts.filter((_, i) => i % 2 === 0).join('').replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ]/g, '').length;
             // Pass-through patterns (same text in both languages, e.g. "{0} · {1}") just let their
             // values be translated; they're never "weak".
-            const pat = { re: new RegExp(src + '$'), out, order, letters, weak: out !== key && letters <= 2 };
+            // A count phrase ("{0} deposit{1}": a plural ending) needs a number in what it caught,
+            // so a name like "Paycheck – direct deposit" isn't taken for one.
+            // A value right before a unit ("{1} months", "{0} días") is a number.
+            const numeric = new Set(parts.map((p, i) => (i % 2 && /^ (months?|days?|years?|weeks?|hours?|minutes?|mes(es)?|días?|años?|semanas?|horas?|minutos?)\b/i.test(parts[i + 1] || '') ? Number(p) : null)).filter(n => n !== null));
+            const pat = { re: new RegExp(src + '$'), out, order, letters, weak: out !== key && letters <= 2, count: endings.size > 0, endings, list: key.includes(' · '), numeric };
             const prefix = parts[0].slice(0, 4);
             if (prefix.length < 4) d.lead.push(pat);
             else { if (!d.byPrefix.has(prefix)) d.byPrefix.set(prefix, []); d.byPrefix.get(prefix).push(pat); }
@@ -67,7 +71,7 @@
             const v = vals[Number(n)];
             if (v === undefined) return '';
             if (alt !== undefined) { const [a, b = ''] = alt.split('|'); return v ? a : b; }
-            return depth < 3 ? translate(v, depth + 1) : v;
+            return depth < 3 && !kept(norm(v)) ? translate(v, depth + 1) : v;
         });
     }
     let depth = 0;
@@ -81,6 +85,11 @@
     }
     // Look a text up in one dictionary (exact, patterns, then pieces); undefined when unknown.
     function lookup(d, key) {
+        const hit = direct(d, key);
+        return hit !== undefined ? hit : pieces(key);
+    }
+    // The whole text in one dictionary: exactly, or by a pattern.
+    function direct(d, key) {
         let hit = d.exact.get(key);
         if (hit === undefined) {
             const cands = (d.byPrefix.get(key.slice(0, 4)) || []).concat(d.lead);
@@ -91,14 +100,34 @@
                 const vals = [];
                 p.order.forEach((n, i) => { vals[n] = m[i + 1]; });
                 if (p.weak && vals.some(v => /[A-Za-zÁÉÍÓÚáéíóúñÑ]{2}/.test(v || ''))) continue;
+                // A list ("$200 · Every 6 months") is read piece by piece, not as one value of a short
+                // pattern ("{0} months"); a sentence may end with one ("…your days with: {0}.").
+                if (!p.list && p.letters < 15 && vals.some(v => (v || '').includes(' · '))) continue;
+                if (p.numeric.size && [...p.numeric].some(n => /[A-Za-zÁÉÍÓÚáéíóúñÑ]/.test(vals[n] || ''))) continue;
+                if (p.count && !vals.some((v, n) => !p.endings.has(String(n)) && /\d/.test(v || '') && !/[A-Za-zÁÉÍÓÚáéíóúñÑ]/.test(v))) continue;
                 hit = fill(p.out, vals);
                 break;
             }
         }
+        return hit;
+    }
+    // Pieces of a text no dictionary has whole (each piece through every dictionary).
+    function pieces(key) {
+        let hit;
         // Leading punctuation (": tu sueldo…", "· …") or a list joined with " · ": translate the pieces.
         if (hit === undefined) {
             const m = key.match(/^([:·,;–—.-]\s*)(.+)$/);
             if (m) { const inner = t(m[2]); if (inner !== m[2]) hit = m[1] + inner; }
+        }
+        // A label and an amount ("Accounts and cash: $5,354", "Assigned: $4,199.99"): the label.
+        if (hit === undefined) {
+            const m = key.match(/^(.*[A-Za-zÁÉÍÓÚáéíóúñÑ].*?):\s+([−+-]?[^\sA-Za-zÁÉÍÓÚáéíóúñÑ]*\d[^A-Za-zÁÉÍÓÚáéíóúñÑ]*)$/);
+            if (m) { const inner = t(m[1]); if (inner !== m[1]) hit = inner + ': ' + m[2]; }
+        }
+        // A trailing arrow or colon ("Check they're covered →", "Upcoming:"): the words before it.
+        if (hit === undefined) {
+            const m = key.match(/^(.*[A-Za-zÁÉÍÓÚáéíóúñÑ).]) ?(→|:|…)$/);
+            if (m) { const inner = t(m[1]); if (inner !== m[1]) hit = inner + (m[2] === '→' ? ' →' : m[2]); }
         }
         // Lists joined with " · " or " + " ("Sueldo neto + otros ingresos ($1,900)"): piece by piece.
         for (const sep of [' · ', ' + ']) {
@@ -116,20 +145,32 @@
         if (text == null) return text;
         const s = String(text);
         const key = norm(s);
-        if (!key || !/[A-Za-zÁÉÍÓÚáéíóúñÑ]/.test(key)) return s;
+        if (!key || !/[A-Za-zÁÉÍÓÚáéíóúñÑ]/.test(key) || kept(key)) return s;
         let cur;
         const o = overrides[countryCode] && overrides[countryCode][lang];
-        if (o) cur = lookup(o, key);
-        if (cur === undefined) cur = lookup(lang === SOURCE ? knownDict() : dicts[lang] || knownDict(), key);
-        if (cur === undefined) {
+        // The whole text in the edition's wording, then in the language's dictionary; only then
+        // piece by piece (a list split early would miss a whole sentence the dictionary has).
+        if (o) cur = direct(o, key);
+        if (cur === undefined) cur = direct(lang === SOURCE ? knownDict() : dicts[lang] || knownDict(), key);
+        if (cur === undefined) cur = pieces(key);
+        // In English, a text a general pattern let through unchanged ("{0} ({1})") may still be
+        // Spanish: it goes on to the Spanish → English dictionary.
+        if (cur === undefined || (lang === SOURCE && cur === key)) {
             let sp = key, changed = false;
             if (country && !inCountry) {
                 inCountry = true;
                 try { const c = lookup(country, key); if (c !== undefined) { sp = norm(c); changed = true; } } finally { inCountry = false; }
             }
             if (lang === LEGACY && dicts[LEGACY] && !inCountry) {
-                const hit = lookup(dicts[LEGACY], sp);
-                if (hit !== undefined) { sp = hit; changed = true; }
+                // A name typed inside the text ("Planned for Planes celulares (Claro)") is set aside
+                // while the rest is read as Spanish, so no piece of it gets translated.
+                // (Only looked for when the text would change: most English texts don't.)
+                let hit = lookup(dicts[LEGACY], sp);
+                if (hit !== undefined && hit !== sp && !dicts[LEGACY].exact.has(sp)) {
+                    const m = masked(sp);
+                    if (m.text !== sp) { const h = lookup(dicts[LEGACY], m.text); hit = h === undefined ? undefined : m.back(h); }
+                }
+                if (hit !== undefined && hit !== sp) { sp = hit; changed = true; }
             }
             if (changed) cur = sp;
         }
@@ -150,6 +191,37 @@
         return known;
     }
     let country = null, countryCode = null, inCountry = false;
+    // Names people typed (budget lines, accounts, goals, stores…, from the app: setNames) stay whole
+    // as typed, unless a dictionary has that exact text (a name the app gave, like a template line).
+    // Otherwise a pattern could translate a piece of one ("Planes celulares (Claro)" → "(Light)").
+    let names = new Set();
+    function setNames(list) { names = new Set((list || []).map(x => norm(x)).filter(x => x.length > 1)); keptFor = ''; }
+    function exactly(key) {
+        const o = overrides[countryCode] && overrides[countryCode][lang];
+        if (o && o.exact.has(key)) return true;
+        if (lang !== SOURCE && dicts[lang] && dicts[lang].exact.has(key)) return true;
+        if (country && country.exact.has(key)) return true;
+        return lang === LEGACY && !!dicts[LEGACY] && dicts[LEGACY].exact.has(key);
+    }
+    const kept = (key) => names.size > 0 && names.has(key) && !exactly(key);
+    // The typed names found in a text, swapped for marks without letters (and put back after).
+    let keptRe = null, keptFor = '';
+    function masked(text) {
+        const none = { text, back: (x) => x };
+        if (!names.size) return none;
+        const sig = lang + '|' + countryCode + '|' + names.size;
+        if (keptFor !== sig) {
+            const list = [...names].filter(n => n.length > 2 && /[A-Za-zÁÉÍÓÚáéíóúñÑ]/.test(n) && !exactly(n)).sort((a, b) => b.length - a.length);
+            // (No lookbehind: older iPhones' web views don't have it.)
+            keptRe = list.length ? new RegExp('(^|[^\\p{L}\\d])(' + list.map(esc).join('|') + ')(?![\\p{L}\\d])', 'gu') : null;
+            keptFor = sig;
+        }
+        if (!keptRe || !keptRe.test(text)) { if (keptRe) keptRe.lastIndex = 0; return none; }
+        keptRe.lastIndex = 0;
+        const found = [];
+        const out = text.replace(keptRe, (_, before, n) => { found.push(n); return before + '\u2063' + (found.length - 1) + '\u2063'; });
+        return { text: out, back: (x) => x.replace(/\u2063(\d+)\u2063/g, (_, i) => found[Number(i)]) };
+    }
     const countries = {};
 
     const skip = (el) => el && el.closest && el.closest('[data-i18n-skip], script, style, textarea');
@@ -242,7 +314,7 @@
 
     root.I18n = {
         add(l, entries) { dicts[l] = merge(dicts[l], entries); known = null; },
-        keys: (l) => Object.keys((dicts[l] && dicts[l].src) || {}),
+        keys: (l) => Object.keys((dicts[l] && dicts[l].src) || {}), setNames,
         country(code, entries) { countries[code] = merge(countries[code], entries); },
         countryKeys: (code) => Object.keys((countries[code] && countries[code].src) || {}),
         override(code, l, entries) { overrides[code] = overrides[code] || {}; overrides[code][l] = merge(overrides[code][l], entries); known = null; },

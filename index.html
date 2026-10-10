@@ -1671,20 +1671,41 @@
                     <div class="field"><span class="field-label">PIN lock</span>
                         <div id="cfg-lock" class="flex flex-wrap gap-2 items-center"></div>
                         <span class="help">With a PIN or passcode your plan is saved encrypted on this device. A passcode (letters too) is much harder to guess than a short PIN. The 10th wrong try erases the data.</span></div>
+                    <label class="field"><span class="field-label">Lock when I leave the app</span>
+                        <select id="cfg-lock-away" class="input" data-change="device.lockAway">
+                            <option value="0">Right away (switching to another app)</option>
+                            <option value="1">After 1 minute away</option>
+                            <option value="5">After 5 minutes away</option>
+                            <option value="15">After 15 minutes away</option>
+                            <option value="60">After 1 hour away</option>
+                            <option value="-1">Never (only when the app opens)</option>
+                        </select>
+                        <span class="help" id="cfg-lock-away-help">The file picker, the camera and sharing a file don't count as leaving.</span></label>
+                    <label class="field"><span class="field-label">Lock when not in use</span>
+                        <select id="cfg-lock-idle" class="input" data-change="device.lockIdle">
+                            <option value="0">Off</option>
+                            <option value="1">After 1 minute without a touch</option>
+                            <option value="2">After 2 minutes without a touch</option>
+                            <option value="5">After 5 minutes without a touch</option>
+                            <option value="10">After 10 minutes without a touch</option>
+                        </select>
+                        <span class="help" id="cfg-lock-idle-help">While the app is open on the screen.</span></label>
                     <label class="field flex-row items-center gap-2"><input type="checkbox" id="cfg-hide-amounts" data-change="device.privacy" class="w-4 h-4"> <span class="field-label mb-0">Hide amounts on screen (the 👁 button at the top does the same)</span></label>
                     <label class="field"><span class="field-label">Language / Idioma</span>
                         <select id="cfg-lang" class="input" data-change="device.lang"><option value="es">Español</option><option value="en">English</option></select></label>
                     <label class="field"><span class="field-label">Appearance</span>
-                        <select id="cfg-theme" class="input" data-change="device.theme"><option value="light">Claro</option><option value="dark">Dark</option><option value="auto">Automatic (follow your system)</option></select></label>
+                        <select id="cfg-theme" class="input" data-change="device.theme"><option value="light">Light</option><option value="dark">Dark</option><option value="auto">Automatic (follow your system)</option></select></label>
                 </div>
                 <div class="field mt-3 max-w-2xl space-y-1" data-app-only id="cfg-phone"><span class="field-label">This phone</span>
                     <label class="check-row" id="cfg-bio-row"><input type="checkbox" id="cfg-bio" data-change="device.bio"> <span>Unlock with fingerprint or face instead of typing your PIN <span class="block text-[11px] text-slate-500" id="cfg-bio-note"></span></span></label>
                     <label class="check-row" id="cfg-reminders-row"><input type="checkbox" id="cfg-reminders" data-change="device.reminders"> <span>Reminders: a bill due tomorrow, and the weekly review on Sundays <span class="block text-[11px] text-slate-500">They show no amounts or names, even on a locked screen.</span></span></label>
+                    <label class="check-row" id="cfg-widgets-row"><input type="checkbox" id="cfg-widgets" data-change="device.widgets"> <span>Home-screen widgets: categories over budget, and how close your nearest goal is <span class="block text-[11px] text-slate-500">Only percentages and dates, never amounts or goal names. The names of the categories over budget show on the home screen.</span></span></label>
+                    <div id="cfg-my-reminders" class="mt-3"></div>
                     <span class="help">Your plan is always saved encrypted on this phone: with your PIN, or else with a key the phone keeps in its secure chip (it never leaves this phone). Long-press the app icon for "Add expense".</span></div>
                 <div class="field mt-3 max-w-2xl" data-web-only><span class="field-label">Shortcut to quick entry</span>
                     <div class="flex gap-2"><input id="cfg-quick-link" class="input min-w-0" readonly aria-label="Quick entry link"><button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="device.copyQuick"><i class="fa-regular fa-copy"></i> Copy</button></div>
                     <span class="help">Save it as a bookmark (or on your home screen once the app is online): it opens the keypad straight away to log an expense. On a computer, the key <kbd>N</kbd> does the same.</span></div>
-                <p class="help mt-2">Saved only in this browser (not in the backup). With a PIN or passcode the plan is saved encrypted. The app locks when it opens and after 5 minutes away, and then forgets the open plan until the PIN is typed again. Also use your phone's or computer's own lock.</p>
+                <p class="help mt-2">Saved only in this browser (not in the backup). With a PIN or passcode the plan is saved encrypted. The app locks when it opens and when you're away or don't use it for the time you choose above, and then forgets the open plan until the PIN is typed again. Also use your phone's or computer's own lock.</p>
             </div>
             <div class="panel tone-indigo">
                 <div class="section-label text-indigo-900"><i class="fa-solid fa-file-shield"></i> Backup</div>

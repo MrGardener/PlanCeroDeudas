@@ -220,7 +220,7 @@
         let chip = '';
         let pending = false;
         if (tr) {
-            chip = `<span class="chip-note"><i class="fa-solid fa-right-left"></i> ${esc(placeName(t.from))} → ${esc(placeName(t.to))}</span>`;
+            chip = `<span class="chip-note"><i class="fa-solid fa-right-left"></i> <span>${esc(placeName(t.from))}</span> → <span>${esc(placeName(t.to))}</span></span>`;
         } else if (t.fromGoal) {
             const g = (Store.state.goals || []).find(x => x.id === t.fromGoal);
             chip = `<span class="chip-note" title="Already set aside: it doesn't count in this month's budget again"><i class="fa-solid fa-piggy-bank"></i> Paid from «${esc(g ? g.name : 'un ahorro')}»</span>`;

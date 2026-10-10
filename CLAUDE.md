@@ -32,6 +32,8 @@ npm run e2e                       # all browser suites (~6 min); `node tests/e2e
                                   # (e2e-sweep: every screen, phone + file, portrait + landscape)
 npm run e2e:bounds                # every field with boundary values (~20 min; CI runs it in 3 parts:
                                   # `node tests/e2e/e2e-bounds.js "US phone" "patrimonio,config"` for some)
+npm run e2e:lang                  # every screen and dialog in both editions and languages: nothing in the
+                                  # wrong language (~13 min; CI runs it in 2 parts: `node tests/e2e/lang-sweep.js US`)
 npm run check                     # all of the above, before pushing
 npm run i18n:missing              # English text with no Spanish yet (report)
 npm run i18n:spanish              # Spanish text left in the code (only shrinks)

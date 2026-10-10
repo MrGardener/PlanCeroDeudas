@@ -16,7 +16,7 @@
     function rowHTML(b, cats) {
         const opts = cats.includes(b.category) ? cats : cats.concat([b.category]);
         return `<tr data-row="${b.id}">
-            <td><input class="cell-input" value="${esc(b.name)}" data-change="annual.set" data-id="${b.id}" data-field="name" aria-label="Gasto"></td>
+            <td><input class="cell-input" value="${esc(b.name)}" data-change="annual.set" data-id="${b.id}" data-field="name" aria-label="Expense"></td>
             <td><input type="number" class="cell-input num" min="0" step="10" value="${Number(b.amount) || 0}" data-input="annual.set" data-id="${b.id}" data-field="amount" aria-label="Amount"></td>
             <td><select class="cell-input" data-change="annual.set" data-id="${b.id}" data-field="every" aria-label="How often">${Views.selectOptions(EVERY, Number(b.every) || 12)}</select></td>
             <td><select class="cell-input" data-change="annual.set" data-id="${b.id}" data-field="month" aria-label="Month it's due">${Views.selectOptions(Fmt.MONTH_NAMES.map((n, i) => ({ value: i + 1, label: n })), Number(b.month) || 1)}</select></td>
@@ -98,7 +98,8 @@
             if (!x) return;
             const list = bills();
             const tax = Store.state.taxonomy.expense;
-            list.push(Object.assign({ id: Store.nextId(list) }, x, { category: tax[x.category] ? x.category : 'Otros' }));
+            // Named in the app's language (it's the person's bill from now on).
+            list.push(Object.assign({ id: Store.nextId(list) }, x, { name: I18n.t(x.name), category: tax[x.category] ? x.category : 'Otros' }));
             App.changed({ structural: true, step: true });
         },
         'annual.delete': (el) => {

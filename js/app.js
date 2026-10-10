@@ -236,7 +236,23 @@
         UI.$$('.end-year').forEach(el => { el.textContent = s.configEndYear; });
     }
 
+    // Names people typed (lines, accounts, goals, debts, stores, descriptions…) stay as typed in
+    // either language: the translator gets them before the screen is drawn.
+    function typedNames() {
+        const out = [];
+        const walk = (o, d) => {
+            if (!o || typeof o !== 'object' || d > 7) return;
+            if (Array.isArray(o)) { o.forEach(x => walk(x, d + 1)); return; }
+            ['name', 'description', 'store'].forEach(k => { if (typeof o[k] === 'string') out.push(o[k]); });
+            Object.keys(o).forEach(k => { if (o[k] && typeof o[k] === 'object') walk(o[k], d + 1); });
+        };
+        walk(Store.state, 0);
+        return out;
+    }
+    const keepNames = () => { if (window.I18n && I18n.setNames && Store.state) I18n.setNames(typedNames()); };
+
     function render() {
+        keepNames();
         renderGlobals();
         UI.show('sample-banner', !!Store.state.settings.sample);
         // Your own plan, not yet encrypted: ask for a passcode (the example family isn't yours).
@@ -253,6 +269,7 @@
     function update() {
         const v = views[currentKey()];
         if (!v) return;
+        keepNames();
         const ctx = buildContext();
         (v.update || v.render)(ctx);
     }
@@ -409,7 +426,7 @@
         } else if (status.lastSavedAt) {
             el.className = 'save-status';
             el.innerHTML = '<i class="fa-solid fa-circle-check"></i><span class="hidden sm:inline">Saved</span>';
-            el.title = 'Saved automatically in this browser at ' + status.lastSavedAt.toLocaleTimeString('es-EC');
+            el.title = 'Saved automatically in this browser at ' + status.lastSavedAt.toLocaleTimeString(I18n.lang === 'en' ? 'en-US' : 'es-EC');
         }
     }
 

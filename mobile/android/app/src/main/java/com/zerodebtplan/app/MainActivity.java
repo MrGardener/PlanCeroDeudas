@@ -14,6 +14,7 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         // The app's own plugin: the device key, fingerprint unlock, the home-screen shortcut.
         registerPlugin(DeviceKeyPlugin.class);
+        registerPlugin(WidgetsPlugin.class);
         super.onCreate(savedInstanceState);
         // FLAG_SECURE: the app's screen is blank in the recent-apps switcher and can't be captured in
         // screenshots or screen recordings (your amounts stay private).
@@ -46,6 +47,7 @@ public class MainActivity extends BridgeActivity {
 
     private void noteAction(Intent intent) {
         Uri data = intent == null ? null : intent.getData();
-        if (data != null && "zerodebtplan".equals(data.getScheme()) && "quick".equals(data.getHost())) DeviceKeyPlugin.pendingAction = "quick";
+        // The shortcut (quick entry) or a widget (the budget, the goals).
+        if (data != null && "zerodebtplan".equals(data.getScheme()) && java.util.Arrays.asList("quick", "budget", "goals").contains(data.getHost())) DeviceKeyPlugin.pendingAction = data.getHost();
     }
 }

@@ -2413,6 +2413,55 @@
         return out.sort((a, b) => a.at - b.at);
     }
 
+    // Reminders the person writes ("Remember the trip to the coast!"): each one daily or on one day
+    // of the week, at a time. Normalized for the phone's repeating notifications: the text (up to
+    // 120 characters), hour, minute and the weekday (1 = Sunday … 7 = Saturday) or none for every
+    // day. Empty or switched-off ones are left out.
+    function personalReminders(list) {
+        return (list || []).filter(r => r && r.on !== false && String(r.text || '').trim()).map(r => {
+            const [h, mi] = String(r.time || '').split(':').map(Number);
+            const hour = Number.isInteger(h) && h >= 0 && h <= 23 ? h : 9, minute = Number.isInteger(mi) && mi >= 0 && mi <= 59 ? mi : 0;
+            const day = Number(r.day);
+            const weekly = r.freq === 'weekly' && Number.isInteger(day) && day >= 0 && day <= 6;
+            return { id: r.id, text: String(r.text).trim().slice(0, 120), hour, minute, weekday: weekly ? day + 1 : null };
+        });
+    }
+
+    // What the home-screen widgets show: percentages and dates, never amounts or goal names.
+    // budget: this month's categories at 90% of their plan or more, the most spent first (over =
+    // past the plan) — only spending you can still hold back (variable lines: savings, debt
+    // payments and fixed bills at 100% aren't a warning); items + spentOf(id), or bubbles.
+    // goal: of the savings goals not reached yet, the one closest to done — how far along (%), the
+    // month it's done at the pace budgeted, that pace and, with a date, the pace that gets there by
+    // then (each as % of the goal a month) and whether it's on time.
+    const NOT_SPENDING = ['Gasto Fijo', 'Ahorro', 'Deuda', 'Ingreso'];
+    function widgetData({ items = null, spentOf = () => 0, bubbles = null, goals = [], today = new Date(), top = 4 } = {}) {
+        const t = new Date(today);
+        const list = bubbles || budgetBubbles((items || []).filter(i => !NOT_SPENDING.includes(i.type)), spentOf);
+        const cats = (list || []).filter(b => num(b.planned) > 0.005 && num(b.spent) / num(b.planned) >= 0.9)
+            .map(b => ({ category: b.category, pct: Math.round(num(b.spent) / num(b.planned) * 100), over: num(b.spent) > num(b.planned) + 0.005 }))
+            .sort((a, b) => b.pct - a.pct);
+        const budget = { items: cats.slice(0, top), over: cats.filter(c => c.over).length, near: cats.filter(c => !c.over).length };
+        const open = (goals || []).filter(g => g && num(g.target) > 0 && num(g.current) < num(g.target)).map(g => ({ g, st: goalStatus(g, t) }));
+        open.sort((a, b) => b.st.pct - a.st.pct);
+        let goal = null;
+        if (open.length) {
+            const { g, st } = open[0], target = num(g.target), sch = goalSchedule(g, t);
+            const share = (v) => Math.round(num(v) / target * 1000) / 10;
+            goal = {
+                pct: Math.floor(st.pct * 100),
+                close: st.pct >= 0.75,
+                by: st.months !== null && st.months !== undefined ? isoDate(new Date(t.getFullYear(), t.getMonth() + st.months, 1)).slice(0, 7) : null,
+                pace: num(g.monthly) > 0 ? share(g.monthly) : 0,
+                need: sch ? share(sch.required) : null,
+                date: sch ? String(g.targetDate).slice(0, 7) : null,
+                onTime: sch ? sch.onTrack : null,
+                count: open.length
+            };
+        }
+        return { budget, goal };
+    }
+
     // The weekly review: a few minutes once a week so the budget keeps up with real life. Money not
     // given a job yet, this month's spending with no budget line, lines over budget, bills due in
     // the next 7 days (or overdue), and this week's spending logged. Each check is done at zero.
@@ -3283,13 +3332,13 @@
                 if (split) {
                     // Split by all of the month's paydays, even when the range ends mid-month.
                     const all = payDates(sch, `${key}-01`, `${key}-${pad2(daysIn(Number(key.slice(0, 4)), Number(key.slice(5))))}`).filter(d => d.startsWith(key)).length || dates.length;
-                    if (total > 0) dates.forEach(date => out.push({ date, kind: 'payday', name: 'Día de pago', amount: total / all }));
+                    if (total > 0) dates.forEach(date => out.push({ date, kind: 'payday', name: 'Payday', amount: total / all }));
                     return;
                 }
                 const n = nominal;
                 const each = sch.amount || (n ? base * 12 / n : 0);
-                if (each > 0) dates.forEach(date => out.push({ date, kind: 'payday', name: 'Día de pago', amount: each }));
-                if (total - base > 0.004) out.push({ date: dates[0], kind: 'payday', name: 'Décimo / bono', amount: total - base });
+                if (each > 0) dates.forEach(date => out.push({ date, kind: 'payday', name: 'Payday', amount: each }));
+                if (total - base > 0.004) out.push({ date: dates[0], kind: 'payday', bonus: true, name: 'Bonus pay', amount: total - base });
             });
         }
         // Cash events you added by hand (a tax refund, a car repair…).
@@ -3449,7 +3498,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usStateTax, US_STATUSES, usStatus, forStatus, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, groupLifeImputed, GROUP_LIFE_TABLE, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, weeklyReview, reviewStreak, historyGroups, groupTree, reminderSchedule, matchOptimizer, rothVsTraditional, iraTracker, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usStateTax, US_STATUSES, usStatus, forStatus, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, groupLifeImputed, GROUP_LIFE_TABLE, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, weeklyReview, reviewStreak, historyGroups, groupTree, reminderSchedule, personalReminders, widgetData, matchOptimizer, rothVsTraditional, iraTracker, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

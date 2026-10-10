@@ -317,7 +317,7 @@
 
         // Where the money comes from, and whether the budget can actually pay it.
         UI.text('debt-pool', `${money0(plan.pool)}/mo`);
-        UI.html('debt-pool-note', `Minimums ${money0(plan.totalMin)}${plan.extra > 0 ? ` · ${money0(plan.extra)} extra to the snowball` : ''}${ctx.debtExtraRubros > 0 ? ` (includes ${money0(ctx.debtExtraRubros)} from other debt lines)` : ''} · <a href="#" class="link" data-goto="presupuesto/plan">see budget</a>`);
+        UI.html('debt-pool-note', `<span>Minimums ${money0(plan.totalMin)}</span>${plan.extra > 0 ? ` · <span>${money0(plan.extra)} extra to the snowball</span>` : ''}${ctx.debtExtraRubros > 0 ? ` <span>(includes ${money0(ctx.debtExtraRubros)} from other debt lines)</span>` : ''} · <a href="#" class="link" data-goto="presupuesto/plan">see budget</a>`);
         document.getElementById('debt-funding').className = `kpi ${plan.totalBalance <= 0 ? 'tone-slate' : plan.shortfall > 0 ? 'tone-red' : 'tone-emerald'}`;
         const warn = document.getElementById('debt-warning');
         const deficit = -ctx.baseBudget.balanceReal;
@@ -334,7 +334,7 @@
         // Goals
         const unfunded = s.goals.filter(g => Engine.goalMonths(g).status === 'never');
         UI.show('goal-warning', unfunded.length > 0);
-        if (unfunded.length) UI.html('goal-warning', `<i class="fa-solid fa-circle-info"></i> ${unfunded.map(g => `<strong>${esc(g.name)}</strong>`).join(', ')} ${unfunded.length > 1 ? 'have' : 'has'} no money assigned in your budget. ${ctx.steps.current <= 2 ? 'While you\'re on Steps 1–2 that\'s normal: emergency fund and debts come first.' : 'Give it a monthly amount so it moves forward.'}`);
+        if (unfunded.length) UI.html('goal-warning', `<i class="fa-solid fa-circle-info"></i> ${unfunded.map(g => `<strong data-i18n-skip>${esc(g.name)}</strong>`).join(', ')} <span>${unfunded.length > 1 ? 'have no money assigned in your budget.' : 'has no money assigned in your budget.'}</span> <span>${ctx.steps.current <= 2 ? 'While you\'re on Steps 1–2 that\'s normal: emergency fund and debts come first.' : 'Give it a monthly amount so it moves forward.'}</span>`);
         s.goals.forEach(g => {
             const cell = document.querySelector(`#goal-body tr[data-row="${g.id}"] [data-cell="time"]`);
             if (!cell) return;

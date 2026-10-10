@@ -162,10 +162,10 @@
                 const sav = by('savings'), debts = by('debt'), ret = by('retirement');
                 const row = (dot, label, sub, amount, view) => `<button type="button" class="gm-row" data-action="gm.view" data-view="${view}"><span class="gm-bullet is-${dot}"></span><span class="flex-1 text-left"><span class="block font-semibold">${esc(I18n.t(label))}</span><span class="text-xs text-slate-500">${sub}</span></span><strong>${money0(amount)}</strong></button>`;
                 host.innerHTML = head('Manage goals') + (t.overBy > 0 ? `<div class="bs-banner bad mb-3"><i class="fa-solid fa-circle-exclamation"></i> <span>You've overbudgeted your goals.</span> <span>Your goals ask ${money(t.overBy)} more than what's left in your budget.</span></div>` : '')
-                    + (ret.length ? row('retirement', 'Retirement', `${ret.length} goal${ret.length === 1 ? '' : 's'}${ret[0].attention ? ` · <span class="text-red-600">${esc(I18n.t('Needs attention'))}</span>` : ''}`, ret[0].monthly, 'retire')
+                    + (ret.length ? row('retirement', 'Retirement', `<span>${ret.length} goal${ret.length === 1 ? '' : 's'}</span>${ret[0].attention ? ` · <span class="text-red-600">${esc(I18n.t('Needs attention'))}</span>` : ''}`, ret[0].monthly, 'retire')
                         : '<div class="gm-row"><span class="gm-bullet is-retirement"></span><span class="flex-1 font-semibold">Retirement</span><button type="button" class="btn btn-secondary btn-sm" data-action="gm.view" data-view="retire">Add a retirement goal</button></div>')
-                    + row('savings', 'Savings', `${sav.length} goal${sav.length === 1 ? '' : 's'}${sav.some(x => x.attention) ? `, <span class="text-red-600">${sav.filter(x => x.attention).length} ${esc(I18n.t('need attention'))}</span>` : ''}`, sum(sav, x => x.monthly), 'savings')
-                    + row('debt', 'Debt payoff', `${debts.length} goal${debts.length === 1 ? '' : 's'}`, sum(debts, x => x.extra), 'debtPlan')
+                    + row('savings', 'Savings', `<span>${sav.length} goal${sav.length === 1 ? '' : 's'}</span>${sav.some(x => x.attention) ? ` · <span class="text-red-600">${sav.filter(x => x.attention).length} ${esc(I18n.t('need attention'))}</span>` : ''}`, sum(sav, x => x.monthly), 'savings')
+                    + row('debt', 'Debt payoff', `<span>${debts.length} goal${debts.length === 1 ? '' : 's'}</span>`, sum(debts, x => x.extra), 'debtPlan')
                     + `<div class="text-right font-bold mt-3">Total monthly contribution: ${money0(t.total)}</div>`;
                 return;
             }

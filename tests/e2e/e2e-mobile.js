@@ -206,7 +206,8 @@ const Vault_ok = (d) => { try { const o = JSON.parse(d); return o.cipher === 'AE
         { name: 'App', methods: m(['exitApp']).concat([{ name: 'addListener', rtype: 'callback' }]) },
         { name: 'DeviceKey', methods: m(['getKey', 'setSecret', 'getSecret', 'clearSecret', 'clearAll', 'takeAction', 'canVerify', 'verify']) },
         { name: 'LocalNotifications', methods: m(['requestPermissions', 'getPending', 'schedule', 'cancel']) },
-        { name: 'Camera', methods: m(['getPhoto']) }
+        { name: 'Camera', methods: m(['getPhoto']) },
+        { name: 'Widgets', methods: m(['update', 'clear']) }
       ],
       nativePromise(plugin, method, opts) {
         window.__calls.push([plugin, method, opts]);
@@ -259,6 +260,36 @@ const Vault_ok = (d) => { try { const o = JSON.parse(d); return o.cipher === 'AE
   await p3.click('[data-action="cam.photo"][data-for="imp-photo"]');
   await p3.waitForFunction(() => /TOTAL|total|Fill in|read/i.test(document.getElementById('imp-photo-status').textContent), null, { timeout: 60000 }).catch(() => {});
   ok(await p3.evaluate(() => window.__calls.some(c => c[0] === 'Camera') && document.getElementById('imp-photo-status').textContent.length > 10), 'the camera button reads the photo like a picked one');
+  // Your own reminders: your words, every Monday at 7:30, repeating on the phone.
+  await p3.evaluate(() => { App.go('config'); document.querySelectorAll('[data-tab=config] details').forEach(d => { d.open = true; }); });
+  await p3.waitForTimeout(300);
+  await p3.click('[data-action="myrem.add"]');
+  await p3.waitForTimeout(300);
+  await p3.fill('#cfg-my-reminders [data-f="text"]', 'Keep saving for the beach!');
+  await p3.dispatchEvent('#cfg-my-reminders [data-f="text"]', 'change');
+  await p3.selectOption('#cfg-my-reminders [data-f="when"]', 'w1');
+  await p3.fill('#cfg-my-reminders [data-f="time"]', '07:30');
+  await p3.dispatchEvent('#cfg-my-reminders [data-f="time"]', 'change');
+  await p3.evaluate(() => Phone.sync());
+  const mineN = await p3.evaluate(() => { const c = window.__calls.filter(x => x[0] === 'LocalNotifications' && x[1] === 'schedule').pop(); return { list: (c && c[2].notifications) || [], saved: Store.state.settings.myReminders }; });
+  const own = mineN.list.find(n => n.body === 'Keep saving for the beach!');
+  ok(own && own.title === 'Your reminder' && own.schedule.on && own.schedule.on.weekday === 2 && own.schedule.on.hour === 7 && own.schedule.on.minute === 30 && mineN.list.some(n => n.schedule.at) && mineN.saved.length === 1,
+    'your own reminder: your words, every Monday at 7:30 (repeating), next to the bill reminders; saved with the plan', { own, n: mineN.list.length });
+  // Home-screen widgets: off until turned on; then percentages and dates only — no amounts, no goal names.
+  ok(!(await p3.evaluate(() => window.__calls.some(c => c[0] === 'Widgets' && c[1] === 'update'))), 'widgets show nothing until turned on');
+  await p3.click('#cfg-widgets');
+  await p3.waitForTimeout(500);
+  const wid = await p3.evaluate(() => { const c = window.__calls.filter(x => x[0] === 'Widgets' && x[1] === 'update').pop(); return c ? { budget: JSON.parse(c[2].budget), goal: JSON.parse(c[2].goal), goals: Store.state.goals.map(g => g.name) } : null; });
+  const wtext = wid ? JSON.stringify([wid.budget, wid.goal]) : '';
+  ok(wid && wid.budget.title && wid.goal.title === 'Keep going!' && wid.goal.pct >= 0 && wid.goal.lines.length >= 2 && !/\$|\d,\d{3}|\d\.\d{2}/.test(wtext) && !wid.goals.some(n => wtext.includes(n)) && (wid.budget.rows || []).every(r => /^\d+%$/.test(r.pct)),
+    'widgets: categories with their % and the closest goal\'s %, date and pace — no amounts, no goal names', wid);
+  await p3.click('#cfg-widgets');
+  await p3.waitForTimeout(400);
+  ok(await p3.evaluate(() => window.__calls.some(c => c[0] === 'Widgets' && c[1] === 'clear')), 'widgets turned off: blanked on the phone');
+  // A widget opens its screen (the goals).
+  await p3.evaluate(() => { window.__action = 'goals'; document.dispatchEvent(new Event('visibilitychange')); });
+  await p3.waitForTimeout(500);
+  ok(await p3.evaluate(() => location.hash === '#futuro/metas'), 'tapping the goal widget opens the goals');
   // Fingerprint unlock: the PIN goes to the phone; after a lock, the fingerprint opens it.
   await p3.evaluate(() => Device.setPin('1357'));
   await p3.evaluate(() => { App.go('config'); document.querySelectorAll('[data-tab=config] details').forEach(d => { d.open = true; }); });

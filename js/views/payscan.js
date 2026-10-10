@@ -36,7 +36,7 @@
         if (d.group === 'employer') return d.kind === 'retirement' ? '<span class="badge badge-ok">Adds to your retirement</span>' : '<span class="badge badge-muted">For information</span>';
         if (d.group === 'loan') {
             const debts = Store.state.debts || [];
-            return `<select class="cell-input text-xs" data-change="ded.debt" data-id="${d.id}" aria-label="Debt it pays"><option value="">Not linked to a debt</option>${debts.map(x => `<option value="${x.id}" ${Number(d.debtId) === Number(x.id) ? 'selected' : ''}>Paga: ${esc(x.name)}</option>`).join('')}</select>`;
+            return `<select class="cell-input text-xs" data-change="ded.debt" data-id="${d.id}" aria-label="Debt it pays"><option value="">Not linked to a debt</option>${debts.map(x => `<option value="${x.id}" ${Number(d.debtId) === Number(x.id) ? 'selected' : ''}>Pays: ${esc(x.name)}</option>`).join('')}</select>`;
         }
         return '<span class="badge badge-muted">Expense paid through payroll</span>';
     }

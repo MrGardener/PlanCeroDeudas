@@ -1635,7 +1635,7 @@ I18n.add('en', {
 "Borrar": "Erase", "Buscar transacciones": "Search transactions", "Cabe": "Fits", "Cable/TV": "Cable/TV", "Cambiar PIN": "Change PIN",
 "Cambiar nombre": "Rename", "Cambiar tema": "Change theme", "Cambio deshecho": "Change undone", "Cambio rehecho": "Change redone", "Cantidad": "Quantity",
 "Capital (": "Principal (", "Cargar copia": "Load backup", "Casa Principal": "Main Home", "Cerrar": "Close", "Cine": "Movies",
-"Claro": "Light", "Cobertura COSEDE (": "Deposit insurance coverage (", "Coma (1.234,50)": "Comma (1.234,50)", "Comisiones": "Commissions", "Comisiones Bancarias": "Bank Fees",
+"Cobertura COSEDE (": "Deposit insurance coverage (", "Coma (1.234,50)": "Comma (1.234,50)", "Comisiones": "Commissions", "Comisiones Bancarias": "Bank Fees",
 "Completado": "Completed", "Compra": "Purchase", "Compuesto (mensual, trimestral, semestral, anual):": "Compound (monthly, quarterly, semiannual, annual):", "Conciertos/Eventos": "Concerts/Events", "Configurar": "Set up",
 "Continuar": "Continue", "Cooperativa": "Bank", "Cooperativas": "Banks", "Copiar": "Copy", "Copiar a": "Copy to",
 "Costa e Insular (Marzo)": "Coast & Islands (March)", "Crear": "Create", "Crear baseline": "Create baseline", "Cripto": "Crypto", "Cuidado Personal": "Personal Care",

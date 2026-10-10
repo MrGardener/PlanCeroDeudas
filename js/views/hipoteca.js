@@ -27,7 +27,7 @@
         // US: what you really pay each month (PITI).
         if (ctx.budgetYear.country === 'US') {
             const p = Engine.pitiMonthly(Object.assign({ payment: base.firstPayment, schedule: (extra || base).schedule }, m));
-            const pmiEnd = p.pmi && p.pmiMonths !== null ? ` (por ${Fmt.monthsAsYears(p.pmiMonths)}, ${money0(p.pmiTotal)} en total)` : '';
+            const pmiEnd = p.pmi && p.pmiMonths !== null ? ` (for ${Fmt.monthsAsYears(p.pmiMonths)}, ${money0(p.pmiTotal)} in all)` : '';
             tiles.unshift(['tone-amber', 'Total monthly payment (PITI)', `${money(p.total)}<span class="kpi-note block">Principal & interest ${money(p.pi)} · tax ${money(p.tax)} · insurance ${money(p.ins)}${p.pmi ? ` · PMI ${money(p.pmi)}${pmiEnd}` : ''}${p.hoa ? ` · HOA ${money(p.hoa)}` : ''}</span>`]);
         }
         let html = tiles.map(([tone, label, value]) => `<div class="kpi ${tone}"><span class="kpi-label">${label}</span><span class="kpi-value">${value}</span></div>`).join('');

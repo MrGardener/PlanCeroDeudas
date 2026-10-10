@@ -1,6 +1,7 @@
 /* Ecuador edition: its own wording where it differs from the US (DPF, IESS, cooperativas, rol de
    pagos…), in English and in Spanish. Checked before the main dictionaries. */
 I18n.override('EC', 'en', {
+    "Bonus pay": "13th / 14th-month bonus",
     "3–6 months of essential expenses for job loss or emergencies your insurance doesn't cover.": "3–6 months of essential expenses for job loss or emergencies that IESS doesn't cover.",
     "Add your accounts (checking, savings, cash, 401(k)…) to see your money at a glance.": "Add your accounts (savings, checking, cash…) to see your available money at a glance.",
     "Add your CDs and accounts so your savings are real.": "Add your CDs so your savings balance is real.",
@@ -35,6 +36,7 @@ I18n.override('EC', 'en', {
     "Your Social Security": "Your pension"
 });
 I18n.override('EC', 'es', {
+    "Bonus pay": "Décimo / bono",
     "3–6 months of essential expenses for job loss or emergencies your insurance doesn't cover.": "3–6 meses de gastos esenciales para desempleo o imprevistos que el IESS no cubre.",
     "Add CD": "Registrar Póliza",
     "Add your accounts (checking, savings, cash, 401(k)…) to see your money at a glance.": "Agrega tus cuentas (Pichincha ahorros, Produbanco corriente, efectivo…) para ver tu dinero disponible de un vistazo.",
