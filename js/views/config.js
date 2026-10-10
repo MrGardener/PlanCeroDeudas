@@ -112,6 +112,7 @@
             if (!got) return;
             if (!await Device.setPin(got.pin, got.kind)) { UI.toast('Couldn\'t save the PIN in this browser.', 'error'); return; }
             renderDevice();
+            UI.show('protect-banner', false);
             UI.toast('PIN saved. The app will ask for it when it opens. If you forget it, you\'ll have to erase the data and load your backup.');
         },
         'device.removePin': async () => {
@@ -124,6 +125,7 @@
             UI.toast('PIN lock turned off.');
         },
         'device.lockNow': () => Device.lockNow(),
+        'device.protectLater': () => { Device.protectLater(); UI.show('protect-banner', false); UI.toast('We\'ll remind you in a week. Or any time: Settings → This device → PIN lock.'); },
         'device.copyQuick': async () => {
             const el = document.getElementById('cfg-quick-link');
             try { await navigator.clipboard.writeText(el.value); UI.toast('Link copied.'); }

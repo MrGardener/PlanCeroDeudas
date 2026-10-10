@@ -679,6 +679,9 @@ html[data-theme="dark"] .start-choice { background: var(--surface); }
 /* While the example family is loaded. */
 .sample-banner { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-top: 1rem; padding: .6rem .9rem; border-radius: .8rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: .82rem; }
 .sample-banner .btn { margin-left: auto; }
+.protect-banner { background: #fffbeb; border-color: #fcd34d; color: #78350f; }
+.protect-banner .btn { margin-left: 0; }
+html[data-theme="dark"] .protect-banner { background: rgba(245, 158, 11, .12); border-color: rgba(245, 158, 11, .4); color: #fde68a; }
 html[data-theme="dark"] .sample-banner { background: rgba(59, 130, 246, .12); border-color: rgba(59, 130, 246, .35); color: #bfdbfe; }
 
 /* Budget: "Por asignar" stays in sight while scrolling the lines. */

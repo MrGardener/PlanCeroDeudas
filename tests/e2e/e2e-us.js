@@ -1493,8 +1493,23 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.waitForTimeout(200);
   const payToast = await page.evaluate(() => [...document.querySelectorAll('.toast')].map(t => t.textContent).join('|'));
   ok(/Saved: On the 15th and 30th, every month/.test(payToast) && /On the 15th and 30th/.test(await page.textContent('#pay-summary')), 'pay schedule saved message and summary in English', payToast);
+  // Your own plan without a PIN: a notice asks to protect it (not for the example family); "Later"
+  // waits a week; with a PIN it's gone.
+  await page.evaluate(() => { const d = Device.read(); delete d.protectLater; localStorage.setItem(Device.KEY, JSON.stringify(d)); Store.reset('example'); App.changed({ structural: true }); });
+  await page.waitForTimeout(150);
+  const pEx = await page.isVisible('#protect-banner');
+  await page.evaluate(() => { Store.reset('empty'); App.changed({ structural: true }); });
+  await page.waitForTimeout(150);
+  const pOwn = await page.isVisible('#protect-banner');
+  await page.click('#protect-banner [data-action="device.protectLater"]');
+  await page.waitForTimeout(150);
+  const pLater = await page.evaluate(() => ({ shown: !document.getElementById('protect-banner').classList.contains('hidden'), until: Device.read().protectLater, inBackup: /protectLater/.test(Store.serialize()) }));
+  ok(!pEx && pOwn && !pLater.shown && pLater.until > Date.now() + 6 * 86400000 && !pLater.inBackup, 'protect notice: shown for your own unencrypted plan, not the example; "Later" waits a week (a device setting, not in backups)', { pEx, pOwn, pLater });
+  await page.evaluate(() => { const d = Device.read(); delete d.protectLater; localStorage.setItem(Device.KEY, JSON.stringify(d)); App.changed({ structural: true }); });
   // PIN lock screen in English.
   await page.evaluate(() => Device.setPin('1234'));
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => { App.changed({ structural: true }); return document.getElementById('protect-banner').classList.contains('hidden'); }), 'protect notice: gone once a PIN is set');
   await lockAndWait(page, () => { Device.lockNow(); });
   const lockTxt = await page.textContent('#lock-screen');
   await page.fill('#lock-pin', '9999');

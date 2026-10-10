@@ -42,10 +42,27 @@ jobs:
       - run: npm ci
       - run: node build-www.js
       - run: npx cap sync android
-      - name: Build the test APK
+      # Signed with your own key when the secrets are set (docs/MOBILE.md); otherwise with the test
+      # key in the repository, and the run says so.
+      - name: Your signing key (if set)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            { echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks"; echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"; echo "ANDROID_KEY_ALIAS=$KEY_ALIAS"; echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD"; } >> "$GITHUB_ENV"
+            echo "Signed with your own key." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::Signed with the public test key: set your own (docs/MOBILE.md) before relying on this app."
+            echo "Signed with the public test key — set your own key (docs/MOBILE.md)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Build the APK (a release build, not debuggable)
         working-directory: mobile/android
-        run: ./gradlew assembleDebug --no-daemon
-      - run: cp android/app/build/outputs/apk/debug/app-debug.apk ZeroDebtPlan-${{ github.run_number }}.apk
+        run: ./gradlew assembleRelease --no-daemon
+      - run: cp android/app/build/outputs/apk/release/app-release.apk ZeroDebtPlan-${{ github.run_number }}.apk
       - uses: actions/upload-artifact@v4
         with:
           name: ZeroDebtPlan-android-${{ github.run_number }}

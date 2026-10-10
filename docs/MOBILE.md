@@ -26,15 +26,33 @@ js/native.js            the bridge: share sheet for files, back button, native c
 | Where the data lives | this browser | the app's storage, **plus a second copy** in native storage that is put back automatically if the system clears the web view |
 | Cloud backup by Android | — | **off** (`allowBackup="false"`): the data never leaves the phone unless you share a backup |
 | Print buttons, bookmark link | shown | hidden (they don't apply) |
-| Reading a PDF/photo of a pay stub or receipt | downloads pdf.js / Tesseract | same: needs internet the first time |
+| Reading a PDF/photo of a pay stub or receipt | downloads pdf.js / Tesseract (exact versions, checked by hash) | inside the app (English and Spanish): never needs internet |
 
 ## Getting the test app onto the Pixel 10 Pro (no computer setup needed)
 
 1. Every push to the branch runs **Actions → Phone app** on GitHub.
 2. Open the finished run → **Artifacts** → download `ZeroDebtPlan-android-N` (a zip with the APK).
 3. On the Pixel: open the APK (Files app) → allow "Install unknown apps" for Files/Chrome once → Install.
-4. Newer builds install over the old one and **keep your data** (they're signed with the same
-   test key, `mobile/android/app/debug.keystore`, and numbered by the run).
+4. Newer builds install over the old one and **keep your data** (signed with the same key and
+   numbered by the run). The APK is a release build: not debuggable, so `adb run-as` can't read
+   the app's files.
+
+### Your own signing key (do this once — it protects your data)
+
+Until you set it, builds are signed with the test key in this public repository
+(`mobile/android/app/debug.keystore`): anyone can sign an APK with it that Android would accept as
+an update of the app — and an update gets the app's data. The run summary says which key was used.
+
+1. On any computer with Java: `keytool -genkeypair -v -keystore zerodebtplan.jks -keyalg RSA -keysize 4096 -validity 10000 -alias zerodebtplan`
+   (pick strong passwords; keep the `.jks` file and the passwords somewhere safe, offline — losing
+   them means you can't update the app, only reinstall it).
+2. `base64 -w0 zerodebtplan.jks` (macOS: `base64 -i zerodebtplan.jks`) and copy the text.
+3. GitHub → the repository → Settings → Secrets and variables → Actions → New repository secret:
+   `ANDROID_KEYSTORE_B64` (that text), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`
+   (`zerodebtplan`), `ANDROID_KEY_PASSWORD`.
+4. The next build is signed with your key. **Once**, because the key changes: make an encrypted
+   backup in the app (Settings → Your data), uninstall the old app, install the new one, load the
+   backup. From then on updates install over each other again.
 
 Building on your own computer instead: install Android Studio, then
 `cd mobile && npm ci && npm run sync && npx cap open android` → Run on the phone with USB debugging.

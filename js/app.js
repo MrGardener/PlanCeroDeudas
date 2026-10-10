@@ -234,6 +234,8 @@
     function render() {
         renderGlobals();
         UI.show('sample-banner', !!Store.state.settings.sample);
+        // Your own plan, not yet encrypted: ask for a passcode (the example family isn't yours).
+        UI.show('protect-banner', !Store.state.settings.sample && window.Device && Device.protectDue());
         const key = currentKey();
         const section = document.querySelector(`[data-tab="${Store.ui.tab}"]`);
         fillBindings(section);

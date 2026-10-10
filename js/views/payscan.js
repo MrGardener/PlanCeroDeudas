@@ -84,40 +84,9 @@
     }
 
     // ------------------------------------------------------------------ reading a stub
-    function loadScript(src, test) {
-        if (test()) return Promise.resolve();
-        return new Promise((resolve, reject) => {
-            const sc = document.createElement('script');
-            sc.src = src; sc.onload = () => (test() ? resolve() : reject(new Error('no lib'))); sc.onerror = () => reject(new Error('offline'));
-            document.head.appendChild(sc);
-        });
-    }
-    const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
-    async function pdfText(file) {
-        await loadScript(PDFJS + 'pdf.min.js', () => !!window.pdfjsLib);
-        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-            // A worker from another site can't start from a local file: load it as a blob.
-            const code = await (await fetch(PDFJS + 'pdf.worker.min.js')).text();
-            pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
-        }
-        const doc = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
-        const lines = [];
-        for (let n = 1; n <= Math.min(doc.numPages, 4); n++) {
-            const content = await (await doc.getPage(n)).getTextContent();
-            // Rebuild lines: items on the same baseline, left to right.
-            const rows = {};
-            content.items.forEach(it => { const y = Math.round(it.transform[5] / 3); (rows[y] = rows[y] || []).push(it); });
-            Object.keys(rows).map(Number).sort((a, b) => b - a).forEach(y => lines.push(rows[y].sort((a, b) => a.transform[4] - b.transform[4]).map(i => i.str).join('  ')));
-        }
-        return lines.join('\n');
-    }
-    async function photoText(file, status) {
-        await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', () => !!window.Tesseract);
-        const worker = await Tesseract.createWorker(['spa', 'eng'], 1, { logger: m => { if (m.status === 'recognizing text') status(`<i class="fa-solid fa-spinner fa-spin"></i> Reading the photo… ${Math.round((m.progress || 0) * 100)}%`); } });
-        const { data } = await worker.recognize(file);
-        await worker.terminate();
-        return data.text;
-    }
+    // (js/readers.js: pdf.js and Tesseract, pinned and checked, or carried by the phone app.)
+    const pdfText = (file) => Readers.pdfText(file);
+    const photoText = (file, status) => Readers.photoText(file, p => status(`<i class="fa-solid fa-spinner fa-spin"></i> Reading the photo… ${Math.round(p * 100)}%`));
 
     let draft = null, sheet = null;
 

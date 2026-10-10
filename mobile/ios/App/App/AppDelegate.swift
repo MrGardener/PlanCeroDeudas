@@ -7,8 +7,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        keepDataOnThisPhone()
         return true
+    }
+
+    // The plan stays on this iPhone: out of iCloud and computer backups (move it with an encrypted
+    // backup file instead), and its files unreadable while the phone is locked (unless already open).
+    private func keepDataOnThisPhone() {
+        let fm = FileManager.default
+        var dirs: [URL] = []
+        if let lib = fm.urls(for: .libraryDirectory, in: .userDomainMask).first {
+            dirs += ["Preferences", "WebKit", "Caches", "Application Support"].map { lib.appendingPathComponent($0, isDirectory: true) }
+        }
+        if let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first { dirs.append(docs) }
+        for var dir in dirs {
+            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try? dir.setResourceValues(values)
+            try? fm.setAttributes([.protectionKey: FileProtectionType.completeUnlessOpen], ofItemAtPath: dir.path)
+        }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
