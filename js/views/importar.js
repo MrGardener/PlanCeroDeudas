@@ -86,7 +86,7 @@
     }
     function lineItems() { return Engine.monthItems(Store.effective(Store.state.activeYear), 'base').filter(i => i.type !== 'Ingreso'); }
     function bulkLabel(d) {
-        return [d.description ? `«${d.description}»` : '', d.category ? d.category + (d.sub ? ` › ${d.sub}` : '') : '', d.budgetLine ? `line ${lineName(d.budgetLine)}` : ''].filter(Boolean).join(', ');
+        return [d.description ? `«${d.description}»` : '', d.category ? Views.catPath(d.category, d.sub) : '', d.budgetLine ? `line ${lineName(d.budgetLine)}` : ''].filter(Boolean).join(', ');
     }
     function detectedDecimal(s) {
         const m = s.mapping, cols = [m.amount, m.debit, m.credit, m.balance].filter(c => c !== undefined && c >= 0);
@@ -369,7 +369,7 @@
     function renderSuggest() {
         const s = session, list = s.suggest || [];
         if (!list.length) { UI.html('imp-suggest', ''); return; }
-        const label = (g) => g.type === 'Transferencia' ? 'Transfer between accounts' : `${g.category}${g.sub ? ' › ' + g.sub : ''}`;
+        const label = (g) => g.type === 'Transferencia' ? 'Transfer between accounts' : Views.catPath(g.category, g.sub);
         const on = list.filter(g => g.on).length;
         const was = document.querySelector('#imp-suggest details');
         UI.html('imp-suggest', `<details class="panel tone-slate" ${was && was.open ? 'open' : ''}>

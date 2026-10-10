@@ -2,6 +2,8 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "Filters": "Filtros",
+    "Use my own data": "Usar mis datos",
     "Protect it": "Protegerlo",
     "Set a passcode and it's encrypted: only you can open it, and other pages or apps on this device can't read it.": "Pon una clave y queda cifrado: solo tú puedes abrirlo, y otras páginas o apps de este dispositivo no pueden leerlo.",
     "We'll remind you in a week. Or any time: Settings → This device → PIN lock.": "Te lo recordamos en una semana. O cuando quieras: Configuración → Este dispositivo → Bloqueo con PIN.",

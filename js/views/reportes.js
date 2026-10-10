@@ -88,6 +88,7 @@
     const label = (o, key) => {
         if (o.by === 'month') { const [y, m] = key.split('-'); return `${Fmt.MONTH_NAMES[Number(m) - 1]} ${y}`; }
         if (o.by === 'week') { const d = new Date(key + 'T00:00:00'); return `Week of ${Fmt.MONTH_SHORT[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}`; }
+        if (o.by === 'sub') return Views.catPath(...key.split(' › '));
         return key;
     };
 

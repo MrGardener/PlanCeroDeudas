@@ -374,11 +374,14 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
     { id: 3, type: 'Gasto', description: 'From the bank', parentCategory: 'Alimentación', category: 'Restaurantes', amount: 12, date: d, source: 'csv', importRef: 'r2' }];
     App.changed({ structural: true }); App.go('transacciones/lista'); });
   await page.waitForTimeout(250);
+  // On a phone the origin filter waits behind "Filters".
+  if (await page.isVisible('.txn-more-btn') && !(await page.evaluate(() => document.getElementById('txn-filters').classList.contains('open')))) await page.click('.txn-more-btn');
   await page.selectOption('#txn-f-origin', 'unreconciled');
   await page.waitForTimeout(200);
   const rec = await page.evaluate(() => ({ list: document.getElementById('txn-body').textContent }));
   ok(/Typed coffee/.test(rec.list) && !/Typed and matched/.test(rec.list) && !/From the bank/.test(rec.list) && /Typed/.test(rec.list), 'filter: typed transactions no statement has confirmed yet', rec.list.slice(0, 200));
   await page.selectOption('#txn-f-origin', 'all');
+  if (await page.isVisible('.txn-more-btn')) await page.click('.txn-more-btn');
   await page.waitForTimeout(200);
   const all = await page.evaluate(() => document.getElementById('txn-body').textContent);
   ok(/confirmed by a statement/.test(all) && /Imported/.test(all), 'each transaction says where it came from', all.slice(0, 300));
@@ -1493,6 +1496,51 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.waitForTimeout(200);
   const payToast = await page.evaluate(() => [...document.querySelectorAll('.toast')].map(t => t.textContent).join('|'));
   ok(/Saved: On the 15th and 30th, every month/.test(payToast) && /On the 15th and 30th/.test(await page.textContent('#pay-summary')), 'pay schedule saved message and summary in English', payToast);
+  // On a phone: the app's name and every tab label in full; the screen starts under the tabs with a
+  // one-row example notice; the history's category line in English; the less used filters behind
+  // "Filters" (with how many are on); the + button steps aside scrolling down, back scrolling up;
+  // Settings starts with the PIN lock.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
+  for (const w of [360, 390]) {
+    await page.setViewportSize({ width: w, height: 800 });
+    await page.evaluate(() => App.go('transacciones/lista'));
+    await page.waitForTimeout(300);
+    const ph = await page.evaluate(() => {
+      const cut = (e) => e.scrollWidth > e.clientWidth + 1;
+      const nav = document.getElementById('main-nav').getBoundingClientRect(), ban = document.querySelector('#sample-banner .sample-banner').getBoundingClientRect();
+      return { title: cut(document.getElementById('brand-title')), tabs: [...document.querySelectorAll('.nav-tab span:last-child')].filter(cut).map(s => s.textContent),
+        gap: Math.round(ban.top - nav.bottom), banner: Math.round(ban.height), more: [...document.querySelectorAll('#txn-filters .txn-more')].some(e => e.offsetParent !== null),
+        search: !!document.getElementById('txn-search').offsetParent, btn: !!document.querySelector('.txn-more-btn').offsetParent };
+    });
+    ok(!ph.title && !ph.tabs.length && ph.gap <= 20 && ph.banner <= 72 && !ph.more && ph.search && ph.btn, `phone ${w}: name and tabs in full, the screen starts under the tabs, compact example notice, filters behind "Filters"`, ph);
+  }
+  const metas = await page.evaluate(() => [...document.querySelectorAll('#txn-body .txn-meta')].map(e => e.textContent).join(' | '));
+  const remit = await page.evaluate(() => Store.state.transactions.some(t => t.parentCategory === 'Remesas y Ayuda Familiar'));
+  ok(!/Remesas|Alimentación|Vivienda|Transporte|Ayuda Económica/.test(metas) && (!remit || /Remittances/.test(metas)), 'history: category › subcategory shown in English', metas.slice(0, 300));
+  await page.click('[data-action="txn.moreFilters"]');
+  await page.selectOption('#txn-f-origin', 'typed');
+  await page.waitForTimeout(150);
+  const fo = await page.evaluate(() => ({ open: document.getElementById('txn-filters').classList.contains('open'), shown: !!document.getElementById('txn-f-category').offsetParent, count: document.getElementById('txn-more-count').textContent, expanded: document.querySelector('.txn-more-btn').getAttribute('aria-expanded') }));
+  ok(fo.open && fo.shown && fo.count === '1' && fo.expanded === 'true', '"Filters" opens the rest and counts the ones on', fo);
+  await page.selectOption('#txn-f-origin', 'all');
+  await page.click('[data-action="txn.moreFilters"]');
+  await page.mouse.wheel(0, 900);
+  await page.waitForTimeout(400);
+  const fabDown = await page.evaluate(() => getComputedStyle(document.querySelector('.fab')).pointerEvents === 'none' && document.documentElement.classList.contains('fab-away'));
+  await page.mouse.wheel(0, -200);
+  await page.waitForTimeout(400);
+  const fabUp = await page.evaluate(() => !document.documentElement.classList.contains('fab-away'));
+  await page.mouse.wheel(0, 900);
+  await page.waitForTimeout(300);
+  await page.evaluate(() => App.go('config'));
+  await page.waitForTimeout(200);
+  const fabNew = await page.evaluate(() => !document.documentElement.classList.contains('fab-away'));
+  ok(fabDown && fabUp && fabNew, 'the + button steps aside scrolling down, comes back scrolling up and on a new screen', { fabDown, fabUp, fabNew });
+  const firstCfg = await page.evaluate(() => { const p = document.querySelector('#cfg-data .panel'); return p && p.id + ' ' + !!p.querySelector('#cfg-lock'); });
+  ok(firstCfg === 'cfg-device true', 'Settings: the PIN lock comes first', firstCfg);
+  await page.setViewportSize({ width: 1366, height: 900 });
+  const desk = await page.evaluate(() => { App.go('transacciones/lista'); return { more: [...document.querySelectorAll('#txn-filters .txn-more')].filter(e => !e.classList.contains('hidden')).every(e => e.offsetParent !== null), btn: !!document.querySelector('.txn-more-btn').offsetParent }; });
+  ok(desk.more && !desk.btn, 'computer: every filter in sight, no "Filters" button', desk);
   // Your own plan without a PIN: a notice asks to protect it (not for the example family); "Later"
   // waits a week; with a PIN it's gone.
   await page.evaluate(() => { const d = Device.read(); delete d.protectLater; localStorage.setItem(Device.KEY, JSON.stringify(d)); Store.reset('example'); App.changed({ structural: true }); });

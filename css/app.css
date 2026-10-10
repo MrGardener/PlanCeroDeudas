@@ -65,6 +65,8 @@ table { overflow-wrap: normal; }
 
 /* ---------------------------------------------------------------------- fields */
 .field { display: block; }
+/* A checkbox field: the box beside its label, not above it. */
+.field.flex-row { display: flex; }
 .field-box { padding: .85rem; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--field-bg); }
 .field-label { display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-size: var(--fs-2xs); font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-2); margin-bottom: .3rem; }
 .input { width: 100%; background: var(--input-bg); border: 1px solid var(--line-strong); border-radius: var(--r-md); padding: .45rem .65rem; font-size: .9rem; font-weight: 700; color: var(--ink); transition: border-color var(--dur), box-shadow var(--dur); }
@@ -289,6 +291,17 @@ input[type="file"].hidden { display: none; }
 /* ---------------------------------------------------------------- transactions list */
 .txn-search { display: flex; align-items: center; gap: .4rem; border: 1px solid #cbd5e1; border-radius: .6rem; padding: 0 .6rem; background: #fff; color: #94a3b8; min-width: 14rem; flex: 1 1 14rem; }
 .txn-search input { border: 0; outline: none; padding: .4rem 0; font-size: .8rem; width: 100%; color: #0f172a; background: transparent; }
+/* Phones: the search on its own row; the less used filters wait behind "Filters" (a dot with
+   how many are on). */
+.txn-more-btn { display: none; }
+.txn-more-count { display: inline-grid; place-items: center; min-width: 1.15rem; height: 1.15rem; padding: 0 .25rem; border-radius: 999px; background: var(--brand); color: #fff; font-size: .65rem; font-weight: 800; }
+.txn-more-count.hidden { display: none; }
+@media (max-width: 639px) {
+    .txn-filters .txn-search { flex-basis: 100%; min-width: 0; }
+    .txn-more-btn { display: inline-flex; align-items: center; gap: .35rem; }
+    .txn-filters:not(.open) .txn-more { display: none !important; }
+    .txn-filters .txn-range-step { padding: 0 .45rem; }
+}
 .txn-search:focus-within { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, .15); }
 .txn-list { max-height: 44rem; overflow-y: auto; }
 .txn-month { position: sticky; top: 0; z-index: 1; background: #f8fafc; font-size: .75rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: .05em; padding: .45rem .6rem; border-radius: .5rem; margin-top: .4rem; }
@@ -405,6 +418,10 @@ body:has(section:not(.hidden) > [data-view]:not(.hidden) #txn-bulk:not(.hidden))
 /* ---------------------------------------------------------------- quick entry */
 .fab { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 40; width: 3.5rem; height: 3.5rem; border-radius: 999px; background: var(--brand); color: #fff; font-size: 1.35rem; box-shadow: 0 8px 20px rgba(5, 150, 105, .35); display: grid; place-items: center; transition: transform var(--dur) var(--ease); }
 .fab:hover { transform: scale(1.06); background: var(--brand-dark); }
+/* Scrolling down a list, the + button steps aside (it would cover the amounts at the right edge);
+   scrolling up brings it back (js/app.js). */
+.fab { transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease); }
+html.fab-away .fab { transform: translateY(calc(100% + 1.5rem)); opacity: 0; pointer-events: none; }
 .quick-amount { display: flex; align-items: baseline; justify-content: center; gap: .35rem; padding: .6rem; border-radius: 1rem; background: #eff6ff; color: #1d4ed8; }
 .quick-amount.inc { background: #ecfdf5; color: #047857; }
 .quick-amount .cur { font-size: 1.6rem; font-weight: 800; }
@@ -627,7 +644,7 @@ html.is-native [data-web-only], html:not(.is-native) [data-app-only] { display: 
 @media (max-width: 767px) {
     html.is-native body { padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); }
     html.is-native .main-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; max-width: none; margin: 0; padding: .2rem .25rem calc(.2rem + env(safe-area-inset-bottom, 0px)); gap: 0; background: #0f172a; box-shadow: 0 -2px 10px rgba(15, 23, 42, .3); }
-    html.is-native .nav-tab { flex: 1 1 0; min-width: 0; flex-direction: column; justify-content: center; gap: .2rem; padding: .4rem .25rem; font-size: var(--fs-2xs); border-bottom: 0; border-top: 3px solid transparent; border-radius: 0 0 .5rem .5rem; white-space: normal; text-align: center; line-height: 1.1; }
+    html.is-native .nav-tab { flex: 1 1 auto; min-width: 0; flex-direction: column; justify-content: center; gap: .2rem; padding: .4rem .25rem; font-size: var(--fs-2xs); border-bottom: 0; border-top: 3px solid transparent; border-radius: 0 0 .5rem .5rem; white-space: normal; text-align: center; line-height: 1.1; }
     html.is-native .nav-tab i { font-size: 1.1rem; }
     html.is-native .nav-tab.active { border-top-color: #10b981; }
     html.is-native .nav-tab .nav-num { display: none; }
@@ -666,6 +683,14 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
     .nav-tab span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     .year-picker > i { display: none; }
     .year-picker { padding-left: .35rem; padding-right: .35rem; }
+    /* Tabs as wide as their label ("Transactions" is longer than "Future"), so none is cut. */
+    .nav-tab { flex: 1 1 auto; }
+    /* The app's name in full: the logo goes (as in the phone app), the buttons sit closer, the
+       year is just its menu, and a long name takes two lines. */
+    .brand-logo { display: none; }
+    .header-actions { gap: .3rem; }
+    .year-picker { background: none; border: 0; padding: 0; }
+    .brand-title { font-size: .95rem; line-height: 1.15; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 }
 #cfg-gear.active { color: #34d399; }
 
@@ -677,12 +702,20 @@ html[data-theme="dark"] .step.current { border-color: #3b82f6; box-shadow: 0 0 0
 .start-choice span { font-size: .78rem; color: var(--muted); }
 html[data-theme="dark"] .start-choice { background: var(--surface); }
 /* While the example family is loaded. */
-.sample-banner { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-top: 1rem; padding: .6rem .9rem; border-radius: .8rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: .82rem; }
+.sample-banner { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-bottom: 1.25rem; padding: .6rem .9rem; border-radius: .8rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: .82rem; }
 .sample-banner .btn { margin-left: auto; }
 .protect-banner { background: #fffbeb; border-color: #fcd34d; color: #78350f; }
 .protect-banner .btn { margin-left: 0; }
 html[data-theme="dark"] .protect-banner { background: rgba(245, 158, 11, .12); border-color: rgba(245, 158, 11, .4); color: #fde68a; }
 html[data-theme="dark"] .sample-banner { background: rgba(59, 130, 246, .12); border-color: rgba(59, 130, 246, .35); color: #bfdbfe; }
+/* Phones: the screen starts right under the tabs, and the example notice is one compact row. */
+@media (max-width: 639px) {
+    main.wrap { padding-top: 1rem; }
+    .sample-banner { gap: .5rem; padding: .45rem .6rem; font-size: .76rem; line-height: 1.3; margin-bottom: 1rem; }
+    .sample-banner:not(.protect-banner) { flex-wrap: nowrap; }
+    .sample-banner > span { flex: 1 1 auto; min-width: 0; }
+    .sample-banner:not(.protect-banner) .btn { flex-shrink: 0; white-space: nowrap; }
+}
 
 /* Budget: "Por asignar" stays in sight while scrolling the lines. */
 .bud-sticky { position: fixed; left: 50%; z-index: 35; transform: translate(-50%, -140%); opacity: 0; pointer-events: none; transition: transform .2s ease, opacity .2s ease; margin-top: .5rem; padding: .4rem .9rem; border-radius: 999px; font-size: .8rem; font-weight: 700; display: flex; gap: .4rem; align-items: center; box-shadow: 0 6px 18px rgba(15, 23, 42, .18); white-space: nowrap; }
