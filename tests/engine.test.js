@@ -2055,3 +2055,68 @@ test('deductionLimits: 401(k) deferrals with the catch-up, 415(c) with after-tax
     const over = E.deductionLimits(Object.assign({}, e, { payDeductions: [{ type: 'dcfsa', monthly: 700 }, { type: 'hsa', monthly: 800 }] }), t);
     assert.deepEqual(over.map(x => [x.key, x.amount, x.limit]), [['hsa', 9600, 8750], ['dcfsa', 8400, 7500]]);
 });
+
+test('US filing statuses: married filing separately, qualifying surviving spouse; older tables still work', () => {
+    const U = require('../js/defaults-us.js');
+    const t = U.usTax2026();
+    // A surviving spouse: the joint brackets and standard deduction, one person.
+    assert.equal(E.usFederalTax({ income: 100000, status: 'qss', t }).tax, E.usFederalTax({ income: 100000, status: 'mfj', t }).tax);
+    // Separately: single's standard deduction; half the joint brackets (the 35% band ends at half of joint's 37% start).
+    const mfs = E.usFederalTax({ income: 500000, status: 'mfs', t }), single = E.usFederalTax({ income: 500000, status: 'single', t });
+    assert.equal(mfs.std, 16100);
+    assert.ok(mfs.tax > single.tax);
+    assert.equal(E.forStatus(t.brackets, 'mfs', 'brackets')[6][0], 384350);
+    // A table saved before these statuses: derived from the joint and single figures.
+    const old = Object.assign({}, t, { brackets: { single: t.brackets.single, mfj: t.brackets.mfj, hoh: t.brackets.hoh }, stdDeduction: { single: 16100, mfj: 32200, hoh: 24150 } });
+    assert.equal(E.usFederalTax({ income: 500000, status: 'mfs', t: old }).tax, mfs.tax);
+    assert.equal(E.usFederalTax({ income: 90000, status: 'qss', t: old }).tax, E.usFederalTax({ income: 90000, status: 'qss', t }).tax);
+    assert.equal(E.usStatus('nonsense'), 'single');
+    // Married filing separately: no overtime deduction.
+    assert.equal(E.overtimeDeduction(5000, 80000, 'mfs', t), 0);
+});
+
+test('US return extras: 65 or older and blind add to the standard deduction; senior, tips and car loan deductions (2025–2028)', () => {
+    const U = require('../js/defaults-us.js');
+    const t = U.usTax2026();
+    const base = E.usFederalTax({ income: 60000, status: 'single', t });
+    // 65+: $2,050 more standard deduction (single) and the $6,000 senior deduction.
+    const s = E.usFederalTax({ income: 60000, status: 'single', age65: 1, t });
+    assert.equal(s.addlStd, 2050);
+    assert.equal(s.seniorDeduction, 6000);
+    assert.equal(s.taxable, base.taxable - 2050 - 6000);
+    // A couple both 65+ and one blind, filing jointly: 3 × $1,650; $12,000 phased out 6% above $150,000 each.
+    const c = E.usFederalTax({ income: 200000, status: 'mfj', age65: 2, blind: 1, t });
+    assert.equal(c.addlStd, 3 * 1650);
+    assert.equal(c.seniorDeduction, 2 * (6000 - 0.06 * 50000));
+    // Married filing separately: no senior deduction (the extra standard deduction stays).
+    const sep = E.usFederalTax({ income: 60000, status: 'mfs', age65: 1, t });
+    assert.equal(sep.seniorDeduction, 0);
+    assert.equal(sep.addlStd, 1650);
+    // Tips up to $25,000, less 10% of income above $150,000; car loan interest up to $10,000, less 20% above $100,000.
+    assert.equal(E.usFederalTax({ income: 80000, status: 'single', tips: 30000, t }).tipsDeduction, 25000);
+    assert.equal(E.usFederalTax({ income: 200000, status: 'single', tips: 30000, t }).tipsDeduction, 20000);
+    assert.equal(E.usFederalTax({ income: 200000, status: 'mfj', tips: 30000, t }).tipsDeduction, 25000);
+    assert.equal(E.usFederalTax({ income: 80000, status: 'single', carInterest: 3000, t }).carDeduction, 3000);
+    assert.equal(E.usFederalTax({ income: 130000, status: 'single', carInterest: 12000, t }).carDeduction, 4000);
+    assert.equal(E.usFederalTax({ income: 80000, status: 'mfs', tips: 3000, t }).tipsDeduction, 0);
+    // A table without these deductions (another year) gives 0.
+    assert.equal(E.usFederalTax({ income: 60000, status: 'single', age65: 1, tips: 5000, carInterest: 2000, t: Object.assign({}, t, { seniorDeduction: null, tipsDeduction: null, carLoanDeduction: null }) }).taxable, base.taxable - 2050);
+    // The paycheck and the refund estimate use the year's settings.
+    const yd = Object.assign(U.newYear(), { country: 'US', sueldo: 5000, payDeductions: [], filingStatus: 'single', state: 'TX', localName: '', localRate: 0, age65: 1, tipsY: 4000 });
+    const p = E.payrollUS(yd), p0 = E.payrollUS(Object.assign({}, yd, { age65: 0, tipsY: 0 }));
+    assert.equal(p.fedReturn.seniorDeduction, 6000);
+    assert.equal(p.fedReturn.tipsDeduction, 4000);
+    assert.ok(p.isrAnual < p0.isrAnual);
+    const r = E.usRefundEstimate({ yd, wagesIncome: 60000 });
+    assert.equal(r.deductions, r.dedApplied + 6000 + 4000);
+});
+
+test('HSA limit by coverage: self-only or family, $1,000 more from 55', () => {
+    const U = require('../js/defaults-us.js');
+    const t = U.usTax2026();
+    const e = (coverage) => ({ sueldo: 6000, payType: 'salary', paysPerYear: 26, payDeductions: [{ type: 'hsa', monthly: 400, coverage }] });   // $4,800
+    assert.deepEqual(E.deductionLimits(e('self'), t, 40).map(x => [x.key, x.limit]), [['hsa', 4400]]);
+    assert.deepEqual(E.deductionLimits(e('self'), t, 56), []);                 // $4,400 + $1,000
+    assert.deepEqual(E.deductionLimits(e(undefined), t, 40), []);             // family: $8,750
+});
+

@@ -10,9 +10,8 @@
     function deductDefault(ctx) {
         const yd = ctx.year, t = yd.usTax;
         if (ctx.budgetYear.country !== 'US' || !t || !(Number(yd.itemized) > (ctx.pay.stdDeduction || 0))) return 0;
-        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
         const taxable = Number(ctx.pay.baseImponible) || 0;
-        const br = ((t.brackets || {})[status] || []).filter(([from]) => taxable > from).pop();
+        const br = (Engine.forStatus(t.brackets, Engine.usStatus(yd.filingStatus), 'brackets') || []).filter(([from]) => taxable > from).pop();
         return br ? Math.round(br[1] * 100) : 0;
     }
 

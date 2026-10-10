@@ -69,7 +69,10 @@
             const lim = tax.limit401k + (age >= 50 ? tax.catchUp401k : 0);
             const warn = [];
             if (k401 > lim) warn.push(`Your payroll retirement contributions (${money(k401)} a year) are over the ${money(lim)} 401(k) limit.`);
-            if (hsa > tax.limitHSA.family) warn.push(`Your HSA (${money(hsa)} a year) is over the family limit of ${money(tax.limitHSA.family)}.`);
+            // The HSA limit goes with the health plan's coverage ($1,000 more from 55).
+            const hsaSelf = items.some(d => d.kind === 'hsa' && d.coverage === 'self');
+            const hsaLim = (hsaSelf ? tax.limitHSA.self : tax.limitHSA.family) + (age >= 55 ? Number(tax.hsaCatchUp) || 0 : 0);
+            if (hsa > hsaLim) warn.push(hsaSelf ? `Your HSA (${money(hsa)} a year) is over the self-only limit of ${money(hsaLim)}.` : `Your HSA (${money(hsa)} a year) is over the family limit of ${money(hsaLim)}.`);
             UI.html('ded-limits', warn.map(w => `<div class="bs-banner warn mt-2"><i class="fa-solid fa-triangle-exclamation"></i> ${w}</div>`).join(''));
         }
         renderLast(p);

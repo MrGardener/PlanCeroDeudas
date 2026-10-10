@@ -73,7 +73,8 @@
         if (el.type === 'checkbox') v = el.checked;
         else if (el.type === 'number' || el.dataset.type === 'number') {
             v = Fmt.parseNum(el.value, 0);
-            if (el.min !== '' && el.dataset.clamp !== 'false') v = Math.max(Number(el.min), v);
+            // A menu of numbers has no minimum to keep to.
+            if (el.min !== undefined && el.min !== '' && el.dataset.clamp !== 'false') v = Math.max(Number(el.min), v);
         } else v = el.value;
         obj[field] = v;
     }
