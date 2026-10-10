@@ -35,11 +35,15 @@
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
+    // The share sheet, the camera, the fingerprint prompt: the app's own trips outside, which
+    // don't count as leaving it (the PIN lock's "right away", js/device.js).
+    const outside = () => { if (root.Device && Device.outside) Device.outside(); };
     // Save a text file: a download in the browser, the share sheet in the app.
     async function saveFile(name, text, type = 'text/plain') {
         const fs = plugin('Filesystem'), share = plugin('Share');
         if (!fs || !share) { download(name, text, type); return 'download'; }
         const res = await fs.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
+        outside();
         try { await share.share({ title: name, files: [res.uri] }); } catch (e) {
             // Closing the share sheet without choosing is not an error.
             if (!/cancel/i.test(String(e && e.message))) throw e;
@@ -122,7 +126,7 @@
     // phone and handed back only after it's verified.
     const bio = {
         available: async () => { const p = dk(); if (!p) return false; try { return !!(await p.canVerify()).available; } catch (e) { return false; } },
-        verify: async (opts) => { const p = dk(); if (!p) return false; try { await p.verify(opts || {}); return true; } catch (e) { return false; } },
+        verify: async (opts) => { const p = dk(); if (!p) return false; outside(); try { await p.verify(opts || {}); return true; } catch (e) { return false; } },
         setSecret: async (value) => { const p = dk(); if (p) await p.setSecret({ value: String(value) }); },
         getSecret: async () => { const p = dk(); if (!p) return null; try { return (await p.getSecret()).value || null; } catch (e) { return null; } },
         clearSecret: async () => { const p = dk(); if (p) { try { await p.clearSecret(); } catch (e) { /* none */ } } }
@@ -133,7 +137,9 @@
     async function takeAction() {
         const p = dk();
         if (!p) return;
-        try { const r = await p.takeAction(); if (r && r.action === 'quick') location.hash = '#rapido'; } catch (e) { /* none */ }
+        // From a widget: the budget or the goals screen.
+        const to = { quick: '#rapido', budget: '#presupuesto/plan', goals: '#futuro/metas' };
+        try { const r = await p.takeAction(); if (r && to[r.action]) location.hash = to[r.action]; } catch (e) { /* none */ }
     }
 
     // A photo straight from the camera (pay stubs, receipts), as a File for the same readers as a
@@ -141,6 +147,7 @@
     async function takePhoto() {
         const cam = plugin('Camera');
         if (!cam) return null;
+        outside();
         try {
             const r = await cam.getPhoto({ source: 'CAMERA', resultType: 'base64', quality: 85, correctOrientation: true, saveToGallery: false });
             if (!r || !r.base64String) return null;
@@ -150,13 +157,15 @@
         } catch (e) { return null; }
     }
 
-    // Reminders on the phone (no server): bills a day before they're due, the weekly review.
-    // Ids 9000–9999 are this app's; each schedule replaces them.
+    // Reminders on the phone (no server): bills a day before they're due, the weekly review, and
+    // the person's own reminders (repeating: `on` = { hour, minute, weekday? }). Ids 9000–9999 are
+    // this app's; each schedule replaces them.
     const notifications = {
         available: () => !!plugin('LocalNotifications'),
         allow: async () => {
             const ln = plugin('LocalNotifications');
             if (!ln) return false;
+            outside();
             try { const p = await ln.requestPermissions(); return p && p.display === 'granted'; } catch (e) { return false; }
         },
         schedule: async (list) => {
@@ -166,10 +175,22 @@
                 const pending = await ln.getPending();
                 const ours = ((pending && pending.notifications) || []).filter(n => n.id >= 9000 && n.id < 10000).map(n => ({ id: n.id }));
                 if (ours.length) await ln.cancel({ notifications: ours });
-                if (list.length) await ln.schedule({ notifications: list.slice(0, 60).map((n, i) => ({ id: 9000 + i, title: n.title, body: n.body, schedule: { at: n.at, allowWhileIdle: true } })) });
+                if (list.length) await ln.schedule({ notifications: list.slice(0, 60).map((n, i) => ({ id: 9000 + i, title: n.title, body: n.body, schedule: n.on ? { on: n.on, allowWhileIdle: true } : { at: n.at, allowWhileIdle: true } })) });
                 return true;
             } catch (e) { return false; }
         }
+    };
+
+    // Home-screen widgets (Android): what they show is prepared by the app (percentages and dates,
+    // no amounts) and kept by the phone until the next update; clear() blanks them.
+    const widgets = {
+        available: () => !!plugin('Widgets'),
+        update: async (data) => {
+            const p = plugin('Widgets');
+            if (!p) return false;
+            try { await p.update({ budget: JSON.stringify(data.budget || null), goal: JSON.stringify(data.goal || null) }); return true; } catch (e) { return false; }
+        },
+        clear: async () => { const p = plugin('Widgets'); if (p) { try { await p.clear(); } catch (e) { /* none */ } } }
     };
 
     if (isApp) {
@@ -180,5 +201,5 @@
     }
 
     root.Native = { isApp, saveFile, saveSecure, askPassword, wipe, exit, flush: () => pendingCopy, platform: isApp ? cap.getPlatform() : 'web',
-        hasDeviceKey, deviceKey, bio, forgetDevice, takePhoto, notifications };
+        hasDeviceKey, deviceKey, bio, forgetDevice, takePhoto, notifications, widgets };
 })(this);

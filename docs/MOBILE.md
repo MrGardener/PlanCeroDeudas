@@ -29,7 +29,9 @@ js/native.js            the bridge: share sheet for files, back button, native c
 | Reading a PDF/photo of a pay stub or receipt | downloads pdf.js / Tesseract (exact versions, checked by hash) | inside the app (English and Spanish): never needs internet |
 | The saved plan without a PIN | readable in this browser's storage (a notice asks for a passcode) | **always encrypted** (AES-256-GCM) with a key the phone keeps in its secure hardware (Android Keystore / iOS Keychain, this device only) |
 | Unlocking | type the PIN | the PIN, or **fingerprint / Face ID** (Settings → This device → This phone): the phone keeps the PIN and gives it back only after it confirms it's you |
-| Reminders | — | a bill due tomorrow (9:00) and the weekly review (Sundays 18:00), scheduled on the phone: no server, and **no amounts or names** in the notification |
+| Reminders | — | a bill due tomorrow (9:00) and the weekly review (Sundays 18:00), scheduled on the phone: no server, and **no amounts or names** in the notification. Plus **your own reminders**, in your words, every day or one day a week at the time you choose (saved with the plan, encrypted) |
+| Home-screen widgets (Android) | — | off until turned on (Settings → This device): **Budget alerts** (categories at 90%+ of their plan, with their %; spending only — not savings, debt payments or fixed bills) and **Goal progress** (the goal closest to done: its %, the month it's done, the pace it needs). Percentages and dates only — no amounts, no goal names. Tapping one opens the budget or the goals. Not on iPhone yet (needs a widget extension) |
+| How soon it locks (with a PIN) | after 5 minutes away, or what you choose: right away when you switch apps, 1, 5, 15 minutes, an hour, or only when it opens; and optionally after 1–10 minutes without a touch | the same; the app's own file picker, camera and share sheet don't count as leaving |
 | Pay stub / receipt photo | the file picker | also **Take a photo** (the camera); the photo is read and not kept |
 | Quick entry | a bookmark to `#rapido` or the N key | long-press the app icon → **Add expense** |
 | Backup to the cloud | download the encrypted file | **Back up (encrypted)** opens the share sheet: Google Drive, iCloud Drive, Files… The file is encrypted before it leaves the app |
@@ -38,7 +40,8 @@ Two apps from the same code: **ZeroDebtPlan** (`com.zerodebtplan.app`, US) and *
 (`com.planfinanciero.ecuador`, Ecuador, Spanish). Each run builds both APKs (`ZeroDebtPlan-android-N`,
 `PlanFinanciero-android-N`); they can be on the same phone.
 
-The app's own native code is small and lives in the repository: `DeviceKeyPlugin.java` (Android) and
+The app's own native code is small and lives in the repository: `DeviceKeyPlugin.java` and the
+widgets (`WidgetsPlugin.java`, `BudgetWidget.java`, `GoalWidget.java`, their layouts) on Android, and
 the `DeviceKeyPlugin` class in `SceneDelegate.swift` (iOS). Besides Capacitor's official plugins
 (app, filesystem, preferences, share, local notifications, camera) nothing else is added. What it
 can't do: the fingerprint check is the phone's own (the PIN is released by the app after it), not

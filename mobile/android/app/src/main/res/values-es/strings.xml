@@ -2,4 +2,9 @@
 <resources>
     <string name="shortcut_quick">Anotar gasto</string>
     <string name="shortcut_quick_long">Anotar un gasto</string>
+    <string name="widget_budget">Alertas del presupuesto</string>
+    <string name="widget_budget_desc">Categorías pasadas del presupuesto, en porcentajes</string>
+    <string name="widget_goal">Avance de tu meta</string>
+    <string name="widget_goal_desc">Qué tan cerca está tu meta más próxima</string>
+    <string name="widget_off">Actívalo en la app: Configuración → Este dispositivo → Widgets en la pantalla de inicio.</string>
 </resources>

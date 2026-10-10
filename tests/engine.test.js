@@ -557,7 +557,7 @@ test('cash events, safe to spend and the day-by-day forecast', () => {
     assert.ok(rent.paid && rent.amount === 0, 'paid bill has nothing left to pay');
     assert.ok(names.includes('2026-09-18 Netflix -10') && names.includes('2026-09-20 Internet -35'));
     assert.equal(ev.filter(e => e.name === 'Internet' && e.date === '2026-09-20').length, 1, 'bill and its repeat are not counted twice');
-    assert.ok(names.includes('2026-09-15 Día de pago 500') && names.includes('2026-09-30 Día de pago 500') && names.includes('2026-10-15 Día de pago 500'));
+    assert.ok(names.includes('2026-09-15 Payday 500') && names.includes('2026-09-30 Payday 500') && names.includes('2026-10-15 Payday 500'));
     assert.ok(!ev.some(e => e.name === 'Sueldo'));
     assert.ok(names.includes('2026-10-05 Arriendo -400'));
 
@@ -615,13 +615,13 @@ test('pay schedules: days of the month, weekly, every 2 weeks, 2nd/4th Friday, d
 
 test('weekly pay spreads the yearly net pay over the paychecks; décimos come on top', () => {
     const ev = E.cashEvents({ from: '2026-12-01', to: '2026-12-31', months: [], recurring: [], schedule: { freq: 'weekly', weekday: 5 }, payPerMonth: { '2026-12': 2300 }, payBase: 1300 });
-    const pays = ev.filter(e => e.name === 'Día de pago');
+    const pays = ev.filter(e => e.kind === 'payday' && !e.bonus);
     assert.equal(pays.length, 4);                                       // 4, 11, 18, 25 Dec
     assert.ok(Math.abs(pays[0].amount - 1300 * 12 / 52) < 1e-9);
-    const bonus = ev.find(e => e.name === 'Décimo / bono');
+    const bonus = ev.find(e => e.bonus);
     assert.equal(bonus.date, '2026-12-04'); assert.equal(bonus.amount, 1000);
     const fixed = E.cashEvents({ from: '2026-12-01', to: '2026-12-31', months: [], recurring: [], schedule: { freq: 'daily', businessDays: true, amount: 40 }, payPerMonth: 1300 });
-    assert.ok(fixed.filter(e => e.name === 'Día de pago').every(e => e.amount === 40));
+    assert.ok(fixed.filter(e => e.kind === 'payday').every(e => e.amount === 40));
 });
 
 test('repeating transactions every 3 and 6 months', () => {
@@ -2291,4 +2291,55 @@ test('group-term life over $50,000: taxed as pay by IRS Table I, less what you p
     const d = E.payroll(usYear({ otherIncomes: [{ id: 7, amount: 0, category: 'Ingresos Laborales', pay: { payType: 'salary', sueldo: 4000, paysPerYear: 26, payDeductions: [], groupLife: { perCheck: 5 } } }] }));
     assert.equal(d.earners[0].groupLifeY, 130);
     assert.equal(d.groupLifeY, 0);
+});
+
+test('home-screen widgets: categories at 90%+ of their plan (most spent first), the goal closest to done — percentages and dates only', () => {
+    const bubbles = [
+        { category: 'Alimentación', planned: 600, spent: 690 },     // 115%
+        { category: 'Transporte', planned: 200, spent: 186 },       // 93%
+        { category: 'Vivienda', planned: 1500, spent: 1500 },       // 100%: used up, not over
+        { category: 'Salud', planned: 100, spent: 40 },
+        { category: 'Otros', planned: 0, spent: 30 }
+    ];
+    const today = new Date(2026, 9, 10);
+    const goals = [
+        { id: 1, name: 'Trip', target: 2000, current: 1700, monthly: 100 },                                  // 85%, 3 months
+        { id: 2, name: 'Car', target: 10000, current: 1000, monthly: 700, targetDate: '2027-12' },
+        { id: 3, name: 'Done', target: 500, current: 500, monthly: 0 }
+    ];
+    const d = E.widgetData({ bubbles, goals, today });
+    assert.deepEqual(d.budget.items.map(x => [x.category, x.pct, x.over]), [['Alimentación', 115, true], ['Vivienda', 100, false], ['Transporte', 93, false]]);
+    assert.deepEqual([d.budget.over, d.budget.near], [1, 2]);
+    assert.deepEqual(d.goal, { pct: 85, close: true, by: '2027-01', pace: 5, need: null, date: null, onTime: null, count: 2 });
+    assert.ok(!JSON.stringify(d).includes('Trip') && !JSON.stringify(d).includes('1700'), 'no goal names or amounts');
+    // From budget lines: only spending you can still hold back (fixed bills, savings and debt
+    // payments at 100% or more aren't a warning).
+    const items = [{ id: 1, type: 'Gasto Variable', linkedCategory: 'Alimentación', real: 500 }, { id: 2, type: 'Gasto Fijo', linkedCategory: 'Vivienda', real: 1200 },
+        { id: 3, type: 'Ahorro', linkedCategory: 'Ahorro e Inversión', real: 300 }, { id: 4, type: 'Deuda', linkedCategory: 'Deudas', real: 200 }];
+    const spent = { 1: 480, 2: 1250, 3: 300, 4: 220 };
+    assert.deepEqual(E.widgetData({ items, spentOf: id => spent[id], today }).budget.items.map(x => [x.category, x.pct]), [['Alimentación', 96]]);
+    // A goal with a date: the pace it needs (% of the goal a month) and whether it's on time.
+    const car = E.widgetData({ goals: [goals[1]], today }).goal;
+    assert.equal(car.date, '2027-12');
+    assert.equal(car.onTime, true);
+    assert.ok(car.need > 0 && car.need <= car.pace);
+    const late = E.widgetData({ goals: [Object.assign({}, goals[1], { monthly: 100 })], today }).goal;
+    assert.equal(late.onTime, false);
+    assert.ok(late.need > late.pace);
+    // Nothing going in each month: no date to promise.
+    assert.equal(E.widgetData({ goals: [{ target: 100, current: 50, monthly: 0 }], today }).goal.by, null);
+    assert.equal(E.widgetData({ goals: [goals[2]], today }).goal, null);
+});
+
+test('personal reminders: daily or on one weekday, at a time; empty or off ones left out', () => {
+    const r = E.personalReminders([
+        { id: 1, text: '  Remember the trip!  ', freq: 'daily', time: '20:30' },
+        { id: 2, text: 'Pay yourself first', freq: 'weekly', day: 1, time: '08:05' },
+        { id: 3, text: '', freq: 'daily', time: '10:00' },
+        { id: 4, text: 'Off', freq: 'daily', time: '10:00', on: false },
+        { id: 5, text: 'x'.repeat(200), freq: 'weekly', day: 9, time: 'bad' }
+    ]);
+    assert.deepEqual(r.map(x => [x.id, x.hour, x.minute, x.weekday]), [[1, 20, 30, null], [2, 8, 5, 2], [5, 9, 0, null]]);
+    assert.equal(r[0].text, 'Remember the trip!');
+    assert.equal(r[2].text.length, 120);
 });

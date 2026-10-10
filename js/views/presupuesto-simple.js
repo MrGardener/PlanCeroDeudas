@@ -591,7 +591,7 @@
     function autoGenerate() {
         const rows = Engine.autoBudget(Store.state.transactions, new Date());
         if (!rows.length) { UI.toast('No spending in the last 3 months yet: log or import a few months first, or start from scratch.', 'error'); return; }
-        App.undoable(`Budgets made from your last 3 months: ${rows.length} categor${rows.length === 1 ? 'y' : 'ies'}`, () => {
+        App.undoable(rows.length === 1 ? 'Budgets made from your last 3 months: 1 category' : `Budgets made from your last 3 months: ${rows.length} categories`, () => {
             const list = monthList();
             rows.forEach(r => {
                 const same = list.filter(it => !it.link && !it.sweep && (it.linkedCategory || 'Otros') === r.category);

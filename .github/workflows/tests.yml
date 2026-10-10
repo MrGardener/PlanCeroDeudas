@@ -70,3 +70,30 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Boundary values in every field
         run: node tests/e2e/e2e-bounds.js "${{ matrix.part }}"
+
+  # Every screen and the dialogs its buttons open, in both editions and both languages: nothing in
+  # the wrong language (tests/e2e/lang-sweep.js). Two parts side by side.
+  languages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ['US', 'Ecuador']
+    name: languages (${{ matrix.part }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: mobile
+      - name: Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Every screen in its language
+        run: node tests/e2e/lang-sweep.js "${{ matrix.part }}"

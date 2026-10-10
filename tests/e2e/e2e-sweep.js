@@ -140,8 +140,8 @@ const inspect = (page) => page.evaluate(() => {
         if (!seen.computer[k]) continue;
         const a = seen.phone[k], b = seen.computer[k];
         // Web-only on purpose: printing and the quick-entry bookmark link (the app has its own shortcut).
-        // App-only on purpose: the camera, fingerprint unlock and reminders.
-        const onlyPhone = a.filter(x => !b.includes(x) && !/^cam\.|^device\.(bio|reminders)$/.test(x)), onlyFile = b.filter(x => !a.includes(x) && !/print|copyQuick/.test(x));
+        // App-only on purpose: the camera, fingerprint unlock, reminders (yours too) and widgets.
+        const onlyPhone = a.filter(x => !b.includes(x) && !/^cam\.|^device\.(bio|reminders|widgets)$|^myrem\./.test(x)), onlyFile = b.filter(x => !a.includes(x) && !/print|copyQuick/.test(x));
         ok(!onlyPhone.length && !onlyFile.length, `same actions in the phone app and the file: ${k}`, { onlyPhone, onlyFile });
     }
     console.log(`\n${tapped} buttons tapped without an error.`);

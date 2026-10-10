@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Budget alerts widget (BudgetWidget.java): categories over budget, in percentages only. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="vertical"
+    android:padding="14dp">
+    <TextView
+        android:id="@+id/w_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:text="@string/widget_budget"
+        android:textColor="#FFFFFFFF"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+    <LinearLayout
+        android:id="@+id/w_row1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/w_name1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FFE2E8F0"
+            android:textSize="14sp" />
+        <TextView
+            android:id="@+id/w_pct1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textColor="#FFFCA5A5"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/w_row2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/w_name2"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FFE2E8F0"
+            android:textSize="14sp" />
+        <TextView
+            android:id="@+id/w_pct2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textColor="#FFFCA5A5"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/w_row3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/w_name3"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FFE2E8F0"
+            android:textSize="14sp" />
+        <TextView
+            android:id="@+id/w_pct3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textColor="#FFFCA5A5"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/w_row4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/w_name4"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FFE2E8F0"
+            android:textSize="14sp" />
+        <TextView
+            android:id="@+id/w_pct4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textColor="#FFFCA5A5"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+    <TextView
+        android:id="@+id/w_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/widget_off"
+        android:textColor="#FFCBD5E1"
+        android:textSize="13sp" />
+    <TextView
+        android:id="@+id/w_footer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textColor="#FF94A3B8"
+        android:textSize="11sp" />
+</LinearLayout>

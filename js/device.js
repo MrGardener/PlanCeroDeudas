@@ -17,7 +17,10 @@
 (function (root) {
     'use strict';
     const KEY = (root.APP_EDITION && root.APP_EDITION.deviceKey) || 'plan_financiero_ec_device';
-    const IDLE_MS = 5 * 60 * 1000;      // lock again after 5 minutes in the background
+    // How soon the PIN lock comes back (this device's choice; minutes): away from the app (0 = as
+    // soon as you switch to another app, -1 = only when it opens) and without a touch while open
+    // (0 = off).
+    const AWAY_DEFAULT = 5, AWAY_CHOICES = [0, 1, 5, 15, 60, -1], IDLE_CHOICES = [0, 1, 2, 5, 10];
     const MAX_TRIES = 5, WAIT_MS = 30 * 1000, WIPE_AT = 10;
 
     function read() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
@@ -242,6 +245,7 @@
         if (root.Store) { Store.storage = null; Store._lastSaved = null; }
         // The phone's keys go too (its data key, the PIN kept for fingerprint unlock).
         if (root.Native && Native.forgetDevice) await Native.forgetDevice();
+        if (root.Native && Native.widgets) await Native.widgets.clear();
         if (root.Native && Native.wipe) await Native.wipe([...new Set(keys)]);
         else [...new Set(keys)].forEach(k => { try { localStorage.removeItem(k); } catch (e) { /* gone */ } });
     }
@@ -391,7 +395,7 @@
     // Locked = the lock screen is up, or the plan hasn't been opened with the PIN.
     const locked = () => hasPin() && (!!document.getElementById('lock-screen') || dataLocked() || pending.length > 0);
 
-    // Locking again ("Lock now", or 5 minutes away) forgets the open plan: it's saved (encrypted),
+    // Locking again ("Lock now", away or idle as long as chosen) forgets the open plan: it's saved (encrypted),
     // then the page starts over and waits for the PIN. A lock screen over a running app could be
     // removed with the browser's developer tools; this way nothing readable is left in memory.
     let relocking = false;
@@ -407,22 +411,41 @@
         if (root.Store) Store.storage = null;              // nothing is written on the way out
         location.reload();
     }
-    // Away from the app: covered at once (no flash of the plan when coming back), and after 5
-    // minutes it locks again, even while still in the background.
-    let idleTimer = null;
+    const lockAway = () => { const v = read().lockAway; return typeof v === 'number' && AWAY_CHOICES.includes(v) ? v : AWAY_DEFAULT; };
+    const lockIdle = () => { const v = Number(read().lockIdle); return IDLE_CHOICES.includes(v) ? v : 0; };
+    function setLockAway(v) { const d = read(); d.lockAway = AWAY_CHOICES.includes(Number(v)) ? Number(v) : AWAY_DEFAULT; write(d); }
+    function setLockIdle(v) { const d = read(); d.lockIdle = IDLE_CHOICES.includes(Number(v)) ? Number(v) : 0; write(d); }
+    // The app's own trips outside (the file picker, the camera, the share sheet, the fingerprint
+    // prompt) aren't "leaving": "right away" waits for those up to 5 minutes.
+    let ownTrip = 0;
+    const outside = () => { ownTrip = Date.now(); };
+    document.addEventListener('click', (e) => { if (e.target && e.target.matches && e.target.matches('input[type="file"]')) outside(); }, true);
+    // Away from the app: covered at once (no flash of the plan when coming back), and it locks
+    // again after the time chosen, even while still in the background.
+    let awayTimer = null;
     document.addEventListener('visibilitychange', () => {
         if (!hasPin()) return;
+        const mins = lockAway(), own = Date.now() - ownTrip < 3000;
+        const ms = mins < 0 ? Infinity : (mins === 0 && own ? AWAY_DEFAULT : mins) * 60000;
         if (document.hidden) {
             hiddenAt = Date.now();
             document.documentElement.classList.add('app-covered');
-            clearTimeout(idleTimer);
-            idleTimer = setTimeout(relock, IDLE_MS);
+            clearTimeout(awayTimer);
+            if (ms === 0) { relock(); return; }
+            if (ms !== Infinity) awayTimer = setTimeout(relock, ms);
         } else {
-            clearTimeout(idleTimer);
-            if (hiddenAt && Date.now() - hiddenAt >= IDLE_MS) relock();
+            clearTimeout(awayTimer);
+            if (hiddenAt && Date.now() - hiddenAt >= ms) relock();
             else document.documentElement.classList.remove('app-covered');
         }
     });
+    // Not touched for the time chosen while open: lock again.
+    let lastTouch = Date.now();
+    ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(t => document.addEventListener(t, () => { lastTouch = Date.now(); }, { capture: true, passive: true }));
+    setInterval(() => {
+        const mins = lockIdle();
+        if (mins > 0 && hasPin() && !document.hidden && !locked() && Date.now() - lastTouch >= mins * 60000) relock();
+    }, 10000);
     // An encrypted plan whose key is gone (device settings cleared): it can't be opened here.
     function showLost() {
         const el = document.createElement('div');
@@ -444,5 +467,7 @@
     const protectDue = () => !hasPin() && !deviceKeyMode() && !(Number(read().protectLater) > Date.now());
     // Phone reminders on or off (this device only, like the theme).
     function setReminders(on) { const d = read(); if (on) d.reminders = true; else delete d.reminders; write(d); }
-    root.Device = { setReminders, remindersOn: () => !!read().reminders, setBio, bioOn: () => !!read().bio, deviceKeyMode, protectLater, protectDue, applyPrivacy, setPrivacy, hidden: () => !!read().hideAmounts, isPasscode: () => !!(read().lock && read().lock.kind === 'passcode'), storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: relock, locked, hashPin, KEY };
+    // Home-screen widgets on or off (this device only; off by default: they show on the home screen).
+    function setWidgets(on) { const d = read(); if (on) d.widgets = true; else delete d.widgets; write(d); }
+    root.Device = { lockAway, lockIdle, setLockAway, setLockIdle, outside, AWAY_CHOICES, IDLE_CHOICES, setReminders, remindersOn: () => !!read().reminders, setWidgets, widgetsOn: () => !!read().widgets, setBio, bioOn: () => !!read().bio, deviceKeyMode, protectLater, protectDue, applyPrivacy, setPrivacy, hidden: () => !!read().hideAmounts, isPasscode: () => !!(read().lock && read().lock.kind === 'passcode'), storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: relock, locked, hashPin, KEY };
 })(this);

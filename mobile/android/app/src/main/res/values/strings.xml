@@ -6,4 +6,9 @@
     <string name="custom_url_scheme">com.zerodebtplan.app</string>
     <string name="shortcut_quick">Add expense</string>
     <string name="shortcut_quick_long">Log an expense</string>
+    <string name="widget_budget">Budget alerts</string>
+    <string name="widget_budget_desc">Categories over budget, in percentages</string>
+    <string name="widget_goal">Goal progress</string>
+    <string name="widget_goal_desc">How close your nearest goal is</string>
+    <string name="widget_off">Turn it on in the app: Settings → This device → Home-screen widgets.</string>
 </resources>

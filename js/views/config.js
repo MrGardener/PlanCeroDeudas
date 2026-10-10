@@ -61,6 +61,15 @@
         const sel = document.getElementById('cfg-theme');
         if (sel) sel.value = Device.read().theme || 'light';
         Device.applyPrivacy();
+        // How soon it locks again: only with a PIN (without one there's nothing to lock).
+        [['cfg-lock-away', Device.lockAway()], ['cfg-lock-idle', Device.lockIdle()]].forEach(([id, v]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.value = String(v);
+            el.disabled = !Device.hasPin();
+        });
+        if (!Device.hasPin()) UI.text('cfg-lock-idle-help', I18n.t('Turn on a PIN first.'));
+        else UI.text('cfg-lock-idle-help', I18n.t('While the app is open on the screen.'));
         UI.html('cfg-lock', Device.hasPin()
             ? `<span class="badge badge-ok"><i class="fa-solid fa-lock"></i> On · ${esc(I18n.t(Device.isPasscode() ? 'passcode' : 'PIN'))}</span>
                <button class="btn btn-secondary btn-sm" data-action="device.lockNow"><i class="fa-solid fa-lock"></i> Lock now</button>
@@ -97,6 +106,8 @@
 
     UI.register({
         'device.theme': (el) => Device.setTheme(el.value),
+        'device.lockAway': (el) => { Device.setLockAway(Number(el.value)); UI.toast(I18n.t(el.value === '0' ? 'It locks as soon as you switch to another app.' : el.value === '-1' ? 'It locks only when the app opens.' : 'Saved.')); },
+        'device.lockIdle': (el) => { Device.setLockIdle(Number(el.value)); UI.toast(I18n.t(el.value === '0' ? 'It no longer locks while open.' : 'Saved.')); },
         'device.lang': (el) => Device.setLang(el.value),
         'device.toggleLang': () => Device.setLang(Device.getLang() === 'en' ? 'es' : 'en'),
         'device.togglePrivacy': () => Device.setPrivacy(!Device.hidden()),
@@ -234,14 +245,14 @@
         'cfg.copyYear': async () => {
             const from = Number(document.getElementById('cfg-copy-from').value);
             const to = Store.state.activeYear;
-            const ok = await UI.confirm({ title: `Copiar ${from} → ${to}`, message: `${to}'s budget and parameters will be replaced with ${from}'s. Your ${to} net worth doesn't change.`, confirmText: 'Copy', danger: true });
+            const ok = await UI.confirm({ title: `Copy ${from} → ${to}`, message: `${to}'s budget and parameters will be replaced with ${from}'s. Your ${to} net worth doesn't change.`, confirmText: 'Copy', danger: true });
             if (!ok) return;
             App.undoable(`${from} budget copied to ${to}`, () => Store.copyYear(from, to));
         },
         'cfg.propagate': async () => {
             const s = Store.state, from = s.activeYear;
             if (from >= s.configEndYear) { UI.toast('There are no later years in your range.', 'warn'); return; }
-            const ok = await UI.confirm({ title: `Propagar ${from} → ${from + 1}–${s.configEndYear}`, message: `The budget and parameters of every later year will be replaced with ${from}'s. Each year's net worth doesn't change.`, confirmText: 'Carry forward', danger: true });
+            const ok = await UI.confirm({ title: `Copy ${from} → ${from + 1}–${s.configEndYear}`, message: `The budget and parameters of every later year will be replaced with ${from}'s. Each year's net worth doesn't change.`, confirmText: 'Carry forward', danger: true });
             if (!ok) return;
             App.undoable(`${from} budget carried through ${s.configEndYear}`, () => { for (let y = from + 1; y <= s.configEndYear; y++) Store.copyYear(from, y); });
         },

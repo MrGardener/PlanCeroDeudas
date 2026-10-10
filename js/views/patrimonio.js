@@ -47,7 +47,7 @@
             <td><select class="cell-input" data-change="asset.set" data-id="${a.id}" data-field="category">${Views.selectOptions(Engine.ASSET_CATEGORIES, a.category)}</select></td>
             <td><input type="number" class="cell-input num" value="${a.purchaseYear}" data-change="asset.set" data-id="${a.id}" data-field="purchaseYear"></td>
             <td><input type="number" class="cell-input num" min="0" value="${Number(a.purchaseValue) || 0}" data-change="asset.set" data-id="${a.id}" data-field="purchaseValue"></td>
-            <td><input type="number" class="cell-input num money" min="0" value="${Engine.assetValue(a, year)}" ${owned ? '' : 'disabled title="No lo tienes en este año"'} data-input="asset.value" data-id="${a.id}"></td>
+            <td><input type="number" class="cell-input num money" min="0" value="${Engine.assetValue(a, year)}" ${owned ? '' : 'disabled title="You don\'t own it this year"'} data-input="asset.value" data-id="${a.id}"></td>
             <td>${status}</td>
             <td class="text-center"><button class="row-del" data-action="asset.delete" data-id="${a.id}" title="Delete asset"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
@@ -155,21 +155,23 @@
             const input = document.querySelector(`[data-input="nw.set"][data-field="${f}"]`);
             if (input) { input.readOnly = f in auto; input.classList.toggle('input-readonly', f in auto); }
             el.innerHTML = f in auto
-                ? `<span class="linked">🔗 Automatic: ${f === 'investments' ? 'your CDs, investments and retirement accounts' : f === 'checking' || f === 'savings' ? 'tus <a href="#" class="link" data-goto="patrimonio" data-focus="nw-accounts">accounts</a>' : 'tus <a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts">debts</a>'}.</span>`
+                ? `<span class="linked">🔗 <span>Automatic:</span> ${f === 'investments' ? '<span>your CDs, investments and retirement accounts</span>' : f === 'checking' || f === 'savings' ? '<a href="#" class="link" data-goto="patrimonio" data-focus="nw-accounts">your accounts</a>' : '<a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts">your debts</a>'}.</span>`
                 : src !== null && src < year ? `<span class="text-slate-500">↩ Carried over from ${src}. Edit it if it changed.</span>` : esc(def.help || '');
         });
         UI.text('nw-assets', money0(nw.assets));
         UI.text('nw-liabilities', money0(nw.liabilities));
         UI.text('nw-value', money(nw.value));
-        let [cls, text] = verdict(nw.value);
+        const [cls, text] = verdict(nw.value);
+        // The verdict and the change from last year, each its own sentence (translated apart).
+        let change = '';
         if (Engine.netWorthYears(s.years, s.assets, ctx.today.getFullYear()).includes(year - 1)) {
             const d = nw.value - Engine.netWorth(s.years, s.assets, year - 1).value;
-            if (Math.abs(d) >= 1) text += ` ${d > 0 ? '▲' : '▼'} ${money0(Math.abs(d))} frente a ${year - 1}.`;
+            if (Math.abs(d) >= 1) change = ` ${d > 0 ? '▲' : '▼'} <span>${money0(Math.abs(d))} versus ${year - 1}.</span>`;
         }
         document.getElementById('nw-value').className = `text-4xl font-black block my-1 ${nw.value >= 0 ? 'text-emerald-700' : 'text-red-600'}`;
         const v = document.getElementById('nw-verdict');
         v.className = `text-sm font-bold ${cls}`;
-        v.textContent = text;
+        v.innerHTML = `<span>${esc(text)}</span>${change}`;
         document.getElementById('nw-result').className = `mt-5 rounded-xl p-5 text-center border-t-4 bg-slate-50 ${nw.value >= 0 ? 'border-emerald-500' : 'border-red-500'}`;
 
         compare(nw);
