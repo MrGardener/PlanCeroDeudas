@@ -59,7 +59,7 @@ jobs:
             echo "::warning::Signed with the public test key: set your own (docs/MOBILE.md) before relying on this app."
             echo "Signed with the public test key — set your own key (docs/MOBILE.md)." >> "$GITHUB_STEP_SUMMARY"
           fi
-      - name: Build the APK (release: not debuggable)
+      - name: Build the APK (a release build, not debuggable)
         working-directory: mobile/android
         run: ./gradlew assembleRelease --no-daemon
       - run: cp android/app/build/outputs/apk/release/app-release.apk ZeroDebtPlan-${{ github.run_number }}.apk
