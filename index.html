@@ -491,6 +491,7 @@
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <label class="btn btn-primary btn-sm cursor-pointer"><i class="fa-solid fa-camera"></i> Scan my pay stub (PDF or photo)<input type="file" id="ded-file" class="hidden" accept="application/pdf,image/*" data-change="ded.file"></label>
+                    <button type="button" class="btn btn-secondary btn-sm" data-app-only data-action="cam.photo" data-for="ded-file"><i class="fa-solid fa-camera-retro"></i> Take a photo</button>
                     <button type="button" class="btn btn-secondary btn-sm" data-action="ded.add" data-country="EC"><i class="fa-solid fa-plus"></i> Add by hand</button>
                     <button type="button" class="btn btn-secondary btn-sm" data-action="payx.dedAdd" data-target="main" data-country="US"><i class="fa-solid fa-plus"></i> Add by hand</button>
                 </div>
@@ -777,6 +778,7 @@
                 </div>
                 <label class="btn btn-secondary cursor-pointer"><i class="fa-solid fa-camera"></i> Take or choose photo
                     <input type="file" id="imp-photo" accept="image/*" capture="environment" class="hidden" data-change="imp.photo"></label>
+                <button type="button" class="btn btn-secondary" data-app-only data-action="cam.photo" data-for="imp-photo"><i class="fa-solid fa-camera-retro"></i> Take a photo</button>
                 <p class="help mt-2" id="imp-photo-status"></p>
             </div>
         </div>
@@ -1674,6 +1676,10 @@
                     <label class="field"><span class="field-label">Appearance</span>
                         <select id="cfg-theme" class="input" data-change="device.theme"><option value="light">Claro</option><option value="dark">Dark</option><option value="auto">Automatic (follow your system)</option></select></label>
                 </div>
+                <div class="field mt-3 max-w-2xl space-y-1" data-app-only id="cfg-phone"><span class="field-label">This phone</span>
+                    <label class="check-row" id="cfg-bio-row"><input type="checkbox" id="cfg-bio" data-change="device.bio"> <span>Unlock with fingerprint or face instead of typing your PIN <span class="block text-[11px] text-slate-500" id="cfg-bio-note"></span></span></label>
+                    <label class="check-row" id="cfg-reminders-row"><input type="checkbox" id="cfg-reminders" data-change="device.reminders"> <span>Reminders: a bill due tomorrow, and the weekly review on Sundays <span class="block text-[11px] text-slate-500">They show no amounts or names, even on a locked screen.</span></span></label>
+                    <span class="help">Your plan is always saved encrypted on this phone: with your PIN, or else with a key the phone keeps in its secure chip (it never leaves this phone). Long-press the app icon for "Add expense".</span></div>
                 <div class="field mt-3 max-w-2xl" data-web-only><span class="field-label">Shortcut to quick entry</span>
                     <div class="flex gap-2"><input id="cfg-quick-link" class="input min-w-0" readonly aria-label="Quick entry link"><button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="device.copyQuick"><i class="fa-regular fa-copy"></i> Copy</button></div>
                     <span class="help">Save it as a bookmark (or on your home screen once the app is online): it opens the keypad straight away to log an expense. On a computer, the key <kbd>N</kbd> does the same.</span></div>
@@ -1682,7 +1688,7 @@
             <div class="panel tone-indigo">
                 <div class="section-label text-indigo-900"><i class="fa-solid fa-file-shield"></i> Backup</div>
                 <div class="flex flex-wrap gap-2">
-                    <button class="btn btn-primary" data-action="cfg.download"><i class="fa-solid fa-lock"></i> Download backup (encrypted)</button>
+                    <button class="btn btn-primary" data-action="cfg.download"><i class="fa-solid fa-lock"></i> <span data-web-only>Download backup (encrypted)</span><span data-app-only>Back up (encrypted): Google Drive, iCloud, Files…</span></button>
                     <button class="btn btn-secondary" data-action="cfg.upload"><i class="fa-solid fa-upload"></i> Load backup</button>
                     <button class="btn btn-secondary" data-action="cfg.openVault"><i class="fa-solid fa-lock-open"></i> Open an encrypted file</button>
                     <input type="file" id="cfg-file" accept="application/json,.json" class="hidden" data-change="cfg.fileChosen">
@@ -1953,6 +1959,7 @@
 <script src="js/views/accounts.js"></script>
 <script src="js/views/checklists.js"></script>
 <script src="js/views/config.js"></script>
+<script src="js/views/phone.js"></script>
 <script src="js/views/setup.js"></script>
 <script src="js/views/tools.js"></script>
 </body>

@@ -53,6 +53,7 @@
 
     // Theme and PIN belong to this device (js/device.js), outside the saved budget.
     function renderDevice() {
+        if (window.Phone) Phone.render();
         const lang = document.getElementById('cfg-lang');
         if (lang) lang.value = Device.getLang();
         const link = document.getElementById('cfg-quick-link');

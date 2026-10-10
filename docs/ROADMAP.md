@@ -167,14 +167,15 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ⏳ First APK on the Pixel 10 Pro | Built by GitHub Actions → Phone app → Artifacts. Your part: install it and report anything odd. (Building inside the Claude Code container needs `dl.google.com` allowed in the environment's network settings) |
 | 🙋 iPhone test build (TestFlight) | Needs your Apple Developer Program membership (US$99/yr) and an iPhone; signing secrets added to GitHub once. No Mac needed (cloud macOS runner) |
 | 🙋 Google Play release | Needs your Play Console account (US$25), your upload key (kept by you, stored as a GitHub Secret), a privacy-policy page, the Data safety form. 🔍 Closed test with 12 testers for 14 days for new personal accounts — verify current rule |
-| 📋 Fingerprint / Face ID unlock | Native biometric plugin replaces the PIN prompt; no `https` needed in the app. Needs testing on the phone |
-| 📋 Bill reminders as notifications | `@capacitor/local-notifications`: bills, paydays, weekly review — scheduled on the phone, no server |
-| 📋 Camera button for pay stubs and receipts | `@capacitor/camera`; today the file picker already offers the camera on Android |
+| ✅ Fingerprint / Face ID unlock | Settings → This device → This phone: with the PIN on, the phone keeps the PIN (Keystore / Keychain) and gives it back only after its own fingerprint or face check; the lock screen offers it first. The app's own small plugin (DeviceKey), no third-party one. Built in CI; to try on the phone |
+| ✅ Bill reminders as notifications | `@capacitor/local-notifications` (official): a bill due tomorrow at 9:00 and the weekly review on Sundays, rescheduled after budget changes, five weeks ahead; no amounts or names in the notification (it can show on a locked screen). Settings → This device → This phone |
+| ✅ Camera button for pay stubs and receipts | `@capacitor/camera` (official): **Take a photo** beside the pay stub and receipt pickers; read like a picked photo, not kept |
 | ✅ Scanning fully offline | pdf.js and Tesseract with English and Spanish data are inside the phone app (about 15 MB); the web file gets them pinned and hash-checked |
-| 📋 Home-screen shortcut / widget for quick entry | Android app shortcut first (long-press the icon → "Add expense"); widget later |
-| 📋 Ecuador edition as its own app ("Plan Financiero", Spanish) | `EDITION=ec node build-www.js` already builds it; needs its own app id and store listing |
-| 📋 Encrypt the data on the phone | Native storage isn't encrypted (the phone's own encryption applies). Option: a secure-storage plugin with a key in Android Keystore / iOS Keychain |
-| 📋 Optional encrypted backup to your own Google Drive / iCloud | Android cloud backup is off on purpose (data never leaves the phone); a user-chosen setting could turn it on |
+| ✅ Home-screen shortcut for quick entry | Long-press the icon → "Add expense" (Android shortcut, iOS quick action) opens quick entry |
+| 📋 Home-screen widget | A widget needs native UI per platform; later |
+| ✅ Ecuador edition as its own app ("Plan Financiero", Spanish) | Every run builds both APKs: `com.zerodebtplan.app` and `com.planfinanciero.ecuador` (Plan Financiero), side by side on one phone. A store listing needs the store accounts (🙋) |
+| ✅ Encrypt the data on the phone | Without a PIN the plan (and its native copy) is saved AES-256-GCM encrypted with a random key the phone keeps in the Android Keystore / iOS Keychain (this device only); with a PIN, the PIN's key as before. The 10th wrong PIN forgets the phone's keys too |
+| ✅ Optional encrypted backup to your own Google Drive / iCloud | Settings → Backup → **Back up (encrypted)**: the file is encrypted with your password, then the share sheet saves it to Google Drive, iCloud Drive or Files. Automatic system backup stays off on purpose |
 
 ## 🔍 Under analysis — no decision yet (requested 2026-09-30)
 
@@ -192,9 +193,9 @@ Assessed only; nothing built. "Now" = works in the offline file; "Hosting" = nee
 |---|---|---|
 | 🌐 Sync the budget across phone and computer (and encrypt the data at rest) | No server to hold the data; localStorage is per browser | Hosting + accounts + encrypted sync (see stage B) |
 | 🌐 Shared household / group budgets with invitation codes ("Start / Join group", review what is shared) | Two people's devices can't talk without a server | Accounts, groups, invitations, per-item sharing permissions |
-| 🌐 Sign in with Touch ID / Face ID (the PIN lock is the offline stand-in) | WebAuthn needs a secure `https://` origin; `file://` doesn't qualify | Phone app: native biometric unlock (see Phone app — next). Web: stage A; stage B for real sign-in |
+| ✅/🌐 Sign in with Touch ID / Face ID (the PIN lock is the offline stand-in) | Done in the phone app (fingerprint / Face ID unlock). The web version: WebAuthn needs a secure `https://` origin; `file://` doesn't qualify | Web: stage A; stage B for real sign-in |
 | ✅/🌐 Installable app on the phone (home-screen icon, works offline) | Done as a native app (`mobile/`). A PWA install of the web version still needs `https://` | Stage A for the web version |
-| 🌐 Bill reminders as phone notifications | Web: push needs a service worker on `https://` and a push server | Phone app: local notifications, no server (see Phone app — next). Web: stage A / B |
+| ✅/🌐 Bill reminders as phone notifications | Done in the phone app (local notifications, no server). Web: push needs a service worker on `https://` and a push server | Web: stage A / B |
 | 🌐 Live customer support chat | Needs someone to answer and a chat service | Stage B: chat widget (e.g. WhatsApp Business link or a support tool) |
 | 🌐 Stock prices without asking the user for an API key | Price APIs need a key; keeping one secret needs a server | Stage B: small price proxy with the app's own key |
 | 🌐 Live bank connections (automatic transaction sync) | Needs a bank-data aggregator and a server; 🔍 Ecuador coverage of aggregators (e.g. Belvo) must be verified | Stage C. Until then: CSV import |

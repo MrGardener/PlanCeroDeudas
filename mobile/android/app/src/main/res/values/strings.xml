@@ -4,4 +4,6 @@
     <string name="title_activity_main">ZeroDebtPlan</string>
     <string name="package_name">com.zerodebtplan.app</string>
     <string name="custom_url_scheme">com.zerodebtplan.app</string>
+    <string name="shortcut_quick">Add expense</string>
+    <string name="shortcut_quick_long">Log an expense</string>
 </resources>

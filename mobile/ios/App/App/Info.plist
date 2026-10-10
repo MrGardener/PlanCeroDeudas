@@ -66,5 +66,22 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Unlock your plan with Face ID instead of typing your PIN.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo of a pay stub or a receipt. It's read on your iPhone and not kept.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pick a photo of a pay stub or a receipt. It's read on your iPhone and not kept.</string>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.zerodebtplan.quick</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Add expense</string>
+			<key>UIApplicationShortcutItemIconType</key>
+			<string>UIApplicationShortcutIconTypeAdd</string>
+		</dict>
+	</array>
 </dict>
 </plist>

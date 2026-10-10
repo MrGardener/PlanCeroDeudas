@@ -22,8 +22,16 @@ concurrency:
 
 jobs:
   # Tests run in tests.yml; the phone builds don't wait for them.
+  # Two apps from the same code: ZeroDebtPlan (US) and Plan Financiero (Ecuador), each with its own
+  # app id, so both can be on one phone.
   android:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { edition: us, app_id: com.zerodebtplan.app, label: ZeroDebtPlan, file: ZeroDebtPlan }
+          - { edition: ec, app_id: com.planfinanciero.ecuador, label: Plan Financiero, file: PlanFinanciero }
     defaults:
       run:
         working-directory: mobile
@@ -40,7 +48,7 @@ jobs:
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
       - run: npm ci
-      - run: node build-www.js
+      - run: EDITION=${{ matrix.edition }} node build-www.js
       - run: npx cap sync android
       # Signed with your own key when the secrets are set (docs/MOBILE.md); otherwise with the test
       # key in the repository, and the run says so.
@@ -61,12 +69,12 @@ jobs:
           fi
       - name: Build the APK (a release build, not debuggable)
         working-directory: mobile/android
-        run: ./gradlew assembleRelease --no-daemon
-      - run: cp android/app/build/outputs/apk/release/app-release.apk ZeroDebtPlan-${{ github.run_number }}.apk
+        run: ./gradlew assembleRelease --no-daemon -PappId=${{ matrix.app_id }} "-PappLabel=${{ matrix.label }}"
+      - run: cp android/app/build/outputs/apk/release/app-release.apk ${{ matrix.file }}-${{ github.run_number }}.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: ZeroDebtPlan-android-${{ github.run_number }}
-          path: mobile/ZeroDebtPlan-${{ github.run_number }}.apk
+          name: ${{ matrix.file }}-android-${{ github.run_number }}
+          path: mobile/${{ matrix.file }}-${{ github.run_number }}.apk
           retention-days: 30
 
   ios:

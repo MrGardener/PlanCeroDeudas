@@ -2251,3 +2251,15 @@ test('budget groups inside groups: one level deep, a missing or looping parent s
     assert.deepEqual(tree.map(g => [g.name, g.children.map(c => c.name)]), [['Car', ['Gas', 'Repairs']], ['Pets', ['Vet']], ['Shots', []], ['Lost', []], ['Me', []]]);
     assert.deepEqual(E.groupTree([]), []);
 });
+
+test('phone reminders: bills the day before at 9:00 (not paid, not past), the weekly review on Sundays; no names or amounts', () => {
+    const today = new Date(2026, 9, 14, 12, 0);   // Wednesday, Oct 14
+    const items = [{ id: 1, name: 'Phone', type: 'Gasto Fijo', real: 50, dueDay: 18 }, { id: 2, name: 'Rent', type: 'Gasto Fijo', real: 900, dueDay: 1 },
+        { id: 3, name: 'Paid', type: 'Gasto Fijo', real: 20, dueDay: 20 }, { id: 4, name: 'Pay', type: 'Ingreso', real: 3000, dueDay: 15 }, { id: 5, name: 'No day', type: 'Gasto Fijo', real: 5 }];
+    const r = E.reminderSchedule({ itemsFor: () => items, today, days: 21, paid: (id) => id === 3 });
+    const bills = r.filter(x => x.kind === 'bill').map(x => [x.at.getMonth() + 1, x.at.getDate(), x.at.getHours()]);
+    assert.deepEqual(bills, [[10, 17, 9], [10, 31, 9]]);        // phone (Oct 18), rent (Nov 1); not the paid one
+    assert.deepEqual(r.filter(x => x.kind === 'review').map(x => [x.at.getDate(), x.at.getDay(), x.at.getHours()]), [[18, 0, 18], [25, 0, 18], [1, 0, 18]]);
+    assert.ok(r.every(x => Object.keys(x).join() === 'kind,at'));
+    assert.equal(E.reminderSchedule({ itemsFor: () => items, today, days: 21, review: false }).filter(x => x.kind === 'review').length, 0);
+});

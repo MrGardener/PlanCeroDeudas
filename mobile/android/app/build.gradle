@@ -4,7 +4,9 @@ android {
     namespace = "com.zerodebtplan.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.zerodebtplan.app"
+        // The Ecuador edition builds as its own app: -PappId=… -PappLabel=… (mobile.yml).
+        applicationId(project.findProperty("appId") ?: "com.zerodebtplan.app")
+        manifestPlaceholders = [appLabel: project.findProperty("appLabel") ?: "ZeroDebtPlan"]
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // CI numbers each build, so a newer APK installs over the older one.
@@ -57,6 +59,8 @@ repositories {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    // Fingerprint / face unlock (DeviceKeyPlugin).
+    implementation "androidx.biometric:biometric:1.1.0"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
