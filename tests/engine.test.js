@@ -2244,3 +2244,10 @@ test('history groups: by month or by week, with what came in, what went out and 
     const weeks = E.historyGroups(list, 'week');
     assert.deepEqual(weeks.map(g => [g.key, g.spending]), [['2026-10-12', 50], ['2026-10-05', 30], ['2026-09-28', 20]]);
 });
+
+test('budget groups inside groups: one level deep, a missing or looping parent stays on top', () => {
+    const tree = E.groupTree([{ name: 'Car', type: 'Gasto Variable' }, { name: 'Gas', parent: 'Car' }, { name: 'Repairs', parent: 'Car' }, { name: 'Pets' },
+        { name: 'Vet', parent: 'Pets' }, { name: 'Shots', parent: 'Vet' }, { name: 'Lost', parent: 'Nowhere' }, { name: 'Me', parent: 'Me' }]);
+    assert.deepEqual(tree.map(g => [g.name, g.children.map(c => c.name)]), [['Car', ['Gas', 'Repairs']], ['Pets', ['Vet']], ['Shots', []], ['Lost', []], ['Me', []]]);
+    assert.deepEqual(E.groupTree([]), []);
+});

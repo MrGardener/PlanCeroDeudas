@@ -133,9 +133,9 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 
 | Feature | Source / notes |
 |---|---|
-| 📋 Nested budget groups (a group inside a group) | "Car Money → Transportation / Maintenance" |
+| ✅ Nested budget groups (a group inside a group) | Budget → Add group → "Inside another group": one level deep (Car money → Gas, Upkeep). The sub-group is a section of its parent's card with its own total; the parent's total takes it in. Removing a parent turns its sub-groups into groups of their own |
 | ✅ History grouped by week/month with category totals | Transactions → History: **By month / By week** (Monday to Sunday); each group shows what went out and came in (refunds lower it, transfers stay out) and its three biggest categories |
-| 📋 Share a read-only report (file / print) | Until hosting allows real sharing. Today: Reportes → CSV / print to PDF. Next: a single-file read-only snapshot |
+| ✅ Share a read-only report (file / print) | Reports → **Share a read-only snapshot**: this month's plan (income, spending, net worth, debts, the budget by line, where the money went, goals) as one .html file, encrypted like every file that leaves the app (AES-256-GCM, a password you choose). It opens in any browser with the password; its Content Security Policy runs only its own decrypt script and connects nowhere. Real sharing (live, two-way) still needs hosting |
 
 ## US edition — next
 

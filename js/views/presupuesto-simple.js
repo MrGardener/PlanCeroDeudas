@@ -120,7 +120,18 @@
                 <span class="help">The emergency fund doesn't count as retirement saving (Step 4).</span></label>`;
         };
         m.plannedItems.forEach(it => { if (it.group && !it.link && !custom.includes(it.group)) custom.push(it.group); });
-        const order = GROUPS.map(g => g.type).concat(custom.map(n => 'g:' + n), Object.keys(byGroup).filter(k => !GROUPS.some(g => g.type === k) && !k.startsWith('g:')));
+        // A group can sit inside another (Car → Gas, Repairs): it's a section of its parent's card.
+        const tree = Engine.groupTree(custom.map(n => (ctx.year.groups || []).find(x => x.name === n) || { name: n }));
+        const kids = {};
+        tree.forEach(t => { kids['g:' + t.name] = t.children.map(c => c.name); });
+        const subHTML = (name) => {
+            const gdef = (ctx.year.groups || []).find(x => x.name === name), list = byGroup['g:' + name] || [];
+            const addType = (gdef && gdef.type) || (list[0] && list[0].type) || 'Gasto Variable';
+            return `<div class="bs-subgroup" data-subgroup="${esc('g:' + name)}"><div class="bs-subhead"><span><i class="fa-solid fa-folder-tree text-slate-400"></i> ${esc(name)}</span><span class="bs-total" data-subtotal></span></div>
+                ${list.map(lineRow).join('') || '<p class="bs-empty">No lines yet.</p>'}
+                <div class="bs-subfoot"><button type="button" class="link" data-action="budget.addRow" data-type="${esc(addType)}" data-group="${esc(name)}"><i class="fa-solid fa-plus"></i> Add line</button>${!list.length ? ` <button type="button" class="mini-btn text-red-600 ml-2" data-action="group.delete" data-name="${esc(name)}">Remove group</button>` : ''}</div></div>`;
+        };
+        const order = GROUPS.map(g => g.type).concat(tree.map(t => 'g:' + t.name), Object.keys(byGroup).filter(k => !GROUPS.some(g => g.type === k) && !k.startsWith('g:')));
         const cards = order.map(g => {
             const isCustom = g.startsWith('g:');
             const name = isCustom ? g.slice(2) : g;
@@ -128,11 +139,12 @@
             const list = byGroup[g] || [];
             const gdef = (ctx.year.groups || []).find(x => x.name === name);
             const addType = isCustom ? ((gdef && gdef.type) || (list[0] && list[0].type) || 'Gasto Variable') : g;
+            const sub = (kids[g] || []);
             const foot = g === 'Deuda' ? '<a href="#" class="link" data-goto="futuro/metas" data-focus="metas-debts"><i class="fa-solid fa-plus"></i> Add debt</a>'
-                : GROUPS.some(x => x.type === g) || isCustom ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(addType)}" ${isCustom ? `data-group="${esc(name)}"` : ''}><i class="fa-solid fa-plus"></i> Add line</button>${isCustom && !list.length ? ` <button type="button" class="mini-btn text-red-600 ml-2" data-action="group.delete" data-name="${esc(name)}">Remove group</button>` : ''}` : '<span></span>';
+                : GROUPS.some(x => x.type === g) || isCustom ? `<button type="button" class="link" data-action="budget.addRow" data-type="${esc(addType)}" ${isCustom ? `data-group="${esc(name)}"` : ''}><i class="fa-solid fa-plus"></i> Add line</button>${isCustom && !list.length && !sub.length ? ` <button type="button" class="mini-btn text-red-600 ml-2" data-action="group.delete" data-name="${esc(name)}">Remove group</button>` : ''}` : '<span></span>';
             return `<section class="bs-card" data-group="${esc(g)}">
                 <header class="bs-head"><span class="bs-title"><i class="fa-solid ${def.icon} text-slate-400"></i> ${esc(def.label)}</span>${colsHTML(MODES)}</header>
-                ${list.map(lineRow).join('') || '<p class="bs-empty">No lines yet.</p>'}
+                ${list.map(lineRow).join('') || (sub.length ? '' : '<p class="bs-empty">No lines yet.</p>')}${sub.map(subHTML).join('')}
                 <footer class="bs-foot">${foot}<span class="bs-total" data-total></span></footer>
             </section>`;
         });
@@ -264,10 +276,20 @@
         if (sweepRow) setRow(sweepRow, { value: md === 'spent' ? 0 : mb.sweep, planned: mb.sweep, spent: 0, progress: 0, sub: mb.sweep > 0 ? 'Move it to your savings account or CD' : 'Nothing left over' });
 
         // Card totals
+        // A card's total takes in its sub-groups; each sub-group shows its own.
+        const inside = (c) => [...c.querySelectorAll('[data-subgroup]')].map(x => x.dataset.subgroup);
+        UI.$$('#bud-simple .bs-subgroup[data-subgroup]').forEach(sg => {
+            const list = m.plannedItems.filter(it => groupOf(it) === sg.dataset.subgroup);
+            const v = pick(list.reduce((t, it) => t + (Number(it.real) || 0), 0), list.reduce((t, it) => t + spentOf(it.id).spent, 0));
+            const el = sg.querySelector('[data-subtotal]');
+            el.textContent = money(v);
+            el.classList.toggle('text-red-600', md === 'remaining' && v < -0.005);
+        });
         UI.$$('#bud-simple .bs-card[data-group]').forEach(c => {
             const g = c.dataset.group;
             if (g === 'income') return;
-            const list = m.plannedItems.filter(it => groupOf(it) === g);
+            const subs = inside(c);
+            const list = m.plannedItems.filter(it => groupOf(it) === g || subs.includes(groupOf(it)));
             const planned = list.reduce((t, it) => t + (Number(it.real) || 0), 0) + (g === 'Ahorro' ? mb.sweep : 0);
             const spent = list.reduce((t, it) => t + spentOf(it.id).spent, 0);
             const el = c.querySelector('[data-total]');
@@ -730,7 +752,7 @@
         };
         const settings = item.link ? `<p class="help">It's ${item.link === 'debt' ? 'a debt' : 'a goal'}'s line: edit it in <a href="#" class="link" data-goto="futuro/metas">Debts & Goals</a>.</p>` : `
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label class="field"><span class="field-label">Group</span><select class="input" data-change="line.setGroup" data-id="${esc(String(id))}"><option value="">By its type</option>${custom.map(n => `<option ${n === item.group ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+                <label class="field"><span class="field-label">Group</span><select class="input" data-change="line.setGroup" data-id="${esc(String(id))}"><option value="">By its type</option>${custom.map(n => { const p = ((Store.active().groups || []).find(x => x.name === n) || {}).parent; return `<option value="${esc(n)}" ${n === item.group ? 'selected' : ''}>${p ? `${esc(p)} › ` : ''}${esc(n)}</option>`; }).join('')}</select></label>
                 <label class="field"><span class="field-label">Type</span><select class="input" data-change="line.setType" data-id="${esc(String(id))}">${Views.selectOptions(Defaults.BUDGET_TYPES, item.type)}</select></label>
                 <label class="field"><span class="field-label">Linked category</span><select class="input" data-change="line.setCategory" data-id="${esc(String(id))}">${Views.selectOptions([{ value: 'none', label: 'Not linked' }].concat(Object.keys(s.taxonomy.expense).map(c => ({ value: c, label: c }))), item.linkedCategory || 'none')}</select></label>
             </div>${purposeField(item, id)}`;
@@ -805,19 +827,23 @@
             openDetail(el.dataset.id);
         },
         'group.add': async () => {
+            // A group can go inside another one (one level): Car → Gas, Repairs.
+            const tops = Engine.groupTree(Store.active().groups || []).map(g => ({ value: g.name, label: g.name }));
             const r = await UI.form({ title: 'New group', fields: [
                 { name: 'name', label: 'Group name', placeholder: 'E.g. Giving, Pets, Car' },
                 { name: 'type', label: 'What kind of money is it?', options: [{ value: 'Gasto Variable', label: 'Expenses that vary' }, { value: 'Gasto Fijo', label: 'Fixed expenses' }, { value: 'Ahorro', label: 'Savings & investing' }] }
-            ], confirmText: 'Create', validate: v => !v.name.trim() ? 'Type a name.' : (Store.active().groups || []).some(g => g.name === v.name.trim()) ? 'There\'s already a group with that name.' : null });
+            ].concat(tops.length ? [{ name: 'parent', label: 'Inside another group (optional)', options: [{ value: '', label: 'No: a group of its own' }].concat(tops), help: 'It shows as a section of that group, which adds it to its total.' }] : []),
+            confirmText: 'Create', validate: v => !v.name.trim() ? 'Type a name.' : (Store.active().groups || []).some(g => g.name === v.name.trim()) ? 'There\'s already a group with that name.' : null });
             if (!r) return;
             const yd = Store.active();
-            (yd.groups || (yd.groups = [])).push({ name: r.name.trim().slice(0, 40), type: r.type });
+            (yd.groups || (yd.groups = [])).push(Object.assign({ name: r.name.trim().slice(0, 40), type: r.type }, r.parent ? { parent: r.parent } : {}));
             App.changed({ structural: true, step: true });
             UI.toast(`Group "${r.name.trim()}" created. Add lines to it or move one from its detail (chart icon).`);
         },
         'group.delete': (el) => {
             const yd = Store.active();
-            App.undoable(`Grupo "${el.dataset.name}" quitado`, () => { yd.groups = (yd.groups || []).filter(g => g.name !== el.dataset.name); });
+            // Its sub-groups (if any) become groups of their own.
+            App.undoable(`Grupo "${el.dataset.name}" quitado`, () => { yd.groups = (yd.groups || []).filter(g => g.name !== el.dataset.name).map(g => (g.parent === el.dataset.name ? Object.assign({}, g, { parent: undefined }) : g)); });
         },
         'budget.mode': (el) => { Store.ui.budgetMode = el.dataset.mode; App.update(); },
         'budget.bubbles': () => { Store.ui.budgetBubbles = !Store.ui.budgetBubbles; App.update(); },

@@ -1547,6 +1547,49 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.click('[data-action="txn.group"][data-by="month"]');
   ok(/^\s*[A-Z][a-z]+ 20\d\d/.test(hm.head) && /−\$/.test(hm.head) && /\$/.test(hm.cats) && !/Alimentación|Vivienda|Transporte/.test(hm.cats) && /^\s*Week of/.test(hw.head) && hw.pressed === 'true',
     'history grouped by month or by week, with totals and the biggest categories', { hm, hw });
+  // A group inside a group: "Car money" with "Gas" in it; the card's total takes in the sub-group.
+  await page.evaluate(() => { Store.reset('example'); Store.ui.budgetLayout = 'simple'; Store.ui.budgetBubbles = false; Store.active().groups = [{ name: 'Car money', type: 'Gasto Variable' }]; App.changed({ structural: true }); App.go('presupuesto/plan'); });
+  await page.waitForTimeout(250);
+  await page.click('[data-action="group.add"]');
+  await page.waitForSelector('.modal [name="name"]');
+  await page.fill('.modal [name="name"]', 'Gas');
+  await page.selectOption('.modal [name="parent"]', 'Car money');
+  await page.click('.modal [data-dialog-ok]');
+  await page.waitForTimeout(250);
+  await page.evaluate(() => { const g = Store.active().budgetBase.find(i => /Gas & fuel/.test(i.name)); g.group = 'Gas'; App.changed({ structural: true }); });
+  await page.waitForTimeout(250);
+  const nest = await page.evaluate(() => { const c = document.querySelector('.bs-card[data-group="g:Car money"]'); const sub = c && c.querySelector('[data-subgroup="g:Gas"]'); return { card: !!c, sub: !!sub, inSub: sub ? [...sub.querySelectorAll('[data-line]')].some(r => /Gas & fuel/.test(r.textContent + ((r.querySelector('input') || {}).value || ''))) : false, total: c ? c.querySelector('[data-total]').textContent : '', parent: (Store.active().groups.find(g => g.name === 'Gas') || {}).parent, own: !document.querySelector('.bs-card[data-group="g:Gas"]') }; });
+  ok(nest.card && nest.sub && nest.inSub && nest.parent === 'Car money' && nest.own && /\$240/.test(nest.total), 'a group inside a group shows as a section of its card, counted in its total', nest);
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
+  // A read-only snapshot: one encrypted .html that opens in any browser with the password, runs
+  // nothing but its own script and asks for nothing snap_outside.
+  await page.evaluate(() => { App.go('transacciones/reportes'); window.__snap = null; window.__save2 = Native.saveFile; Native.saveFile = (name, text) => { window.__snap = { name, text }; return Promise.resolve('saved'); }; });
+  await page.waitForTimeout(200);
+  await page.click('[data-action="snapshot.share"]');
+  await page.waitForSelector('.modal input[name="pw"]');
+  await page.fill('.modal input[name="pw"]', 'snapshot-pass-1');
+  await page.fill('.modal input[name="pw2"]', 'snapshot-pass-1');
+  await page.click('.modal [data-dialog-ok]');
+  await page.waitForFunction(() => window.__snap, null, { timeout: 15000 });
+  const snapFile = await page.evaluate(() => { Native.saveFile = window.__save2; return window.__snap; });
+  const snap_snapPath = path.join(ROOT, 'tests/e2e/out/snapshot-test.html');
+  require('fs').writeFileSync(snap_snapPath, snapFile.text);
+  const snapPage = await page.context().newPage();
+  const snap_outside = [];
+  snapPage.on('request', r => { if (!/^(file|data|about):/.test(r.url())) snap_outside.push(r.url()); });
+  await snapPage.goto('file://' + snap_snapPath);
+  const snap_sealed = await snapPage.evaluate(() => ({ readable: /Groceries|Mortgage|Net worth/.test(document.body.textContent), csp: !!document.querySelector('meta[http-equiv="Content-Security-Policy"]') }));
+  await snapPage.fill('#p', 'not-the-password');
+  await snapPage.click('#f button');
+  await snapPage.waitForTimeout(2500);
+  const snap_wrong = await snapPage.textContent('#m');
+  await snapPage.fill('#p', 'snapshot-pass-1');
+  await snapPage.click('#f button');
+  await snapPage.waitForSelector('#r h2', { timeout: 15000 });
+  const snap_opened = await snapPage.evaluate(() => ({ text: document.getElementById('r').textContent, form: !!document.getElementById('f') }));
+  await snapPage.close();
+  ok(/\.html$/.test(snapFile.name) && !snap_sealed.readable && snap_sealed.csp && /Wrong password/.test(snap_wrong) && /Budget report/.test(snap_opened.text) && /Net worth/.test(snap_opened.text) && /Debts/.test(snap_opened.text) && !snap_opened.form && !snap_outside.length,
+    'read-only snapshot: encrypted .html, snap_wrong password refused, opens with the password, nothing snap_outside', { name: snapFile.name, snap_sealed, snap_wrong, snap_opened: snap_opened.text.slice(0, 200), snap_outside });
   // The weekly review on the Overview: its checks, then "Done for this week" (undoable).
   await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('resumen'); });
   await page.waitForTimeout(250);
