@@ -2,6 +2,18 @@
    Ecuador edition's own wording is in ec.js). {n} is a value; {n|a|b} prints a when the value is
    not empty, else b (plural endings). Generated from en.js when the source switched to English. */
 I18n.add('es', {
+    "13th-month bonus paid monthly": "Décimo Tercero mensualizado",
+    "14th-month bonus paid monthly": "Décimo Cuarto mensualizado",
+    "Reserve fund (8.33%)": "Fondos de reserva (8.33%)",
+    "Reserve fund saved at the IESS (not in your pay)": "Fondos de reserva acumulados en el IESS (no están en tu pago)",
+    "Reserve fund": "Fondos de reserva",
+    "A twelfth with each salary instead of in December": "Una doceava parte con cada sueldo en vez de en diciembre",
+    "A twelfth with each salary instead of in its month": "Una doceava parte con cada sueldo en vez de en su mes",
+    "Not yet (less than a year with this employer)": "Todavía no (menos de un año con este empleador)",
+    "Paid monthly": "Mensualizado",
+    "Paid with my salary (8.33%)": "Pagados con mi sueldo (8.33%)",
+    "Saved at the IESS": "Acumulados en el IESS",
+    "After a year with the same employer: 8.33% of your salary, with no IESS or income tax. Paid monthly, it raises your take-home; saved at the IESS, it grows there.": "Después de un año con el mismo empleador: 8.33% de tu sueldo, sin IESS ni impuesto a la renta. Mensualizados suben tu sueldo neto; acumulados en el IESS, crecen allá.",
     "{0}% flat": "{0}% fijo",
     "{0}% to {1}% by income": "del {0}% al {1}% según el ingreso",
     "the federal standard deduction": "la deducción estándar federal",

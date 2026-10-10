@@ -639,9 +639,18 @@
         const rebaja = Math.min(isrBruto, dedApplied * rebajaRate);
         const isrAnual = isrBruto - rebaja;
         const otros = payDeductionsSummary(yd).taken;
+        // Paid with each month's salary when the person chose so: the décimos (a twelfth of the
+        // salary and of the SBU) and, after a year with the employer, the fondos de reserva
+        // (8.33%). None of them pays IESS or income tax. Fondos left at the IESS are savings.
+        const d3M = yd.d3Monthly ? sueldo / 12 : 0;
+        const d4M = yd.d4Monthly ? Math.max(0, num(yd.sbu)) / 12 : 0;
+        const fondosM = yd.fondos === 'monthly' ? sueldo * FONDOS_RATE / 100 : 0;
+        const extrasM = d3M + d4M + fondosM;
         return {
             sueldo,
             sueldoAnual: sueldo * 12,
+            d3M, d4M, fondosM, extrasM,
+            fondosIessM: yd.fondos === 'iess' ? sueldo * FONDOS_RATE / 100 : 0,
             iessM,
             iessAnual: iessM * 12,
             sriCap: cap,
@@ -656,11 +665,12 @@
             rebajaRoom: Math.max(0, Math.min(isrBruto, cap * rebajaRate) - rebaja),
             isrAnual,
             isrM: isrAnual / 12,
-            netoAntesM: Math.max(0, sueldo - iessM - isrAnual / 12),
+            netoAntesM: Math.max(0, sueldo - iessM - isrAnual / 12) + extrasM,
             otrosDescuentosM: otros,
-            netoM: Math.max(0, sueldo - iessM - isrAnual / 12 - otros)
+            netoM: Math.max(0, sueldo - iessM - isrAnual / 12 - otros) + extrasM
         };
     }
+    const FONDOS_RATE = 8.33;
 
     const d4Month = (yd) => (yd.d4Region === 'sierra' ? '8' : '3');
 
@@ -676,8 +686,9 @@
             return sum(planned, b => num(b.amount)) * (1 - rate);
         }
         let bonus = 0;
-        if (month === '12' && yd.d3) bonus += Math.max(0, num(yd.sueldo));
-        if (month === d4Month(yd) && yd.d4) bonus += num(yd.sbu);
+        // Paid monthly (mensualizado), it's already in each month's pay.
+        if (month === '12' && yd.d3 && !yd.d3Monthly) bonus += Math.max(0, num(yd.sueldo));
+        if (month === d4Month(yd) && yd.d4 && !yd.d4Monthly) bonus += num(yd.sbu);
         return bonus;
     }
 

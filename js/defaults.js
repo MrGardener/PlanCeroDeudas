@@ -94,7 +94,10 @@
             annualMode: 'base12',
             d3: false,
             d4: false,
+            d3Monthly: false,        // décimo tercero paid with each month's salary (mensualizado)
+            d4Monthly: false,
             d4Region: 'costa',
+            fondos: 'none',          // fondos de reserva (after a year with the employer): 'none' | 'monthly' (with the salary) | 'iess' (saved at the IESS)
             sweepSavings: false,
             iessRate: 9.45,
             sbu: 482,                // salario básico unificado 2026 (Acuerdo MDT-2025-195)

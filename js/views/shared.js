@@ -74,8 +74,8 @@
         const d4 = Engine.d4Month(yd);
         return [{ value: 'base', label: 'Base budget (whole year)' }].concat(Engine.MONTHS.map(m => {
             let note = '';
-            if (m === '12' && yd.d3) note = ' · + 13th-month bonus';
-            if (m === d4 && yd.d4) note += ' · + 14th-month bonus';
+            if (m === '12' && yd.d3 && !yd.d3Monthly) note = ' · + 13th-month bonus';
+            if (m === d4 && yd.d4 && !yd.d4Monthly) note += ' · + 14th-month bonus';
             return { value: m, label: Fmt.MONTH_NAMES[Number(m) - 1] + note };
         }));
     }
