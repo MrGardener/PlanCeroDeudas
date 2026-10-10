@@ -64,6 +64,32 @@
     });
 
     // ------------------------------------------------------------------ states
+    // 2026 tables (Engine.usStateTax): std = standard deduction by filing status ('federal': the
+    // federal one); exemption = per person (filers and dependents); personal = by filing status;
+    // perDependent; zero = income taxed at 0%; brackets by status (separately: half the joint ones);
+    // surtax. Sources: each state's 2026 law or withholding tables as published by October 2026.
+    // `approx` says what isn't counted. They change often: verify each January.
+    const STD_NC = { single: 12750, mfs: 12750, mfj: 25500, hoh: 19125, qss: 25500 };
+    const VA_BRACKETS = [[0, 0.02], [3000, 0.03], [5000, 0.05], [17000, 0.0575]];
+    const STATE_TABLES = {
+        AZ: { type: 'flat', rate: 2.5, std: 'federal', approx: 'the dependent credit' },
+        CO: { type: 'flat', rate: 4.4, std: 'federal' },
+        GA: { type: 'flat', rate: 4.99, std: { single: 15000, mfs: 15000, mfj: 30000, hoh: 15000, qss: 30000 }, perDependent: 5000 },
+        ID: { type: 'flat', rate: 5.3, std: 'federal', approx: 'the first few thousand dollars taxed at 0%' },
+        IN: { type: 'flat', rate: 2.95, exemption: 1000, approx: 'county tax: type it as the city rate' },
+        IA: { type: 'flat', rate: 3.8, std: 'federal' },
+        KY: { type: 'flat', rate: 3.5, std: { single: 3360, mfs: 3360, mfj: 6720, hoh: 3360, qss: 3360 } },
+        LA: { type: 'flat', rate: 3.0, std: { single: 12875, mfs: 12875, mfj: 25750, hoh: 25750, qss: 25750 } },
+        MA: { type: 'flat', rate: 5.0, personal: { single: 4400, mfs: 4400, mfj: 8800, hoh: 6800, qss: 4400 }, perDependent: 1000, surtax: { over: 1083150, rate: 4 } },
+        MN: { type: 'brackets', std: { single: 15300, mfs: 15300, mfj: 30600, hoh: 23000, qss: 30600 },
+            brackets: { single: [[0, 0.0535], [33310, 0.068], [109430, 0.0785], [203150, 0.0985]], mfj: [[0, 0.0535], [48700, 0.068], [193480, 0.0785], [337930, 0.0985]] },
+            approx: 'the dependent exemption; head of household uses the single brackets' },
+        MS: { type: 'flat', rate: 4.0, std: { single: 2300, mfs: 2300, mfj: 4600, hoh: 3400, qss: 4600 }, personal: { single: 6000, mfs: 6000, mfj: 12000, hoh: 9500, qss: 12000 }, perDependent: 1500, zero: 10000 },
+        NC: { type: 'flat', rate: 3.99, std: STD_NC },
+        OH: { type: 'flat', rate: 2.75, zero: 26050, approx: 'the personal exemptions' },
+        UT: { type: 'flat', rate: 4.45, approx: 'the taxpayer credit, so a little high' },
+        VA: { type: 'brackets', std: { single: 8750, mfs: 8750, mfj: 17500, hoh: 8750, qss: 17500 }, exemption: 930, brackets: { single: VA_BRACKETS, mfj: VA_BRACKETS, mfs: VA_BRACKETS, hoh: VA_BRACKETS, qss: VA_BRACKETS } }
+    };
     // type: 'none' (no tax on wages), 'flat' (rate % after exemptions), 'custom' (enter the
     // rate from your pay stub until this state's table is added). Michigan first, as requested.
     const STATES = [
@@ -76,7 +102,7 @@
         ['PA', 'Pennsylvania', 'flat', 3.07, 0, true], ['RI', 'Rhode Island'], ['SC', 'South Carolina'], ['SD', 'South Dakota', 'none'], ['TN', 'Tennessee', 'none'],
         ['TX', 'Texas', 'none'], ['UT', 'Utah'], ['VT', 'Vermont'], ['VA', 'Virginia'], ['WA', 'Washington', 'none'], ['WV', 'West Virginia'],
         ['WI', 'Wisconsin'], ['WY', 'Wyoming', 'none']
-    ].map(([code, name, type = 'custom', rate = null, exemption = 0, taxes401k = false]) => ({ code, name, type, rate, exemption, taxes401k }));
+    ].map(([code, name, type = 'custom', rate = null, exemption = 0, taxes401k = false]) => Object.assign({ code, name, type, rate, exemption, taxes401k }, STATE_TABLES[code] || {}));
 
     // Michigan cities with an income tax (Uniform City Income Tax Ordinance): resident rate, the
     // non-resident rate (half) for people who only work there, and the exemption per person
@@ -86,6 +112,19 @@
         ['East Lansing', 1.0], ['Flint', 1.0], ['Grayling', 1.0], ['Hamtramck', 1.0], ['Hudson', 1.0], ['Ionia', 1.0], ['Jackson', 1.0], ['Lansing', 1.0],
         ['Lapeer', 1.0], ['Muskegon', 1.0], ['Muskegon Heights', 1.0], ['Pontiac', 1.0], ['Port Huron', 1.0], ['Portland', 1.0], ['Springfield', 1.0], ['Walker', 1.0]
     ].map(([name, rate]) => ({ name, rate, nonresident: rate / 2, exemption: 600 }));
+    // Other states' local income taxes on wages (resident rate, non-resident rate). Ohio cities tax
+    // people who work there at the same rate; Pennsylvania's earned income tax includes the school
+    // district's; New York City has its own brackets on New York taxable income (no non-resident
+    // tax). Verify each year with your city.
+    const NYC_BRACKETS = { single: [[0, 0.03078], [12000, 0.03762], [25000, 0.03819], [50000, 0.03876]], mfj: [[0, 0.03078], [21600, 0.03762], [45000, 0.03819], [90000, 0.03876]],
+        hoh: [[0, 0.03078], [14400, 0.03762], [30000, 0.03819], [60000, 0.03876]] };
+    const CITIES = {
+        MI: MI_CITIES,
+        OH: [['Columbus', 2.5], ['Cleveland', 2.5], ['Cincinnati', 1.8], ['Toledo', 2.5], ['Akron', 2.5], ['Dayton', 2.5], ['Youngstown', 2.75], ['Canton', 2.5]]
+            .map(([name, rate]) => ({ name, rate, nonresident: rate, exemption: 0 })),
+        PA: [{ name: 'Philadelphia', rate: 3.74, nonresident: 3.43, exemption: 0 }, { name: 'Pittsburgh', rate: 3, nonresident: 1, exemption: 0 }],
+        NY: [{ name: 'New York City', brackets: NYC_BRACKETS, std: { single: 8000, mfs: 8000, mfj: 16050, hoh: 11200, qss: 16050 }, rate: 3.876, nonresident: 0, exemption: 0 }]
+    };
 
     // ------------------------------------------------------------------ budget
     const BUDGET_TEMPLATE = [
@@ -182,6 +221,7 @@
             localName: '',              // city with income tax
             localResident: true,        // false = works in the city, lives elsewhere (non-resident rate)
             localRate: 0,               // %
+            schoolRate: 0,              // % school district income tax (Ohio)
             itemized: 0,                // itemized deductions (used only if above the standard deduction)
             usTax: usTax2026(),
             budgetBase: clone(BUDGET_TEMPLATE)
@@ -272,7 +312,7 @@
         ]
     });
 
-    const DefaultsUS = { clone, CATEGORY_ICONS: EC.CATEGORY_ICONS, categoryIcon: EC.categoryIcon, annualIdeas, collegeTypes, collegeDefaults, checklists, BUDGET_TEMPLATE, STATES, MI_CITIES, BANKS, usTax2026, taxonomy, TAXONOMY_REV, TAXONOMY_ADDED, insertAfter, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
+    const DefaultsUS = { clone, CATEGORY_ICONS: EC.CATEGORY_ICONS, categoryIcon: EC.categoryIcon, annualIdeas, collegeTypes, collegeDefaults, checklists, BUDGET_TEMPLATE, STATES, MI_CITIES, CITIES, BANKS, usTax2026, taxonomy, TAXONOMY_REV, TAXONOMY_ADDED, insertAfter, newYear, newState, emptyState, BUDGET_TYPES: EC.BUDGET_TYPES, EXPENSE_TAXONOMY: taxonomy().expense, INCOME_TAXONOMY: taxonomy().income, COOPERATIVAS: BANKS, sriBrackets: () => [] };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = DefaultsUS;
     else root.DefaultsUS = DefaultsUS;

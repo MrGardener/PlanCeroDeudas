@@ -201,6 +201,22 @@
         syncSalary(yd);
     }
 
+    // How the state's tax is figured, in a sentence or two (and what isn't counted).
+    function stateNote(st, yd) {
+        const name = esc(st.name);
+        if (st.type === 'none') return `${name} doesn't tax wages.`;
+        if (st.type === 'custom') return `We don't have ${name}'s table yet: type the state tax percentage from your pay stub (state tax ÷ gross pay).`;
+        const status = Engine.usStatus(yd.filingStatus);
+        const amt = (v) => money(v && typeof v === 'object' ? Engine.forStatus(v, status) : v);
+        const after = [st.std === 'federal' ? 'the federal standard deduction' : st.std ? `a ${amt(st.std)} standard deduction` : '',
+            st.exemption ? `a ${money(st.exemption)} exemption per person` : '', st.personal ? `a ${amt(st.personal)} personal exemption` : '',
+            st.perDependent ? `${money(st.perDependent)} per dependent` : '', st.zero ? `the first ${amt(st.zero)} at 0%` : ''].filter(Boolean);
+        const rates = st.type === 'brackets' ? (() => { const br = Engine.forStatus(st.brackets, status, 'brackets'); return `${+(br[0][1] * 100).toFixed(2)}% to ${+(br[br.length - 1][1] * 100).toFixed(2)}% by income`; })() : `${st.rate}% flat`;
+        const parts = [`<span data-i18n-skip>${name}:</span> <span>${rates}</span>`].concat(after.map(x => `<span>${esc(x)}</span>`));
+        if (st.surtax) parts.push(`<span>${st.surtax.rate}% more above ${money(st.surtax.over)}</span>`);
+        return `${parts.join(' · ')}. <span>2026 table: verify each January.</span>${st.approx ? ` <span>Not counted: ${esc(st.approx)}.</span>` : ''}`;
+    }
+
     function renderUS(ctx) {
         const yd = ctx.year, p = ctx.pay;
         const st = US().STATES.find(x => x.code === yd.state) || { type: 'custom', name: yd.state };
@@ -209,23 +225,24 @@
         if (sel) sel.value = yd.state || 'MI';
         const rate = document.getElementById('inc-state-rate');
         if (rate && rate !== document.activeElement) rate.value = yd.stateRate === null || yd.stateRate === undefined ? '' : yd.stateRate;
-        if (rate) rate.placeholder = st.type === 'none' ? '0' : st.type === 'flat' ? String(st.rate) : 'Type your %';
+        if (rate) rate.placeholder = st.type === 'none' ? '0' : st.type === 'flat' ? String(st.rate) : st.type === 'brackets' ? 'Automatic' : 'Type your %';
         UI.text('inc-status-note', yd.filingStatus === 'mfs' ? 'Each spouse on their own return: the tips, overtime and 65-or-older deductions need a joint return.'
             : yd.filingStatus === 'qss' ? 'For 2 years after the year your spouse died, with a child at home: the joint brackets and standard deduction.' : '');
         // What 65 or older, blind, tips and a car loan take off this year's federal tax.
         const f = p.fedReturn || {};
         const off = [f.addlStd ? `${money(f.addlStd)} more standard deduction` : '', f.seniorDeduction ? `${money(f.seniorDeduction)} for 65 or older` : '', f.tipsDeduction ? `${money(f.tipsDeduction)} of tips` : '', f.carDeduction ? `${money(f.carDeduction)} of car loan interest` : ''].filter(Boolean);
         UI.html('inc-return-note', off.length ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> Off your taxable income this year: ${off.map(x => `<span>${esc(x)}</span>`).join(' · ')}.` : '');
-        UI.html('inc-state-note', st.type === 'none' ? `${esc(st.name)} doesn't tax wages.`
-            : st.type === 'flat' ? `${esc(st.name)}: ${st.rate}% flat${st.exemption ? ` after a ${money(st.exemption)} exemption per person` : ''}.`
-            : `We don't have ${esc(st.name)}'s table yet: type the state tax percentage from your pay stub (state tax ÷ gross pay).`);
+        UI.html('inc-state-note', stateNote(st, yd));
         // Cities with an income tax (Michigan list) or a rate you type.
         const city = document.getElementById('inc-city');
         if (city) {
-            const cities = yd.state === 'MI' ? US().MI_CITIES : [];
+            const cities = (US().CITIES || {})[yd.state] || [];
             const known = cities.find(c => c.name === yd.localName);
-            city.innerHTML = `<option value="">None (0%)</option>` + cities.map(c => `<option value="${esc(c.name)}">${esc(c.name)} (${c.rate}% · ${c.nonresident}%)</option>`).join('') + `<option value="__custom">Another rate…</option>`;
+            city.innerHTML = `<option value="">None (0%)</option>` + cities.map(c => `<option value="${esc(c.name)}">${esc(c.name)} (${c.brackets ? `${c.brackets.single[0][1] * 100}–${c.rate}%` : `${c.rate}% · ${c.nonresident}%`})</option>`).join('') + `<option value="__custom">Another rate…</option>`;
             UI.show('inc-city-resident', !!known);
+            UI.show('inc-school', yd.state === 'OH');
+            const school = document.getElementById('inc-school-rate');
+            if (school && school !== document.activeElement) school.value = Number(yd.schoolRate) > 0 ? yd.schoolRate : '';
             city.value = known ? known.name : (Number(yd.localRate) > 0 ? '__custom' : '');
             if (!known && Number(yd.localRate) > 0) city.options[city.options.length - 1].textContent = `Other: ${yd.localRate}%`;
         }
@@ -241,7 +258,8 @@
             ['Seguro Social', -p.ssM, 'text-red-600'],
             ['Medicare', -p.medM, 'text-red-600'],
             [`State income tax (${esc(st.name) + (p.stateRate ? ` ${p.stateRate}%` : '')})`, -p.stateM, 'text-red-600'],
-            p.localM > 0 ? [`City tax${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'resident' : 'non-resident'} ${p.localRate}%)` : ''}`, -p.localM, 'text-red-600'] : null,
+            p.localM - (p.schoolM || 0) > 0.004 ? [`City tax${yd.localName ? ` (${esc(yd.localName)}, ${p.localResident ? 'resident' : 'non-resident'} ${p.localRate}%)` : ''}`, -(p.localM - (p.schoolM || 0)), 'text-red-600'] : null,
+            p.schoolM > 0.004 ? [`School district tax (${Number(yd.schoolRate)}%)`, -p.schoolM, 'text-red-600'] : null,
             after > 0.004 ? ['After-tax deductions (Roth 401(k), life and disability insurance…)', -after, 'text-red-600'] : null,
             ['Take-home pay', p.netoM, 'text-emerald-700']
         ].filter(Boolean);
@@ -366,6 +384,7 @@
             App.undoable(`Bonus "${(b && b.name) || ''}" removed`, () => { y.bonuses = y.bonuses.filter(x => x !== b); });
         },
         'us.state': (el) => { const y = Store.active(); y.state = el.value; y.stateRate = null; y.localName = ''; y.localRate = 0; App.changed({ structural: true, step: true }); },
+        'us.schoolRate': (el) => { Store.active().schoolRate = Math.min(5, Math.max(0, Fmt.parseNum(el.value, 0))); App.changed({ structural: true }); },
         'us.stateRate': (el) => { Store.active().stateRate = el.value === '' ? null : Math.min(20, Math.max(0, Fmt.parseNum(el.value, 0))); App.changed({ step: true }); },
         'us.city': async (el) => {
             const y = Store.active();
@@ -374,7 +393,7 @@
                 if (!r) { App.render(); return; }
                 y.localName = r.name.trim().slice(0, 40); y.localRate = Math.max(0, Number(r.rate) || 0);
             } else {
-                const c = (US().MI_CITIES || []).find(x => x.name === el.value);
+                const c = ((US().CITIES || {})[y.state] || []).find(x => x.name === el.value);
                 y.localName = c ? c.name : ''; y.localRate = c ? c.rate : 0;
             }
             App.changed({ structural: true, step: true });

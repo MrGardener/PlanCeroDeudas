@@ -2120,3 +2120,44 @@ test('HSA limit by coverage: self-only or family, $1,000 more from 55', () => {
     assert.deepEqual(E.deductionLimits(e(undefined), t, 40), []);             // family: $8,750
 });
 
+
+test('state income tax: flat with deductions and exemptions, a 0% band, brackets, a surtax, a typed rate', () => {
+    const U = require('../js/defaults-us.js');
+    const st = (code) => U.STATES.find(x => x.code === code);
+    const tax = (code, o) => Math.round(E.usStateTax(st(code), Object.assign({ wages: 60000, status: 'single', people: 1, dependents: 0, fedStd: 16100 }, o)).tax * 100) / 100;
+    assert.equal(tax('MI'), Math.round((60000 - 5900) * 4.25) / 100);
+    assert.equal(tax('GA', { dependents: 2, people: 3 }), Math.round((60000 - 15000 - 10000) * 4.99) / 100);
+    assert.equal(tax('CO'), Math.round((60000 - 16100) * 4.4) / 100);                    // the federal standard deduction
+    assert.equal(tax('MS'), Math.round((60000 - 2300 - 6000 - 10000) * 4) / 100);     // the first $10,000 at 0%
+    assert.equal(tax('OH'), Math.round((60000 - 26050) * 2.75) / 100);
+    assert.equal(tax('MN'), Math.round(33310 * 5.35 + (60000 - 15300 - 33310) * 6.8) / 100);
+    assert.equal(tax('VA'), Math.round(3000 * 2 + 2000 * 3 + 12000 * 5 + (60000 - 8750 - 930 - 17000) * 5.75) / 100);
+    assert.equal(tax('MA', { wages: 2000000 }), Math.round((2000000 - 4400) * 5 + (2000000 - 4400 - 1083150) * 4) / 100);
+    assert.equal(tax('TX'), 0);
+    assert.equal(tax('CA'), 0);                                                          // no table yet: only a typed rate
+    assert.equal(tax('CA', { rate: 5 }), 3000);
+    assert.equal(tax('MN', { rate: 4 }), 2400);                                          // typed for brackets: a share of pay
+    assert.equal(tax('NC', { rate: 3 }), Math.round((60000 - 12750) * 3) / 100);       // typed for a flat state: its rate
+    // Married filing separately with brackets: half the joint ones; the top rate for side income.
+    assert.equal(E.usStateTax(st('MN'), { wages: 60000, status: 'mfs' }).rate, 6.8);
+    assert.equal(E.usStateTax(st('MA'), { wages: 2000000 }).rate, 9);
+});
+
+test('city taxes: Michigan, Ohio (same rate working there), Philadelphia, New York City brackets; Ohio school district', () => {
+    const U = require('../js/defaults-us.js');
+    global.DefaultsUS = U;
+    const yd = (state, extra) => Object.assign(U.newYear(), { country: 'US', sueldo: 5000, payDeductions: [], filingStatus: 'single', state, localName: '', localRate: 0 }, extra);
+    const local = (y) => Math.round(E.payrollUS(y, U.STATES).localM * 12 * 100) / 100;
+    assert.equal(local(yd('OH', { localName: 'Columbus' })), 1500);
+    assert.equal(local(yd('OH', { localName: 'Columbus', localResident: false })), 1500);
+    assert.equal(local(yd('OH', { localName: 'Columbus', schoolRate: 1 })), 2100);
+    assert.equal(E.payrollUS(yd('OH', { schoolRate: 1 }), U.STATES).schoolM * 12, 600);
+    assert.equal(local(yd('PA', { localName: 'Philadelphia' })), 2244);
+    assert.equal(local(yd('PA', { localName: 'Philadelphia', localResident: false })), 2058);
+    const nyc = 12000 * 0.03078 + 13000 * 0.03762 + 25000 * 0.03819 + 2000 * 0.03876;   // on $60,000 − $8,000
+    assert.equal(local(yd('NY', { localName: 'New York City' })), Math.round(nyc * 100) / 100);
+    assert.equal(local(yd('NY', { localName: 'New York City', localResident: false })), 0);
+    assert.equal(local(yd('MI', { localName: 'Detroit' })), Math.round((60000 - 600) * 2.4) / 100);
+    assert.equal(local(yd('PA', { schoolRate: 1 })), 0);                               // school district tax: Ohio only
+    delete global.DefaultsUS;
+});

@@ -442,7 +442,8 @@
                         <label><span class="help block" id="inc-state-rate-label">State income tax (%)</span><input type="number" class="input" min="0" max="20" step="0.01" id="inc-state-rate" data-change="us.stateRate" placeholder="Automatic"></label>
                         <label><span class="help block">City income tax (%)</span><select class="input" id="inc-city" data-change="us.city"></select></label>
                     </div>
-                    <label class="check mt-1" id="inc-city-resident"><input type="checkbox" data-bind="year.localResident" data-structural="true"><span>I live in this city <span class="block text-[11px] font-normal text-slate-500">If you only work there, you pay the non-resident rate (half).</span></span></label>
+                    <label class="check mt-1" id="inc-city-resident"><input type="checkbox" data-bind="year.localResident" data-structural="true"><span>I live in this city <span class="block text-[11px] font-normal text-slate-500">If you only work there, you pay the non-resident rate (the second one).</span></span></label>
+                    <label class="mt-1 hidden" id="inc-school"><span class="help block">School district income tax (%)</span><input type="number" class="input" min="0" max="5" step="0.25" id="inc-school-rate" data-change="us.schoolRate" placeholder="0"><span class="help block">Many Ohio school districts tax income too (0.5%–2%): see your district on the Ohio Department of Taxation's lookup.</span></label>
                     <span class="help" id="inc-state-note"></span>
                 </div>
                 <label class="field field-box tone-slate" data-country="EC">

@@ -210,6 +210,32 @@
         return tax;
     }
     const US_STATE_DEFAULT = { type: 'custom', rate: null, exemption: 0 };
+    // A state's income tax on a year's wages, and its top rate on them (side income uses it).
+    // st (DefaultsUS.STATES): 'none' (no tax on wages); 'flat' (a rate); 'brackets' (by filing
+    // status); 'custom' (only the rate you type). Before the rate: a standard deduction (by status,
+    // or 'federal': the federal one), an exemption per person (filers and dependents), a personal
+    // exemption by status, an amount per dependent, then income taxed at 0% (`zero`); a surtax on
+    // the top. A rate typed for a state with brackets is the share of pay its tax takes (a pay stub).
+    function usStateTax(st, { wages = 0, status = 'single', people = 1, dependents = 0, rate = null, fedStd = 0 } = {}) {
+        status = usStatus(status);
+        const w = Math.max(0, num(wages));
+        const typed = rate !== null && rate !== undefined && rate !== '';
+        if (!st || st.type === 'none' || (typed && st.type === 'brackets')) return typed ? { tax: w * num(rate) / 100, taxable: w, rate: num(rate) } : { tax: 0, taxable: 0, rate: 0 };
+        const pick = (v) => (v && typeof v === 'object' ? num(forStatus(v, status)) : num(v));
+        const deduction = (st.std === 'federal' ? num(fedStd) : pick(st.std)) + num(st.exemption) * Math.max(1, num(people)) + pick(st.personal) + num(st.perDependent) * num(dependents);
+        const taxable = Math.max(0, w - deduction);
+        let tax, top;
+        if (st.type === 'brackets') {
+            const br = forStatus(st.brackets, status, 'brackets') || [];
+            tax = bracketTax(taxable, br);
+            top = ((br.filter(([from]) => taxable > from).pop() || br[0] || [0, 0])[1]) * 100;
+        } else {
+            top = typed ? num(rate) : num(st.rate);
+            tax = Math.max(0, taxable - pick(st.zero)) * top / 100;
+        }
+        if (st.surtax && taxable > num(st.surtax.over)) { tax += (taxable - num(st.surtax.over)) * num(st.surtax.rate) / 100; top += num(st.surtax.rate); }
+        return { tax, taxable, rate: Math.round(top * 1000) / 1000 };
+    }
     const US_STATES_FALLBACK = () => (typeof require !== 'undefined' ? require('./defaults-us.js').STATES : []);
     // Paycheck math for the US (annual figures ÷ 12): pre-tax 401(k)/403(b) lower income tax;
     // pre-tax health, dental, vision, FSA and HSA (section 125) lower income tax and FICA too.
@@ -487,20 +513,32 @@
         const fedOf = (w) => (joint ? fedMain.tax * shareBy(x => x.incomeWages, w) : w === main ? fedMain.tax : ownReturn(w).tax);
         // State (flat or a rate you enter); some states (Pennsylvania) tax 401(k) deferrals.
         const st = Object.assign({}, US_STATE_DEFAULT, (states || []).find(x => x.code === yd.state) || {});
-        const stateRate = yd.stateRate !== null && yd.stateRate !== undefined && yd.stateRate !== '' ? num(yd.stateRate) : (st.type === 'none' ? 0 : num(st.rate));
-        const noState = st.type === 'none' && (yd.stateRate === null || yd.stateRate === undefined || yd.stateRate === '');
+        const typedRate = yd.stateRate !== null && yd.stateRate !== undefined && yd.stateRate !== '' ? num(yd.stateRate) : null;
+        const deps = num(yd.dependents) + num(yd.otherDependents);
         const stateWages = (w) => (st.taxes401k ? w.incomeWages + w.pretaxRetire : w.incomeWages);
-        const stateOn = (wages, ppl) => (noState ? 0 : Math.max(0, wages - num(st.exemption) * ppl) * stateRate / 100);
-        const stateJoint = joint ? stateOn(total(stateWages), people) : 0;
-        const stateOf = (w) => (joint ? stateJoint * shareBy(stateWages, w) : stateOn(stateWages(w), w === main ? people : 1));
+        const stateOn = (wages, ppl, stat, d) => usStateTax(st, { wages, status: stat, people: ppl, dependents: d, rate: typedRate, fedStd: num(forStatus(t.stdDeduction, stat)) });
+        // The household's own return (joint, or the main earner's) and each other earner's (single).
+        const stateMain = joint ? stateOn(total(stateWages), people, 'mfj', deps) : stateOn(stateWages(main), people, status, deps);
+        const stateOf = (w) => (joint ? stateMain.tax * shareBy(stateWages, w) : w === main ? stateMain.tax : stateOn(stateWages(w), 1, 'single', 0).tax);
+        const stateRate = stateMain.rate;
         // City tax (Michigan's Uniform City Income Tax): on Medicare wages (401(k) deferrals
         // included, section-125 benefits not), after the city's exemption per person; people who
         // only work in the city pay the non-resident rate (half). On a joint return the exemptions
         // are shared out by wages.
+        // New York City: its own brackets on the household's New York taxable income (shared by
+        // wages on a joint return). Ohio's school district tax: on wages.
         const localOf = (w, e) => {
             const lt = localTax(e, people);
+            const school = w.incomeWages * lt.school / 100;
+            if (lt.brackets) {
+                const stat = joint ? 'mfj' : w === main ? status : 'single';
+                const wages = joint ? total(x => x.incomeWages) : w.incomeWages;
+                const all = bracketTax(Math.max(0, wages - num(forStatus(lt.std, stat))), forStatus(lt.brackets, stat, 'brackets'));
+                const annual = joint ? all * shareBy(x => x.incomeWages, w) : all;
+                return { annual: annual + school, rate: w.incomeWages > 0 ? Math.round(annual / w.incomeWages * 10000) / 100 : 0, resident: lt.resident, school };
+            }
             const exempt = joint ? lt.exemption * people * shareBy(x => x.ficaWages, w) : lt.exemption * (w === main ? people : 1);
-            return { annual: Math.max(0, w.ficaWages - exempt) * lt.rate / 100, rate: lt.rate, resident: lt.resident };
+            return { annual: Math.max(0, w.ficaWages - exempt) * lt.rate / 100 + school, rate: lt.rate, resident: lt.resident, school };
         };
         // One paycheck: taxes are on the whole year; the budget's paycheck carries its share of them
         // (all of them for a plain salary). Overtime and bonuses outside the budget keep the rest.
@@ -531,7 +569,7 @@
             // Average tax on every extra dollar of pay (FICA + income tax), for bonuses and overtime.
             avgTaxRate: m.avgTaxRate,
             iessM: m.ficaM, iessAnual: main.ssAnnual + main.medAnnual, ssM: main.ssAnnual / 12 * m.share, medM: main.medAnnual / 12 * m.share,
-            fedM: m.fed / 12 * m.share, stateM: m.state / 12 * m.share, localM: m.local.annual / 12 * m.share, localRate: m.local.rate, localResident: m.local.resident, stateRate, stateType: st.type,
+            fedM: m.fed / 12 * m.share, stateM: m.state / 12 * m.share, localM: m.local.annual / 12 * m.share, schoolM: m.local.school / 12 * m.share, localRate: m.local.rate, localResident: m.local.resident, stateRate, stateType: st.type,
             pretaxM: (main.pretaxRetire + main.pretax125) / 12, stdDeduction: fedMain.std, credits: fedMain.credits, fedReturn: fedMain, incomeWages: main.incomeWages,
             // The overtime deduction on the main return (the household's when filing jointly).
             otPremiumY: main.otPremium, otDeduction: fedMain.otDeduction, ppy: main.pay.ppy,
@@ -558,12 +596,15 @@
 
     // The city tax rate that applies: a listed city's resident or non-resident rate and its
     // exemption, or the rate the person typed for any other city.
+    // The city's tax for a year (Michigan, Ohio, Pennsylvania, New York City listed; elsewhere the
+    // rate typed), and Ohio's school district tax.
     function localTax(yd, people) {
         const resident = yd.localResident !== false;
-        const cities = (root.DefaultsUS && root.DefaultsUS.MI_CITIES) || (typeof require !== 'undefined' ? require('./defaults-us.js').MI_CITIES : []);
-        const c = yd.state === 'MI' && yd.localName ? cities.find(x => x.name === yd.localName) : null;
-        if (c) return { rate: resident ? c.rate : c.nonresident, exemption: num(c.exemption), resident, listed: true };
-        return { rate: num(yd.localRate), exemption: num(yd.localExemption), resident, listed: false };
+        const all = (root.DefaultsUS && root.DefaultsUS.CITIES) || (typeof require !== 'undefined' ? require('./defaults-us.js').CITIES : {});
+        const c = yd.localName ? ((all || {})[yd.state] || []).find(x => x.name === yd.localName) : null;
+        const school = yd.state === 'OH' ? num(yd.schoolRate) : 0;
+        if (c) return { rate: resident ? c.rate : c.nonresident, exemption: num(c.exemption), resident, listed: true, brackets: resident ? c.brackets || null : null, std: c.std || null, school };
+        return { rate: num(yd.localRate), exemption: num(yd.localExemption), resident, listed: false, brackets: null, school };
     }
 
     // Social Security retirement benefit (estimate): average monthly earnings over a 35-year
@@ -3262,7 +3303,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, US_STATUSES, usStatus, forStatus, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usStateTax, US_STATUSES, usStatus, forStatus, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
