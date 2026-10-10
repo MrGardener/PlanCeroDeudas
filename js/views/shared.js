@@ -196,11 +196,17 @@
         const opt = (v, l) => `<option value="${v}" ${String(v) === sel ? 'selected' : ''}>${esc(l)}</option>`;
         return opt('', blank) + opt(Engine.HOUSEHOLD, 'Household (shared)') + (Store.state.members || []).map(p => opt(p.id, p.name)).join('');
     }
+    // A category and its subcategory as shown ("Food › Groceries"): saved names are Spanish
+    // identifiers, so each one is translated (the page translator can't split on "›").
+    function catPath(parent, sub) {
+        const t = (x) => (root.I18n ? I18n.t(x) : x);
+        return [parent, sub].filter(Boolean).map(t).join(' › ');
+    }
     function whoName(id) {
         if (id === Engine.HOUSEHOLD || id === String(Engine.HOUSEHOLD)) return 'Household';
         const p = (Store.state.members || []).find(x => String(x.id) === String(id));
         return p ? p.name : '';
     }
 
-    root.Views = { whoOptions, whoName, retireGap, guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions, dollarHTML, htmlKeepOpen };
+    root.Views = { whoOptions, whoName, catPath, retireGap, guideHTML, STEP_INFO, stepsHTML, spendBadge, kpiCard, emptyState, selectOptions, monthOptions, dollarHTML, htmlKeepOpen };
 })(this);

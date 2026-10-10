@@ -260,7 +260,7 @@
                 <div class="txn-date ${tr ? 'tr' : inc || t.refund ? 'inc' : 'exp'} ${pending ? 'pending' : ''}"><span>${Fmt.MONTH_SHORT[d.getMonth()]}</span><b>${d.getDate()}</b></div>
                 <div class="txn-main" ${picking ? `data-action="txn.check" data-id="${t.id}"` : `data-action="txn.details" data-id="${t.id}" role="button" tabindex="0" title="Details"`}>
                     <div class="txn-desc">${memberBadge(t)}${t.flagged ? '<i class="fa-solid fa-flag text-amber-600 mr-1" title="Flagged"></i>' : ''}${esc(t.description)}</div>
-                    <div class="txn-meta">${(tr ? [t.store] : [t.store, `${t.parentCategory}${t.category ? ' › ' + t.category : ''}`, t.paymentType]).filter(Boolean).map(esc).join(' · ')}</div>
+                    <div class="txn-meta">${[t.store ? `<span data-i18n-skip>${esc(t.store)}</span>` : ''].concat(tr ? [] : [esc(Views.catPath(t.parentCategory, t.category)), esc(t.paymentType || '')]).filter(Boolean).join(' · ')}</div>
                     ${notes.length ? `<div class="txn-notes">${notes.join(' ')}</div>` : ''}
                 </div>
                 <div class="txn-amt ${inc || t.refund ? 'inc' : tr ? 'tr' : ''}">${tr ? '' : inc || t.refund ? '+' : '−'}${money(t.amount)}</div>
@@ -350,6 +350,10 @@
         UI.text('txn-range-label', rangeLabel(f));
         UI.text('txn-accts-label', !f.accounts ? I18n.t('All accounts') : I18n.t(`${f.accounts.length} account${f.accounts.length === 1 ? '' : 's'}`));
         UI.$$('[data-action="txn.rangeStep"]').forEach(b => { b.disabled = !f.from; });
+        // How many filters behind "Filters" (phones) are on.
+        const on = [f.accounts, f.type && f.type !== 'all', f.category && f.category !== 'all', f.member && f.member !== 'all', f.origin && f.origin !== 'all'].filter(Boolean).length;
+        UI.text('txn-more-count', on || '');
+        UI.show('txn-more-count', on > 0);
         // "Excluded" lists the ones set aside (they live apart, so nothing else counts them).
         const source = f.origin === 'excluded' ? (ctx.state.excludedTxns || []) : ctx.state.transactions;
         const list = Engine.filterTransactions(source, f).filter(t => byDate(t) && byAccount(t) && matchesSearch(t, q) && byMember(t) && byOrigin(t))
@@ -1035,6 +1039,7 @@
             App.update();
         },
         'txn.download': () => download(),
+        'txn.moreFilters': (el) => { const box = document.getElementById('txn-filters'); el.setAttribute('aria-expanded', String(box.classList.toggle('open'))); },
         'txn.filter': () => {
             Store.ui.txnLimit = PAGE;
             const prev = Store.ui.txnFilters || {};

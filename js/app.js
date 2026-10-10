@@ -200,7 +200,11 @@
         render();
         if (opts.scroll !== false) window.scrollTo({ top: 0 });
         if (opts.focus) { const el = document.getElementById(opts.focus); if (el) { for (let d = el.tagName === 'DETAILS' ? el : el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true; el.scrollIntoView({ block: el.offsetHeight > window.innerHeight * 0.5 ? 'start' : 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); } }
+        // A new screen shows the + button, wherever it opens.
+        fabY = window.scrollY;
+        document.documentElement.classList.remove('fab-away');
     }
+    let fabY = 0;
 
     function buildNav() {
         const nav = document.getElementById('main-nav');
@@ -493,6 +497,15 @@
         // APP_EDITION.offline); say so plainly if they didn't load.
         UI.show('offline-banner', typeof Chart === 'undefined' || (typeof tailwind === 'undefined' && !APP_EDITION.offline));
         Store.onChange(renderSaveStatus);
+        // The + button steps aside while you scroll down (it would cover amounts at the right edge
+        // of a list) and comes back as soon as you scroll up or reach the top.
+        fabY = window.scrollY;
+        window.addEventListener('scroll', () => {
+            const y = window.scrollY;
+            if (Math.abs(y - fabY) < 8 && y > 80) return;
+            document.documentElement.classList.toggle('fab-away', y > fabY && y > 80);
+            fabY = y;
+        }, { passive: true });
         window.addEventListener('beforeunload', () => Store.saveNow());
         document.addEventListener('visibilitychange', () => { if (document.hidden) Store.saveNow(); });
         // "#rapido" (a bookmark or home-screen shortcut) opens quick entry straight away.

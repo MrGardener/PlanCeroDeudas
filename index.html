@@ -55,12 +55,12 @@
 <div id="offline-banner" class="panel tone-amber mb-5 text-xs text-amber-900 hidden"><i class="fa-solid fa-wifi"></i> <strong>No internet connection:</strong> the styles and charts couldn't load. Your data is safe; connect and open the app again to see it all.</div>
 
 <!-- Without a PIN or passcode the plan is saved unencrypted on this device: say so until one is set. -->
-<div id="protect-banner" class="wrap hidden">
+<div id="protect-banner" class="hidden">
     <div class="sample-banner protect-banner"><i class="fa-solid fa-lock-open"></i><span><strong>Your plan isn't encrypted on this device.</strong> Set a passcode and it's encrypted: only you can open it, and other pages or apps on this device can't read it.</span>
         <span class="flex gap-2 ml-auto"><button type="button" class="btn btn-secondary btn-sm" data-action="device.protectLater">Later</button><button type="button" class="btn btn-primary btn-sm" data-action="device.setPin"><i class="fa-solid fa-lock"></i> Protect it</button></span></div>
 </div>
-<div id="sample-banner" class="wrap hidden">
-    <div class="sample-banner"><i class="fa-solid fa-people-roof"></i><span>You're looking at an <strong>example family</strong>. None of this is yours.</span><button type="button" class="btn btn-primary btn-sm" data-action="app.startOwn">Start with my own data</button></div>
+<div id="sample-banner" class="hidden">
+    <div class="sample-banner"><i class="fa-solid fa-people-roof"></i><span>You're looking at an <strong>example family</strong>. None of this is yours.</span><button type="button" class="btn btn-primary btn-sm" data-action="app.startOwn"><span class="hidden sm:inline">Start with my own data</span><span class="sm:hidden">Use my own data</span></button></div>
 </div>
 
 <!-- ============================================================ RESUMEN -->
@@ -634,21 +634,23 @@
         <div class="card">
             <div class="card-head">
                 <div class="card-title"><i class="fa-solid fa-list text-blue-600"></i> History</div>
-                <div class="flex flex-wrap gap-2">
+                <!-- On a phone: the search, the dates, "Filters" (the rest, with how many are on) and Select. -->
+                <div class="flex flex-wrap gap-2 txn-filters" id="txn-filters">
                     <label class="txn-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="txn-search" placeholder="Search description, place or amount" data-input="txn.search" aria-label="Search transactions"></label>
                     <div class="txn-range" role="group" aria-label="Dates">
                         <button type="button" class="txn-range-step" data-action="txn.rangeStep" data-dir="-1" aria-label="Earlier"><i class="fa-solid fa-chevron-left"></i></button>
                         <button type="button" class="txn-range-pick" data-action="txn.rangePick"><i class="fa-regular fa-calendar"></i> <span id="txn-range-label" data-i18n-skip>All dates</span> <i class="fa-solid fa-chevron-down text-[10px]"></i></button>
                         <button type="button" class="txn-range-step" data-action="txn.rangeStep" data-dir="1" aria-label="Later"><i class="fa-solid fa-chevron-right"></i></button>
                     </div>
-                    <button type="button" class="btn btn-secondary btn-sm" data-action="txn.accounts"><i class="fa-solid fa-building-columns"></i> <span id="txn-accts-label" data-i18n-skip>All accounts</span></button>
-                    <button type="button" class="btn btn-secondary btn-sm" data-action="txn.download" title="Download what's shown (CSV)" aria-label="Download what's shown (CSV)"><i class="fa-solid fa-download"></i></button>
-                    <select id="txn-f-type" class="cell-input" style="width:auto" data-change="txn.filter">
+                    <button type="button" class="btn btn-secondary btn-sm txn-more-btn" data-action="txn.moreFilters" aria-expanded="false" aria-controls="txn-filters"><i class="fa-solid fa-sliders"></i> <span>Filters</span><span id="txn-more-count" class="txn-more-count hidden" data-i18n-skip></span></button>
+                    <button type="button" class="btn btn-secondary btn-sm txn-more" data-action="txn.accounts"><i class="fa-solid fa-building-columns"></i> <span id="txn-accts-label" data-i18n-skip>All accounts</span></button>
+                    <button type="button" class="btn btn-secondary btn-sm txn-more" data-action="txn.download" title="Download what's shown (CSV)" aria-label="Download what's shown (CSV)"><i class="fa-solid fa-download"></i></button>
+                    <select id="txn-f-type" class="cell-input txn-more" style="width:auto" data-change="txn.filter">
                         <option value="all">All</option><option value="Ingreso">Income only</option><option value="Gasto">Expenses only</option><option value="Transferencia">Transfers only</option>
                     </select>
-                    <select id="txn-f-category" class="cell-input" style="width:auto" data-change="txn.filter"></select>
-                    <select id="txn-f-member" class="cell-input hidden" style="width:auto" data-change="txn.filter" aria-label="Person"></select>
-                    <select id="txn-f-origin" class="cell-input" style="width:auto" data-change="txn.filter" aria-label="Where it came from">
+                    <select id="txn-f-category" class="cell-input txn-more" style="width:auto" data-change="txn.filter"></select>
+                    <select id="txn-f-member" class="cell-input txn-more hidden" style="width:auto" data-change="txn.filter" aria-label="Person"></select>
+                    <select id="txn-f-origin" class="cell-input txn-more" style="width:auto" data-change="txn.filter" aria-label="Where it came from">
                         <option value="all">Typed and imported</option><option value="typed">Typed by hand</option><option value="unreconciled">Typed, not on a statement yet</option><option value="imported">Imported</option><option value="scheduled">Repeating (scheduled)</option><option value="flagged">Flagged</option><option value="excluded">Excluded</option>
                     </select>
                     <button type="button" id="txn-select-toggle" class="btn btn-secondary btn-sm" data-action="txn.selectMode" aria-pressed="false"><i class="fa-regular fa-square-check"></i> Select</button>
@@ -1620,11 +1622,45 @@
             <i class="fa-solid fa-chevron-down chev text-slate-400"></i>
         </summary>
         <div class="mt-5 space-y-4">
+            <div class="panel tone-slate" id="cfg-device">
+                <div class="section-label"><i class="fa-solid fa-shield-halved text-emerald-600"></i> This device</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+                    <div class="field"><span class="field-label">PIN lock</span>
+                        <div id="cfg-lock" class="flex flex-wrap gap-2 items-center"></div>
+                        <span class="help">With a PIN or passcode your plan is saved encrypted on this device. A passcode (letters too) is much harder to guess than a short PIN. The 10th wrong try erases the data.</span></div>
+                    <label class="field flex-row items-center gap-2"><input type="checkbox" id="cfg-hide-amounts" data-change="device.privacy" class="w-4 h-4"> <span class="field-label mb-0">Hide amounts on screen (the 👁 button at the top does the same)</span></label>
+                    <label class="field"><span class="field-label">Language / Idioma</span>
+                        <select id="cfg-lang" class="input" data-change="device.lang"><option value="es">Español</option><option value="en">English</option></select></label>
+                    <label class="field"><span class="field-label">Appearance</span>
+                        <select id="cfg-theme" class="input" data-change="device.theme"><option value="light">Claro</option><option value="dark">Dark</option><option value="auto">Automatic (follow your system)</option></select></label>
+                </div>
+                <div class="field mt-3 max-w-2xl" data-web-only><span class="field-label">Shortcut to quick entry</span>
+                    <div class="flex gap-2"><input id="cfg-quick-link" class="input min-w-0" readonly aria-label="Quick entry link"><button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="device.copyQuick"><i class="fa-regular fa-copy"></i> Copy</button></div>
+                    <span class="help">Save it as a bookmark (or on your home screen once the app is online): it opens the keypad straight away to log an expense. On a computer, the key <kbd>N</kbd> does the same.</span></div>
+                <p class="help mt-2">Saved only in this browser (not in the backup). With a PIN or passcode the plan is saved encrypted. The app locks when it opens and after 5 minutes away, and then forgets the open plan until the PIN is typed again. Also use your phone's or computer's own lock.</p>
+            </div>
+            <div class="panel tone-indigo">
+                <div class="section-label text-indigo-900"><i class="fa-solid fa-file-shield"></i> Backup</div>
+                <div class="flex flex-wrap gap-2">
+                    <button class="btn btn-primary" data-action="cfg.download"><i class="fa-solid fa-lock"></i> Download backup (encrypted)</button>
+                    <button class="btn btn-secondary" data-action="cfg.upload"><i class="fa-solid fa-upload"></i> Load backup</button>
+                    <button class="btn btn-secondary" data-action="cfg.openVault"><i class="fa-solid fa-lock-open"></i> Open an encrypted file</button>
+                    <input type="file" id="cfg-file" accept="application/json,.json" class="hidden" data-change="cfg.fileChosen">
+                    <input type="file" id="cfg-vault-file" accept="application/json,.json" class="hidden" data-change="cfg.vaultChosen">
+                </div>
+                <p class="help mt-2">Backups and downloads (CSV, reports) are encrypted with a password you choose (AES-256). Without the password nobody can read them, not even us. "Open an encrypted file" saves a readable copy when you need one.</p>
+            </div>
             <div class="panel tone-slate" id="cfg-household">
                 <div class="section-label"><i class="fa-solid fa-people-roof text-teal-600"></i> Your household</div>
                 <p class="help mb-3">Add the people who share the budget (partner, kids who contribute…). On each transaction you can say who spent or received it, and the Overview shows how much each one contributes.</p>
                 <div id="cfg-members" class="flex flex-wrap gap-2 mb-2"></div>
                 <button class="btn btn-secondary btn-sm" data-action="member.add"><i class="fa-solid fa-user-plus"></i> Add person</button>
+            </div>
+            <div class="panel tone-slate">
+                <div class="section-label"><i class="fa-solid fa-coins text-amber-600"></i> Currency</div>
+                <label class="field max-w-md"><span class="field-label">Show amounts in</span>
+                    <select id="cfg-currency" class="input" data-bind="settings.currency" data-structural="true"></select>
+                    <span class="help">Only changes how amounts are shown (symbol and separators). It doesn't convert values: tax calculations are for the US and in dollars.</span></label>
             </div>
             <div class="panel tone-slate" id="cfg-prices">
                 <div class="section-label"><i class="fa-solid fa-chart-line text-indigo-600"></i> Investment prices</div>
@@ -1644,40 +1680,6 @@
                         <li>File → Share → Publish to web → pick the sheet and <strong>Comma-separated values (.csv)</strong> → Publish.</li>
                         <li>Paste that link here. Only the symbols are in the sheet: no amounts, no names.</li>
                     </ol></div>
-            </div>
-            <div class="panel tone-slate" id="cfg-device">
-                <div class="section-label"><i class="fa-solid fa-mobile-screen text-indigo-600"></i> This device</div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
-                    <label class="field"><span class="field-label">Language / Idioma</span>
-                        <select id="cfg-lang" class="input" data-change="device.lang"><option value="es">Español</option><option value="en">English</option></select></label>
-                    <label class="field"><span class="field-label">Appearance</span>
-                        <select id="cfg-theme" class="input" data-change="device.theme"><option value="light">Claro</option><option value="dark">Dark</option><option value="auto">Automatic (follow your system)</option></select></label>
-                    <div class="field"><span class="field-label">PIN lock</span>
-                        <div id="cfg-lock" class="flex flex-wrap gap-2 items-center"></div>
-                        <span class="help">With a PIN or passcode your plan is saved encrypted on this device. A passcode (letters too) is much harder to guess than a short PIN. The 10th wrong try erases the data.</span></div>
-                    <label class="field flex-row items-center gap-2"><input type="checkbox" id="cfg-hide-amounts" data-change="device.privacy" class="w-4 h-4"> <span class="field-label mb-0">Hide amounts on screen (the 👁 button at the top does the same)</span></label>
-                </div>
-                <div class="field mt-3 max-w-2xl" data-web-only><span class="field-label">Shortcut to quick entry</span>
-                    <div class="flex gap-2"><input id="cfg-quick-link" class="input" readonly aria-label="Quick entry link"><button type="button" class="btn btn-secondary btn-sm" data-action="device.copyQuick"><i class="fa-regular fa-copy"></i> Copy</button></div>
-                    <span class="help">Save it as a bookmark (or on your home screen once the app is online): it opens the keypad straight away to log an expense. On a computer, the key <kbd>N</kbd> does the same.</span></div>
-                <p class="help mt-2">Saved only in this browser (not in the backup). With a PIN or passcode the plan is saved encrypted. The app locks when it opens and after 5 minutes away, and then forgets the open plan until the PIN is typed again. Also use your phone's or computer's own lock.</p>
-            </div>
-            <div class="panel tone-slate">
-                <div class="section-label"><i class="fa-solid fa-coins text-amber-600"></i> Currency</div>
-                <label class="field max-w-md"><span class="field-label">Show amounts in</span>
-                    <select id="cfg-currency" class="input" data-bind="settings.currency" data-structural="true"></select>
-                    <span class="help">Only changes how amounts are shown (symbol and separators). It doesn't convert values: tax calculations are for the US and in dollars.</span></label>
-            </div>
-            <div class="panel tone-indigo">
-                <div class="section-label text-indigo-900"><i class="fa-solid fa-file-shield"></i> Backup</div>
-                <div class="flex flex-wrap gap-2">
-                    <button class="btn btn-primary" data-action="cfg.download"><i class="fa-solid fa-lock"></i> Download backup (encrypted)</button>
-                    <button class="btn btn-secondary" data-action="cfg.upload"><i class="fa-solid fa-upload"></i> Load backup</button>
-                    <button class="btn btn-secondary" data-action="cfg.openVault"><i class="fa-solid fa-lock-open"></i> Open an encrypted file</button>
-                    <input type="file" id="cfg-file" accept="application/json,.json" class="hidden" data-change="cfg.fileChosen">
-                    <input type="file" id="cfg-vault-file" accept="application/json,.json" class="hidden" data-change="cfg.vaultChosen">
-                </div>
-                <p class="help mt-2">Backups and downloads (CSV, reports) are encrypted with a password you choose (AES-256). Without the password nobody can read them, not even us. "Open an encrypted file" saves a readable copy when you need one.</p>
             </div>
             <div class="panel tone-blue">
                 <div class="section-label text-blue-900"><i class="fa-solid fa-copy"></i> Copy budget between years</div>
