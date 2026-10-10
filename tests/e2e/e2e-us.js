@@ -1496,6 +1496,30 @@ const lockAndWait = async (page, fn) => { await Promise.all([page.waitForEvent('
   await page.waitForTimeout(200);
   const payToast = await page.evaluate(() => [...document.querySelectorAll('.toast')].map(t => t.textContent).join('|'));
   ok(/Saved: On the 15th and 30th, every month/.test(payToast) && /On the 15th and 30th/.test(await page.textContent('#pay-summary')), 'pay schedule saved message and summary in English', payToast);
+  // Filing separately or as a surviving spouse; 65 or older, blind, tips and a car loan on the return.
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); App.go('presupuesto/ingresos'); });
+  await page.waitForTimeout(250);
+  const fsOpts = await page.evaluate(() => [...document.querySelector('[data-bind="year.filingStatus"]').options].map(o => o.value));
+  const fedBefore = await page.evaluate(() => App.buildContext().pay.isrAnual);
+  await page.selectOption('[data-bind="year.age65"]', '2');
+  await page.fill('[data-bind="year.tipsY"]', '3000');
+  await page.dispatchEvent('[data-bind="year.tipsY"]', 'change');
+  await page.waitForTimeout(250);
+  const rx = await page.evaluate(() => ({ note: document.getElementById('inc-return-note').textContent, fed: App.buildContext().pay.isrAnual, yd: [Store.active().age65, Store.active().tipsY] }));
+  ok(fsOpts.join() === 'single,mfj,mfs,hoh,qss' && /for 65 or older/.test(rx.note) && /of tips/.test(rx.note) && rx.fed < fedBefore && rx.yd.join() === '2,3000', 'filing statuses; 65 or older and tips lower the federal tax, said under the fields', { fsOpts, rx, fedBefore });
+  await page.selectOption('[data-bind="year.filingStatus"]', 'mfs');
+  await page.waitForTimeout(250);
+  const sepR = await page.evaluate(() => ({ note: document.getElementById('inc-status-note').textContent, r: App.buildContext().pay.fedReturn }));
+  ok(/joint return/.test(sepR.note) && sepR.r.seniorDeduction === 0 && sepR.r.tipsDeduction === 0 && sepR.r.addlStd === 2 * 1650, 'married filing separately: no senior or tips deduction, the extra standard deduction stays', sepR);
+  // A plan saved before these statuses: the same year's table gets them.
+  const migR = await page.evaluate(() => {
+    const s = JSON.parse(Store.serialize()), y = s.years[s.activeYear];
+    delete y.usTax.brackets.mfs; delete y.usTax.seniorDeduction; delete y.usTax.overtimeDeduction.max.mfs; y.usTax.stdDeduction.single = 15000;
+    const m = Store.migrate(s).years[s.activeYear].usTax;
+    return { mfs: (m.brackets.mfs || []).length, senior: !!m.seniorDeduction, ot: m.overtimeDeduction.max.mfs, kept: m.stdDeduction.single };
+  });
+  ok(migR.mfs === 7 && migR.senior && migR.ot === 0 && migR.kept === 15000, 'an older saved table gets the new statuses and deductions (what was typed stays)', migR);
+  await page.evaluate(() => { Store.reset('example'); App.changed({ structural: true }); });
   // On a phone: the app's name and every tab label in full; the screen starts under the tabs with a
   // one-row example notice; the history's category line in English; the less used filters behind
   // "Filters" (with how many are on); the + button steps aside scrolling down, back scrolling up;

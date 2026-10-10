@@ -210,6 +210,12 @@
         const rate = document.getElementById('inc-state-rate');
         if (rate && rate !== document.activeElement) rate.value = yd.stateRate === null || yd.stateRate === undefined ? '' : yd.stateRate;
         if (rate) rate.placeholder = st.type === 'none' ? '0' : st.type === 'flat' ? String(st.rate) : 'Type your %';
+        UI.text('inc-status-note', yd.filingStatus === 'mfs' ? 'Each spouse on their own return: the tips, overtime and 65-or-older deductions need a joint return.'
+            : yd.filingStatus === 'qss' ? 'For 2 years after the year your spouse died, with a child at home: the joint brackets and standard deduction.' : '');
+        // What 65 or older, blind, tips and a car loan take off this year's federal tax.
+        const f = p.fedReturn || {};
+        const off = [f.addlStd ? `${money(f.addlStd)} more standard deduction` : '', f.seniorDeduction ? `${money(f.seniorDeduction)} for 65 or older` : '', f.tipsDeduction ? `${money(f.tipsDeduction)} of tips` : '', f.carDeduction ? `${money(f.carDeduction)} of car loan interest` : ''].filter(Boolean);
+        UI.html('inc-return-note', off.length ? `<i class="fa-solid fa-circle-check text-emerald-600"></i> Off your taxable income this year: ${off.map(x => `<span>${esc(x)}</span>`).join(' · ')}.` : '');
         UI.html('inc-state-note', st.type === 'none' ? `${esc(st.name)} doesn't tax wages.`
             : st.type === 'flat' ? `${esc(st.name)}: ${st.rate}% flat${st.exemption ? ` after a ${money(st.exemption)} exemption per person` : ''}.`
             : `We don't have ${esc(st.name)}'s table yet: type the state tax percentage from your pay stub (state tax ÷ gross pay).`);

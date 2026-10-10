@@ -410,8 +410,11 @@
                     <select class="input" data-bind="year.filingStatus" data-structural="true">
                         <option value="single">Single</option>
                         <option value="mfj">Married filing jointly</option>
+                        <option value="mfs">Married filing separately</option>
                         <option value="hoh">Head of household</option>
+                        <option value="qss">Qualifying surviving spouse</option>
                     </select>
+                    <span class="help" id="inc-status-note"></span>
                 </label>
                 <div class="field field-box tone-blue" data-country="US">
                     <span class="field-label">Dependents</span>
@@ -419,6 +422,18 @@
                         <label><span class="help block">Children under 17</span><input type="number" class="input" min="0" step="1" data-bind="year.dependents"></label>
                         <label><span class="help block">Other dependents</span><input type="number" class="input" min="0" step="1" data-bind="year.otherDependents"></label>
                     </div>
+                </div>
+                <!-- US: what else lowers the federal tax on this return (2025–2028 deductions included). -->
+                <div class="field field-box tone-blue" data-country="US">
+                    <span class="field-label">Also on your return</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label><span class="help block">65 or older (you, your spouse)</span><select class="input" data-bind="year.age65" data-type="number" data-structural="true"><option value="0">No one</option><option value="1">1</option><option value="2">2</option></select></label>
+                        <label><span class="help block">Blind</span><select class="input" data-bind="year.blind" data-type="number" data-structural="true"><option value="0">No one</option><option value="1">1</option><option value="2">2</option></select></label>
+                        <label><span class="help block">Tips a year ($)</span><input type="number" class="input" min="0" step="100" data-bind="year.tipsY"></label>
+                        <label><span class="help block">Car loan interest a year ($)</span><input type="number" class="input" min="0" step="100" data-bind="year.carLoanInterestY"></label>
+                    </div>
+                    <span class="help">Tips: in a job where tips are usual, reported to your employer. Car loan: a new car assembled in the US, bought after 2024, for personal use. Both, and $6,000 for each person 65 or older, come off taxable income for 2025–2028, less at higher incomes.</span>
+                    <span class="help" id="inc-return-note"></span>
                 </div>
                 <div class="field field-box tone-blue" data-country="US">
                     <span class="field-label">State and city</span>
@@ -1752,7 +1767,7 @@
                 <label class="field field-box"><span class="field-label"><span>FDIC / NCUA coverage (<span class="cur">$</span>)</span></span><input type="number" class="input" min="0" step="1000" data-bind="year.cosede"></label>
             </div>
             <div>
-                <div class="section-label">Federal tax table · <span class="active-year"></span> · <select class="cell-input text-xs" style="width:auto" id="cfg-us-status" data-change="us.bracketStatus"><option value="single">Single</option><option value="mfj">Married filing jointly</option><option value="hoh">Head of household</option></select></div>
+                <div class="section-label">Federal tax table · <span class="active-year"></span> · <select class="cell-input text-xs" style="width:auto" id="cfg-us-status" data-change="us.bracketStatus"><option value="single">Single</option><option value="mfj">Married filing jointly</option><option value="mfs">Married filing separately</option><option value="hoh">Head of household</option><option value="qss">Qualifying surviving spouse</option></select></div>
                 <div class="table-wrap"><table class="table"><thead><tr><th>From (<span class="cur">$</span>)</th><th>Rate (%)</th></tr></thead><tbody id="cfg-us-brackets"></tbody></table></div>
             </div>
         </div>

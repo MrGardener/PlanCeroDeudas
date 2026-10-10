@@ -153,9 +153,9 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | Item | Notes |
 |---|---|
 | 📋 Ecuador: fondos de reserva (8.33% after the first year) and décimos paid monthly (mensualizados) | Both raise monthly net pay; needs a setting per person |
-| 📋 US: married filing separately and qualifying surviving spouse; 65+ extra standard deduction; 2025–2028 senior / overtime / tips / car-loan interest deductions | Federal only; Phase 5 refund-or-owe estimate uses them |
+| ✅ US: married filing separately and qualifying surviving spouse; 65+ extra standard deduction; 2025–2028 senior / overtime / tips / car-loan interest deductions | Income & Taxes: five filing statuses (separately: half the joint brackets, single's standard deduction, no tips / overtime / senior deduction; a surviving spouse: the joint figures) and **Also on your return**: 65 or older and blind (each adds $2,050, or $1,650 married, to the standard deduction), tips a year (up to $25,000), a new US-assembled car's loan interest (up to $10,000), and $6,000 per person 65 or older, each less at higher incomes (2026 figures, IRS Rev. Proc. 2025-32). The paycheck's tax, the refund estimate and itemizing use them; the screen says what came off. Tax tables saved before get the new figures |
 | ✅ US: commuter benefits (§132(f)) as pre-tax, health FSA and dependent-care FSA ($7,500 from 2026) limits | Done with "Paychecks as they are": each deduction's type says what it lowers, and the yearly limits are warned |
-| 📋 US: HSA self-only or family coverage | The HSA limit warned is the family one; a coverage choice picks the right limit |
+| ✅ US: HSA self-only or family coverage | An HSA deduction says its coverage: the limit warned is $4,400 self-only or $8,750 family (2026), $1,000 more from 55 |
 | ✅ US: a working spouse's wages for married filing jointly | Done with "Household step 1": every earner's paycheck is taxed, one joint return |
 | 🔍 Verify each January | Michigan exemption and city rates/exemptions, Illinois exemption, SRI table, SBU and canasta (editable in Settings) |
 

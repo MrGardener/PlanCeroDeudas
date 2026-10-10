@@ -22,7 +22,7 @@
             const status = Store.ui.usBracketStatus || yd.filingStatus || 'single';
             const sel = document.getElementById('cfg-us-status');
             if (sel) sel.value = status;
-            UI.html('cfg-us-brackets', ((yd.usTax.brackets || {})[status] || []).map(([from, rate], i) => `<tr>
+            UI.html('cfg-us-brackets', ((yd.usTax.brackets || {})[Engine.usStatus(status)] || []).map(([from, rate], i) => `<tr>
                 <td><input type="number" class="cell-input num" value="${from}" min="0" data-change="us.bracket" data-status="${status}" data-idx="${i}" data-field="0" aria-label="From"></td>
                 <td><input type="number" class="cell-input num" step="0.1" value="${+(rate * 100).toFixed(2)}" min="0" data-change="us.bracket" data-status="${status}" data-idx="${i}" data-field="1" aria-label="Rate (%)"></td></tr>`).join(''));
         }

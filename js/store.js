@@ -40,9 +40,13 @@
         }
         const fresh = D.newYear();
         Object.keys(fresh).forEach(k => { if (yd[k] === undefined) yd[k] = fresh[k]; });
-        // A US tax table saved before a field was added (limits, the overtime deduction) gets it,
-        // when it's the same year's table.
-        if (yd.usTax && fresh.usTax && Number(yd.usTax.year) === Number(fresh.usTax.year)) Object.keys(fresh.usTax).forEach(k => { if (yd.usTax[k] === undefined) yd.usTax[k] = fresh.usTax[k]; });
+        // A US tax table saved before a field was added (limits, the overtime deduction, a filing
+        // status inside one) gets it, when it's the same year's table.
+        const fillIn = (have, add) => Object.keys(add).forEach(k => {
+            if (have[k] === undefined) have[k] = JSON.parse(JSON.stringify(add[k]));
+            else if (add[k] && typeof add[k] === 'object' && !Array.isArray(add[k]) && have[k] && typeof have[k] === 'object' && !Array.isArray(have[k])) fillIn(have[k], add[k]);
+        });
+        if (yd.usTax && fresh.usTax && Number(yd.usTax.year) === Number(fresh.usTax.year)) fillIn(yd.usTax, fresh.usTax);
         const nw = yd.netWorth || (yd.netWorth = {});
         if (nw.cash !== undefined && nw.checking === undefined) { nw.checking = nw.cash; nw.savings = 0; }
         delete nw.cash; delete nw.realEstate; delete nw.vehicles; delete nw.personalProperty;

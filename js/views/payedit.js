@@ -76,6 +76,8 @@
         const debts = Store.state.debts || [];
         return list.map(x => {
             const d = x.d, ty = x.t, per = perOf(d, ty), tax = TAX[ty.tax] || TAX.after;
+            // An HSA's yearly limit depends on the health plan it goes with.
+            const cover = ty.limit === 'hsa' ? `<select class="cell-input text-xs mt-1" data-change="payx.ded" ${attrs(t)} data-id="${d.id}" data-f="coverage" aria-label="HSA coverage"><option value="family" ${d.coverage === 'self' ? '' : 'selected'}>Family coverage</option><option value="self" ${d.coverage === 'self' ? 'selected' : ''}>Self-only coverage</option></select>` : '';
             const loan = opts && opts.loanLink && ty.group === 'loan'
                 ? `<select class="cell-input text-xs mt-1" data-change="ded.debt" data-id="${d.id}" aria-label="Debt it pays"><option value="">Not linked to a debt</option>${debts.map(z => `<option value="${z.id}" ${Number(d.debtId) === Number(z.id) ? 'selected' : ''}>Pays: ${esc(z.name)}</option>`).join('')}</select>` : '';
             return `<tr data-row="${d.id}">
@@ -84,7 +86,7 @@
                 <td><div class="flex items-center gap-1"><input type="number" class="cell-input num" style="width:5.5rem" min="0" ${per === 'percent' ? 'max="100" step="0.5"' : 'step="0.01"'} value="${amountOf(d, per)}" data-change="payx.ded" ${attrs(t)} data-id="${d.id}" data-f="amount" aria-label="Amount">
                     <select class="cell-input text-xs" style="width:auto;min-width:7.5rem" data-change="payx.ded" ${attrs(t)} data-id="${d.id}" data-f="per" aria-label="How">${Object.keys(PER).filter(k => k !== 'percent' || ty.percent).map(k => `<option value="${k}" ${k === per ? 'selected' : ''}>${PER[k]}</option>`).join('')}</select></div></td>
                 <td class="num whitespace-nowrap">${money(x.monthly)}</td>
-                <td><span class="badge ${tax[1]}">${tax[0]}</span>${loan}</td>
+                <td><span class="badge ${tax[1]}">${tax[0]}</span>${loan}${cover}</td>
                 <td class="text-center"><button type="button" class="row-del" data-action="payx.dedDel" ${attrs(t)} data-id="${d.id}" title="Remove" aria-label="Remove"><i class="fa-solid fa-trash-can"></i></button></td>
             </tr>`;
         }).join('');
@@ -156,6 +158,7 @@
             const f = el.dataset.f, e = engineView(el.dataset.target), g = Engine.usGrossPay(e), ppy = g.ppy;
             const before = monthlyOf(el.dataset.target, d);
             if (f === 'name') d.name = el.value.trim().slice(0, 60) || d.name;
+            else if (f === 'coverage') d.coverage = el.value === 'self' ? 'self' : 'family';
             else if (f === 'type') {
                 const ty = setType(d, el.value);
                 if (ty && d.per === 'percent' && !ty.percent) { d.per = 'check'; d.perPay = round2(before * 12 / ppy); }

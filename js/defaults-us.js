@@ -21,28 +21,42 @@
         brackets: {
             single: [[0, 0.10], [12400, 0.12], [50400, 0.22], [105700, 0.24], [201775, 0.32], [256225, 0.35], [640600, 0.37]],
             mfj: [[0, 0.10], [24800, 0.12], [100800, 0.22], [211400, 0.24], [403550, 0.32], [512450, 0.35], [768700, 0.37]],
-            hoh: [[0, 0.10], [17700, 0.12], [67450, 0.22], [105700, 0.24], [201750, 0.32], [256200, 0.35], [640600, 0.37]]
+            hoh: [[0, 0.10], [17700, 0.12], [67450, 0.22], [105700, 0.24], [201750, 0.32], [256200, 0.35], [640600, 0.37]],
+            // Married filing separately: half the joint brackets. A qualifying surviving spouse uses the joint ones.
+            mfs: [[0, 0.10], [12400, 0.12], [50400, 0.22], [105700, 0.24], [201775, 0.32], [256225, 0.35], [384350, 0.37]],
+            qss: [[0, 0.10], [24800, 0.12], [100800, 0.22], [211400, 0.24], [403550, 0.32], [512450, 0.35], [768700, 0.37]]
         },
-        stdDeduction: { single: 16100, mfj: 32200, hoh: 24150 },
+        stdDeduction: { single: 16100, mfj: 32200, hoh: 24150, mfs: 16100, qss: 32200 },
+        // 65 or older, or blind: each one adds this to the standard deduction (married or a surviving
+        // spouse / everyone else).
+        addlStd: { married: 1650, unmarried: 2050 },
         // Itemizing (One Big Beautiful Bill Act): SALT cap, cut by 30% of income above the threshold
         // down to a $10,000 floor; charity counts above 0.5% of income; medical above 7.5%. Taking
         // the standard deduction, cash gifts to charity up to these amounts still come off.
         saltCap: 40400, saltPhaseoutStart: 505000, saltFloor: 10000, charityFloorPct: 0.5, medicalFloorPct: 7.5,
-        charityNonItemizer: { single: 1000, mfj: 2000, hoh: 1000 },
+        charityNonItemizer: { single: 1000, mfj: 2000, hoh: 1000, mfs: 1000, qss: 1000 },
         childCredit: 2200,          // per qualifying child under 17
         otherDependentCredit: 500,
         // Both credits drop $50 per $1,000 of income above these amounts (IRC §24(b)).
-        ctcPhaseoutStart: { single: 200000, mfj: 400000, hoh: 200000 }, ctcPhaseoutStep: 50,
+        ctcPhaseoutStart: { single: 200000, mfj: 400000, hoh: 200000, mfs: 200000, qss: 200000 }, ctcPhaseoutStep: 50,
         ssRate: 6.2, ssWageBase: 184500,
-        medicareRate: 1.45, addlMedicareRate: 0.9, addlMedicareThreshold: { single: 200000, mfj: 250000, hoh: 200000 }, addlMedicareWithholding: 200000,
+        medicareRate: 1.45, addlMedicareRate: 0.9, addlMedicareThreshold: { single: 200000, mfj: 250000, hoh: 200000, mfs: 125000, qss: 200000 }, addlMedicareWithholding: 200000,
         // Contribution limits (for warnings): 401(k)/403(b) deferrals, pre-tax and Roth together (457(b)
         // has its own); catch-up from 50 (more from 60 to 63); everything incl. after-tax and the match
         // (415(c)); health FSA (limited-purpose shares it); dependent care FSA per household (from 2026).
-        limit401k: 24500, catchUp401k: 8000, superCatchUp401k: 11250, limit415c: 72000, limitIRA: 7500, limitHSA: { self: 4400, family: 8750 },
+        limit401k: 24500, catchUp401k: 8000, superCatchUp401k: 11250, limit415c: 72000, limitIRA: 7500, limitHSA: { self: 4400, family: 8750 }, hsaCatchUp: 1000,
         limitFSA: 3400, limitDCFSA: 7500,
         // "No tax on overtime" (2025–2028): the extra half of time-and-a-half, up to these amounts, less
-        // 10% of income above the phase-out start.
-        overtimeDeduction: { max: { single: 12500, mfj: 25000, hoh: 12500 }, phaseoutStart: { single: 150000, mfj: 300000, hoh: 150000 }, phaseoutRate: 0.1 },
+        // 10% of income above the phase-out start. Married people get it only filing jointly (0).
+        overtimeDeduction: { max: { single: 12500, mfj: 25000, hoh: 12500, mfs: 0, qss: 12500 }, phaseoutStart: { single: 150000, mfj: 300000, hoh: 150000, mfs: 150000, qss: 150000 }, phaseoutRate: 0.1 },
+        // The other 2025–2028 deductions (Schedule 1-A), with or without itemizing: qualified tips up
+        // to $25,000 (less 10% of income above $150,000 / $300,000 joint; married only jointly);
+        // interest on a loan for a new car assembled in the US, bought after 2024, up to $10,000
+        // (less 20% above $100,000 / $200,000 joint); $6,000 for each person 65 or older (each one
+        // less 6% of income above $75,000 / $150,000 joint; married only jointly).
+        tipsDeduction: { max: { single: 25000, mfj: 25000, hoh: 25000, mfs: 0, qss: 25000 }, phaseoutStart: { single: 150000, mfj: 300000, hoh: 150000, mfs: 150000, qss: 150000 }, phaseoutRate: 0.1 },
+        carLoanDeduction: { max: { single: 10000, mfj: 10000, hoh: 10000, mfs: 10000, qss: 10000 }, phaseoutStart: { single: 100000, mfj: 200000, hoh: 100000, mfs: 100000, qss: 100000 }, phaseoutRate: 0.2 },
+        seniorDeduction: { max: { single: 6000, mfj: 6000, hoh: 6000, mfs: 0, qss: 6000 }, phaseoutStart: { single: 75000, mfj: 150000, hoh: 75000, mfs: 75000, qss: 75000 }, phaseoutRate: 0.06 },
         // Social Security benefit formula (PIA bend points, full retirement age 67)
         ssBend1: 1286, ssBend2: 7749, ssFullAge: 67,
         // Bonuses and other supplemental wages: employers usually withhold a flat 22% federal.
@@ -156,9 +170,13 @@
             tasa: 4.0,                  // savings / CD rate (APY %)
             d3: false, d4: false, iessRate: 0, sbu: 0, canasta: 0, sriCapMultiplier: 0, sriBrackets: [],
             cosede: 250000,             // FDIC / NCUA coverage per depositor, per bank, per ownership category
-            filingStatus: 'single',     // 'single' | 'mfj' | 'hoh'
+            filingStatus: 'single',     // 'single' | 'mfj' | 'mfs' (married filing separately) | 'hoh' | 'qss' (qualifying surviving spouse)
             dependents: 0,              // children under 17
             otherDependents: 0,
+            age65: 0,                   // people on the return 65 or older at the end of the year (you, your spouse)
+            blind: 0,                   // people on the return who are blind
+            tipsY: 0,                   // qualified tips a year (2025–2028 deduction)
+            carLoanInterestY: 0,        // interest on a new US-assembled car's loan a year (2025–2028 deduction)
             state: 'MI',
             stateRate: null,            // % override (or the rate for a 'custom' state)
             localName: '',              // city with income tax

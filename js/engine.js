@@ -169,7 +169,7 @@
     }
     // The yearly caps a paycheck's deductions go over (US): 401(k)/403(b) deferrals, pre-tax and Roth
     // together, with the catch-up from 50 (more from 60 to 63); 457(b) on its own; everything with
-    // after-tax and the match (415(c), catch-up apart); HSA (family coverage cap); health FSA with the
+    // after-tax and the match (415(c), catch-up apart); HSA (self-only or family coverage); health FSA with the
     // limited-purpose one; dependent care FSA. `age` unknown (null): no catch-up.
     function deductionLimits(e, t, age = null) {
         const ded = resolveDeductions(Object.assign({}, e, { country: 'US' }));
@@ -182,7 +182,9 @@
         check('deferral', '401(k) / 403(b) contributions (pre-tax and Roth)', deferral, num(t.limit401k) + catchUp);
         check('457', '457(b) contributions', by('457'), num(t.limit401k) + catchUp);
         check('total', 'All 401(k) / 403(b) contributions, after-tax and the match included', deferral + by('total'), num(t.limit415c) + catchUp);
-        check('hsa', 'HSA', by('hsa'), num((t.limitHSA || {}).family));
+        // HSA: self-only coverage has the lower limit; $1,000 more from 55.
+        const hsaSelf = ded.some(x => x.t.limit === 'hsa' && x.d.coverage === 'self');
+        check('hsa', hsaSelf ? 'HSA (self-only coverage)' : 'HSA (family coverage)', by('hsa'), num((t.limitHSA || {})[hsaSelf ? 'self' : 'family']) + (known && a >= 55 ? num(t.hsaCatchUp) : 0));
         check('fsa', 'Health care FSA', by('fsa'), num(t.limitFSA));
         check('dcfsa', 'Dependent care FSA', by('dcfsa'), num(t.limitDCFSA));
         return out;
@@ -216,26 +218,57 @@
     // $50 per $1,000 (or part) of income above $200,000 ($400,000 married filing jointly), IRC §24(b).
     // `stdExtra`: what still comes off when taking the standard deduction (cash gifts to charity, from 2026).
     // `overtime`: the year's qualified overtime premium (overtimeDeduction takes it off taxable income).
-    function usFederalTax({ income, status = 'single', dependents = 0, otherDependents = 0, itemized = 0, stdExtra = 0, overtime = 0, t = {} }) {
-        const std = num((t.stdDeduction || {})[status]);
+    // Filing statuses: single, married filing jointly, married filing separately, head of household,
+    // qualifying surviving spouse.
+    const US_STATUSES = ['single', 'mfj', 'mfs', 'hoh', 'qss'];
+    const usStatus = (s) => (US_STATUSES.includes(s) ? s : 'single');
+    // A table's figure for a filing status. Tables saved before a status existed: a surviving spouse
+    // takes the joint figures, married filing separately the single ones — its brackets are half
+    // the joint ones.
+    function forStatus(table, status, kind) {
+        const tb = table || {};
+        if (tb[status] !== undefined) return tb[status];
+        if (status === 'qss') return tb.mfj;
+        if (status === 'mfs') return kind === 'brackets' && tb.mfj ? tb.mfj.map(([from, rate]) => [from / 2, rate]) : tb.single;
+        return tb.single;
+    }
+    const married = (status) => status === 'mfj' || status === 'mfs' || status === 'qss';
+    // The 2025–2028 deductions shaped alike (overtime, tips, car loan interest, seniors): up to a cap
+    // that shrinks by a share of income above where the phase-out starts. Tables without one give 0.
+    function phasedDeduction(rule, amount, income, status) {
+        if (!rule || !(num(amount) > 0)) return 0;
+        const cap = num(forStatus(rule.max, status)) - Math.max(0, num(income) - num(forStatus(rule.phaseoutStart, status))) * (num(rule.phaseoutRate) || 0.1);
+        return Math.max(0, Math.min(num(amount), cap));
+    }
+    // Federal income tax for a year. Beside the standard (or itemized) deduction: 65 or older and
+    // blind each add to the standard deduction; overtime's extra half, qualified tips, a new car's
+    // loan interest and $6,000 per person 65 or older come off with or without itemizing (2025–2028).
+    function usFederalTax({ income, status = 'single', dependents = 0, otherDependents = 0, itemized = 0, stdExtra = 0, overtime = 0, age65 = 0, blind = 0, tips = 0, carInterest = 0, t = {} }) {
+        status = usStatus(status);
+        const addl = (Math.max(0, Math.min(2, num(age65))) + Math.max(0, Math.min(2, num(blind)))) * num(forStatus(t.addlStd, married(status) ? 'married' : 'unmarried'));
+        const std = num(forStatus(t.stdDeduction, status)) + addl;
         const dedApplied = Math.max(std + num(stdExtra), num(itemized));
         const otDeduction = overtimeDeduction(overtime, income, status, t);
-        const taxable = Math.max(0, num(income) - dedApplied - otDeduction);
+        const tipsDeduction = phasedDeduction(t.tipsDeduction, tips, income, status);
+        const carDeduction = phasedDeduction(t.carLoanDeduction, carInterest, income, status);
+        const seniors = Math.max(0, Math.min(status === 'mfj' ? 2 : 1, num(age65)));
+        const seniorDeduction = seniors * phasedDeduction(t.seniorDeduction, t.seniorDeduction ? num(forStatus(t.seniorDeduction.max, status)) : 0, income, status);
+        const extra = otDeduction + tipsDeduction + carDeduction + seniorDeduction;
+        const taxable = Math.max(0, num(income) - dedApplied - extra);
         const baseCredits = num(dependents) * num(t.childCredit) + num(otherDependents) * num(t.otherDependentCredit);
-        const phaseStart = num((t.ctcPhaseoutStart || { single: 200000, mfj: 400000, hoh: 200000 })[status]);
+        const phaseStart = num(forStatus(t.ctcPhaseoutStart || { single: 200000, mfj: 400000, hoh: 200000 }, status));
         const credits = Math.max(0, baseCredits - Math.ceil(Math.max(0, num(income) - phaseStart) / 1000) * (num(t.ctcPhaseoutStep) || 50));
-        const before = bracketTax(taxable, (t.brackets || {})[status]);
-        return { std, dedApplied, otDeduction, taxable, credits, before, tax: Math.max(0, before - credits) };
+        const before = bracketTax(taxable, forStatus(t.brackets, status, 'brackets'));
+        return { status, std, addlStd: addl, dedApplied, otDeduction, tipsDeduction, carDeduction, seniorDeduction, deductions: dedApplied + extra, taxable, credits, before, tax: Math.max(0, before - credits) };
     }
     // "No tax on overtime" (tax years 2025–2028): the extra half of time-and-a-half comes off taxable
     // income, up to $12,500 ($25,000 filing jointly); that cap shrinks by 10% of income above
     // $150,000 ($300,000 jointly). Tables without it (other years) give 0.
     function overtimeDeduction(premium, income, status, t) {
-        const od = t && t.overtimeDeduction;
-        if (!od || !(num(premium) > 0)) return 0;
-        const cap = num((od.max || {})[status]) - Math.max(0, num(income) - num((od.phaseoutStart || {})[status])) * (num(od.phaseoutRate) || 0.1);
-        return Math.max(0, Math.min(num(premium), cap));
+        return phasedDeduction(t && t.overtimeDeduction, premium, income, usStatus(status));
     }
+    // What a year's own return adds beside the deductions (age, blindness, tips, a car loan).
+    const returnExtras = (yd) => ({ age65: num(yd && yd.age65), blind: num(yd && yd.blind), tips: num(yd && yd.tipsY), carInterest: num(yd && yd.carLoanInterestY) });
 
     // Interest paid on a loan over the next `months` payments, from its balance today.
     function loanInterestAhead(balance, ratePct, payment, months = 12) {
@@ -251,7 +284,7 @@
     // 7.5% of income. With the standard deduction, cash gifts up to $1,000 ($2,000 joint) still count.
     function usItemizeCheck({ yd = {}, income = 0, mortgageInterest = 0, saltIncome = 0, propertyTax = 0, charity = 0, medical = 0 }) {
         const t = yd.usTax || {};
-        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const status = usStatus(yd.filingStatus);
         const inc = Math.max(0, num(income));
         const pick = (v, d) => (v === undefined || v === null || v === '' ? d : num(v));
         const saltCap = Math.max(pick(t.saltFloor, 10000), pick(t.saltCap, 40400) - 0.3 * Math.max(0, inc - pick(t.saltPhaseoutStart, 505000)));
@@ -265,11 +298,12 @@
             { key: 'medical', label: 'Medical costs', amount: cents(Math.max(0, num(medical) - medFloor)), raw: cents(num(medical)), floor: cents(medFloor) }
         ];
         const itemized = cents(sum(items, i => i.amount));
-        const std = num((t.stdDeduction || {})[status]);
-        const stdCharity = cents(Math.min(num(charity), pick((t.charityNonItemizer || {})[status], status === 'mfj' ? 2000 : 1000)));
-        const base = { income: inc, status, dependents: yd.dependents, otherDependents: yd.otherDependents };
+        const base = Object.assign({ income: inc, status, dependents: yd.dependents, otherDependents: yd.otherDependents }, returnExtras(yd));
+        // The standard deduction with what 65 or older and blind add to it.
+        const std = usFederalTax(Object.assign({}, base, { t })).std;
+        const stdCharity = cents(Math.min(num(charity), pick(forStatus(t.charityNonItemizer, status), status === 'mfj' ? 2000 : 1000)));
         const taxStandard = usFederalTax(Object.assign({}, base, { stdExtra: stdCharity, t })).tax;
-        const taxItemized = usFederalTax(Object.assign({}, base, { itemized, t: Object.assign({}, t, { stdDeduction: { [status]: 0 } }) })).tax;
+        const taxItemized = usFederalTax(Object.assign({}, base, { itemized, t: Object.assign({}, t, { stdDeduction: { [status]: 0 }, addlStd: { married: 0, unmarried: 0 } }) })).tax;
         const itemize = itemized > std + stdCharity;
         return { items, itemized, std, stdCharity, standardTotal: cents(std + stdCharity), itemize, taxStandard: cents(taxStandard), taxItemized: cents(taxItemized),
             saving: cents(Math.abs(taxStandard - taxItemized)), short: cents(Math.max(0, std + stdCharity - itemized)), saltCap: cents(saltCap) };
@@ -318,13 +352,13 @@
             return { net: cents(n), total: cents(ir), pct: ir / n, parts: { ir: cents(ir) } };
         }
         const t = yd.usTax || {};
-        const status = ['single', 'mfj', 'hoh'].includes(asked || yd.filingStatus) ? asked || yd.filingStatus : 'single';
+        const status = usStatus(asked || yd.filingStatus);
         const base = n * 0.9235;
         const ssRoom = Math.max(0, (num(t.ssWageBase) || Infinity) - num(wages));
         const se = Math.min(base, ssRoom) * 2 * num(t.ssRate) / 100 + base * 2 * num(t.medicareRate) / 100;
         const qbi = 0.2 * Math.max(0, n - se / 2);
         const added = Math.max(0, n - se / 2 - qbi);
-        const brackets = (t.brackets || {})[status];
+        const brackets = forStatus(t.brackets, status, 'brackets');
         const fed = bracketTax(num(taxableBefore) + added, brackets) - bracketTax(num(taxableBefore), brackets);
         const state = n * num(stateRate) / 100;
         const total = se + fed + state;
@@ -372,9 +406,9 @@
     // federal (supplemental wages): bonusesLeft (gross) adds that to the year's withholding.
     function usRefundEstimate({ yd, wagesIncome, otherWages = 0, otherWithheld = 0, untaxedIncome = 0, withheldYtd = 0, perCheck = 0, checksLeft = 0, stdExtra = 0, bonusesLeft = 0, overtime = 0 }) {
         const t = yd.usTax || {};
-        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const status = usStatus(yd.filingStatus);
         const income = Math.max(0, num(wagesIncome) + num(otherWages) + num(untaxedIncome));
-        const f = usFederalTax({ income, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, stdExtra, overtime, t });
+        const f = usFederalTax(Object.assign({ income, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, stdExtra, overtime, t }, returnExtras(yd)));
         const supplemental = (num(t.supplementalRate) || 22) / 100;
         const withheld = num(withheldYtd) + num(perCheck) * Math.max(0, num(checksLeft)) + num(otherWithheld) + Math.max(0, num(bonusesLeft)) * supplemental;
         const diff = withheld - f.tax;        // > 0 refund, < 0 owe
@@ -439,7 +473,7 @@
     // Returns the main paycheck (as always) with `earners` (the others) and `household` (totals).
     function payrollUS(yd, states) {
         const t = yd.usTax || {};
-        const status = ['single', 'mfj', 'hoh'].includes(yd.filingStatus) ? yd.filingStatus : 'single';
+        const status = usStatus(yd.filingStatus);
         const joint = status === 'mfj';
         const others = otherEarners(yd);
         const main = usWages(yd, t);
@@ -448,7 +482,7 @@
         const total = (f) => sum(ws, f);
         const shareBy = (f, w) => { const all = total(f); return all > 0 ? f(w) / all : (w === main ? 1 : 0); };
         // Federal income tax
-        const fedMain = usFederalTax({ income: joint ? total(w => w.incomeWages) : main.incomeWages, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, overtime: joint ? total(w => w.otPremium) : main.otPremium, t });
+        const fedMain = usFederalTax(Object.assign({ income: joint ? total(w => w.incomeWages) : main.incomeWages, status, dependents: yd.dependents, otherDependents: yd.otherDependents, itemized: yd.itemized, overtime: joint ? total(w => w.otPremium) : main.otPremium, t }, returnExtras(yd)));
         const ownReturn = (w) => usFederalTax({ income: w.incomeWages, status: 'single', overtime: w.otPremium, t });
         const fedOf = (w) => (joint ? fedMain.tax * shareBy(x => x.incomeWages, w) : w === main ? fedMain.tax : ownReturn(w).tax);
         // State (flat or a rate you enter); some states (Pennsylvania) tax 401(k) deferrals.
@@ -498,7 +532,7 @@
             avgTaxRate: m.avgTaxRate,
             iessM: m.ficaM, iessAnual: main.ssAnnual + main.medAnnual, ssM: main.ssAnnual / 12 * m.share, medM: main.medAnnual / 12 * m.share,
             fedM: m.fed / 12 * m.share, stateM: m.state / 12 * m.share, localM: m.local.annual / 12 * m.share, localRate: m.local.rate, localResident: m.local.resident, stateRate, stateType: st.type,
-            pretaxM: (main.pretaxRetire + main.pretax125) / 12, stdDeduction: fedMain.std, credits: fedMain.credits, incomeWages: main.incomeWages,
+            pretaxM: (main.pretaxRetire + main.pretax125) / 12, stdDeduction: fedMain.std, credits: fedMain.credits, fedReturn: fedMain, incomeWages: main.incomeWages,
             // The overtime deduction on the main return (the household's when filing jointly).
             otPremiumY: main.otPremium, otDeduction: fedMain.otDeduction, ppy: main.pay.ppy,
             sriCap: 0, deductibles: { prep: 0, real: 0 }, dedApplied: fedMain.dedApplied, baseImponible: fedMain.taxable,
@@ -3228,7 +3262,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, US_STATUSES, usStatus, forStatus, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,
