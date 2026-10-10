@@ -86,6 +86,11 @@
             <div class="card-sub">What helps your plan most today, in order.</div></div></div>
         <div id="dash-moves"></div>
     </div>
+    <div class="card hidden" id="dash-review-card">
+        <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-clipboard-check text-blue-600"></i> Weekly review</div>
+            <div class="card-sub">A few minutes once a week keeps your budget true to real life.</div></div></div>
+        <div id="dash-review"></div>
+    </div>
     <div class="card hidden" id="dash-health-card">
         <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-heart-pulse text-red-500"></i> Your financial health</div>
             <div class="card-sub">How you're doing today at spending, saving, borrowing and planning.</div></div></div>
@@ -660,7 +665,8 @@
 
         <div class="card">
             <div class="card-head">
-                <div class="card-title"><i class="fa-solid fa-list text-blue-600"></i> History</div>
+                <div class="flex items-center gap-3 flex-wrap"><div class="card-title"><i class="fa-solid fa-list text-blue-600"></i> History</div>
+                    <span class="seg-mini" role="group" aria-label="Group by"><button type="button" data-action="txn.group" data-by="month" aria-pressed="true" class="active">By month</button><button type="button" data-action="txn.group" data-by="week" aria-pressed="false">By week</button></span></div>
                 <!-- On a phone: the search, the dates, "Filters" (the rest, with how many are on) and Select. -->
                 <div class="flex flex-wrap gap-2 txn-filters" id="txn-filters">
                     <label class="txn-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="txn-search" placeholder="Search description, place or amount" data-input="txn.search" aria-label="Search transactions"></label>
@@ -735,6 +741,7 @@
                     <input type="file" id="imp-file" accept=".csv,.txt,.tsv,.ofx,.qfx,text/csv,text/plain,application/x-ofx" class="hidden" data-change="imp.file"></label>
                 <span class="help" id="imp-file-name">Your bank only gives Excel (.xlsx)? Open it and use "Save as → CSV".</span>
             </div>
+            <p class="help mt-2"><i class="fa-solid fa-building-columns text-slate-400"></i> Chase, Bank of America, Wells Fargo, Capital One and American Express files are recognized and set up for you. No file from your bank? <button type="button" class="link" data-action="imp.template">Download a CSV template</button>, fill it in (a spreadsheet works) and import it.</p>
             <div id="imp-setup" class="hidden mt-5 space-y-4">
                 <div class="panel tone-slate">
                     <div class="section-label"><i class="fa-solid fa-table-columns text-blue-600"></i> 1. Tell us which column is which</div>
@@ -1355,6 +1362,11 @@
                 <div class="lg:col-span-2" id="ret-gap"></div>
             </div>
         </div>
+        <div class="card" data-country="US" id="ret-tools-card">
+            <div class="card-head"><div><div class="card-title"><i class="fa-solid fa-building-columns text-indigo-600"></i> Your 401(k) and IRA</div>
+                <div class="card-sub">Don't leave your employer's match on the table, pick Roth or traditional, and keep track of this year's IRA.</div></div></div>
+            <div id="ret-tools"></div>
+        </div>
         <div class="card">
             <div class="card-head">
                 <div>
@@ -1933,6 +1945,7 @@
 <script src="js/views/calculadoras.js"></script>
 <script src="js/views/ahorro.js"></script>
 <script src="js/views/hipoteca.js"></script>
+<script src="js/views/retiretools.js"></script>
 <script src="js/views/jubilacion.js"></script>
 <script src="js/views/patrimonio.js"></script>
 <script src="js/views/accounts.js"></script>

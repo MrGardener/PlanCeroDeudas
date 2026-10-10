@@ -134,7 +134,7 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | Feature | Source / notes |
 |---|---|
 | 📋 Nested budget groups (a group inside a group) | "Car Money → Transportation / Maintenance" |
-| 📋 History grouped by week/month with category totals | Nudget history. Partly covered: Reportes groups by week/month with totals; a timeline view in Transacciones is still to do |
+| ✅ History grouped by week/month with category totals | Transactions → History: **By month / By week** (Monday to Sunday); each group shows what went out and came in (refunds lower it, transfers stay out) and its three biggest categories |
 | 📋 Share a read-only report (file / print) | Until hosting allows real sharing. Today: Reportes → CSV / print to PDF. Next: a single-file read-only snapshot |
 
 ## US edition — next
@@ -146,8 +146,8 @@ Status: ✅ done · 🔨 building now · 📋 planned (possible today) · 🌐 n
 | ✅ Ohio/Pennsylvania/other city & school-district taxes | Listed besides Michigan's cities: Ohio's largest cities (the same rate for people who work there), Philadelphia and Pittsburgh (resident and non-resident), New York City with its own brackets on New York taxable income; Ohio's school district income tax as its own line; anywhere else, type the rate |
 | 🔍 Verify 2026 figures each January | Federal brackets/standard deduction (IRS Rev. Proc.), Social Security wage base and bend points (SSA), Michigan rate/exemption; editable in Settings |
 | ✅ Bonuses, overtime and hourly pay | Plan: `docs/plans/hourly-pay.md`. ✅ Phase 1 (engine): `Engine.usGrossPay` — salary or hourly (rate × hours a week × 52 ÷ 12, overtime at 1.5×), expected bonuses; taxes on the whole year, the budget on base pay (overtime only if counted), planned bonuses in their month after taxes. ✅ Phase 2 (Income screen): "How you're paid" — salary or by the hour (rate, hours, usual overtime, overtime ×; switching starts from the salary), "count my usual overtime in the budget" with the Ramsey tip, bonuses this year (amount, month, "plan it"); the payroll breakdown says taxes are on the whole year. ✅ Phase 3 (extra paychecks): weekly / every-2-weeks pay names the months with a 3rd (or 5th) paycheck; "Budget on 2 paychecks a month" (Ramsey) makes the plan count the usual paychecks and the extra one real extra money in its month; Next moves warns the month before and says where to send it (the current Baby Step). ✅ Phase 4 (pay stub + refund): the stub reader finds rate × hours (either column order), overtime and bonus lines; the review offers "paid by the hour", "this overtime is usual" and "add this bonus"; the refund-or-owe check counts bonuses still to come at the 22% federal supplemental rate. Plan complete |
-| 📋 Roth vs. traditional comparison, IRA contribution tracker, employer match optimizer | Builds on the 401(k)/IRA account type and deductions |
-| 📋 US bank CSV presets (Chase, BofA, Wells Fargo, Capital One, Amex) | The column mapper already handles them; presets would skip the mapping step |
+| ✅ Roth vs. traditional comparison, IRA contribution tracker, employer match optimizer | Future → Retirement → **Your 401(k) and IRA**: the employer's match (two tiers, e.g. 100% of the first 3% and 50% of the next 2%) against your 401(k) from your paycheck's deductions — what you're leaving on the table and the % that gets it all; Roth or traditional with the same money out of your paycheck (your top rate today vs. a guess one bracket lower in retirement, both editable); this year's IRA against the limit ($7,500, $8,600 from 50), what a month fills it by December, and how much a Roth IRA allows at your income (2026 phase-outs) |
+| ✅ US bank CSV presets (Chase, BofA, Wells Fargo, Capital One, Amex) | Recognized by their columns and set up with no mapping: Chase card and checking, Bank of America card and checking, Wells Fargo (no header row), Capital One card (debit/credit columns) and 360 (a debit/credit type column), American Express (charges positive). A setup you saved for those columns still comes first. Plus **Download a CSV template** that imports with no setup |
 
 ## Tax details — later (from the CPA review)
 
@@ -182,9 +182,9 @@ Assessed only; nothing built. "Now" = works in the offline file; "Hosting" = nee
 
 | Idea | Can it be done? | What already exists | Missing / effort |
 |---|---|---|---|
-| Smart manual fallback when a bank connection breaks | The fallback is already the only mode (no bank connections in Ecuador yet) | CSV import with remembered mappings | Small now: a downloadable CSV template that imports with no mapping; "last import per account" reminder. The automatic switch belongs to stage C |
+| ✅ Smart manual fallback when a bank connection breaks | The fallback is already the only mode (no bank connections in Ecuador yet) | CSV import with remembered mappings | Done: a downloadable CSV template that imports with no mapping (Import). The automatic switch belongs to stage C |
 | ✅ Pitfall: irregular / annual bills | Done: Budget → annual and irregular bills (Phase 4) | Goals with a target date (sinking funds), yearly/semiannual repeats | Small: "gastos anuales" list that turns into a monthly set-aside line; Ecuador items (matrícula vehicular, predial) and irregular income (décimo tercero / cuarto) |
-| Pitfall: drop-off | Partly now | Streak, alerts | Small: weekly review checklist (unassigned, uncategorized, over-budget, next bills). Reminders need hosting |
+| ✅ Pitfall: drop-off | Partly now | Streak, alerts | Done: Overview → **Weekly review** (money with no job, spending with no budget line, lines over budget, bills in the next 7 days, the week's spending logged; "Done for this week" with a streak). Reminders: phone notifications (Phone app — next) |
 
 ## Needs hosting / a server 🌐
 

@@ -2309,6 +2309,91 @@
         };
     }
 
+    // ------------------------------------------------- 401(k) and IRA tools (US)
+    // The employer's 401(k) match: what your contribution gets now and what the whole match needs.
+    // tiers: [{ rate: % matched, upTo: % of pay }] in order — e.g. 100% of the first 3%, then 50%
+    // of the next 2% (the full match at 5%).
+    function matchOptimizer({ salary = 0, contribPct = 0, tiers = [] }) {
+        const pay = Math.max(0, num(salary)), mine = Math.max(0, num(contribPct));
+        let from = 0, now = 0, max = 0;
+        (tiers || []).forEach(t => {
+            const band = Math.max(0, num(t.upTo)), r = Math.max(0, num(t.rate)) / 100;
+            now += Math.min(Math.max(0, mine - from), band) * r;
+            max += band * r;
+            from += band;
+        });
+        return { pctForMax: from, matchNow: cents(pay * now / 100), matchMax: cents(pay * max / 100), missed: cents(pay * (max - now) / 100), extraOwn: cents(pay * Math.max(0, from - mine) / 100) };
+    }
+    // Roth or traditional, with the same money out of your take-home pay today: traditional puts
+    // the whole amount in and it's taxed when you take it out; Roth puts in what's left after
+    // today's tax and comes out tax-free. The lower rate wins: today's or retirement's.
+    function rothVsTraditional({ amount = 0, rateNow = 0, rateLater = 0, years = 0, returnPct = 0 }) {
+        const a = Math.max(0, num(amount)), g = Math.pow(1 + num(returnPct) / 100, Math.max(0, num(years)));
+        const traditional = a * g * (1 - num(rateLater) / 100), roth = a * (1 - num(rateNow) / 100) * g;
+        return { traditional: cents(traditional), roth: cents(roth), better: roth > traditional + 0.5 ? 'roth' : traditional > roth + 0.5 ? 'traditional' : 'same', taxNow: cents(a * num(rateNow) / 100) };
+    }
+    // An IRA this year: room under the limit ($1,100 more from 50), what a month fills it by
+    // December, and how much a Roth IRA allows at this income (it phases out). t: the tax table.
+    function iraTracker({ contributed = 0, age = null, magi = 0, status = 'single', months = 12, t = {} }) {
+        const limit = num(t.limitIRA) + (num(age) >= 50 ? num(t.iraCatchUp) : 0);
+        const room = Math.max(0, limit - Math.max(0, num(contributed)));
+        const ph = forStatus(t.rothIraPhaseout || {}, usStatus(status)) || null;
+        const share = !ph ? 1 : num(magi) <= ph[0] ? 1 : num(magi) >= ph[1] ? 0 : (ph[1] - num(magi)) / (ph[1] - ph[0]);
+        return { limit, room: cents(room), perMonth: cents(room / Math.max(1, num(months))), rothLimit: cents(limit * share), rothPhase: share < 1 ? (share > 0 ? 'partial' : 'none') : 'full', phaseout: ph };
+    }
+
+    // The transaction history in groups (newest first, the list's own order): by month or by week
+    // (Monday to Sunday), each with what came in, what went out (refunds lower it, transfers stay
+    // out) and its biggest spending categories.
+    function historyGroups(list, by = 'month', top = 3) {
+        const groups = [];
+        (list || []).forEach(t => {
+            const key = by === 'week' ? isoDate(periodStart(new Date(t.date + 'T00:00:00'), 'week')) : t.date.slice(0, 7);
+            if (!groups.length || groups[groups.length - 1].key !== key) groups.push({ key, items: [], income: 0, spending: 0, byCat: {} });
+            const g = groups[groups.length - 1];
+            g.items.push(t);
+            if (isTransfer(t)) return;
+            if (txnType(t) === 'Ingreso') { g.income += num(t.amount); return; }
+            const v = amt(t);
+            g.spending += v;
+            const c = t.parentCategory || '';
+            g.byCat[c] = (g.byCat[c] || 0) + v;
+        });
+        return groups.map(g => ({ key: g.key, items: g.items, income: cents(g.income), spending: cents(g.spending),
+            cats: Object.keys(g.byCat).map(cat => ({ cat, total: cents(g.byCat[cat]) })).filter(x => x.total > 0.005).sort((a, b) => b.total - a.total).slice(0, top) }));
+    }
+
+    // The weekly review: a few minutes once a week so the budget keeps up with real life. Money not
+    // given a job yet, this month's spending with no budget line, lines over budget, bills due in
+    // the next 7 days (or overdue), and this week's spending logged. Each check is done at zero.
+    // `bills`: billsDue's list for this month; `unassigned`: this month's income not budgeted.
+    function weeklyReview({ items = [], transactions = [], today = new Date(), unassigned = 0, bills = [] }) {
+        const t = new Date(today), y = t.getFullYear(), m = t.getMonth() + 1;
+        const r = monthReview({ items, transactions, year: y, month: m });
+        const end = isoDate(t), start = isoDate(new Date(y, t.getMonth(), t.getDate() - 6));
+        const logged = (transactions || []).filter(x => x.date >= start && x.date <= end && txnType(x) !== 'Ingreso').length;
+        const due = (bills || []).filter(b => !b.paid && b.daysLeft <= 7);
+        const checks = [
+            { key: 'assign', count: Math.abs(num(unassigned)) >= 1 ? 1 : 0, amount: cents(num(unassigned)) },
+            { key: 'lines', count: r.unassigned.count, amount: r.unassigned.total },
+            { key: 'over', count: r.over.length, amount: cents(-sum(r.over, l => l.left)), names: r.over.slice(0, 3).map(l => l.name) },
+            { key: 'bills', count: due.length, amount: cents(sum(due, b => b.remaining)), names: due.slice(0, 3).map(b => b.item.name), overdue: due.filter(b => b.daysLeft < 0).length },
+            { key: 'logged', count: logged ? 0 : 1, logged }
+        ];
+        return { checks, open: checks.filter(c => c.count > 0).length, logged };
+    }
+    // Weeks in a row reviewed, counting back from this week (Monday to Sunday), from the dates of
+    // each review.
+    function reviewStreak(dates, today = new Date()) {
+        const monday = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return isoDate(x); };
+        const weeks = new Set((dates || []).map(d => monday(new Date(d + 'T00:00:00'))));
+        let n = 0;
+        const w = new Date(monday(today) + 'T00:00:00');
+        if (!weeks.has(isoDate(w))) w.setDate(w.getDate() - 7);   // this week not done yet: count from last week
+        while (weeks.has(isoDate(w))) { n++; w.setDate(w.getDate() - 7); }
+        return n;
+    }
+
     // ------------------------------------------------- annual & irregular bills
     // A bill that comes once a year (or every 6 / 3 months): car registration, insurance,
     // property tax, school supplies… { name, amount, every: 12 | 6 | 3, month: 1–12 (a month it's due) }.
@@ -3314,7 +3399,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usStateTax, US_STATUSES, usStatus, forStatus, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usStateTax, US_STATUSES, usStatus, forStatus, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, weeklyReview, reviewStreak, historyGroups, matchOptimizer, rothVsTraditional, iraTracker, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

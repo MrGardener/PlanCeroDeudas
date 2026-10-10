@@ -268,3 +268,39 @@ test('investment prices from a published Google Sheet (GOOGLEFINANCE)', () => {
     assert.equal(I.sheetCsvUrl('https://example.com/spreadsheets/d/e/2PACX-abc/pub'), null);
     assert.equal(I.sheetCsvUrl(''), null);
 });
+
+test('US bank statements recognized by their columns: set up with no mapping, the right sign (invented rows)', () => {
+    const run = (csv) => {
+        const t = I.parseCSV(csv).rows;
+        const hl = I.headerlessPreset(t);
+        const head = hl ? hl.headers : t[0];
+        const p = hl || I.bankPreset(head);
+        const rows = I.buildRows(hl ? t : t.slice(1), Object.assign({ decimal: 'auto' }, p.mapping));
+        return { bank: p.bank, rows: rows.map(r => [r.date, r.type, r.amount, r.description]) };
+    };
+    const chase = run('Transaction Date,Post Date,Description,Category,Type,Amount,Memo\n10/02/2026,10/03/2026,COFFEE SHOP,Food & Drink,Sale,-4.50,\n10/05/2026,10/05/2026,PAYMENT THANK YOU,,Payment,200.00,\n');
+    assert.equal(chase.bank, 'Chase credit card');
+    assert.deepEqual(chase.rows, [['2026-10-02', 'Gasto', 4.5, 'COFFEE SHOP'], ['2026-10-05', 'Ingreso', 200, 'PAYMENT THANK YOU']]);
+    const bofa = run('Posted Date,Reference Number,Payee,Address,Amount\n10/04/2026,12345,HARDWARE STORE,SOMEWHERE ST,-31.10\n');
+    assert.equal(bofa.bank, 'Bank of America credit card');
+    assert.deepEqual(bofa.rows[0], ['2026-10-04', 'Gasto', 31.1, 'HARDWARE STORE']);
+    const cap = run('Transaction Date,Posted Date,Card No.,Description,Category,Debit,Credit\n2026-10-06,2026-10-07,0000,GAS STATION,Gas/Automotive,40.00,\n2026-10-08,2026-10-08,0000,REFUND,Other,,12.00\n');
+    assert.equal(cap.bank, 'Capital One credit card');
+    assert.deepEqual(cap.rows.map(r => [r[1], r[2]]), [['Gasto', 40], ['Ingreso', 12]]);
+    const c360 = run('Account Number,Transaction Date,Transaction Amount,Transaction Type,Transaction Description,Balance\n0000,10/09/26,25.00,Debit,Pharmacy,975.00\n0000,10/10/26,500.00,Credit,Deposit,1475.00\n');
+    assert.equal(c360.bank, 'Capital One 360');
+    assert.deepEqual(c360.rows.map(r => [r[1], r[2]]), [['Gasto', 25], ['Ingreso', 500]]);
+    const amex = run('Date,Description,Card Member,Account #,Amount\n10/11/2026,RESTAURANT,PERSON,-00000,58.20\n10/12/2026,AUTOPAY PAYMENT,PERSON,-00000,-300.00\n');
+    assert.equal(amex.bank, 'American Express');
+    assert.deepEqual(amex.rows.map(r => [r[1], r[2]]), [['Gasto', 58.2], ['Ingreso', 300]]);
+    const wf = run('"10/13/2026","-12.34","*","","PURCHASE AUTHORIZED ON 10/12 BAKERY"\n"10/14/2026","1500.00","*","","PAYROLL DEPOSIT"\n');
+    assert.equal(wf.bank, 'Wells Fargo');
+    assert.deepEqual(wf.rows.map(r => [r[0], r[1], r[2]]), [['2026-10-13', 'Gasto', 12.34], ['2026-10-14', 'Ingreso', 1500]]);
+    const tpl = run('Date,Description,Amount,Place,Category\n2026-10-01,Weekly groceries,-85.40,Grocery store,Food\n');
+    assert.equal(tpl.bank, 'template');
+    assert.deepEqual(tpl.rows[0], ['2026-10-01', 'Gasto', 85.4, 'Weekly groceries']);
+    assert.equal(I.bankPreset(['Fecha', 'Descripción', 'Monto', 'Lugar', 'Categoría']).bank, 'template');
+    // Three common columns alone aren't enough to call it Amex.
+    assert.equal(I.bankPreset(['Date', 'Description', 'Amount']), null);
+    assert.equal(I.headerlessPreset([['Date', 'Amount'], ['10/01/2026', '5']]), null);
+});
