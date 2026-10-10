@@ -100,8 +100,9 @@
                 const vals = [];
                 p.order.forEach((n, i) => { vals[n] = m[i + 1]; });
                 if (p.weak && vals.some(v => /[A-Za-zÁÉÍÓÚáéíóúñÑ]{2}/.test(v || ''))) continue;
-                // A list ("$200 · Every 6 months") is read piece by piece, not as one value.
-                if (!p.list && vals.some(v => (v || '').includes(' · '))) continue;
+                // A list ("$200 · Every 6 months") is read piece by piece, not as one value of a short
+                // pattern ("{0} months"); a sentence may end with one ("…your days with: {0}.").
+                if (!p.list && p.letters < 15 && vals.some(v => (v || '').includes(' · '))) continue;
                 if (p.numeric.size && [...p.numeric].some(n => /[A-Za-zÁÉÍÓÚáéíóúñÑ]/.test(vals[n] || ''))) continue;
                 if (p.count && !vals.some((v, n) => !p.endings.has(String(n)) && /\d/.test(v || '') && !/[A-Za-zÁÉÍÓÚáéíóúñÑ]/.test(v))) continue;
                 hit = fill(p.out, vals);
@@ -211,13 +212,14 @@
         const sig = lang + '|' + countryCode + '|' + names.size;
         if (keptFor !== sig) {
             const list = [...names].filter(n => n.length > 2 && /[A-Za-zÁÉÍÓÚáéíóúñÑ]/.test(n) && !exactly(n)).sort((a, b) => b.length - a.length);
-            keptRe = list.length ? new RegExp('(?<![\\p{L}\\d])(?:' + list.map(esc).join('|') + ')(?![\\p{L}\\d])', 'gu') : null;
+            // (No lookbehind: older iPhones' web views don't have it.)
+            keptRe = list.length ? new RegExp('(^|[^\\p{L}\\d])(' + list.map(esc).join('|') + ')(?![\\p{L}\\d])', 'gu') : null;
             keptFor = sig;
         }
         if (!keptRe || !keptRe.test(text)) { if (keptRe) keptRe.lastIndex = 0; return none; }
         keptRe.lastIndex = 0;
         const found = [];
-        const out = text.replace(keptRe, (n) => { found.push(n); return '\u2063' + (found.length - 1) + '\u2063'; });
+        const out = text.replace(keptRe, (_, before, n) => { found.push(n); return before + '\u2063' + (found.length - 1) + '\u2063'; });
         return { text: out, back: (x) => x.replace(/\u2063(\d+)\u2063/g, (_, i) => found[Number(i)]) };
     }
     const countries = {};
