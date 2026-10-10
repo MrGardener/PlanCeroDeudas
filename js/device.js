@@ -10,6 +10,9 @@
  * With a PIN the saved plan is also encrypted on the device (AES-256-GCM): a random data key,
  * kept only wrapped by a key made from the PIN (PBKDF2-SHA-256). Until the PIN is typed the plan
  * isn't even read; after, it lives decrypted in memory only and every save is encrypted again.
+ * In the phone app without a PIN, the data key is the phone's own (Android Keystore / iOS
+ * Keychain, this device only: Native.deviceKey), so the plan is encrypted there too. With a PIN,
+ * fingerprint or Face ID can stand in for typing it (the phone keeps the PIN, Native.bio).
  */
 (function (root) {
     'use strict';
@@ -195,8 +198,33 @@
         dataKey = await c().subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
     }
     // App.init calls this: run now, or once the PIN has opened the data. With a PIN the app never
-    // starts before it, so nothing of the plan is in memory behind the lock screen.
-    function whenReady(fn) { if (dataLocked() || hasPin()) pending.push(fn); else fn(); }
+    // starts before it, so nothing of the plan is in memory behind the lock screen. The phone app
+    // without a PIN opens it with the phone's key first.
+    function whenReady(fn) {
+        if (hasPin()) { pending.push(fn); return; }
+        if (deviceKeyMode()) { openWithDeviceKey().then(okd => { if (okd) fn(); else showLost(); }); return; }
+        if (dataLocked()) pending.push(fn); else fn();
+    }
+    // The phone app, no PIN: the plan is encrypted with the phone's own key.
+    const deviceKeyMode = () => !hasPin() && !!(root.Native && Native.isApp && Native.hasDeviceKey && Native.hasDeviceKey()) && !!c();
+    async function phoneKey() {
+        const k = await Native.deviceKey();
+        return k ? c().subtle.importKey('raw', unb64(k), 'AES-GCM', false, ['encrypt', 'decrypt']) : null;
+    }
+    // Decrypt the saved plan with the phone's key (an older readable save gets encrypted now).
+    // false when there's an encrypted plan this key can't open.
+    async function openWithDeviceKey() {
+        const key = await phoneKey();
+        if (!key) { boot = null; return !dataLocked(); }
+        dataKey = key;
+        const raw = storedRaw();
+        let plain = raw;
+        if (isEncrypted(raw)) { try { plain = await decryptText(raw); } catch (e) { dataKey = null; return false; } }
+        const st = secureStorage(plain);
+        boot = st;
+        if (raw && !isEncrypted(raw) && plain) st.setItem(DATA_KEY(), plain);
+        return true;
+    }
 
     let hiddenAt = null;
     // Wrong tries and the wait live with the lock, so closing or reloading the app doesn't reset them.
@@ -212,6 +240,8 @@
         try { for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (keys.some(x => k === x || k.startsWith(x + ':'))) keys.push(k); } } catch (e) { /* no storage */ }
         // Stop the store from writing the plan back (on unload, or the phone's copy).
         if (root.Store) { Store.storage = null; Store._lastSaved = null; }
+        // The phone's keys go too (its data key, the PIN kept for fingerprint unlock).
+        if (root.Native && Native.forgetDevice) await Native.forgetDevice();
         if (root.Native && Native.wipe) await Native.wipe([...new Set(keys)]);
         else [...new Set(keys)].forEach(k => { try { localStorage.removeItem(k); } catch (e) { /* gone */ } });
     }
@@ -233,6 +263,7 @@
                     : '<p class="lock-sub">Type your PIN to get in.</p><input id="lock-pin" class="lock-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" aria-label="PIN" autofocus>'}
                 <p id="lock-msg" class="lock-msg" role="alert"></p>
                 <button type="submit" class="btn btn-primary w-full justify-center">Enter</button>
+                ${read().bio ? '<button type="button" class="btn btn-secondary w-full justify-center mt-2" id="lock-bio"><i class="fa-solid fa-fingerprint"></i> Use fingerprint or face</button>' : ''}
                 <button type="button" class="lock-forgot" id="lock-forgot">I forgot my PIN</button>
             </form>`;
         document.body.appendChild(el);
@@ -278,6 +309,19 @@
             msg.textContent = n >= MAX_TRIES ? `${t(left())} ${t('Wait 30 seconds to try again.')}` : t(left());
             input.focus();
         });
+        // Fingerprint or Face ID: the phone hands back the PIN it keeps, and it goes in as if typed
+        // (the phone counts its own failed tries). Offered right away when the lock shows.
+        const bioBtn = el.querySelector('#lock-bio');
+        const useBio = async () => {
+            const t = (x) => (root.I18n ? I18n.t(x) : x);
+            if (!root.Native || !Native.bio || !await Native.bio.verify({ title: t('Unlock'), subtitle: t('Confirm it\'s you'), cancel: t('Use PIN') })) return;
+            const pin = await Native.bio.getSecret();
+            const lock = read().lock;
+            if (!pin || !lock || await hashPin(pin, lock.salt) !== lock.hash) { say('Type your PIN this time: fingerprint unlock was turned off.'); setBio(false); bioBtn.remove(); return; }
+            input.value = pin;
+            el.querySelector('form').requestSubmit();
+        };
+        if (bioBtn) { bioBtn.addEventListener('click', useBio); setTimeout(useBio, 300); }
         el.querySelector('#lock-forgot').addEventListener('click', () => {
             // Without the PIN the only way in is to start over on this device. A backup file
             // brings the data back (backups never contain the PIN).
@@ -316,15 +360,32 @@
             const dd = read(); dd.lock.wrap = await wrapKey(pin, fresh); write(dd);
         } else await startEncryption(pin);
         if (root.Store && Store.state) { Store.storage = secureStorage(null); Store._lastSaved = null; Store.saveNow(); await Store.storage.flush(); }
+        // Fingerprint unlock follows the new PIN.
+        if (read().bio && root.Native && Native.bio) await Native.bio.setSecret(pin);
         return true;
     }
-    // Removing the PIN saves the plan readable again (it's this device's choice).
+    // Removing the PIN saves the plan readable again (it's this device's choice) — in the phone
+    // app, encrypted with the phone's key instead.
     function removePin() {
         if (locked()) return false;
-        const d = read(); delete d.lock; write(d);
+        const d = read(); delete d.lock; delete d.bio; write(d);
         dataKey = null;
+        if (root.Native && Native.bio) Native.bio.clearSecret();
+        if (deviceKeyMode()) {
+            if (root.Store && Store.state) Store.storage = secureStorage(null);
+            phoneKey().then(key => { if (!key) return; dataKey = key; if (root.Store && Store.state) { Store._lastSaved = null; Store.saveNow(); } });
+            return true;
+        }
         if (root.Store && Store.state) { Store.storage = root.localStorage; Store._lastSaved = null; Store.saveNow(); }
         return true;
+    }
+    // Fingerprint / Face ID for the PIN: on (the phone keeps the PIN) or off.
+    async function setBio(on, pin) {
+        const d = read();
+        if (on && d.lock && pin && await hashPin(pin, d.lock.salt) === d.lock.hash && root.Native && Native.bio) { await Native.bio.setSecret(pin); d.bio = true; }
+        else { delete d.bio; if (root.Native && Native.bio) Native.bio.clearSecret(); }
+        write(d);
+        return !!d.bio;
     }
 
     // Locked = the lock screen is up, or the plan hasn't been opened with the PIN.
@@ -375,10 +436,13 @@
         if (root.I18n && I18n.apply) { applyLang(); I18n.apply(el); }
         el.querySelector('#lock-wipe').addEventListener('click', async () => { await wipeAll(); location.reload(); });
     }
-    document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); applyPrivacy(); if (dataLocked() && !hasPin()) showLost(); else showLock(); });
+    document.addEventListener('DOMContentLoaded', () => { applyLang(); applyTheme(); applyPrivacy(); if (dataLocked() && !hasPin() && !deviceKeyMode()) showLost(); else showLock(); });
 
     // "Protect it later": the reminder to set a passcode waits a week (this device only).
     function protectLater(days = 7) { const d = read(); d.protectLater = Date.now() + days * 86400000; write(d); }
-    const protectDue = () => !hasPin() && !(Number(read().protectLater) > Date.now());
-    root.Device = { protectLater, protectDue, applyPrivacy, setPrivacy, hidden: () => !!read().hideAmounts, isPasscode: () => !!(read().lock && read().lock.kind === 'passcode'), storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: relock, locked, hashPin, KEY };
+    // (Not in the phone app with its own key: the plan is already encrypted there.)
+    const protectDue = () => !hasPin() && !deviceKeyMode() && !(Number(read().protectLater) > Date.now());
+    // Phone reminders on or off (this device only, like the theme).
+    function setReminders(on) { const d = read(); if (on) d.reminders = true; else delete d.reminders; write(d); }
+    root.Device = { setReminders, remindersOn: () => !!read().reminders, setBio, bioOn: () => !!read().bio, deviceKeyMode, protectLater, protectDue, applyPrivacy, setPrivacy, hidden: () => !!read().hideAmounts, isPasscode: () => !!(read().lock && read().lock.kind === 'passcode'), storage, whenReady, dataLocked, isEncrypted, WIPE_AT, MAX_TRIES, wipeAll, read, applyTheme, setTheme, getLang, setLang, applyLang, hasPin, setPin, removePin, lockNow: relock, locked, hashPin, KEY };
 })(this);

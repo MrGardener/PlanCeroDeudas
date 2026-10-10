@@ -2373,6 +2373,23 @@
         return list.filter(isTop).map(g => ({ name: g.name, type: g.type, children: list.filter(c => !isTop(c) && c.parent === g.name).map(c => ({ name: c.name, type: c.type })) }));
     }
 
+    // Phone reminders for the coming weeks: each bill line with a due day, the day before at 9:00
+    // (from tomorrow on, unpaid ones this month), and the weekly review on Sundays at 18:00.
+    // itemsFor(year, month) → that month's budget lines; paid(id) → already paid this month.
+    // Only the time and the kind: what the phone shows says no amounts and no names.
+    function reminderSchedule({ itemsFor, today = new Date(), days = 35, paid = () => false, review = true }) {
+        const t = new Date(today), end = new Date(t.getFullYear(), t.getMonth(), t.getDate() + days), out = [];
+        for (let k = 0; k < 3; k++) {
+            const first = new Date(t.getFullYear(), t.getMonth() + k, 1), y = first.getFullYear(), m = first.getMonth() + 1, last = new Date(y, m, 0).getDate();
+            (itemsFor(y, String(m)) || []).filter(i => Number(i.dueDay) >= 1 && num(i.real) > 0 && i.type !== 'Ingreso').forEach(i => {
+                const at = new Date(y, m - 1, Math.min(Number(i.dueDay), last) - 1, 9, 0);
+                if (at > t && at <= end && !(k === 0 && paid(i.id))) out.push({ kind: 'bill', at });
+            });
+        }
+        if (review) for (let d = new Date(t.getFullYear(), t.getMonth(), t.getDate() + ((7 - t.getDay()) % 7), 18, 0); d <= end; d.setDate(d.getDate() + 7)) if (d > t) out.push({ kind: 'review', at: new Date(d) });
+        return out.sort((a, b) => a.at - b.at);
+    }
+
     // The weekly review: a few minutes once a week so the budget keeps up with real life. Money not
     // given a job yet, this month's spending with no budget line, lines over budget, bills due in
     // the next 7 days (or overdue), and this week's spending logged. Each check is done at zero.
@@ -3409,7 +3426,7 @@
         savingsPurpose, savingsPools, SAVINGS_PURPOSES, pitiMonthly, isCashAccount, accountTotal, balanceAfterRows, cashNow, cashEvents, safeToSpend, cashForecast, starveLines, projectFlows, projectBalances,
         loggingStreak, netWorthPath, goalSchedule, monthSpendCurve, categoryBreakdown, cashFlow, nextPayday, dailyAllowance, monthInsights, memberTotals,
         holdingValue, holdingsValue, lineSpend, periodStart, shiftPeriod, periodSeries, billsDue, overspendRisk, isoDate,
-        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usStateTax, US_STATUSES, usStatus, forStatus, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, weeklyReview, reviewStreak, historyGroups, groupTree, matchOptimizer, rothVsTraditional, iraTracker, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
+        DEDUCTION_GROUPS, COMPUTED_KINDS, payDeductionsSummary, bracketTax, usGrossPay, payrollUS, usFederalTax, usStateTax, US_STATUSES, usStatus, forStatus, usItemizeCheck, jointWagesUS, sideIncomeTaxes, US_DEDUCTIONS, deductionType, PAY_FREQUENCIES, paysPerYear, deductionAmounts, resolveDeductions, overtimeDeduction, deductionLimits, loanInterestAhead, ASSET_CLASSES, assetClassOf, portfolioMix, prepayOrInvest, loanRateScenarios, cdRenewalRisk, usRefundEstimate, sideIncomeTax, sriPersonalExpenses, localTax, CARGAS_CANASTAS, socialSecurity, incomeTax, sriCap, payroll, d4Month, bonusForMonth, PAYROLL_SUBCATEGORIES, txnOrigin, isReconciled, spendingBreakdown, categoryTrend, budgetBubbles, autoBudget, categoryMonths, packCircles, spiralStart, suggestBudget, spendPace, monthVsAverage, trendWindow, trendKeys, trendPointRange, TREND_MIN_DAYS, personSummary, otherEarners, paycheckLines, usWages, bandAt, zoomRange, bandMiddle, ZOOM_MAX, goalStatus, goalTimeline, goalVelocity, buildAlerts, suggestCashEvents, cashEventStatus, accountsHub, HUB_GROUPS, HUB_SECTIONS, ACCOUNT_SUBTYPES, accountSubtype, isRetirementMoney, accountActivity, RANGE_PRESETS, rangeFor, shiftRange, HOUSEHOLD, HOUSEHOLD_CATEGORIES, renameCategory, renamedCategory, isPayrollTxn, isTransfer, spendAmount: amt, debtMonthlyInterest, applyDebtPayment, debtBalanceHistory, annualSetAside, annualBillsPlan, billDueIn, weeklyReview, reviewStreak, historyGroups, groupTree, reminderSchedule, matchOptimizer, rothVsTraditional, iraTracker, findRepeating, repeatKey, monthReview, recordNetWorthMonth, hubItems, gainsLosses, itemHistory, milestones, normTag, parseTags, allTags, jobLossRunway, iessUnemployment, loanPayment, cardPayoff, growthValue, monthlyToReach, nextMoves, retirementGap, healthScore, budgetCoach, insuranceCheck, collegePlan, receivedIncome, otherIncome, monthBudget, annualBudget,
         polizaInterest, polizasCapital, maturityStatus, cosedeCheck, projectDPF, balanceAtYear, incomeExpenseSeries,
         monthsElapsed, categorySpend, categoryTarget, spendStatus, budgetVsActualByMonth, filterTransactions, transactionTrend,
         guessDebtKind, debtPayoff, addMonths, goalMonths,

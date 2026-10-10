@@ -22,6 +22,8 @@
         register(map) { Object.assign(actions, map); },
         // Run a registered handler from code (with a stand-in element carrying its data-*).
         run(name, data = {}) { return actions[name] && actions[name]({ dataset: data }); },
+        // …or with a stand-in of your own (a camera photo for a file picker's handler: { files }).
+        runWith(name, el) { return actions[name] && actions[name](el); },
 
         initEvents() {
             // A number field keeps to its own min / max (and to whole numbers when its step is 1)

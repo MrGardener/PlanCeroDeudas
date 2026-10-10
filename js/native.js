@@ -107,11 +107,78 @@
         }).catch(() => { /* the web view copy still works */ });
     }
 
+    // ------------------------------------------------------------ the app's own plugin (DeviceKey)
+    // mobile/android/…/DeviceKeyPlugin.java and mobile/ios/App/App/SceneDelegate.swift.
+    const dk = () => plugin('DeviceKey');
+    // The data key the phone keeps in its secure hardware (Android Keystore / iOS Keychain, this
+    // device only): the plan is saved encrypted with it even without a PIN (js/device.js).
+    const hasDeviceKey = () => !!dk();
+    async function deviceKey() {
+        const p = dk();
+        if (!p) return null;
+        try { const r = await p.getKey(); return (r && r.key) || null; } catch (e) { return null; }
+    }
+    // Fingerprint / Face ID: whether the phone has it, and asking for it. The PIN is kept by the
+    // phone and handed back only after it's verified.
+    const bio = {
+        available: async () => { const p = dk(); if (!p) return false; try { return !!(await p.canVerify()).available; } catch (e) { return false; } },
+        verify: async (opts) => { const p = dk(); if (!p) return false; try { await p.verify(opts || {}); return true; } catch (e) { return false; } },
+        setSecret: async (value) => { const p = dk(); if (p) await p.setSecret({ value: String(value) }); },
+        getSecret: async () => { const p = dk(); if (!p) return null; try { return (await p.getSecret()).value || null; } catch (e) { return null; } },
+        clearSecret: async () => { const p = dk(); if (p) { try { await p.clearSecret(); } catch (e) { /* none */ } } }
+    };
+    async function forgetDevice() { const p = dk(); if (p) { try { await p.clearAll(); } catch (e) { /* none */ } } }
+    // Opened from the home-screen shortcut ("Add expense"): quick entry, through the same #rapido
+    // link a bookmark uses (js/app.js). Asked at start and each time the app comes back.
+    async function takeAction() {
+        const p = dk();
+        if (!p) return;
+        try { const r = await p.takeAction(); if (r && r.action === 'quick') location.hash = '#rapido'; } catch (e) { /* none */ }
+    }
+
+    // A photo straight from the camera (pay stubs, receipts), as a File for the same readers as a
+    // picked file. null when cancelled or not in the app.
+    async function takePhoto() {
+        const cam = plugin('Camera');
+        if (!cam) return null;
+        try {
+            const r = await cam.getPhoto({ source: 'CAMERA', resultType: 'base64', quality: 85, correctOrientation: true, saveToGallery: false });
+            if (!r || !r.base64String) return null;
+            const bin = atob(r.base64String), bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return new File([bytes], 'photo.' + (r.format || 'jpeg'), { type: 'image/' + (r.format || 'jpeg') });
+        } catch (e) { return null; }
+    }
+
+    // Reminders on the phone (no server): bills a day before they're due, the weekly review.
+    // Ids 9000–9999 are this app's; each schedule replaces them.
+    const notifications = {
+        available: () => !!plugin('LocalNotifications'),
+        allow: async () => {
+            const ln = plugin('LocalNotifications');
+            if (!ln) return false;
+            try { const p = await ln.requestPermissions(); return p && p.display === 'granted'; } catch (e) { return false; }
+        },
+        schedule: async (list) => {
+            const ln = plugin('LocalNotifications');
+            if (!ln) return false;
+            try {
+                const pending = await ln.getPending();
+                const ours = ((pending && pending.notifications) || []).filter(n => n.id >= 9000 && n.id < 10000).map(n => ({ id: n.id }));
+                if (ours.length) await ln.cancel({ notifications: ours });
+                if (list.length) await ln.schedule({ notifications: list.slice(0, 60).map((n, i) => ({ id: 9000 + i, title: n.title, body: n.body, schedule: { at: n.at, allowWhileIdle: true } })) });
+                return true;
+            } catch (e) { return false; }
+        }
+    };
+
     if (isApp) {
         const app = plugin('App');
         if (app && app.addListener) app.addListener('backButton', onBack);
-        document.addEventListener('DOMContentLoaded', () => setTimeout(startMirror, 0));
+        document.addEventListener('DOMContentLoaded', () => { setTimeout(startMirror, 0); setTimeout(takeAction, 300); });
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) takeAction(); });
     }
 
-    root.Native = { isApp, saveFile, saveSecure, askPassword, wipe, exit, flush: () => pendingCopy, platform: isApp ? cap.getPlatform() : 'web' };
+    root.Native = { isApp, saveFile, saveSecure, askPassword, wipe, exit, flush: () => pendingCopy, platform: isApp ? cap.getPlatform() : 'web',
+        hasDeviceKey, deviceKey, bio, forgetDevice, takePhoto, notifications };
 })(this);

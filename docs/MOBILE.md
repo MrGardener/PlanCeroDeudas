@@ -27,6 +27,22 @@ js/native.js            the bridge: share sheet for files, back button, native c
 | Cloud backup by Android | — | **off** (`allowBackup="false"`): the data never leaves the phone unless you share a backup |
 | Print buttons, bookmark link | shown | hidden (they don't apply) |
 | Reading a PDF/photo of a pay stub or receipt | downloads pdf.js / Tesseract (exact versions, checked by hash) | inside the app (English and Spanish): never needs internet |
+| The saved plan without a PIN | readable in this browser's storage (a notice asks for a passcode) | **always encrypted** (AES-256-GCM) with a key the phone keeps in its secure hardware (Android Keystore / iOS Keychain, this device only) |
+| Unlocking | type the PIN | the PIN, or **fingerprint / Face ID** (Settings → This device → This phone): the phone keeps the PIN and gives it back only after it confirms it's you |
+| Reminders | — | a bill due tomorrow (9:00) and the weekly review (Sundays 18:00), scheduled on the phone: no server, and **no amounts or names** in the notification |
+| Pay stub / receipt photo | the file picker | also **Take a photo** (the camera); the photo is read and not kept |
+| Quick entry | a bookmark to `#rapido` or the N key | long-press the app icon → **Add expense** |
+| Backup to the cloud | download the encrypted file | **Back up (encrypted)** opens the share sheet: Google Drive, iCloud Drive, Files… The file is encrypted before it leaves the app |
+
+Two apps from the same code: **ZeroDebtPlan** (`com.zerodebtplan.app`, US) and **Plan Financiero**
+(`com.planfinanciero.ecuador`, Ecuador, Spanish). Each run builds both APKs (`ZeroDebtPlan-android-N`,
+`PlanFinanciero-android-N`); they can be on the same phone.
+
+The app's own native code is small and lives in the repository: `DeviceKeyPlugin.java` (Android) and
+the `DeviceKeyPlugin` class in `SceneDelegate.swift` (iOS). Besides Capacitor's official plugins
+(app, filesystem, preferences, share, local notifications, camera) nothing else is added. What it
+can't do: the fingerprint check is the phone's own (the PIN is released by the app after it), not
+a key bound to the fingerprint; and none of it was tried on a real phone in CI — only built.
 
 ## Getting the test app onto the Pixel 10 Pro (no computer setup needed)
 
