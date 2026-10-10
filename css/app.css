@@ -234,6 +234,10 @@ details.group-card[open] > summary .chev { transform: rotate(180deg); }
 .bs-banner.bad { color: #b91c1c; background: #fef2f2; }
 .bs-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
 @media (min-width: 1024px) { #bud-simple:not(.mode-all) .bs-grid { grid-template-columns: 1fr 1fr; } }
+/* A group inside another: a section of its parent's card. */
+.bs-subgroup { margin: .5rem 0 .25rem; padding: .35rem 0 .1rem .6rem; border-left: 3px solid var(--line); }
+.bs-subhead { display: flex; justify-content: space-between; align-items: baseline; font-size: .78rem; font-weight: 800; color: var(--ink-2); padding: .1rem 0 .25rem; }
+.bs-subfoot { padding: .2rem 0 .1rem; font-size: .78rem; }
 .bs-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem; padding: .9rem 1rem .6rem; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); min-width: 0; overflow-x: auto; }
 .bs-unassigned { margin-bottom: 1rem; border-color: #fcd34d; background: #fffbeb; }
 .bs-head, .bs-row { display: grid; grid-template-columns: minmax(0, 1fr) 7.5rem; column-gap: .75rem; align-items: center; }
